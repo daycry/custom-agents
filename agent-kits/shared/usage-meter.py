@@ -734,6 +734,11 @@ def cmd_status(args):
     salida = status(args.state, avisos)
     if avisos:
         salida["avisos"] = avisos
+    raw = _load_json(args.state)
+    if Path(args.state).is_file() and not isinstance(raw, dict):
+        # Fatal (revisión intento 3): con este estado start/close salen con exit 3. Un marcador
+        # corrupto dentro de un objeto legible NO lo es: el fichero sigue siendo escribible.
+        salida["estado_ilegible"] = True
     print(json.dumps(salida, ensure_ascii=False, indent=2))
     return 0
 

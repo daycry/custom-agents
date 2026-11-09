@@ -3274,3 +3274,21 @@ def test_fix2_doctor_avisa_de_usage_state_ilegible_con_arreglo(tmp_path):
     assert "respáldalo" in avisos[0]["arreglo"] and ".bak" in avisos[0]["arreglo"], avisos[0]
     assert "bórralo" in avisos[0]["arreglo"], avisos[0]
 
+
+def test_fix3_doctor_distingue_estado_ilegible_de_marcador_corrupto(tmp_path):
+    """Revisión intento 3 (B5): solo el estado ilegible es fatal; un marcador corrupto descartado
+    deja el fichero escribible: se propone respaldar y reparar (nunca borrar) y los huérfanos siguen."""
+    claude = tmp_path / ".claude"
+    claude.mkdir()
+    estado = claude / "usage-state.json"
+    estado.write_text(json.dumps({"roto": 5, "vivo": {"version": 2, "inicio": "2026-11-09T00:00:00Z",
+                                                       "offsets": {}}}), encoding="utf-8")
+    lineas = doctor._marcadores(ROOT, str(tmp_path))
+    corruptos = [l for l in lineas if l["estado"] == doctor.AVISO and "corrupto" in l["detalle"]]
+    assert corruptos and "ilegible" not in corruptos[0]["detalle"], lineas
+    assert "bórralo" not in corruptos[0]["arreglo"] and "repara" in corruptos[0]["arreglo"], corruptos[0]
+    assert any(l["que"] == "marcador huérfano" and "vivo" in l["detalle"] for l in lineas), lineas
+    estado.write_text("{ roto", encoding="utf-8")
+    fatal = [l for l in doctor._marcadores(ROOT, str(tmp_path)) if l["estado"] == doctor.AVISO]
+    assert fatal and "ilegible" in fatal[0]["detalle"] and "respáldalo" in fatal[0]["arreglo"], fatal
+

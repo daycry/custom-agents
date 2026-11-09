@@ -1501,13 +1501,20 @@ def _marcadores(plugin_root, project):
     d = None
     if os.path.isfile(script):
         d = _json_de(_correr([sys.executable, script, "status", "--state", state])[0])
-    if d is not None and d.get("avisos"):
-        # Revisión intento 2: estado ilegible → start/close salen con exit 3 sin medir.
+    previas = []
+    if d is not None and d.get("estado_ilegible"):
+        # Fatal (revisión intento 2-3): start/close salen con exit 3 sin medir.
         return [linea(AVISO, "marcadores de medición",
-                      f"`usage-state.json` ilegible ({'; '.join(map(str, d['avisos']))[:200]}): "
+                      f"`usage-state.json` ilegible ({'; '.join(map(str, d.get('avisos') or []))[:200]}): "
                       "`usage-meter.py start/close` no escriben y la medición degrada a estimada",
-                      f"respáldalo (`{state}.bak`) y bórralo: es ESTADO, no config — los siguientes "
-                      "`usage-meter.py start` lo recrean")]
+                      f"respáldalo (`{state}.bak`) y repáralo a mano; solo si no se puede recuperar, "
+                      "bórralo (es ESTADO, no config: los siguientes `usage-meter.py start` lo recrean)")]
+    if d is not None and d.get("avisos"):
+        # No fatal: marcadores corruptos descartados; el resto del estado es válido y escribible.
+        previas.append(linea(AVISO, "marcadores de medición",
+                             f"marcador corrupto en `usage-state.json`: {'; '.join(map(str, d['avisos']))[:200]}",
+                             f"respáldalo (`{state}.bak`) y repara o quita solo esa entrada; "
+                             "conserva los demás marcadores (no borres el fichero)"))
     if d is None:                       # degradación: leer el estado directamente
         crudo, err = _leer_json(state)
         if err:
@@ -1517,10 +1524,10 @@ def _marcadores(plugin_root, project):
                             for k, v in (crudo or {}).items()]}
     abiertos = [m for m in d.get("marcadores", []) if not m.get("cerrado")]
     if not d.get("marcadores"):
-        return [linea(INFO, "marcadores de medición", "sin marcadores abiertos ni cerrados")]
+        return previas or [linea(INFO, "marcadores de medición", "sin marcadores abiertos ni cerrados")]
     if not abiertos:
-        return [linea(OK, "marcadores de medición", f"{len(d['marcadores'])} marcador(es), todos cerrados")]
-    out = []
+        return previas or [linea(OK, "marcadores de medición", f"{len(d['marcadores'])} marcador(es), todos cerrados")]
+    out = list(previas)
     for m in abiertos:
         edad = m.get("horas_desde_inicio")
         det = f"`{m.get('artefacto')}` abierto" + (f" desde hace {edad} h" if edad is not None else "")

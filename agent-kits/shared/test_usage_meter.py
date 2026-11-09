@@ -1201,3 +1201,15 @@ def test_procedencia_cobertura_parcial_con_usage_no_numerico(entorno):
     malo["message"]["usage"]["input_tokens"] = "muchos"
     res = _start_close(tdir, state, antes=[], despues=[_rec("m1", inp=10, out=5), json.dumps(malo)])
     assert res["fuente"] == "medido" and res["tokens_cobertura"] == "parcial"
+
+
+def test_fix3_status_marca_solo_el_estado_ilegible_como_fatal(entorno):
+    """Revisión intento 3 (B5): `status` distingue ilegible (start/close salen con 3) de marcador corrupto."""
+    _, _tdir, state = entorno
+    state.write_text("{ roto", encoding="utf-8")
+    rc, res = _run(None, ["status", "--state", str(state)])
+    assert rc == 0 and res.get("estado_ilegible") is True, res
+    state.write_text(json.dumps({"roto": 5}), encoding="utf-8")
+    rc, res = _run(None, ["status", "--state", str(state)])
+    assert rc == 0 and not res.get("estado_ilegible") and res.get("avisos"), res
+

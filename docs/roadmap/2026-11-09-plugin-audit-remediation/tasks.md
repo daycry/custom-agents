@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 3 | 6 | 50.0% |
+| Fase 1 | 4 | 6 | 66.7% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **3** | **21** | **14.3%** |
+| **TOTAL** | **4** | **21** | **19.0%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -28,7 +28,7 @@ changelog: Fixed
 
 ### T-01 — worklog sin pérdida de datos
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-1 y H-2. Un estado ilegible o con BOM no se trata como vacío ni se sobrescribe; escritura atómica; fecha futura y horas negativas rechazadas.
 - **Archivos**: `skills/jira-sync/scripts/worklog.py`, `tests/test_worklog.py`, `agent-kits/shared/usage-meter.py`, `agent-kits/shared/test_usage_meter.py` (añadidos en la revisión intento 1, gap 3: mismo defecto de estado ilegible tratado como vacío), `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py`, `docs/agents/CONTRACTS.md` (revisión intento 2: ⚠️ de `/doctor` y contrato E7).
 - **Verificación**: `python -m pytest -q tests/test_worklog.py` → todos pasan, con casos de BOM, JSON corrupto, fecha futura y horas negativas.
@@ -54,6 +54,11 @@ GREEN fix1: `pytest tests/test_worklog.py` → `11 passed` (nan/inf, 7 formas de
 RED: `tests/test_worklog.py -k fix2 + agent-kits/shared/test_doctor.py -k fix2` falló con fix2: 4 failed: tasks internos y numeros de config invalidos aceptados o con traceback, CONTRACTS.md promete exit 0 siempre, doctor ignora el aviso de usage-state ilegible · 2026-11-09.
 
 GREEN fix2: `pytest tests/test_worklog.py` → `14 passed` (campos internos de `tasks` y números de `rates.json`/`jira.json` validados → exit 2; fila E7 de CONTRACTS con exit 3); `pytest agent-kits/shared/test_doctor.py` → `230 passed, 1 skipped` + el test nuevo en verde tras ajustar su aserción (`17 passed` con `-k "fix2 or marcador"`); `test_jira_flow.py` → `74 passed`. `doctor.py`/`usage-meter.py` sin huella `sha256_lf` · 2026-11-09.
+
+
+RED: `test_doctor.py::test_fix3_doctor_distingue_estado_ilegible_de_marcador_corrupto + test_usage_meter.py::test_fix3_status_marca_solo_el_estado_ilegible_como_fatal` falló con fix3: 2 failed: un marcador corrupto descartado se presentaba como estado ilegible con arreglo de borrar y sin huerfanos; status no distingue el aviso fatal · 2026-11-09.
+
+GREEN fix3: `pytest agent-kits/shared/test_doctor.py` → `232 passed, 1 skipped` (solo `estado_ilegible` es fatal; un marcador corrupto da ⚠️ «respáldalo y repara solo esa entrada», sin proponer borrar, y los huérfanos siguen saliendo); `pytest agent-kits/shared/test_usage_meter.py` → `81 passed` (`status` publica `estado_ilegible: true` solo con estado ilegible) · 2026-11-09.
 
 ### T-02 — qa-gate sin falso verde
 
@@ -118,6 +123,9 @@ GREEN fix1: `node --test tests/installer.test.mjs` → `pass 184 · fail 0` (uni
 RED: `installer.test.mjs C8 + codex-plugin-state.test.mjs NoDefaultCurrentDirectoryInExePath` falló con fix2: 3 fail: correr y runCodexQuery lanzan sin NoDefaultCurrentDirectoryInExePath (con el entorno limpio cmd.exe resolveria node.bat del proyecto); run-hook no lo fija · 2026-11-09.
 
 GREEN fix2: `node --test tests/codex-plugin-state.test.mjs` → `pass 9 · fail 0` (con `node.bat` plantado en el cwd del proyecto y el shim llamando a `node` pelado, se ejecuta el node real); `node --test tests/installer.test.mjs` → `pass 184 · fail 1`: el que falla es «gap 8: una CLI colgada…» por tiempo (30906 ms frente al tope de 30000 ms con la máquina cargada); solo pasa en 15393 ms; el test C8 nuevo pasa. `node --test tests/hook-runtime.test.mjs` → `pass 25`; `export-interop.py` → sin cambios de contenido · 2026-11-09.
+
+
+RED: `tests/codex-plugin-state.test.mjs: run-hook candidates ignore relative PATH entries` falló con fix3: 1 fail: candidates() de run-hook acepta entradas relativas del PATH (sin filtro de absolutas) · 2026-11-09.
 
 ### T-04 — Graphiti sin proxy
 
