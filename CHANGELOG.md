@@ -11,6 +11,15 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Fixed — plugin audit remediation, phase 1: security and data loss (2026-11-09)
+
+- The Jira worklog no longer loses the hour bank: a state file with a BOM is read, an unreadable one stops the run without writing, saves are atomic, and future dates or negative hours are rejected.
+- The QA gate no longer turns green when every test was skipped; a `results.json` with a BOM or an unexpected shape now gets a clear red verdict instead of a traceback.
+- The `npx` installer no longer runs a `claude`/`codex` launcher planted in the current directory, stops a provider instead of rewriting an unreadable JSON file it has to merge, uninstalls the remaining providers when one manifest cannot be verified, accepts a linked HOME or dotfiles while still rejecting links inside the project with a dedicated error, copies the same files from a clone as the npm package, and warns when it writes an absolute path into shareable project configuration.
+- Graphiti traffic, which only targets local or private hosts, no longer goes through `HTTP(S)_PROXY` or the system proxy.
+- Implementation is always dispatched to the native `implementer` identity, also in the `lite` profile and with fresh subagents, so its native guardrail applies.
+- The gates fail closed: when the diff cannot be evaluated in `auto` mode the security and performance lenses are enabled, and the implementer guardrail now denies `git reset --hard`, forced `git clean`, deleting remote branches and `git stash drop|clear`.
+
 ## [3.2.3] - 2026-11-09
 
 ### Fixed — plugin root resolution and doctor (2026-11-09)

@@ -11,6 +11,15 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Fixed — corrección de la auditoría del plugin, fase 1: seguridad y pérdida de datos (2026-11-09)
+
+- El worklog de Jira ya no pierde el banco de horas: un estado con BOM se lee, uno ilegible detiene la ejecución sin escribir, el guardado es atómico y se rechazan fechas futuras y horas negativas.
+- La puerta de QA ya no da verde cuando todos los tests se saltaron; un `results.json` con BOM o con forma inesperada recibe un rojo claro en vez de un traceback.
+- El instalador `npx` ya no ejecuta un lanzador `claude`/`codex` plantado en el directorio actual, detiene el proveedor en vez de reescribir un JSON ilegible que debe fusionar, desinstala los demás proveedores cuando un manifiesto no se puede verificar, acepta un HOME o unos dotfiles enlazados sin dejar de rechazar los enlaces dentro del proyecto con un error propio, copia desde un clon los mismos ficheros que el paquete npm y avisa cuando escribe una ruta absoluta en configuración de proyecto que se puede compartir.
+- El tráfico a Graphiti, que solo va a hosts locales o privados, ya no pasa por `HTTP(S)_PROXY` ni por el proxy del sistema.
+- La implementación se despacha siempre a la identidad nativa `implementer`, también en el perfil `lite` y con subagentes frescos, para que su guardia nativa aplique.
+- Las puertas fallan cerradas: si en modo `auto` no se puede evaluar el diff se activan las lentes de seguridad y rendimiento, y la guardia del implementer deniega `git reset --hard`, `git clean` forzado, borrar ramas remotas y `git stash drop|clear`.
+
 ## [3.2.3] - 2026-11-09
 
 ### Fixed — resolución de la raíz del plugin y doctor (2026-11-09)
