@@ -30,11 +30,40 @@ const normalized=path=>{
 export function manifestContext(provider,scope,dir,path) {
   return {provider,scope,project:scope==='project'?normalized(dir):null,manifest:normalized(path)}
 }
+// Trust anchors (audit H-11): directories the user chose or owns as layout -- HOME, the runtime
+// config roots (often dotfile links) and the project --dir. Links at an anchor or above it are
+// the user's own layout and are resolved by the OS; only segments BELOW the deepest anchor (the
+// ones the installer creates, writes or deletes) must be real directories/files.
+let extraAnchors=[]
+export function setTrustAnchors(paths) {
+  extraAnchors=(paths||[]).filter(path=>typeof path==='string' && path).map(path=>physicalSystemPath(path))
+}
+const comparable=path=>{
+  const trimmed=path.length>1 ? path.replace(/[\\/]+$/,'') : path
+  return process.platform==='win32' ? trimmed.toLowerCase() : trimmed
+}
+function deepestAnchor(path) {
+  const target=comparable(path)
+  let best=null
+  for(const anchor of [physicalSystemPath(homedir()),...extraAnchors]) {
+    const base=comparable(anchor)
+    if(target!==base && !target.startsWith(base.endsWith(sep) ? base : base+sep))continue
+    if(best===null || base.length>best.length)best=base
+  }
+  return best
+}
+const linked=segment=>{
+  const error=new Error(`linked path segment not created by the installer: ${segment} -- replace the link with a real directory (or choose a --dir outside it); nothing was written through it`)
+  error.code='LINKED_PATH';throw error
+}
 export function regularPath(path,{file=false}={}) {
   let current=physicalSystemPath(path),leaf=true
+  const anchor=deepestAnchor(current)
   while(true) {
+    if(anchor!==null && comparable(current)===anchor)break
     let state
     try {state=lstatSync(current)} catch(error) {if(error.code!=='ENOENT')throw error}
+    if(state && !leaf && state.isSymbolicLink())linked(current)
     if(state && (state.isSymbolicLink() || (leaf && file ? !state.isFile() || state.nlink!==1 : !state.isDirectory())))fail()
     const parent=dirname(current)
     if(parent===current)break

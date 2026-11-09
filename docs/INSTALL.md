@@ -61,6 +61,16 @@ lista exacta de ficheros escritos, para que `uninstall` no toque nada más. Hay 
 en `project` los dos escriben en `<proyecto>/.claude`: `.custom-agents-install.plugin.json` (modo
 plugin, el de por defecto) y `.custom-agents-install.json` (`--mode copy`). Requiere Node 18+ y no instala dependencias.
 
+Límites de seguridad: las CLI (`claude`, `codex`) se buscan solo en las entradas **absolutas** del
+PATH, nunca en el directorio actual. Un JSON ilegible que el instalador tenga que fusionar detiene
+ese proveedor sin reescribir el fichero. `uninstall` aísla cada proveedor: un manifiesto no
+verificable de uno no impide desinstalar los demás (el exit es 1). Los enlaces de tu disposición
+(HOME, dotfiles como `~/.claude`, la propia `--dir`) se aceptan; un enlace en lo que crea o borra
+el instalador se rechaza con `linked path segment not created by the installer`. Desde un clon se
+copian los mismos ficheros que el paquete npm (sin `test_*.py` ni cachés). Si se escribe una ruta
+absoluta en configuración de proyecto que se puede compartir (`--source` local sin CLI, Codex en
+scope `project`), el resumen lo avisa.
+
 **En Claude Code instala el plugin de verdad**, no copia el bundle: usa `claude plugin marketplace
 add` + `claude plugin install` si tienes la CLI en el PATH y, si no, escribe el mismo registro que
 ella (`plugins/installed_plugins.json` y `enabledPlugins`). Eso es lo que hace que haya hooks,

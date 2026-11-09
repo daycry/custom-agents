@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 5 | 6 | 83.3% |
+| Fase 1 | 6 | 6 | 100.0% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **5** | **21** | **23.8%** |
+| **TOTAL** | **6** | **21** | **28.6%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -65,17 +65,24 @@ GREEN: `python -m pytest -q tests/test_qa_gate.py` → `6 passed in 4.63s` (skip
 
 ### T-03 — Instalador robusto en Windows y con configuración ajena
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: H-4, H-9, H-10, H-11, H-13 y menores del instalador. Buscar las CLI sin el directorio actual; `merge` con lectura estricta; `uninstall` aislado por proveedor; enlaces solo prohibidos en lo que crea el instalador; aviso de rutas absolutas en configuración compartida; misma exclusión de tests desde un clon que en npm.
 - **Archivos**: `install/install.mjs`, `install/providers.mjs`, `install/manifest-auth.mjs`, `tests/installer.test.mjs`, `tests/install-auth.test.mjs`, `docs/INSTALL.md`, `docs/en/INSTALL.md`.
 - **Verificación**: `node --test tests/installer.test.mjs tests/install-auth.test.mjs` → 0 fail, con casos nuevos para `.cmd` plantado, JSON ilegible en `merge`, manifiesto no verificable en `uninstall` y HOME bajo un enlace.
+- **Changelog**: El instalador ya no ejecuta lanzadores plantados en el directorio actual, no reescribe JSON ilegibles, desinstala cada proveedor por separado, acepta HOME o dotfiles enlazados y avisa de rutas absolutas en configuración compartida.
+- **Cerrada**: 2026-11-09
 
 **Criterios de aceptación**
-- [ ] Un `claude.cmd`/`codex.cmd` en el cwd no se ejecuta.
-- [ ] `merge` sobre JSON ilegible falla sin escribir.
-- [ ] Un manifiesto no verificable no impide desinstalar los demás proveedores.
-- [ ] Un ancestro enlazado (HOME, dotfiles) no bloquea la instalación.
-- [ ] Desde un clon no se copian tests ni `.pytest_cache`.
+- [x] Un `claude.cmd`/`codex.cmd` en el cwd no se ejecuta.
+- [x] `merge` sobre JSON ilegible falla sin escribir.
+- [x] Un manifiesto no verificable no impide desinstalar los demás proveedores.
+- [x] Un ancestro enlazado (HOME, dotfiles) no bloquea la instalación.
+- [x] Desde un clon no se copian tests ni `.pytest_cache`.
+
+
+RED: `tests/installer.test.mjs --test-name-pattern=auditor (7 casos) + tests/install-auth.test.mjs (2 casos H-11)` falló con 7 fail: .cmd del cwd resuelto por where.exe, merge reescribe marketplace.json ilegible con exit 0, uninstall aborta OpenCode por manifiesto de Claude, HOME/dotfile enlazado da unverified manifest, enlace en proyecto sin error propio, ficherosDe copia test_*.py, sin aviso de ruta absoluta · 2026-11-09.
+
+GREEN: `node --test tests/installer.test.mjs` → `tests 182 · pass 182 · fail 0` (7 casos nuevos de auditoría incl. `.cmd` plantado, merge sobre marketplace.json ilegible, uninstall aislado, HOME y dotfile enlazados, enlace en proyecto → `linked path`, exclusión de tests/cachés, aviso de ruta absoluta); `node --test tests/install-auth.test.mjs` → `pass 7 · fail 0`; `node --test tests/codex-native-install.test.mjs` → `pass 11 · fail 0`. Decisión: anclas de confianza (HOME, raíces de config de cada runtime, paquete y `--dir`); por debajo del ancla más profunda un enlace da `LINKED_PATH` · 2026-11-09.
 
 ### T-04 — Graphiti sin proxy
 
