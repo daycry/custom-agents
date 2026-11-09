@@ -192,3 +192,17 @@ def test_fix2_sin_ningun_passed_no_es_flaky_ni_se_justifica():
     data = json.loads(out)
     assert code == 1 and data["verdict"] == "NO-VERDE", data
     assert data["counts"]["flaky"] == 0 and data["counts"]["failed"] == 1, data
+
+
+def test_fix3_flaky_es_el_resultado_esperado_tras_un_fallo():
+    """Revisión intento 3 (B10): con test.fail() (expectedStatus failed), `[timedOut, failed]` es
+    flaky (obtuvo lo esperado al reintentar), no unexpected; `[failed, skipped]` sigue sin serlo."""
+    code, out = run(results([("falla a propósito", ["timedOut", "failed"], "failed")]))
+    data = json.loads(out)
+    assert data["counts"]["flaky"] == 1 and data["counts"]["failed"] == 0, data
+    code, out = run(results([("falla a propósito", ["timedOut", "failed"], "failed")]),
+                    justify={"falla a propósito": "timeout conocido QA-9"})
+    assert code == 0, out
+    code, out = run(results([("nunca pasa", ["failed", "skipped"], "skipped")]),
+                    justify={"nunca pasa": "x"})
+    assert code == 1 and json.loads(out)["counts"]["flaky"] == 0, out

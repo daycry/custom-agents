@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 2 | 6 | 33.3% |
+| Fase 1 | 3 | 6 | 50.0% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **2** | **21** | **9.5%** |
+| **TOTAL** | **3** | **21** | **14.3%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -57,7 +57,7 @@ GREEN fix2: `pytest tests/test_worklog.py` → `14 passed` (campos internos de `
 
 ### T-02 — qa-gate sin falso verde
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-3 y menor C4. Un test con `expectedStatus: "skipped"` no cuenta como pasado; BOM y raíz no objeto dan veredicto, no traceback.
 - **Archivos**: `agent-kits/qa/qa-gate.py`, `tests/test_qa_gate.py`.
 - **Verificación**: `python -m pytest -q tests/test_qa_gate.py` → todos pasan, con los casos nuevos.
@@ -82,6 +82,11 @@ GREEN fix1: `pytest tests/test_qa_gate.py` → `7 passed in 4.83s` (la rama skip
 RED: `tests/test_qa_gate.py::test_fix2_sin_ningun_passed_no_es_flaky_ni_se_justifica` falló con fix2: [failed, skipped] con expectedStatus skipped contado flaky y justificado -> VERDE sin haber pasado nunca · 2026-11-09.
 
 GREEN fix2: `pytest tests/test_qa_gate.py` → `8 passed` (flaky exige al menos un `passed`); `python tests/test_qa_gate.py` → `13/13 OK` · 2026-11-09.
+
+
+RED: `tests/test_qa_gate.py::test_fix3_flaky_es_el_resultado_esperado_tras_un_fallo` falló con fix3: [timedOut, failed] con expectedStatus failed contado unexpected (flaky exigia el literal passed) · 2026-11-09.
+
+GREEN fix3: `pytest tests/test_qa_gate.py` → `9 passed` (flaky = resultado esperado tras un fallo; `[timedOut, failed]` con test.fail() es flaky justificable; `[failed, skipped]` sigue siendo fallo); `python tests/test_qa_gate.py` → `13/13 OK` · 2026-11-09.
 
 ### T-03 — Instalador robusto en Windows y con configuración ajena
 
