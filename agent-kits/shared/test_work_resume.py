@@ -528,6 +528,14 @@ def _journal_cli(root, *args):
                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
 
 
+def _entrada_journal(root):
+    """La única entrada escrita (el directorio también trae el README del journal; el orden de
+    `glob` depende del sistema de ficheros)."""
+    entradas = [p for p in (root / "docs/knowledge/journal").glob("*.md") if p.name != "README.md"]
+    assert len(entradas) == 1, entradas
+    return entradas[0].read_text(encoding="utf-8")
+
+
 def test_fix1_b1_escritor_y_lector_del_journal_eligen_la_misma_iniciativa(tmp_path, capsys):
     """B1: el escritor etiquetaba con la primera activa alfabética y el lector con la en curso."""
     import os
@@ -543,7 +551,7 @@ def test_fix1_b1_escritor_y_lector_del_journal_eligen_la_misma_iniciativa(tmp_pa
     result = _journal_cli(tmp_path, "write", "--session-id", "s-b1", "--reason", "clear", "--ia", "off",
                           "--enrich", str(enrich))
     assert result.returncode == 0, result.stderr
-    escrita = next((tmp_path / "docs/knowledge/journal").glob("*.md")).read_text(encoding="utf-8")
+    escrita = _entrada_journal(tmp_path)
     assert 'iniciativa: "gamma"' in escrita, escrita[:400]
     assert pr.main(["resume", "--root", str(tmp_path), "--history-only"]) == 0
     assert "s-b1" in capsys.readouterr().out
@@ -557,7 +565,7 @@ def test_fix1_b1_marcador_abierto_manda_en_escritor_y_lector(tmp_path):
     state.write_text(json.dumps({"beta/T-01": {"inicio": "2026-10-09T10:00:00Z"}}), encoding="utf-8")
     assert pr.iniciativa_vigente(tmp_path) == "beta"
     assert _journal_cli(tmp_path, "write", "--session-id", "s-mk", "--reason", "clear", "--ia", "off").returncode == 0
-    escrita = next((tmp_path / "docs/knowledge/journal").glob("*.md")).read_text(encoding="utf-8")
+    escrita = _entrada_journal(tmp_path)
     assert 'iniciativa: "beta"' in escrita
 
 
