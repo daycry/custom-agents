@@ -465,7 +465,8 @@ def _owned_history(proj, name, initiative, summary):
     path = proj / 'docs' / 'knowledge' / 'journal' / name
     path.parent.mkdir(parents=True, exist_ok=True)
     data = {'fecha': '2026-10-09', 'session_id': name, 'iniciativa': initiative,
-            'resumen': summary, 'fuente': 'manual', 'cierre': 'materializado'}
+            'resumen': summary, 'fuente': 'manual', 'cierre': 'materializado',
+            'regla_iniciativa': 'vigente'}   # fix2 B-M4: como las escribe el escritor real
     path.write_text('---\n' + '\n'.join(k + ': ' + json.dumps(v) for k, v in data.items())
                     + '\n---\n', encoding='utf8')
 

@@ -318,39 +318,88 @@ def resumir_cabecera(path, text):
             "en_curso": None, "en_progreso": [], "ia_real_h": None, "ia_fuente": None, "ia_real_fmt": None}
 
 
+_LEDGER_MAX = 256 * 1024
+_SNAPSHOT_MEMO = {}
+
+
+def _estado_de(text):
+    """Estado del ledger en un prefijo: frontmatter o, si no lo trae, la fila `| **Estado** |` de la
+    tabla de cabecera (plantilla del planner, fix2 B-I1). None si el prefijo no lo trae."""
+    parsed = parse_ledger(text)
+    fm = parsed["frontmatter"].get("estado")
+    return norm_estado(fm) if fm else parsed["estado_tabla"]
+
+
+def _resumen_acotado(reader, root, relative, absoluta):
+    """Resumen de UN ledger con el lector acotado: 16 KiB para saber si está activo y, solo si lo
+    está (o el estado no cabe en ese prefijo), hasta 256 KiB para el resumen exacto (tareas en curso
+    incluidas). Por encima de 256 KiB, la cabecera. None si no se puede leer o no se sabe su estado."""
+    read = reader.read_text(root, relative, max_bytes=_CABECERA_BYTES, prefix=True)
+    if read["status"] != "ok":
+        return None
+    try:
+        if not read.get("truncated"):
+            return resumir(absoluta, text=read["text"])
+        estado = _estado_de(read["text"])
+        if estado not in (None, "en-progreso"):
+            return {"slug": slug_de(absoluta, {}), "path": absoluta, "estado": estado}
+        read = reader.read_text(root, relative, max_bytes=_LEDGER_MAX, prefix=True)
+        if read["status"] != "ok":
+            return None
+        if not read.get("truncated"):
+            return resumir(absoluta, text=read["text"])
+        estado = _estado_de(read["text"])
+        if estado is None:
+            return None
+        r = resumir_cabecera(absoluta, read["text"]) or {
+            "slug": slug_de(absoluta, {}), "path": absoluta, "completadas": 0, "total": None, "pct": 0,
+            "fase": None, "en_curso": None, "en_progreso": [], "ia_real_h": None, "ia_fuente": None,
+            "ia_real_fmt": None}
+        r["estado"] = estado
+        return r
+    except ValueError as e:
+        print(f"⚠️  progress-report: {absoluta}: {e} (saltado)", file=sys.stderr)   # como `activas()`
+        return None
+    except (TypeError, KeyError, OverflowError, RecursionError):
+        return None
+
+
 def activas_acotadas(root):
-    """Iniciativas `en-progreso` leídas con el lector acotado (sin enlaces, sin leer más de
-    `_CABECERA_BYTES` de los ledgers grandes, resueltos por su cabecera). Para elegir la iniciativa
-    vigente sin un escaneo completo sin tope (C2)."""
+    """INSTANTÁNEA única de las iniciativas `en-progreso` (fix2 B-M3): la usan el escritor del journal,
+    el historial del arranque, el bloque `session` y `active --json` (memoria y statusline).
+
+    Lector acotado (sin enlaces): 16 KiB por ledger para saber su estado (frontmatter o tabla de
+    cabecera) y hasta 256 KiB solo para los activos. Mira las 128 carpetas más recientes por nombre
+    (`list_names(newest_first=True)`); una iniciativa activa más antigua queda fuera (tope documentado
+    en docs/WORK-RESUME.md). Memo por proceso mientras no cambie la firma (mtime, tamaño) de ningún
+    ledger. Devuelve la lista en orden de carpeta ascendente."""
     reader = _load_module("vigente_local_read", "local-read.py")
-    listing = reader.list_names(root, "docs/roadmap", max_entries=_RESUME_SCAN, scan_limit=4096,
-                                newest_first=True)
+    listing = reader.list_names(root, "docs/roadmap", max_entries=_RESUME_SCAN, newest_first=True)
     if listing["status"] not in ("ok", "incomplete"):
         return []
+    carpetas = sorted(f for f in listing["names"] if _initiative_name(f))
+    firma = []
+    for folder in carpetas:
+        try:
+            info = os.lstat(os.path.join(str(root), "docs", "roadmap", folder, "tasks.md"))
+            firma.append((folder, info.st_mtime_ns, info.st_size))
+        except OSError:
+            firma.append((folder, None, None))
+    clave = (os.path.abspath(str(root)), tuple(firma))
+    memo = _SNAPSHOT_MEMO.get(clave[0])
+    if memo is not None and memo[0] == clave[1]:
+        return [dict(r) for r in memo[1]]
     out = []
-    for folder in listing["names"]:
-        if not _initiative_name(folder):
-            continue
-        relative = "docs/roadmap/" + folder + "/tasks.md"
-        read = reader.read_text(root, relative, max_bytes=_CABECERA_BYTES, prefix=True)
-        if read["status"] != "ok":
+    for folder, mtime_ns, _size in firma:
+        if mtime_ns is None:
             continue
         absoluta = os.path.join(str(root), "docs", "roadmap", folder, "tasks.md")
-        try:
-            r = (resumir_cabecera(absoluta, read["text"]) if read.get("truncated")
-                 else resumir(absoluta, text=read["text"]))
-            if r is None:
-                # Sin tabla de resumen en la cabecera: su estado sí se conoce; el avance, no
-                # (`total: None` cuenta como pendiente, nunca como «al 100 %»).
-                fm = parse_ledger(read["text"])["frontmatter"]
-                if fm.get("estado"):
-                    r = {"slug": slug_de(absoluta, fm), "path": absoluta, "estado": norm_estado(fm["estado"]),
-                         "completadas": 0, "total": None}
-        except (ValueError, TypeError, KeyError, OverflowError, RecursionError):
-            r = None
-        if r and r["estado"] == "en-progreso":
+        r = _resumen_acotado(reader, root, "docs/roadmap/" + folder + "/tasks.md", absoluta)
+        if r and r.get("estado") == "en-progreso":
             out.append(r)
-    return out
+    _SNAPSHOT_MEMO.clear()
+    _SNAPSHOT_MEMO[clave[0]] = (clave[1], out)
+    return [dict(r) for r in out]
 
 
 def _lstat_mtime(path):
@@ -358,13 +407,37 @@ def _lstat_mtime(path):
 
 
 def vigente_entre(rs, estado, mtime=os.path.getmtime):
-    """Regla ÚNICA de «la iniciativa en curso» (escritor y lector del journal, bloque de sesión y
-    memoria): entre las activas que aún tienen tareas pendientes —las que están al 100 % solo si no
-    hay otra—, `iniciativa_en_curso` (marcador abierto o ledger más reciente)."""
+    """Regla ÚNICA de «la iniciativa en curso» (escritor y lector del journal, bloque de sesión,
+    memoria y statusline), fix2 B-I2: (a) la del marcador abierto del usage-meter más reciente, aunque
+    esté al 100 % (su retro o su QA); (b) si no hay, la pendiente con el ledger más reciente; (c) si
+    todas están al 100 %, la más reciente. Empates por nombre (determinista)."""
     if not rs:
         return None
-    pendientes = [r for r in rs if r["total"] is None or r["completadas"] < r["total"]] or rs
-    return pendientes[0]["slug"] if len(pendientes) == 1 else iniciativa_en_curso(pendientes, estado, mtime)
+    por_slug = {r["slug"]: r for r in rs}
+    abiertos = []
+    if isinstance(estado, dict):
+        for clave, m in estado.items():
+            if isinstance(m, dict) and "ultimoCierre" not in m:
+                slug = _slug_de_clave(clave)
+                if slug in por_slug:
+                    abiertos.append((str(m.get("inicio") or ""), slug))
+    if abiertos:
+        return max(abiertos)[1]
+
+    def _t(r):
+        try:
+            return mtime(r["path"])
+        except OSError:
+            return 0
+    pendientes = [r for r in rs if r.get("total") is None or r["completadas"] < r["total"]] or rs
+    return max(pendientes, key=lambda r: (_t(r), r["slug"]))["slug"]
+
+
+def _proyecto_de(roadmap):
+    absoluto = os.path.abspath(str(roadmap))
+    if os.path.basename(absoluto) == "roadmap" and os.path.basename(os.path.dirname(absoluto)) == "docs":
+        return os.path.dirname(os.path.dirname(absoluto))
+    return None
 
 
 def iniciativa_vigente(root):
@@ -718,7 +791,7 @@ def resume(root, *, initiative=None, session_id=None, runtime=None, entry=None, 
         slug = _history_initiative(root)
         if slug is None:
             return finish(status, candidates=candidates, issues=issues)
-        selected_history = journal.select_entries(root, initiative=slug, runtime=runtime)
+        selected_history = journal.select_entries(root, initiative=slug, runtime=runtime, require_rule=True)
         return finish(selected_history["status"] if selected_history["complete"] else "incomplete",
                       history=selected_history["entries"], issues=selected_history["issues"])
     if summary is None:
@@ -728,8 +801,10 @@ def resume(root, *, initiative=None, session_id=None, runtime=None, entry=None, 
     curation = ({'status': 'unselected', 'references': []} if _history_only
                 else _resume_curation(root, ledger_text))
     reviews = None if _history_only else _resume_reviews(root, summary['path'])
+    # fix2 B-M4: el arranque (`--history-only`) solo atribuye entradas etiquetadas con la regla vigente
     selected_history = selected_history or journal.select_entries(root, initiative=summary["slug"],
-                                                                  session_id=session_id, runtime=runtime, entry=entry)
+                                                                  session_id=session_id, runtime=runtime, entry=entry,
+                                                                  **({"require_rule": True} if _history_only else {}))
     history_status = selected_history["status"]
     issues.extend(selected_history["issues"])
     history_absent = history_status in ("empty", "not_found")
@@ -835,13 +910,17 @@ def cmd_line(args):
 
 
 def cmd_active(args):
-    rs = activas(args.root)
+    proyecto = _proyecto_de(args.root)
+    # fix2 B-M3: la misma instantánea acotada que el journal y el arranque (un `--root` que no es
+    # `<proyecto>/docs/roadmap` conserva el escaneo histórico)
+    rs = activas_acotadas(proyecto) if proyecto else activas(args.root)
     if args.json:
         for r in rs:
             r["linea"] = linea(r)
         salida = {"activas": rs}
         if len(rs) > 1:   # con una sola activa la salida es idéntica a la de siempre
-            salida["iniciativa_en_curso"] = vigente_entre(rs, _leer_usage_state(args.root))
+            salida["iniciativa_en_curso"] = vigente_entre(rs, _leer_usage_state(args.root),
+                                                          mtime=_lstat_mtime if proyecto else os.path.getmtime)
         print(json.dumps(salida, ensure_ascii=False))
         return 0
     if not rs:
@@ -853,8 +932,7 @@ def cmd_active(args):
 
 
 def cmd_session(args):
-    root = os.path.join(args.root, "docs", "roadmap")
-    rs = activas(root)
+    rs = activas_acotadas(args.root)   # fix2 B-M3: misma instantánea acotada que el journal
     if not rs:
         print(LINEA_NEUTRA)
         return 0

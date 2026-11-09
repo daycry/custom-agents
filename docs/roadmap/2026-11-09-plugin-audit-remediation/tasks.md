@@ -17,10 +17,10 @@ changelog: Fixed
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
-| Fase 2 | 5 | 6 | 83.3% |
+| Fase 2 | 6 | 6 | 100.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **11** | **21** | **52.4%** |
+| **TOTAL** | **12** | **21** | **57.1%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -228,7 +228,7 @@ GREEN fix3b: `.venv/Scripts/python -m pytest -q agent-kits/shared/test_guardrail
 
 ### T-07 — Retoma de sesión: journal y bloque útil
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-14, H-27 y H-48. Reinyectar la última entrada del journal sin depender de la selección global de ledgers; iniciativa en curso primero en memoria; líneas opacas fuera; iniciativas al 100 % compactadas; pie sin ruta absoluta; `clear` también en Claude.
 - **Archivos**: `agent-kits/shared/progress-report.py`, `hooks/session-context.py`, `hooks/hooks.json`, `agent-kits/shared/test_progress_report.py`, `tests/test_session_context.py`, `tests/test_hooks_shell.py`, `interop/**`, `docs/observability.md`, `docs/en/observability.md`, `hooks/session-context.sh` (oráculo de bytes del compositor nativo: mismo pie y mismo orden de memoria), `agent-kits/shared/test_work_resume.py` (casos H-14/H-48 del historial del arranque), `tests/test_graphiti_security.py` (huella `sha256_lf` de `hooks/session-context.py`), `docs/WORK-RESUME.md`, `docs/en/WORK-RESUME.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md` (E3: describían la selección del historial al arrancar) (añadidos por el implementer), `agent-kits/shared/journal.py` (revisión intento 1, B1: el escritor usa la misma regla que el lector), `agent-kits/shared/README.md`, `skills/plugin-dev/references/claude-code-contracts.md` (revisión intento 1, A5: matcher con `clear`).
 - **Tiempo IA (ejec.)**: real 0,77h (medido)
@@ -252,6 +252,8 @@ GREEN fix1: `pytest agent-kits/shared/test_work_resume.py` → `59 passed` (B1: 
 
 
 RED: `agent-kits/shared/test_work_resume.py -k fix2` falló con fix2: 6 failed: estado solo en la tabla de cabecera ignorado y fuera del prefijo dado por inactivo (B-I1); la de 100 % con marcador abierto pierde frente a la pendiente (B-I2); session y active hacen lecturas completas con activas() (B-M3); entradas sin regla vigente reinyectadas y sin campo regla_iniciativa (B-M4); tope de 128 sin documentar · 2026-11-09.
+
+GREEN fix2: `pytest agent-kits/shared/test_work_resume.py` → `66 passed` (B-I1: estado en la tabla de cabecera y fuera del prefijo de 16 KiB → relectura acotada de 256 KiB; B-I2: el marcador abierto manda aunque la iniciativa esté al 100 %, empate por nombre; B-M3: `session` y `active --json` usan `activas_acotadas`, la misma instantánea memoizada que el journal, y conservan las tareas en curso; B-M4: el escritor marca `regla_iniciativa: "vigente"` y `--history-only` solo cita esas entradas; tope de 128 carpetas documentado en WORK-RESUME ES/EN); `test_progress_report.py` 43, `test_journal.py` 192 + 10 skipped, `tests/test_session_context.py` 47, `test_review_resume.py` 18, `test_resume_curation.py` 25, `tests/test_hooks_shell.py -k "session_context or memoria or activas or h14"` 31, `tests/test_statusline_cache.py` 17 passed. Medida del arranque (`compose` en proceso, 3 pasadas, copias del roadmap; la 1.ª incluye cargas y replay): 68 carpetas 8,61 / 4,89 / 11,93 s antes → 8,70 / 1,95 / 1,80 s después; 345 carpetas 29,79 / 16,08 / 15,17 s → 8,14 / 2,24 / 3,31 s. Máquina cargada: cifras orientativas; el detalle de rendimiento es de T-13 · 2026-11-09.
 
 ### T-08 — Vía rápida con qa-gate y TDD verificados
 

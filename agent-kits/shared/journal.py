@@ -1885,6 +1885,9 @@ def draft(root, session_id=None, transcript=None, reason=None, enrich=None, capt
         "session_id": session_id or "manual",
         "reason": reason or "manual",
         "iniciativa": iniciativa,
+        # fix2 B-M4: la etiqueta sale de la regla única (`iniciativa_vigente`); solo estas entradas
+        # se citan como historial de una iniciativa al arrancar.
+        **({"regla_iniciativa": "vigente"} if iniciativa != "n/a" else {}),
         "resumen": str(resumen),
         "resumen_por": resumen_por,
         "turnos": len(turnos),
@@ -1924,6 +1927,8 @@ def render(e, fuente):
           f"resumen: {_yaml_str(e['resumen'])}", f"fuente: {_yaml_str(fuente)}",
           f"cierre: {_yaml_str(e.get('cierre') or 'materializado')}",   # materializado · recuperado_sin_cierre (T-05)
           f"resumen_por: {_yaml_str(e.get('resumen_por') or 'determinista')}", f"turnos: {_entero(e.get('turnos'))}"]
+    if e.get("regla_iniciativa"):
+        fm.append(f"regla_iniciativa: {_yaml_str(e['regla_iniciativa'])}")
     if e.get("materializado_en"):
         fm.append(f"materializado_en: {_yaml_str(e['materializado_en'])}")
     if e.get("derivados_en"):
@@ -2315,7 +2320,7 @@ def _public_entry(entry, name):
 
 
 def select_entries(root, *, initiative=None, session_id=None, runtime=None, entry=None,
-                   max_entries=128, max_total_bytes=1024 * 1024):
+                   max_entries=128, max_total_bytes=1024 * 1024, require_rule=False):
     """Exact, bounded read-only selection; an incomplete scan never certifies absence.
 
     Recency is date then filename, a deterministic tie-break rather than a claim
@@ -2371,6 +2376,10 @@ def select_entries(root, *, initiative=None, session_id=None, runtime=None, entr
             continue
         if any(value is not None and parsed.get(key) != value
                for key, value in (('iniciativa', initiative), ('session_id', session_id), ('runtime', runtime))):
+            continue
+        if require_rule and parsed.get('regla_iniciativa') != 'vigente':
+            # fix2 B-M4: etiquetada con la regla vieja (primera activa alfabética): no se atribuye
+            result['issues'].append({'entry': public_text(name, 180), 'status': 'legacy_initiative_rule'})
             continue
         # A generated placeholder is still available through explicit identity.
         placeholder = (parsed.get('resumen', '').strip() in ('', 'Sesión sobre ' + str(parsed.get('iniciativa', '')), 'Sesión de trabajo')

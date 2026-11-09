@@ -20,11 +20,14 @@ def ledger(root, folder, *, state="en-progreso", title="Continuar implementació
     return path
 
 
-def journal_entry(root, name="entry.md", *, initiative="demo", sid="s1", runtime="codex", summary="Trabajo confirmado"):
+def journal_entry(root, name="entry.md", *, initiative="demo", sid="s1", runtime="codex", summary="Trabajo confirmado",
+                  regla="vigente"):
     path = root / "docs" / "knowledge" / "journal" / name
     path.parent.mkdir(parents=True, exist_ok=True)
     metadata = {"fecha": "2026-10-09", "session_id": sid, "iniciativa": initiative,
                 "resumen": summary, "fuente": "hook", "cierre": "normal"}
+    if regla:
+        metadata["regla_iniciativa"] = regla   # fix2 B-M4: como las escribe el escritor real
     if runtime is not None:
         metadata["runtime"] = runtime
     path.write_text("---\n" + "\n".join(key + ": " + json.dumps(value, ensure_ascii=False)
@@ -591,3 +594,82 @@ def test_fix1_d1_usage_state_se_lee_una_vez_por_proceso_si_no_cambia(tmp_path, m
     roadmap = str(tmp_path / "docs" / "roadmap")
     pr._leer_usage_state(roadmap); pr._leer_usage_state(roadmap)
     assert len(lecturas) == 1
+
+
+# ------------------------------------------------- revisión intento 2 (fase 2): B-I1, B-I2, B-M3, B-M4, C+D
+
+def _plantilla(root, folder, *, estado="en-progreso", preambulo=0, tareas=1, hechas=0):
+    """Ledger con el estado SOLO en la tabla de cabecera (plantilla del planner), sin frontmatter."""
+    path = root / "docs" / "roadmap" / folder / "tasks.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    cuerpo = "".join(f"### T-{n:02} — Tarea\n\n- **Estado**: {'completado' if n <= hechas else 'en-progreso'}\n\n"
+                     for n in range(1, tareas + 1))
+    path.write_text("# Checklist de Tareas — demo\n\n" + ("> nota larga de contexto\n" * preambulo)
+                    + f"| | |\n|---|---|\n| **Estado** | {estado} |\n\n## Fase 1 — Trabajo\n\n" + cuerpo
+                    + ("relleno " * 60 + "\n") * 60, encoding="utf-8")
+    return path
+
+
+def test_fix2_bi1_estado_en_la_tabla_de_cabecera_cuenta(tmp_path):
+    _plantilla(tmp_path, "2026-10-02-plantilla")
+    assert pr.iniciativa_vigente(tmp_path) == "plantilla"
+
+
+def test_fix2_bi1_estado_fuera_del_prefijo_no_se_da_por_inactivo(tmp_path):
+    _plantilla(tmp_path, "2026-10-02-preambulo", preambulo=1200)   # la tabla queda más allá de 16 KiB
+    assert pr.iniciativa_vigente(tmp_path) == "preambulo"
+
+
+def test_fix2_bi2_el_marcador_abierto_manda_aunque_este_al_100(tmp_path):
+    import os
+    a = _al_100(tmp_path, "2026-10-01-alfa")
+    b = ledger(tmp_path, "2026-10-02-beta")
+    os.utime(a, (1_000_000_000, 1_000_000_000))
+    os.utime(b, (2_000_000_000, 2_000_000_000))
+    state = tmp_path / ".claude" / "usage-state.json"
+    state.parent.mkdir()
+    state.write_text(json.dumps({"alfa/retro.md": {"inicio": "2026-10-09T10:00:00Z"}}), encoding="utf-8")
+    assert pr.iniciativa_vigente(tmp_path) == "alfa"
+
+
+def test_fix2_bi2_empate_determinista_por_nombre(tmp_path):
+    import os
+    for folder in ("2026-10-02-beta", "2026-10-03-gamma"):
+        os.utime(ledger(tmp_path, folder), (1_500_000_000, 1_500_000_000))
+    assert pr.iniciativa_vigente(tmp_path) == "gamma"
+
+
+def test_fix2_bm3_session_y_active_usan_la_misma_instantanea_acotada(tmp_path, monkeypatch, capsys):
+    ledger(tmp_path, "2026-10-02-beta")
+    _plantilla(tmp_path, "2026-10-03-gamma", tareas=3, hechas=1)
+    monkeypatch.setattr(pr, "activas", lambda *a, **k: pytest.fail("lectura completa sin tope"))
+    assert pr.main(["session", "--root", str(tmp_path)], in_process=True) == 0
+    out = capsys.readouterr().out
+    assert "en-progreso: T-02" in out and "- 📋 beta" in out
+    assert pr.main(["active", "--root", str(tmp_path / "docs" / "roadmap"), "--json"]) == 0
+    datos = json.loads(capsys.readouterr().out)
+    assert datos["iniciativa_en_curso"] == pr.iniciativa_vigente(tmp_path)
+    assert {a["slug"] for a in datos["activas"]} == {"beta", "gamma"}
+
+
+def test_fix2_bm4_solo_se_reinyectan_entradas_con_la_regla_vigente(tmp_path, capsys):
+    ledger(tmp_path, "2026-10-02-beta")
+    journal_entry(tmp_path, "vieja.md", initiative="beta", sid="s-vieja", summary="Etiquetada con la regla vieja",
+                  regla=None)
+    assert pr.main(["resume", "--root", str(tmp_path), "--history-only"]) == 0
+    assert "regla vieja" not in capsys.readouterr().out
+    enrich = tmp_path / "enrich.json"
+    enrich.write_text(json.dumps({"resumen": "Con la regla vigente"}), encoding="utf-8")
+    assert _journal_cli(tmp_path, "write", "--session-id", "s-nueva", "--reason", "clear", "--ia", "off",
+                        "--enrich", str(enrich)).returncode == 0
+    nueva = [q for q in (tmp_path / "docs/knowledge/journal").glob("*.md") if "s-nueva" in q.read_text(encoding="utf-8")]
+    assert len(nueva) == 1 and 'regla_iniciativa: "vigente"' in nueva[0].read_text(encoding="utf-8")
+    assert pr.main(["resume", "--root", str(tmp_path), "--history-only"]) == 0
+    out = capsys.readouterr().out
+    assert "s-nueva" in out and "s-vieja" not in out
+
+
+def test_fix2_cd_el_tope_de_la_regla_esta_documentado():
+    for rel, clave in (("docs/WORK-RESUME.md", "128 carpetas más recientes"),
+                       ("docs/en/WORK-RESUME.md", "128 most recent folders")):
+        assert clave in (HERE.parent.parent / rel).read_text(encoding="utf-8"), rel

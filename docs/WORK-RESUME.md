@@ -134,6 +134,12 @@ historial con el mismo resolver de ledger; compact omite esa parte. Si ese resol
 no da una única iniciativa (varias activas o más de 1 MiB de ledgers), cita la
 iniciativa en curso entre las activas y nunca una no activa. Un fallo de selección
 no deja ninguna línea en el bloque de sesión; esta vista sí informa del estado.
+La regla de la iniciativa en curso es una sola para el escritor del journal, el
+historial, el bloque de sesión, la memoria y la statusline: el marcador abierto del
+meter (aunque la iniciativa esté al 100 %), si no la pendiente con el ledger más
+reciente y, si no, la más reciente; empates por nombre. Lee con el lector acotado las
+128 carpetas más recientes del roadmap (una activa más antigua queda fuera) y solo
+atribuye como historial las entradas con `regla_iniciativa: vigente`.
 El bloque de progreso y replay siguen separados. Esta vista no convierte el hook
 `SessionStart` entero en una operación de solo lectura.
 

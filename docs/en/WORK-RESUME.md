@@ -133,7 +133,13 @@ Automatic capture and recovery retain their own hook contracts. At startup/resum
 resolver; compact omits that part. When that resolver yields no single initiative
 (several active or more than 1 MiB of ledgers), it quotes the initiative in progress
 among the active ones and never a non-active one. A failed selection leaves no line
-in the session block; this view still reports the status. The progress and replay blocks remain separate.
+in the session block; this view still reports the status.
+One rule picks the initiative in progress for the journal writer, the history, the
+session block, memory and the statusline: the open meter marker (even at 100 %),
+otherwise the pending initiative with the most recent ledger, otherwise the most
+recent one; ties by name. It reads the 128 most recent folders of the roadmap with the
+bounded reader (an older active one is left out) and only attributes as history the
+entries tagged `regla_iniciativa: vigente`. The progress and replay blocks remain separate.
 This view does not make the entire `SessionStart` hook read-only.
 
 The facade finds `agent-kits/shared/` through the six roots in
