@@ -26,8 +26,9 @@ entero ni las fases que esta ejecución omite. Una referencia necesaria ilegible
 se informa; no se improvisan puertas ni se sustituye por otra instalación.
 
 Resuelve `DEVKIT` (Bash) o `$DevCycleKit` (PowerShell) en el **mismo bundle que el
-núcleo** (regla 5; el propio repo gana). Si ya conoces su origen, usa esa ruta. Las
-variables no sobreviven entre bloques de shell: reasigna la ruta observada en cada uno.
+núcleo** (regla 5; el propio repo gana). Si ya conoces su origen, usa esa ruta.
+Contrasta la procedencia con el núcleo antes de leer. Las variables no sobreviven
+entre bloques de shell: reasigna la ruta observada en cada uno.
 
 ```bash
 R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$PWD/$M" ] && R="$PWD"; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache/daycry ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DEVKIT="${R:+$R/agent-kits/dev-cycle}"
@@ -121,7 +122,7 @@ una contradicción nueva se comunica y resuelve antes del trabajo afectado.
 > **Modelo del agente (tiering configurable, capa 2).** Antes de despachar CUALQUIER agente por nombre (`evaluator`, `architect`, `planner`, `implementer`, `qa`, `documenter`, `nemesis`), resuelve su tier efectivo y pasa `model` en el parámetro `model` del Agent tool (contrato oficial sub-agents.md, verificado 2026-09-03: el parámetro por invocación tiene prioridad sobre el frontmatter):
 >
 > ```bash
-> SHAREDKIT="$R/agent-kits/shared"   # R: la raíz observada al resolver DEVKIT, reasignada aquí
+> SHAREDKIT="${R:+$R/agent-kits/shared}"   # R: la raíz observada al resolver DEVKIT, reasignada aquí
 > python3 "$SHAREDKIT/model-tier.py" <agente> --json     # {"model": "...", "effort": "...", "fuente": {"model": "frontmatter|dev.json", ...}}
 > ```
 >

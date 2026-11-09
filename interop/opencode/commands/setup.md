@@ -42,7 +42,7 @@ los valores actuales y ofrece cambiarlos.
      ```bash
      R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SL="${R:+$R/statusline/roadmap-statusline.sh}"
      ```
-     (El `find` excluye `*/.claude/jobs/*`: las copias temporales de trabajos antiguos no se eligen nunca; gana el plugin instalado o el proyecto.) Luego **mergea** (sin pisar otras claves) en `.claude/settings.json` del proyecto el bloque oficial:
+     (La búsqueda excluye `jobs/` y `worktrees/` bajo cada raíz: las copias temporales y los worktrees no se eligen nunca; gana el plugin instalado o el proyecto. Si `$SL` queda vacío, no hay instalación válida.) Luego **mergea** (sin pisar otras claves) en `.claude/settings.json` del proyecto el bloque oficial:
      ```json
      { "statusLine": { "type": "command", "command": "<ruta absoluta de $SL>" } }
      ```

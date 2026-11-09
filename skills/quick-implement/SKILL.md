@@ -72,7 +72,7 @@ solo van los nombres, para no mantener una copia que se desincronice:
    tareas: contaría los mismos tokens dos veces.
 3. **Implementación** por `implementer`, con la disciplina de `.claude/dev.json` si está activa
    (si `tdd: true`, el implementer sigue la skill **`tdd`**). Antes de despacharlo, resuelve su tier
-   con `python3 "$SHAREDKIT/model-tier.py" implementer --json` (`SHAREDKIT="$R/agent-kits/shared"`, con la raíz `R` observada al resolver `DEVCYCLE`) y pasa `model` al Agent tool solo si
+   con `python3 "$SHAREDKIT/model-tier.py" implementer --json` (`SHAREDKIT="${R:+$R/agent-kits/shared}"`, con la raíz `R` observada al resolver `DEVCYCLE`) y pasa `model` al Agent tool solo si
    `fuente.model` es `dev.json` (el `effort` de `dev.json` es informativo; sin script → frontmatter).
 4. **Las puertas NO se saltan**: la revisión adversarial es la skill **`adversarial-review`** (fuente
    única del método: puerta `scope-check.py` antes de gastar revisores, lentes A/B + lente C de
