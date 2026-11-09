@@ -537,8 +537,8 @@ def test_fix1_formas_no_destructivas_siguen_permitidas(cmd):
     "git push --pr origin", "git push --d origin x", "git push --force=x origin",
     "git commit --no-v -m x", "git commit --no-ver -m x",
     # gap 2 — `n` en un clúster o `--no-dry-run` no es simulación
-    "git clean -fn", "git clean -fen", "git clean -fn --no-dry-run", "git clean -f -n --no-dry-run",
-    "git clean -f --dry-run --no-d", "git clean -nf",
+    "git clean -fen", "git clean -fn --no-dry-run", "git clean -f -n --no-dry-run",
+    "git clean -f --dry-run --no-d",
     # gap 3 — opciones globales con valor y desconocidas
     "git --attr-source HEAD reset --hard", "git --super-prefix x/ reset --hard",
     "git --namespace ns push --delete origin x", "git --opcion-que-no-existe reset --hard",
@@ -551,8 +551,8 @@ def test_fix1_formas_no_destructivas_siguen_permitidas(cmd):
     "git_config_count=1 git_config_key_0=alias.x git_config_value_0=status git x",
     "GIT_CONFIG_GLOBAL=/tmp/g git status", "GIT_CONFIG_SYSTEM=/tmp/s git status",
     "GIT_CONFIG_NOSYSTEM=1 git status", "Git_Config_Parameters=\"'a.b'='c'\" git status",
-    "export GIT_CONFIG_GLOBAL=/tmp/g", "export GIT_CONFIG_COUNT=1 && git x",
-    "set GIT_CONFIG_PARAMETERS='a.b=c'", "env GIT_CONFIG_SYSTEM=/tmp/s git status",
+    "export GIT_CONFIG_GLOBAL=/tmp/g && git status", "export GIT_CONFIG_COUNT=1 && git x",
+    "set GIT_CONFIG_PARAMETERS='a.b=c'; git status", "env GIT_CONFIG_SYSTEM=/tmp/s git status",
     "git config alias.wipe 'reset --hard'", "git config --global alias.x status",
     "git config set alias.x status", "git config --local include.path /tmp/x",
     "git config --file .git/config includeIf.onbranch:x.path y", "git config clean.requireForce false",
@@ -572,7 +572,7 @@ def test_fix2_guardarrail_cerrado_por_diseno_deniega(cmd):
     "git push --no-prune origin x", "git push --push-option=ci.skip origin x",
     "git clean -n", "git clean --dry-run", "git clean --dry", "git clean -n -f", "git clean -f -n",
     "git clean -f --dry-run", "git stash list", "git branch -d x", "git branch --delete x",
-    "git -c clean.requireForce=true clean -d", "git -c core.quotepath=false status",
+    "git -c core.quotepath=false status",   # intento 3: requireForce ya no está en la lista blanca
     "git config --get alias.x", "git config --list", "git config -l", "git config get alias.x",
     "git config --get-regexp alias", "git config list", "git config user.name x",
     "git --no-pager log --oneline", "git -P status", "git --git-dir=.git status",
@@ -580,3 +580,76 @@ def test_fix2_guardarrail_cerrado_por_diseno_deniega(cmd):
 ])
 def test_fix2_formas_legitimas_siguen_permitidas(cmd):
     assert decide(bash(cmd)) is None, cmd
+
+
+# --- Revisión de dos lentes, intento 3: lista blanca de configuración y análisis real ---
+@pytest.mark.parametrize("cmd", [
+    # gap 1 — `-c`/`--config-env` fuera de la lista blanca
+    "git -c core.editor=vim commit", "git -c sequence.editor=x rebase -i HEAD~2",
+    "git -c core.sshCommand='ssh -i k' fetch", "git -c core.fsmonitor=x status",
+    "git -c diff.external=x diff", "git -c remote.origin.mirror=true push origin",
+    "git -c remote.origin.push=+refs/heads/*:refs/heads/* push origin", "git -c core.hooksPath=x commit -m y",
+    "git -c core.pager='rm -rf .' log", "git -c safe.directory=* status", "git --config-env=core.editor=E commit",
+    # gap 2 — `git config` clasificado de verdad
+    "git config --comment --get alias.x v", "git config --rename-section user other",
+    "git config --remove-section user", "git config --edit", "git config -e", "git config --add core.editor vim",
+    "git config core.editor vim", "git config --file x.cfg user.name y", "git config -f x.cfg user.name y",
+    "git config set core.editor vim", "git config unset core.hooksPath", "git config rename-section a b",
+    "git config remove-section a", "git config edit", "git config --rename-s user other",
+    "git config --global core.sshCommand x",
+    # gap 3 — entorno sensible solo cuando ejecuta git
+    "GIT_EDITOR=vim git commit", "GIT_SSH_COMMAND=x git fetch", "GIT_DIR=/tmp/r git status",
+    "GIT_EXEC_PATH=/tmp git status", "git_ssh=x git fetch", "HOME=/tmp/h git commit -m x",
+    "XDG_CONFIG_HOME=/tmp/x git status", "export GIT_EDITOR=vim; git commit",
+    "export HOME=/tmp/h && git commit -m x", "GIT_DIR=/tmp/r bash -c 'git status'",
+    # gap 4 — clean con análisis real de argumentos
+    "git clean -fen", "git clean -e -n -f", "git clean -f -- -n .", "git clean -fd -- --dry-run .",
+    "git clean -f --exclude -n", "git clean -f -e-n", "git clean -fn --no-dry-run",
+    # gap 5 — dígitos en clústeres
+    "git push -4f origin x", "git push -6d origin x",
+    # gap 6 — ramas forzadas
+    "git branch -f main HEAD~1", "git branch --force feature/x HEAD", "git branch -M viejo nuevo",
+    "git branch -C a b", "git branch -fM a b", "git update-ref -d refs/heads/x", "git update-ref --stdin",
+])
+def test_fix3_guardarrail_lista_blanca_y_analisis_real_deniega(cmd):
+    assert decide(bash(cmd)), cmd
+
+
+@pytest.mark.parametrize("cmd", [
+    # lista blanca
+    "git -c user.name=x commit -m y", "git -c user.email=x@example.org commit -m y",
+    "git -c core.quotepath=false status", "git -c color.ui=never log", "git -c advice.detachedHead=false status",
+    "git -c init.defaultBranch=main init", "git -c commit.gpgsign=false commit -m x",
+    # git config: lecturas y escrituras de la lista blanca
+    "git config --get core.editor", "git config --list", "git config -l", "git config get alias.x",
+    "git config list", "git config --get-regexp alias", "git config user.name", "git config user.name x",
+    "git config --global user.email x@example.org", "git config set user.name x", "git config --show-origin -l",
+    # entorno fuera de git (B7)
+    "GIT_CONFIG_NOSYSTEM=1 pytest", "HOME=/tmp/h python -m pytest", "export GIT_EDITOR=vim",
+    "GIT_TRACE=1 node build.js", "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath env -i git commit -m x",
+    # clean: simulación real (B6)
+    "git clean -fn", "git clean -fdn", "git clean -nf", "git clean -n", "git clean --dry-run -f",
+    "git clean -f --no-dry-run --dry-run", "git clean -e build -n -f", "git clean -fdn -e x",
+    # ramas legítimas
+    "git branch feature/y", "git branch -d x", "git branch --list", "git branch -m viejo nuevo",
+    "git update-ref refs/heads/x HEAD",
+    # opciones globales legítimas (gap 7)
+    "git -C /r status", "git -P log", "git --no-pager log", "git --no-optional-locks status",
+    "git --paginate log", "git --literal-pathspecs status", "git --bare status", "git -C /r -c user.name=x commit -m y",
+])
+def test_fix3_formas_legitimas_permitidas(cmd):
+    assert decide(bash(cmd)) is None, cmd
+
+
+
+def test_fix3_gap8_docs_describen_lista_blanca_y_que_no_es_sandbox():
+    """Revisión intento 3 (gap 8): docstring, prompt, doc del implementer y FLOWS ES/EN
+    describen la lista blanca real y dicen que el guardarraíl no es un sandbox."""
+    root = os.path.dirname(os.path.dirname(HERE))
+    claves = sorted(gc._CONFIG_PERMITIDA) + ["color.*", "advice.*"]
+    for rel in ("agent-kits/shared/guardrail-check.py", "agents/implementer.md",
+                "docs/agents/implementer.md", "docs/FLOWS.md", "docs/en/FLOWS.md"):
+        texto = " ".join(open(os.path.join(root, rel), encoding="utf-8").read().split()).lower()
+        assert "sandbox" in texto, rel
+        for clave in claves:
+            assert clave.lower() in texto, (rel, clave)

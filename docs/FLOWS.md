@@ -621,9 +621,18 @@ explícita; cambiar su ruta no siempre implica desactivar hooks.
 La gramática reconoce asignaciones literales y wrappers `env -i` o
 `--ignore-environment`; `-u NAME`, `-uNAME` o `--unset=NAME`; `-C DIR` o
 `--chdir=DIR`; `command -p`; `exec -a NAME`, `-c` o `-l`. Analiza opciones
-Git `-c` y `--config-env`, `GIT_CONFIG_COUNT` con sus claves y
-`GIT_CONFIG_PARAMETERS`. Compara el nombre base del ejecutable sin distinguir
+Git `-c` y `--config-env` contra una LISTA BLANCA (`user.name`, `user.email`,
+`core.quotepath`, `commit.gpgsign`, `init.defaultBranch`, `color.*`, `advice.*`;
+cualquier otra clave se deniega), clasifica `git config` en lectura o escritura
+(solo escribe claves de la lista blanca, sin `--file`/`--blob`, sin renombrar ni
+borrar secciones) y deniega las variables `GIT_*`, `HOME` y `XDG_CONFIG_HOME`
+cuando la orden ejecuta git (en el mismo segmento o exportadas antes). Compara el nombre base del ejecutable sin distinguir
 mayúsculas, incluidos nombres Windows con `.exe`.
+
+El guardarraíl evita accidentes y las formas conocidas de saltarse estas reglas;
+no es un sandbox. Quedan fuera los envoltorios (`nice`, `sudo`, `xargs`,
+`find -exec`), los scripts que escriba el propio agente y los ficheros de
+configuración editados a mano (ADR-023, ADR-007).
 
 Cada orden conserva su propia decisión, también entre líneas. Comillas,
 comentarios y continuaciones escapadas mantienen la separación entre flags

@@ -621,9 +621,18 @@ the path does not always disable hooks.
 The grammar recognizes literal assignments and wrappers `env -i` or
 `--ignore-environment`; `-u NAME`, `-uNAME` or `--unset=NAME`; `-C DIR` or
 `--chdir=DIR`; `command -p`; `exec -a NAME`, `-c` or `-l`. It parses Git
-options `-c` and `--config-env`, `GIT_CONFIG_COUNT` with its keys and
-`GIT_CONFIG_PARAMETERS`. Executable basename matching ignores case and
+options `-c` and `--config-env` against an ALLOWLIST (`user.name`, `user.email`,
+`core.quotepath`, `commit.gpgsign`, `init.defaultBranch`, `color.*`, `advice.*`;
+any other key is denied), classifies `git config` as read or write (it only
+writes allowlisted keys, never with `--file`/`--blob`, and never renames or
+removes sections) and denies `GIT_*`, `HOME` and `XDG_CONFIG_HOME` variables
+when the command runs git (in the same segment or exported earlier). Executable basename matching ignores case and
 handles Windows names ending in `.exe`.
+
+The guardrail prevents accidents and the known ways around these rules; it is
+not a sandbox. Wrappers (`nice`, `sudo`, `xargs`, `find -exec`), scripts the
+agent writes itself and hand-edited configuration files stay out of scope
+(ADR-023, ADR-007).
 
 Each command retains its own decision, including across lines. Quoting,
 comments and escaped line continuations keep flags separate from text.

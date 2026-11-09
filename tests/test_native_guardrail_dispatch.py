@@ -107,9 +107,9 @@ def test_fix2_gap6_implementer_lists_name_every_denied_family():
     """Intento 1, gap 6 (y intento 2): las listas del implementer nombran todas las familias denegadas."""
     for rel in ("agents/implementer.md", "docs/agents/implementer.md"):
         texto = " ".join((ROOT / rel).read_text(encoding="utf-8").split())
+        # Intento 3: la configuración pasa a LISTA BLANCA (se nombran las claves permitidas y `GIT_*`).
         for familia in ("git reset --hard", "git clean -f", "--mirror", "--prune", "git stash drop|clear",
-                        "alias.*", "include.*", "includeif.*", "clean.requireForce", "GIT_CONFIG_",
-                        "git config"):
+                        "user.name", "core.quotepath", "color.*", "GIT_*", "git config", "update-ref"):
             assert familia in texto, (rel, familia)
 
 

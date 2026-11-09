@@ -60,7 +60,6 @@ ALLOWED = (
     'git commit --no-verify --verify -m x',
     'git commit -- --no-verify',
     'git -c commit.gpgsign=false commit -m x',
-    'git -c core.hooksPath=alternate status',
     'env X=1 git commit -m x',
     'echo "git commit --no-verify"',
     'bash -lc \'echo "git commit --no-verify"\'',
@@ -98,6 +97,8 @@ ENV_CONFIG_NOW_DENIED = (
     'GIT_CONFIG_PARAMETERS="\'safe.setting\'=\'core.hooksPath=alternate\'" git commit -m x',
     'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_00=core.hooksPath GIT_CONFIG_VALUE_00=alternate git commit -m x',
     'git_config_count=1 git_config_key_0=core.hooksPath git_config_value_0=alternate git commit -m x',
+    # Revisión intento 3: `-c` solo admite la lista blanca; `core.hooksPath` fuera de commit también.
+    'git -c core.hooksPath=alternate status',
 )
 
 

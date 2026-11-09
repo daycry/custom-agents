@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 6 | 6 | 100.0% |
+| Fase 1 | 2 | 6 | 33.3% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **6** | **21** | **28.6%** |
+| **TOTAL** | **2** | **21** | **9.5%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -28,7 +28,7 @@ changelog: Fixed
 
 ### T-01 — worklog sin pérdida de datos
 
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Descripción**: H-1 y H-2. Un estado ilegible o con BOM no se trata como vacío ni se sobrescribe; escritura atómica; fecha futura y horas negativas rechazadas.
 - **Archivos**: `skills/jira-sync/scripts/worklog.py`, `tests/test_worklog.py`, `agent-kits/shared/usage-meter.py`, `agent-kits/shared/test_usage_meter.py` (añadidos en la revisión intento 1, gap 3: mismo defecto de estado ilegible tratado como vacío), `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py`, `docs/agents/CONTRACTS.md` (revisión intento 2: ⚠️ de `/doctor` y contrato E7).
 - **Verificación**: `python -m pytest -q tests/test_worklog.py` → todos pasan, con casos de BOM, JSON corrupto, fecha futura y horas negativas.
@@ -57,7 +57,7 @@ GREEN fix2: `pytest tests/test_worklog.py` → `14 passed` (campos internos de `
 
 ### T-02 — qa-gate sin falso verde
 
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Descripción**: H-3 y menor C4. Un test con `expectedStatus: "skipped"` no cuenta como pasado; BOM y raíz no objeto dan veredicto, no traceback.
 - **Archivos**: `agent-kits/qa/qa-gate.py`, `tests/test_qa_gate.py`.
 - **Verificación**: `python -m pytest -q tests/test_qa_gate.py` → todos pasan, con los casos nuevos.
@@ -85,7 +85,7 @@ GREEN fix2: `pytest tests/test_qa_gate.py` → `8 passed` (flaky exige al menos 
 
 ### T-03 — Instalador robusto en Windows y con configuración ajena
 
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Descripción**: H-4, H-9, H-10, H-11, H-13 y menores del instalador. Buscar las CLI sin el directorio actual; `merge` con lectura estricta; `uninstall` aislado por proveedor; enlaces solo prohibidos en lo que crea el instalador; aviso de rutas absolutas en configuración compartida; misma exclusión de tests desde un clon que en npm.
 - **Archivos**: `install/install.mjs`, `install/providers.mjs`, `install/manifest-auth.mjs`, `tests/installer.test.mjs`, `tests/install-auth.test.mjs`, `docs/INSTALL.md`, `docs/en/INSTALL.md`, `agent-kits/shared/codex-plugin-state.mjs`, `tests/codex-plugin-state.test.mjs` (revisión intento 1, gap 10: resolvedor de `codex` de `install status`), `hooks/run-hook.mjs` (revisión intento 2, C8: `NoDefaultCurrentDirectoryInExePath`).
 - **Verificación**: `node --test tests/installer.test.mjs tests/install-auth.test.mjs` → 0 fail, con casos nuevos para `.cmd` plantado, JSON ilegible en `merge`, manifiesto no verificable en `uninstall` y HOME bajo un enlace.
@@ -161,9 +161,9 @@ GREEN fix2: `pytest tests/test_native_guardrail_dispatch.py` → `10 passed` (`c
 
 ### T-06 — Puertas que fallan cerradas
 
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Descripción**: H-8 y H-12. `review-lens-select` en `auto` activa C y D ante error; `guardrail-check` deniega `reset --hard`, `clean -f*`, borrar ramas remotas y `stash drop|clear`.
-- **Archivos**: `skills/adversarial-review/scripts/review-lens-select.py`, `skills/adversarial-review/scripts/test_review_lens_select.py`, `agent-kits/shared/guardrail-check.py`, `agent-kits/shared/test_guardrail_check.py`, `skills/adversarial-review/SKILL.md`, `tests/test_graphiti_security.py`, `CHANGELOG.md`, `CHANGELOG.es.md` (añadidos por el implementer: entrada `### Fixed` de toda la Fase 1, commit aparte pedido por el orquestador), `skills/adversarial-review/references/lens-c-heuristics.md`, `agents/implementer.md`, `docs/agents/implementer.md`, `interop/**` (revisión intento 1, gaps 5 y 6), `agent-kits/shared/test_git_verification.py` (revisión intento 2: sus casos «permitidos» de `GIT_CONFIG_*` y de `--no-v` ambiguo pasan a denegados por el cierre por diseño).
+- **Archivos**: `skills/adversarial-review/scripts/review-lens-select.py`, `skills/adversarial-review/scripts/test_review_lens_select.py`, `agent-kits/shared/guardrail-check.py`, `agent-kits/shared/test_guardrail_check.py`, `skills/adversarial-review/SKILL.md`, `tests/test_graphiti_security.py`, `CHANGELOG.md`, `CHANGELOG.es.md` (añadidos por el implementer: entrada `### Fixed` de toda la Fase 1, commit aparte pedido por el orquestador), `skills/adversarial-review/references/lens-c-heuristics.md`, `agents/implementer.md`, `docs/agents/implementer.md`, `interop/**` (revisión intento 1, gaps 5 y 6), `agent-kits/shared/test_git_verification.py` (revisión intento 2: sus casos «permitidos» de `GIT_CONFIG_*` y de `--no-v` ambiguo pasan a denegados por el cierre por diseño)), `docs/FLOWS.md`, `docs/en/FLOWS.md`, `tests/test_native_guardrail_dispatch.py` (revisión intento 3: contrato final de la regla git y límite «no es un sandbox».
 - **Verificación**: tests de los dos scripts → pasan con los casos nuevos.
 - **Changelog**: Las puertas fallan cerradas: si no se puede evaluar el diff se activan las lentes de seguridad y rendimiento, y el implementer ya no puede descartar cambios, borrar ramas remotas ni vaciar stashes.
 - **Cerrada**: 2026-11-09
@@ -188,6 +188,16 @@ RED: `agent-kits/shared/test_guardrail_check.py -k fix2` falló con fix2: 42 fai
 GREEN fix2: `pytest agent-kits/shared/test_guardrail_check.py` → `277 passed` (cualquier prefijo de opción destructiva, clean con `-n` exacto o `--dry-run` sin `--no-dry-run`, globales `--attr-source`/`--super-prefix`/`--list-cmds` y desconocidas, `-c`/`--config-env` con alias/include/includeif o requireForce falso, `GIT_CONFIG_*` sin distinguir mayúsculas en prefijo/env/export/set, `git config` que escribe esas claves, `branch -df/-d -f/--del --forc`; legítimas permitidas); `test_git_verification.py` → `357 passed`; `test_native_guardrail.py` → `227 passed` · 2026-11-09.
 
 GREEN fix2 (changelog): `pytest tests/test_native_guardrail_dispatch.py` → `11 passed` (`test_fix2_changelog_de_fase_1_recoge_los_cambios_del_intento_2`; en HEAD las marcas `exit 3`/`NoDefaultCurrentDirectoryInExePath` daban 0 coincidencias) · 2026-11-09.
+
+
+RED: `agent-kits/shared/test_guardrail_check.py -k fix3 (+ casos ajustados de fix2)` falló con fix3: 55 failed: -c fuera de lista blanca (core.editor, sshCommand, pager...) permitido, git config --comment/--rename-section/--file mal clasificado, GIT_EDITOR/GIT_SSH/HOME con git permitidos y export sin git denegado, clean -fn/-nf falso positivo y -e/-- sin analizar, push -4f, branch -f/-M/-C y update-ref -d permitidos · 2026-11-09.
+
+
+RED: `agent-kits/shared/test_guardrail_check.py::test_fix3_gap8_docs_describen_lista_blanca_y_que_no_es_sandbox` falló con fix3: 1 failed: docs sin la lista blanca ni el limite de no ser un sandbox · 2026-11-09.
+
+TDD n/a (intento 2, gaps 13 y 14): `test_fix2_gap5_*`, `test_fix2_gap6_*`, `test_fix2_gap12_*` y `test_fix2_changelog_de_fase_1_recoge_los_cambios_del_intento_2` se escribieron sobre texto ya corregido; son tests de regresión del texto, sin rojo observado en el momento (solo el contraste con HEAD del CHANGELOG) · 2026-11-09.
+
+GREEN fix3: `pytest agent-kits/shared/test_guardrail_check.py` → `372 passed` (lista blanca de `-c`/`--config-env`/`git config`, clasificación lectura/escritura con `--comment`/`--file`/secciones, `GIT_*`/`HOME`/`XDG_CONFIG_HOME` solo con git, `clean` analizado de verdad con `-fn`/`-nf` como simulación y `-fen`/`-e -n -f`/`-f -- -n` denegados, `push -4f`, `branch -f|-M|-C`, `update-ref -d|--stdin`, globales legítimas permitidas, test de documentación gap 8); `test_git_verification.py` → `357 passed`; `test_native_guardrail.py` → `227 passed`; `tests/test_native_guardrail_dispatch.py` → `11 passed` (gap6 alineado con la lista blanca); `_env_hooks_override` eliminado (subsumido por la regla de entorno) · 2026-11-09.
 
 ## Fase 2 — Funciones documentadas que no funcionan
 
