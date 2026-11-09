@@ -210,7 +210,8 @@ def test_fix2_d1_miles_de_carpetas_sin_ledger_no_se_recorren_enteras(tmp_path, m
         else:
             result = module.progress_snapshot(tmp_path)
             assert result['initiatives'][0]['title'] == 'real'
-        assert len(calls) <= module.MAX_SCAN + 1, (name, len(calls))
+        tope = module.MAX_SCAN if name == 'panel_data.py' else module.MAX_WALK   # fix3: el progreso recorre hasta MAX_WALK
+        assert len(calls) <= tope + 1, (name, len(calls))
 
 
 def test_fix2_c1_el_recuento_de_omitidas_no_toca_el_disco(tmp_path, monkeypatch):
@@ -234,3 +235,39 @@ def test_fix2_cd_los_topes_reales_estan_documentados():
         texto = (ROOT / rel).read_text(encoding='utf-8')
         assert '4.096' in texto or '4,096' in texto or '4096' in texto, rel
     assert 'MAX_SORTED_NAMES' in (ROOT / 'agent-kits/shared/local-read.py').read_text(encoding='utf-8').split('def list_names', 1)[1][:1500]
+
+
+
+# ------------------------------------------------- revisión intento 3 (fase 2): B2, B, A2
+
+def test_fix3_b2_omitidas_solo_carpetas_de_iniciativa_por_nombre(tmp_path):
+    for n in range(140):
+        initiative(tmp_path, dated(n))
+    for n in range(5):
+        (tmp_path / f'docs/roadmap/2026-12-{20 + n:02}-solo-notas').mkdir()     # las más nuevas, sin artefactos
+    (tmp_path / 'docs/roadmap/2024-01-01-informe.md').write_text('# informe\n', encoding='utf-8')
+    result = load('panel_data.py').cartera(tmp_path)
+    assert len(result['iniciativas']) == 64 and result['recorte']['omitidas'] == 76, result['recorte']
+
+
+def test_fix3_b_progreso_no_se_queda_vacio_con_muchas_carpetas_nuevas_sin_ledger(tmp_path):
+    initiative(tmp_path, '2026-01-01-real')
+    for n in range(600):
+        (tmp_path / 'docs/roadmap' / f'2026-{2 + n // 28 % 10:02}-{1 + n % 28:02}-vacia-{n:04}').mkdir(parents=True)
+    result = load('serve_panel.py').progress_snapshot(tmp_path)
+    assert [row['title'] for row in result['initiatives']] == ['real']
+
+
+def test_fix3_a2_no_se_lee_ninguna_de_las_76_omitidas(tmp_path, monkeypatch):
+    for n in range(140):
+        initiative(tmp_path, dated(n))
+    module = load('panel_data.py')
+    omitidas = {dated(n) for n in range(76)}
+    leidas = []
+    dashboard = module._load_dashboard()
+    real = dashboard._scan_una
+    dashboard._scan_una = lambda ruta: leidas.append(str(ruta)) or real(ruta)
+    monkeypatch.setattr(module, '_load_dashboard', lambda: dashboard)
+    result = module.cartera(tmp_path)
+    assert result['recorte']['omitidas'] == 76
+    assert not [r for r in leidas if any(o in r for o in omitidas)]

@@ -113,7 +113,7 @@ Un dato ausente es `null` y se dice («sin datos»); nunca se pinta como 0.
 | Plan (`plan-<id16>.html`) | Kanban de las tareas del ledger con las cinco columnas del vocabulario (`borrador`, `en-progreso`, `en-revision`, `completado`, `cancelado`) y una franja «Estado no reconocido» con el literal; detalle de tarea; gráficos de avance y horas por fase y burndown | `api/plan-<id16>`, `api/plan-<id16>-<T-XX>` |
 
 - **`api/cartera`**: iniciativas de `docs/roadmap/` (lee hasta 4.096 nombres, los ordena de la más nueva a la más antigua y recorre como mucho 128 carpetas;
-  las demás iniciativas se cuentan por nombre en `recorte.omitidas`; 64 filas, respuesta
+  las demás se cuentan en `recorte.omitidas` por nombre de carpeta de iniciativa (fecha delante, sin extensión), sin tocar el disco; el progreso recorre hasta 1.024 carpetas con nombre de iniciativa y para a las 64 filas; 64 filas, respuesta
   ≤ 64 KiB). Cada iniciativa cae en UNA categoría de spec: los cuatro estados, `ilegible`,
   `sin_spec` (vía rápida) o `no_reconocido` (con su literal). El coste estimado se muestra
   como lo escribe `evaluation.md`; solo el primer importe en euros se extrae para sumar.

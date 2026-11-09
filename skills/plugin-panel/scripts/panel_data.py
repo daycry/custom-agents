@@ -32,7 +32,7 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 MAX_SCAN = 128                      # carpetas de docs/roadmap que se listan
 MAX_NOMBRES = 4096                  # nombres que se leen para ordenar ANTES de cortar (fix1, B2: baratos)
-_FECHADA = re.compile(r'\d{4}-\d{2}-\d{2}-', re.ASCII)   # nombre de carpeta de iniciativa
+_FECHADA = re.compile(r'\d{4}-\d{2}-\d{2}-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*', re.ASCII)   # carpeta de iniciativa (fullmatch: sin extensión)
 MAX_INITIATIVES = 64                # filas de la respuesta
 MAX_FILE_BYTES = 256 * 1024         # tope de lectura de un ledger (local-read.py)
 MAX_ARTIFACT_BYTES = 1024 * 1024    # un artefacto mayor no se abre
@@ -343,8 +343,14 @@ def cartera(project):
     carpetas = carpetas[:MAX_SCAN]
     if restantes:
         issue('scan_budget')
-    candidatas = sum(1 for nombre in restantes if _FECHADA.match(nombre))
+    candidatas = sum(1 for nombre in restantes if _FECHADA.fullmatch(nombre))
     for indice, carpeta in enumerate(carpetas):
+        if len(filas) == MAX_INITIATIVES:
+            # fix3 (A2/B2): el corte va ANTES de leer la 65.ª; las que quedan se cuentan por nombre
+            # de carpeta de iniciativa (sin extensión), sin tocar el disco
+            issue('row_budget')
+            candidatas += sum(1 for resto in carpetas[indice:] if _FECHADA.fullmatch(resto))
+            break
         directorio = reader.list_names(project, 'docs/roadmap/' + carpeta, max_entries=MAX_SCAN)
         if directorio['status'] in ('not_found', 'not_regular'):
             continue                                            # los índices del roadmap son ficheros
@@ -364,11 +370,6 @@ def cartera(project):
             if rec is None and not set(directorio['names']) & {'spec.md', 'evaluation.md', 'tasks.md'}:
                 continue                                        # no es una carpeta de iniciativa (por su listado)
         candidatas += 1
-        if len(filas) == MAX_INITIATIVES:
-            issue('row_budget')
-            # fix2 (C-1): las que quedan se cuentan por nombre (fecha delante), sin `exists` que siga enlaces
-            candidatas += sum(1 for resto in carpetas[indice + 1:] if _FECHADA.match(resto))
-            break
         fila = _fila_base(carpeta, rec)
         if tamano is None and rec is None:
             fila['motivo'] = 'fuera_de_tope'

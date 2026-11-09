@@ -61,7 +61,8 @@ def test_projection_absence_empty_and_malformed_are_distinct(service, tmp_path):
     assert service.progress_snapshot(tmp_path)['status'] == 'not_found'
     roadmap = tmp_path / 'docs/roadmap'; roadmap.mkdir(parents=True)
     assert service.progress_snapshot(tmp_path)['status'] == 'ok'
-    bad = roadmap / 'broken/tasks.md'; bad.parent.mkdir(); bad.write_text('# no tasks', encoding='utf8')
+    # fix3: solo nombres de carpeta de iniciativa
+    bad = roadmap / '2026-10-09-broken/tasks.md'; bad.parent.mkdir(); bad.write_text('# no tasks', encoding='utf8')
     result = service.progress_snapshot(tmp_path)
     assert result['status'] == 'partial' and not result['complete']
     assert result['initiatives'] == [] and result['issues'] == [{'status': 'malformed'}]
@@ -93,7 +94,7 @@ def test_projection_total_read_budget_is_enforced(service, tmp_path, monkeypatch
     def read(*a, **k):
         calls.append(k['max_bytes']); return {'status': 'ok', 'text': text, 'bytes': k['max_bytes']}
     reader = types.SimpleNamespace(list_names=lambda *a, **k: {'status': 'ok', 'complete': True,
-                                    'names': ['item' + str(n) for n in range(128)]}, read_text=read)
+                                    'names': [f'2026-10-{n % 28 + 1:02}-item{n:03}' for n in range(128)]}, read_text=read)
     monkeypatch.setattr(service, '_load_shared', lambda name: reader if name == 'local-read.py' else real(name))
     result = service.progress_snapshot(tmp_path)
     # H-18: 1 MiB of whole ledgers (the newest four here), then only bounded headers of the rest,

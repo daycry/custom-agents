@@ -110,8 +110,9 @@ A missing value is `null` and is stated ("sin datos"); it is never drawn as 0.
 | Iniciativas (Initiatives) | Read-only kanban, one column per spec state (`borrador`, `aprobada`, `implementada`, `obsoleta`) and one card per initiative with its alerts as text; hours and cost charts with their table. A card with a plan links to `plan-<id16>.html` | `api/cartera` |
 | Plan (`plan-<id16>.html`) | Kanban of the ledger tasks with the five vocabulary columns (`borrador`, `en-progreso`, `en-revision`, `completado`, `cancelado`) and an "unrecognised state" strip showing the literal; task detail; progress and hours per phase charts and a burndown | `api/plan-<id16>`, `api/plan-<id16>-<T-XX>` |
 
-- **`api/cartera`**: initiatives of `docs/roadmap/` (reads up to 4,096 names, sorts them newest first and walks at most 128 folders; the other
-  initiatives are counted by name in `recorte.omitidas`; 64 rows, response
+- **`api/cartera`**: initiatives of `docs/roadmap/` (reads up to 4,096 names, sorts them newest first and walks at most 128 folders; the others are
+  counted in `recorte.omitidas` by initiative folder name (date first, no extension) without touching the disk;
+  progress walks up to 1,024 initiative-named folders and stops at 64 rows; 64 rows, response
   <= 64 KiB). Each initiative falls in ONE spec category: the four states, `ilegible`,
   `sin_spec` (fast path) or `no_reconocido` (with its literal). The estimated cost is shown as
   `evaluation.md` writes it; only the first euro amount is extracted for the sum.

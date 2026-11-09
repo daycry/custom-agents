@@ -20,6 +20,7 @@ MAX_FILE_BYTES = 256 * 1024
 MAX_READ_BYTES = 1024 * 1024
 HEAD_BYTES = 16 * 1024   # H-18: cabecera + "Resumen de progreso" de un ledger que no cabe en el presupuesto
 MAX_INITIATIVES = 64
+MAX_WALK = 1024   # initiative folders walked per progress request (fix3)
 MAX_RESPONSE_BYTES = 65536
 MAX_REQUEST_BYTES = 4096
 BODY_TIMEOUT = 3
@@ -458,10 +459,12 @@ def progress_snapshot(project, scrub=None):
     # budget cuts the OLDEST ledgers. A ledger that does not fit in the remaining budget (or
     # exceeds MAX_FILE_BYTES) is summarised from its header and "Resumen de progreso" table,
     # read as a bounded prefix: never a false `too_large` because the budget ran out.
-    names = sorted(listing['names'], reverse=True)
-    if len(names) > MAX_SCAN:
-        issue('scan_budget')   # fix2 (D-1): at most MAX_SCAN folders walked per request
-    for folder in names[:MAX_SCAN]:
+    # fix3: initiative-shaped names only, newest first; walk at most MAX_WALK of them (stopping at
+    # MAX_INITIATIVES rows), so newer folders without a ledger cannot hide the older ledgers.
+    names = [name for name in sorted(listing['names'], reverse=True) if _INITIATIVE_FOLDER.fullmatch(name)]
+    if len(names) > MAX_WALK:
+        issue('scan_budget')
+    for folder in names[:MAX_WALK]:
         directory = reader.list_names(project, 'docs/roadmap/' + folder, max_entries=1)
         if directory['status'] in ('not_found', 'not_regular'):
             continue  # Roadmap indexes are files, not initiative directories.
