@@ -75,14 +75,14 @@ Este paso no inicia servicios ni genera piezas de proyecto.
 ## Perfil efectivo antes de despachar
 
 Ejecuta `execution-profile.py --project <raíz del proyecto> --json` desde el
-`agent-kits/shared/` del mismo bundle. Consume sus flags efectivos, no los
+`agent-kits/shared/` del mismo bundle. Consume sus flags efectivos (prevalecen sobre los toggles de dev.json), no los
 recalcules: `blocked: true`/exit 2 impide despachar. En `perfil: lite`, despacha
-cada tarea en secuencia, sin paralelismo, al `implementer` nativo (ID de `agent-kits/shared/native-roles.json`;
-el hilo principal no tiene su guardia) con el brief de `task-brief.py` como prompt; no
-abras `phase3-subagents.md`. Su exit 2 no entrega brief y exige ajustar la tarea. El writer es obligatorio y los
+cada tarea en secuencia, sin paralelismo, al `implementer` nativo (ID en `agent-kits/shared/native-roles.json`;
+`implementer` con el bundle copiado; el hilo principal no tiene guardia) con el brief de
+`task-brief.py` como prompt; no abras `phase3-subagents.md`. Su exit 2 no entrega brief y exige ajustar la tarea. El writer es obligatorio y los
 revisores frescos se despachan secuencialmente; invoca `adversarial-review` con
 ese perfil. TDD, QA, cobertura y Knowledge Gate conservan todas sus puertas.
-La política efectiva prevalece sobre los toggles pedidos en dev.json. El perfil
+El perfil
 normal conserva sus defaults y el fallback parcial de `ledger-write.md`.
 
 ## Fase 0 — Preparación

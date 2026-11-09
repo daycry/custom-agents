@@ -15,7 +15,11 @@ SUBAGENTS = ROOT / "agent-kits/dev-cycle/references/phase3-subagents.md"
 ROLES = ROOT / "agent-kits/shared/native-roles.json"
 TASK_BRIEF = ROOT / "agent-kits/shared/task-brief.py"
 DOCS = [ROOT / p for p in ("docs/CONVENTIONS.md", "docs/en/CONVENTIONS.md",
-                           "docs/FLOWS.md", "docs/en/FLOWS.md")]
+                           "docs/FLOWS.md", "docs/en/FLOWS.md",
+                           # revisión intento 1 (gap 4): también describían «lite en el hilo actual»
+                           "docs/agents/implementer.md", "agent-kits/shared/README.md",
+                           "docs/agents/CONTRACTS.md", "docs/guides/quality-playbook.md",
+                           "docs/guides/subscription-efficiency.md")]
 
 
 def _section(text, start, end_re=r"\n## "):
@@ -64,6 +68,13 @@ def test_docs_describen_lite_con_implementer_nativo():
         texto = " ".join(doc.read_text(encoding="utf-8").split())
         assert "hilo actual" not in texto and "current thread" not in texto, doc
         assert "implementer" in texto, doc
+
+
+def test_respaldo_de_id_nativo_en_instalacion_copiada():
+    """Revisión intento 1 (gap 11): con el bundle copiado en `.claude/agents/` el tipo es `implementer`."""
+    for texto in (COMMAND.read_text(encoding="utf-8"), SUBAGENTS.read_text(encoding="utf-8")):
+        plano = " ".join(texto.split())
+        assert "copiad" in plano and "`implementer`" in plano, plano[:200]
 
 
 def test_adaptadores_generados_conservan_el_despacho_nativo():

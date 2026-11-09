@@ -82,9 +82,9 @@
     {
       "before_sha256": "7c1d9803defe78ddcac981606263451619922a2c072121f82ee5d9263ced2d8a",
       "before_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
-      "after_sha256": "8279edb09dc3c5b5f8811016c8d170b3a4c75fc4983d9efeeebcdf31a33dafe8",
+      "after_sha256": "72d6c4322d073410cce1bdbcdba7b0ba73c7e3c1ab5099c1b29a85b10e3dc03d",
       "after_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
-      "reason": "Audit H-6/H-7: brief-only dispatch uses subagent_type = native implementer ID from native-roles.json with the brief as prompt, never a generic subagent (native-guardrail.py only protects that identity); the fallback after the second attempt is a direct dispatch to the native implementer instead of the main context; return states, gates and parallel batch unchanged."
+      "reason": "Audit H-6/H-7: brief-only dispatch uses subagent_type = native implementer ID from native-roles.json with the brief as prompt, never a generic subagent (native-guardrail.py only protects that identity), with the bare `implementer` type when the bundle is copied into .claude/agents/; the fallback after the second attempt is a direct dispatch to the native implementer instead of the main context; return states, gates and parallel batch unchanged."
     }
   ]
 }

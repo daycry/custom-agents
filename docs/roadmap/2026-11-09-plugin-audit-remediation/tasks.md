@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 2 | 6 | 33.3% |
+| Fase 1 | 3 | 6 | 50.0% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **2** | **21** | **9.5%** |
+| **TOTAL** | **3** | **21** | **14.3%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -108,9 +108,9 @@ GREEN: `pytest tests/test_graphiti_security.py -k ignoran_proxy` → `1 passed` 
 
 ### T-05 — Guardarraíles en perfil lite y en subagentes
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-6 y H-7. La implementación siempre se despacha a la identidad nativa `implementer` (también en `lite` y con subagentes), para que la guardia nativa aplique.
-- **Archivos**: `commands/dev-cycle.md`, `agent-kits/dev-cycle/references/phase3-subagents.md`, `skills/quick-implement/SKILL.md`, `agent-kits/shared/task-brief.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `interop/**`, `tests/test_dev_cycle_split.py`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/fixtures/dev-cycle-paragraphs.json`, `tests/test_native_guardrail_dispatch.py`, `docs/agents/CONTRACTS.md`, `docs/guides/quality-playbook.md`, `docs/guides/subscription-efficiency.md` (añadidos por el implementer: E3, también describían «lite en el hilo actual»).
+- **Archivos**: `commands/dev-cycle.md`, `agent-kits/dev-cycle/references/phase3-subagents.md`, `skills/quick-implement/SKILL.md`, `agent-kits/shared/task-brief.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `interop/**`, `tests/test_dev_cycle_split.py`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/fixtures/dev-cycle-paragraphs.json`, `tests/test_native_guardrail_dispatch.py`, `docs/agents/CONTRACTS.md`, `docs/guides/quality-playbook.md`, `docs/guides/subscription-efficiency.md` (añadidos por el implementer: E3, también describían «lite en el hilo actual»), `docs/agents/implementer.md`, `agent-kits/shared/README.md` (revisión intento 1, gap 4).
 - **Verificación**: test que exige el despacho a `implementer` en lite y subagentes → pasa; `export-interop.py --check` al día; ahorro de la vía rápida ≥ 6000.
 - **Changelog**: La implementación se entrega siempre a la identidad nativa del implementer, también en el perfil lite y con subagentes, para que su guardia de rama, alcance y git aplique.
 - **Cerrada**: 2026-11-09
@@ -123,6 +123,11 @@ GREEN: `pytest tests/test_graphiti_security.py -k ignoran_proxy` → `1 passed` 
 RED: `tests/test_native_guardrail_dispatch.py` falló con 5 failed, 1 passed: lite dice implementa en el hilo actual, paso 2 sin subagent_type implementer, brief lite y docs con hilo actual/current thread, interop sin native-roles.json · 2026-11-09.
 
 GREEN: `pytest tests/test_native_guardrail_dispatch.py` → `6 passed`; `tests/test_dev_cycle_split.py` → `10 passed` (ahorro vía rápida 6012 → 6057: la frase de justificación de la vía rápida se condensa en su conclusión; filas de reemplazo registradas, incl. la encadenada `2ece9f09`→nuevo); `export-interop.py` → `92 ficheros escritos` y `--check` → `92 ficheros al día`; `tests/test_lite_profile.py` 30 passed; `test_token_estimates.py` 13 passed; `agent-kits/shared/test_context_footprint.py` 15 passed; `test_source_snapshot.py` 33 passed, 1 skipped; `test_task_brief.py` 92 passed. `skills/quick-implement/SKILL.md` no cambia (ya despachaba a `implementer`) · 2026-11-09.
+
+
+RED: `tests/test_native_guardrail_dispatch.py (DOCS ampliada + respaldo copiado)` falló con fix1: 2 failed: docs/agents/implementer.md y shared README dicen hilo actual; sin respaldo implementer en instalacion copiada · 2026-11-09.
+
+GREEN fix1: `pytest tests/test_native_guardrail_dispatch.py` → `7 passed` (DOCS incluye docs/agents/implementer.md y shared README; respaldo `implementer` con bundle copiado); `tests/test_dev_cycle_split.py` → `10 passed`, ahorro vía rápida 6055 (≥ 6000; la frase duplicada «La política efectiva prevalece…» se integra en «Consume sus flags efectivos»); `tests/test_lite_profile.py` → `30 passed`; `export-interop.py --check` → `92 ficheros al día` · 2026-11-09.
 
 ### T-06 — Puertas que fallan cerradas
 
@@ -141,6 +146,9 @@ GREEN: `pytest tests/test_native_guardrail_dispatch.py` → `6 passed`; `tests/t
 RED: `test_review_lens_select.py::test_error_en_auto_activa_c_y_d_con_aviso_exit_0 + test_guardrail_check.py::test_git_deny_operaciones_destructivas_auditoria` falló con --base inexistente en auto dio lente_c False; 17 failed: reset --hard, clean -f*, push :rama/--delete/-d y stash drop/clear permitidos · 2026-11-09.
 
 GREEN: `pytest skills/adversarial-review/scripts/test_review_lens_select.py` → `61 passed in 126.89s`; `pytest agent-kits/shared/test_guardrail_check.py` → `158 passed in 7.43s` (18 destructivas deny + 16 no destructivas allow); `tests/test_copias_declaradas.py` → `30 passed`. Ninguno de los dos scripts tiene huella `sha256_lf` · 2026-11-09.
+
+
+RED: `agent-kits/shared/test_guardrail_check.py -k fix1_formas` falló con fix1: 23 failed: --ha/--fo/--del/--mirror/--prune, clean.requireForce en linea y -c alias.* permitidos; clean --dr -f denegado · 2026-11-09.
 
 ## Fase 2 — Funciones documentadas que no funcionan
 
