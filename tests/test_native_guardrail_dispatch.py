@@ -121,3 +121,14 @@ def test_fix2_gap12_changelog_headers_carry_slug_for_changelog_sync():
     assert "### Fixed — iniciativa `plugin-audit-remediation`, fase 1" in es
     for texto in (en, es):
         assert texto.index("`plugin-audit-remediation`") < texto.index("## [3.2.3]")
+
+
+def test_fix2_changelog_de_fase_1_recoge_los_cambios_del_intento_2():
+    """Revisión intento 2 (documentación): la entrada ES/EN nombra exit 3, ⚠️ de doctor,
+    la inyección de configuración git y NoDefaultCurrentDirectoryInExePath."""
+    for rel in ("CHANGELOG.md", "CHANGELOG.es.md"):
+        texto = (ROOT / rel).read_text(encoding="utf-8")
+        seccion = texto[texto.index("`plugin-audit-remediation`"):texto.index("## [3.2.3]")]
+        for marca in ("exit 3", "`/doctor`", "⚠️", "`GIT_CONFIG_*`", "`include.*`",
+                      "NoDefaultCurrentDirectoryInExePath"):
+            assert marca in seccion, (rel, marca)
