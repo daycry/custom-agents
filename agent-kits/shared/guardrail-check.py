@@ -34,6 +34,8 @@ Reglas (cada una desactivable en `.claude/dev.json` → `"guardrails": {…}`):
                  que son comandos (no pasan por este hook), no el implementer.
   git            Bash: `git commit --no-verify|-n` y overrides explícitos de core.hooksPath en commit → deny;
                  `git push --force|-f|--force-with-lease` → deny; `git branch -D` → deny;
+                 `git reset --hard`, `git clean -f*` (salvo `-n`/`--dry-run`), `git push --delete|-d`
+                 o refspec `:rama`, `git stash drop|clear` → deny (auditoría 2026-11-09, H-12);
                  `git checkout|switch main|master` → deny solo si la rama actual es una feature;
                  `rm -rf` sobre `/`, `~`, `.git`, `.` → deny; refspec `+rama` en push = force;
                  se analizan también las cadenas de `sh -c "…"`/`bash -c '…'`.
@@ -559,6 +561,29 @@ def check_git(command, branch, _depth=0, _env=None):
                         or (t.startswith("+") and len(t) > 1):          # refspec `+main` = force
                     return ("`git push` forzado bloqueado: reescribe historia compartida — "
                             "haz push normal; si de verdad hace falta, que lo pida el usuario.")
+        i = _es_git(toks, "push")
+        if i >= 0:
+            for t in toks[i + 1:]:
+                if t == "--delete" or (re.fullmatch(r"-[a-zA-Z]+", t) and "d" in t) \
+                        or re.fullmatch(r"\+?:[^:]+", t):              # refspec `:rama` = borrar
+                    return ("`git push` que borra una rama remota bloqueado (`--delete`/`-d`/`:rama`) — "
+                            "la limpieza de ramas la dirige el ritual de cierre de /dev-cycle (Fase 6).")
+        i = _es_git(toks, "reset")
+        if i >= 0 and "--hard" in toks[i + 1:]:
+            return ("`git reset --hard` bloqueado: descarta cambios sin comitear que pueden no ser "
+                    "tuyos — revierte solo lo de tu intento (`git diff <foto> -- <ficheros> | git apply -R`).")
+        i = _es_git(toks, "clean")
+        if i >= 0:
+            rest = toks[i + 1:]
+            forzado = any(t == "--force" or (re.fullmatch(r"-[a-zA-Z]+", t) and "f" in t) for t in rest)
+            simulado = any(t == "--dry-run" or (re.fullmatch(r"-[a-zA-Z]+", t) and "n" in t) for t in rest)
+            if forzado and not simulado:
+                return ("`git clean -f` bloqueado: borra ficheros sin seguimiento sin recuperación — "
+                        "borra por nombre solo los ficheros nuevos de tu intento.")
+        i = _es_git(toks, "stash")
+        if i >= 0 and i + 1 < len(toks) and toks[i + 1] in ("drop", "clear"):
+            return (f"`git stash {toks[i + 1]}` bloqueado: elimina stashes sin recuperación sencilla — "
+                    "si sobra, que lo descarte el usuario.")
         i = _es_git(toks, "branch")
         if i >= 0:
             rest = toks[i + 1:]

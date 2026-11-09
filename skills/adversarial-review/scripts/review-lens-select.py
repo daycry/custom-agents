@@ -692,6 +692,7 @@ def main():
     base_desc, ficheros, lineas = "—", [], {}
     root_evaluacion = root      # raiz desde la que `motivos_de_flujo` abre los ficheros del diff
     lecturas = _Lecturas(root)
+    error_diff = False
     try:
         if args.files is not None:
             base_desc = "--files"
@@ -712,8 +713,12 @@ def main():
                 lineas = lineas_anadidas_git(root_git, base)
                 for f in unt:
                     lineas[f] = lecturas.lineas(f)
-    except Exception as e:  # noqa: BLE001 — nunca bloquea
-        avisos.append(f"error evaluando el diff ({e.__class__.__name__}: {e}); lente_c/lente_d: false")
+    except Exception as e:  # noqa: BLE001 — nunca bloquea (exit 0), pero falla CERRADO
+        # Auditoría H-8: un diff que no se pudo evaluar no prueba que no haya nada sensible; en
+        # `auto` se activan C y D (un `nunca` explícito del usuario se respeta).
+        error_diff = True
+        avisos.append(f"error evaluando el diff ({e.__class__.__name__}: {e}); "
+                      f"lente_c/lente_d: true en modo auto (no se puede descartar nada)")
         ficheros, lineas = [], {}
 
     # Los motivos de la Lente C son la union de las dos heuristicas: patron (ruta/contenido) y
@@ -725,6 +730,12 @@ def main():
     lente_c, motivos_c = decidir(modo_c, motivos_c)
     motivos_d = motivos_de_d(ficheros, lineas, excluir) if ficheros else []
     lente_d, motivos_d = decidir_d(modo_d, motivos_d)
+    if error_diff:
+        motivo_error = {"tipo": "error", "fichero": "(diff)", "patron": "diff no evaluable"}
+        if modo_c == "auto":
+            lente_c, motivos_c = True, [motivo_error]
+        if modo_d == "auto":
+            lente_d, motivos_d = True, [dict(motivo_error)]
 
     for a in avisos:
         avisar(a)

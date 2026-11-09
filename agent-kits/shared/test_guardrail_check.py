@@ -135,6 +135,31 @@ def test_git_deny_branch_D_y_rm_rf_peligroso():
         assert decide(bash(cmd)), cmd
 
 
+@pytest.mark.parametrize("cmd", [
+    "git reset --hard", "git reset --hard HEAD~1", "git -C /r reset --hard origin/x",
+    "git clean -f", "git clean -fd", "git clean -xfd", "git clean -df src/", "git clean --force",
+    "git push origin :feature/x", "git push origin +:feature/x",
+    "git push --delete origin feature/x", "git push origin --delete feature/x", "git push -d origin x",
+    "git stash drop", "git stash drop stash@{1}", "git stash clear",
+    'bash -c "git reset --hard"', "npm test && git stash clear",
+])
+def test_git_deny_operaciones_destructivas_auditoria(cmd):
+    """Auditoría 2026-11-09 (H-12): borran trabajo sin comitear, ramas remotas o stashes."""
+    assert decide(bash(cmd)), cmd
+    assert decide(bash(cmd), branch="main"), cmd     # no depende de la rama
+
+
+@pytest.mark.parametrize("cmd", [
+    "git reset", "git reset --soft HEAD~1", "git reset HEAD src/a.py", "git reset --mixed",
+    "git clean -n", "git clean -nd", "git clean --dry-run -f",
+    "git push origin feature/x", "git push origin feature/x:feature/x", "git push -u origin x",
+    "git stash", "git stash push -m wip", "git stash pop", "git stash list", "git stash apply",
+    'git commit -m "git reset --hard en el mensaje"',
+])
+def test_git_operaciones_no_destructivas_siguen_permitidas(cmd):
+    assert decide(bash(cmd)) is None, cmd
+
+
 def test_fix1_evasiones_git_refspec_mas_shell_c_y_rm_punto():
     # (2a) refspec con `+` = force
     assert decide(bash("git push origin +main"))

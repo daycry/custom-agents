@@ -70,7 +70,7 @@ de líneas añadidas: C = `eval(`, `shell=True`, `innerHTML`, SQL concatenado, c
 bloqueante, `readFileSync`, N+1/`await`/regex-compile/concat **dentro de un bucle** (proximidad, no
 parser). Config por separado en `.claude/dev.json`: `revision.lenteSeguridad`/`lenteRendimiento`
 (`auto`|`siempre`|`nunca`) y `revision.excluir` (compartido, solo RUTA). Nunca bloquea (error →
-aviso + ambas `false`). Contrato = constantes del script (`RUTA_RE`/`CONTENIDO`/`RUTA_RE_D`/
+aviso + ambas `true` en `auto`). Contrato = constantes del script (`RUTA_RE`/`CONTENIDO`/`RUTA_RE_D`/
 `CONTENIDO_D_INDEPENDIENTE`/`PATRONES_TRAS_BUCLE_D`), con tests; detalle en
 `references/lens-c-heuristics.md`/`lens-d-heuristics.md` si un motivo sorprende.
 ### 2. Despachar lentes → agente `reviewer` (solo lectura, contexto fresco)
@@ -165,7 +165,7 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Aplican a cada lente 
 
 - `scripts/review-lens-select.py` — decide si aplican las Lentes C y D (ruta+contenido de las líneas
   añadidas; `dev.json` `revision.lenteSeguridad`/`lenteRendimiento`); determinista, con tests junto
-  al script, **exit 0 siempre** (error → ambas `false`).
+  al script, **exit 0 siempre** (error → ambas `true` en `auto`).
 - Reutiliza sin duplicar, de `agent-kits/shared/`: `scope-check.py` (puerta), `ledger-lint.py`,
   `personas/`, `knowledge-write.md`, `review-report.template.md`, `output-discipline.md`,
   `model-tier.py` (tier del `reviewer`) y `docs-style.md` (Lente A en prosa).

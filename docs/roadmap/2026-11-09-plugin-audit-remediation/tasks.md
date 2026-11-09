@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 3 | 6 | 50.0% |
+| Fase 1 | 4 | 6 | 66.7% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **3** | **21** | **14.3%** |
+| **TOTAL** | **4** | **21** | **19.0%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -107,14 +107,21 @@ GREEN: `pytest tests/test_graphiti_security.py -k ignoran_proxy` → `1 passed` 
 
 ### T-06 — Puertas que fallan cerradas
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: H-8 y H-12. `review-lens-select` en `auto` activa C y D ante error; `guardrail-check` deniega `reset --hard`, `clean -f*`, borrar ramas remotas y `stash drop|clear`.
 - **Archivos**: `skills/adversarial-review/scripts/review-lens-select.py`, `skills/adversarial-review/scripts/test_review_lens_select.py`, `agent-kits/shared/guardrail-check.py`, `agent-kits/shared/test_guardrail_check.py`, `skills/adversarial-review/SKILL.md`, `tests/test_graphiti_security.py`.
 - **Verificación**: tests de los dos scripts → pasan con los casos nuevos.
+- **Changelog**: Las puertas fallan cerradas: si no se puede evaluar el diff se activan las lentes de seguridad y rendimiento, y el implementer ya no puede descartar cambios, borrar ramas remotas ni vaciar stashes.
+- **Cerrada**: 2026-11-09
 
 **Criterios de aceptación**
-- [ ] `--base` inexistente en `auto` → `lente_c` y `lente_d` true con aviso.
-- [ ] Las seis operaciones destructivas se deniegan para el implementer.
+- [x] `--base` inexistente en `auto` → `lente_c` y `lente_d` true con aviso.
+- [x] Las seis operaciones destructivas se deniegan para el implementer.
+
+
+RED: `test_review_lens_select.py::test_error_en_auto_activa_c_y_d_con_aviso_exit_0 + test_guardrail_check.py::test_git_deny_operaciones_destructivas_auditoria` falló con --base inexistente en auto dio lente_c False; 17 failed: reset --hard, clean -f*, push :rama/--delete/-d y stash drop/clear permitidos · 2026-11-09.
+
+GREEN: `pytest skills/adversarial-review/scripts/test_review_lens_select.py` → `61 passed in 126.89s`; `pytest agent-kits/shared/test_guardrail_check.py` → `158 passed in 7.43s` (18 destructivas deny + 16 no destructivas allow); `tests/test_copias_declaradas.py` → `30 passed`. Ninguno de los dos scripts tiene huella `sha256_lf` · 2026-11-09.
 
 ## Fase 2 — Funciones documentadas que no funcionan
 
