@@ -50,6 +50,7 @@ Comprueba el objetivo contra esta tabla y **di en voz alta** cuál aplica:
 | Alcance pequeño y claro, sin incógnitas | **Adelante** con la vía rápida |
 | Incógnitas, varias fases, alcance difuso | **No arranques**: propón `/pm-cycle` (definir + presupuestar) o el flujo completo de `/dev-cycle` |
 | El usuario quiere saber coste/esfuerzo antes | Flujo completo: la puerta económica ES el valor |
+| Toca interfaz (UI) | **Flujo completo**: `qa` necesita el `test-plan.md` que genera `planner` |
 | Trivial de una línea (un typo, un literal) | Ofrece hacerlo **sin ciclo**; el ledger y las puertas no compensan |
 | El usuario escribió `/dev-cycle` | No te actives: manda el comando |
 

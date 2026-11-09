@@ -26,9 +26,9 @@
     {
       "before_sha256": "b30f4ec711db248b9d44bd90fce87c24f281089c1cb40bc9e1269065a517d368",
       "before_file": "commands/dev-cycle.md",
-      "after_sha256": "faffc9ed781ab7edc8c946aa58ac9317bb4c3613f9b0cb4db5891ebd0136d666",
+      "after_sha256": "b8d5a5d309fd13fef709696f7fadabd59ea78adf5dbb2754408ccc42adef0759",
       "after_file": "commands/dev-cycle.md",
-      "reason": "Full/quick paths and mandatory review/QA unchanged; external projection described without a Jira dependency. Audit H-6/H-7 token compensation: the fast-track rationale (cheap two-lens review and qa-gate versus expensive PM paperwork) is condensed to its conclusion; both gates stay in the same paragraph. Audit H-15: the light ledger declares `test-plan: n/a (sin UI)` when there is no UI and qa reads that marker from tasks.md in the quick path (no improvement-plan.md), so the quick path has an executable QA gate; the equivalent ledger and ADR remarks are condensed to keep the quick-path saving."
+      "reason": "Full/quick paths and mandatory review/QA unchanged; external projection described without a Jira dependency. Audit H-6/H-7 token compensation: the fast-track rationale (cheap two-lens review and qa-gate versus expensive PM paperwork) is condensed to its conclusion; both gates stay in the same paragraph. Audit H-15: the light ledger declares `test-plan: n/a (sin UI)` when there is no UI and qa reads that marker from tasks.md in the quick path (no improvement-plan.md), so the quick path has an executable QA gate; the equivalent ledger and ADR remarks are condensed to keep the quick-path saving. Review phase 2 attempt 1, A3: the quick path has no QA route for a change with UI (qa needs the test-plan.md that planner writes and the quick path skips), so a UI change goes to the full flow."
     },
     {
       "before_sha256": "ec7f72535e0c8c84027d5e33407cb6e6ef63dcee1c5894f6e6a650fcd7435c8c",
@@ -99,6 +99,13 @@
       "after_sha256": "9781a471a3598ef35bd4fa8c559f45eaa777ffefe033d370f2c2f2c51f21802e",
       "after_file": "commands/dev-cycle.md",
       "reason": "Audit H-24/H-25: «seguir» after the 3rd attempt opens a new bounded cycle with the user's OK quoted by ledger-write.py --new-cycle-ok; the commit procedure has a single owner (implementer P4, where commit-selection.py now lives) and Phase 6 only verifies it and reuses it for the orchestrator's own artefacts."
+    },
+    {
+      "before_sha256": "3d0e4510e4ef5e95d659b5f1e3e7e9f04a6e76fcc458e8516735814305bf2b5a",
+      "before_file": "skills/quick-implement/SKILL.md",
+      "after_sha256": "29e62396c02a94307ca7d0503e8f27caadba9decb7f7206663631f626fec719a",
+      "after_file": "skills/quick-implement/SKILL.md",
+      "reason": "Review phase 2 attempt 1, A3: the quick path has no QA route for a change with UI (qa needs the test-plan.md that planner writes and the quick path skips), so a UI change goes to the full flow."
     }
   ]
 }

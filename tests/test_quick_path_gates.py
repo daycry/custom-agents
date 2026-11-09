@@ -79,3 +79,29 @@ def test_h15_quick_implement_resuelve_dev_cycle_en_el_plugin_de_codex(tmp_path):
     lines = result.stdout.strip().splitlines()
     assert lines[-1] == 'metodo-de-la-via-rapida'
     assert lines[-2].replace('\\', '/').endswith('custom-agents-dev-cycle/references/command.md')
+
+
+# ------------------------------------------------- revisión intento 1 (fase 2): A3, A4, A2
+
+def test_fix1_a3_la_via_rapida_con_interfaz_va_al_flujo_completo():
+    quick = text('skills/quick-implement/SKILL.md')
+    fila = next(line for line in quick.splitlines() if line.startswith('| Toca interfaz'))
+    assert 'flujo completo' in fila.lower() and 'test-plan.md' in fila and 'planner' in fila
+    core = text('commands/dev-cycle.md')
+    rapida = next(line for line in core.splitlines() if line.startswith('- **Vía rápida**'))
+    assert 'con interfaz, flujo completo' in rapida
+
+
+def test_fix1_a4_las_piezas_dicen_que_el_marcador_tambien_vale_en_tasks_md():
+    contracts = next(line for line in text('docs/agents/CONTRACTS.md').splitlines() if line.startswith('| E1 '))
+    assert 'en la vía rápida, de `tasks.md`' in contracts
+    assert 'en la vía rápida, el `tasks.md` ligero' in text('docs/agents/qa.md')
+    qa_p1 = next(line for line in text('agents/qa.md').splitlines() if line.startswith('**P1.'))
+    impl_p1 = next(line for line in text('agents/implementer.md').splitlines() if line.startswith('**P1. Contexto.**'))
+    assert 'vía rápida' in qa_p1 and 'vía rápida' in impl_p1
+
+
+def test_fix1_a2_el_aviso_de_ledger_lint_sin_red_queda_como_deuda_en_t21():
+    ledger = ' '.join(text('docs/roadmap/2026-11-09-plugin-audit-remediation/tasks.md').split())
+    t21 = ledger[ledger.index('### T-21'):]
+    assert 'aviso de ledger-lint' in t21 and 'RED:' in t21

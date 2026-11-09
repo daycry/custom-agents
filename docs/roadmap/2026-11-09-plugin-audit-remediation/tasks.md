@@ -17,10 +17,10 @@ changelog: Fixed
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
-| Fase 2 | 4 | 6 | 66.7% |
+| Fase 2 | 5 | 6 | 83.3% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **10** | **21** | **47.6%** |
+| **TOTAL** | **11** | **21** | **52.4%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -252,9 +252,9 @@ GREEN fix1: `pytest agent-kits/shared/test_work_resume.py` → `59 passed` (B1: 
 
 ### T-08 — Vía rápida con qa-gate y TDD verificados
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-15 y H-16. El implementer acepta el ledger ligero; qa acepta `test-plan: n/a (sin UI)` en `tasks.md`; la Lente A comprueba `RED:`/`TDD n/a` con `tdd: true`.
-- **Archivos**: `agents/implementer.md`, `agents/qa.md`, `agent-kits/qa/coverage-check.py`, `tests/test_coverage_check.py`, `tests/test_quick_path_gates.py` (añadido por el implementer: contratos de prosa H-15/H-16 y resolución en Codex), `skills/adversarial-review/references/lens-prompts.md`, `skills/tdd/SKILL.md`, `commands/dev-cycle.md`, `skills/quick-implement/SKILL.md`, `interop/**`, `tests/test_dev_cycle_split.py`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/fixtures/dev-cycle-paragraphs.json`, `tests/test_native_guardrail_dispatch.py` (añadido por el implementer: los dos manuales con edición PDF revertidos por el orquestador pasan a deuda vigilada T-05 → T-21).
+- **Archivos**: `agents/implementer.md`, `agents/qa.md`, `agent-kits/qa/coverage-check.py`, `tests/test_coverage_check.py`, `tests/test_quick_path_gates.py` (añadido por el implementer: contratos de prosa H-15/H-16 y resolución en Codex), `skills/adversarial-review/references/lens-prompts.md`, `skills/tdd/SKILL.md`, `commands/dev-cycle.md`, `skills/quick-implement/SKILL.md`, `interop/**`, `tests/test_dev_cycle_split.py`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/fixtures/dev-cycle-paragraphs.json`, `tests/test_native_guardrail_dispatch.py` (añadido por el implementer: los dos manuales con edición PDF revertidos por el orquestador pasan a deuda vigilada T-05 → T-21), `docs/agents/CONTRACTS.md`, `docs/agents/qa.md` (revisión intento 1, A4: decían que el marcador solo vale en `improvement-plan.md`).
 - **Tiempo IA (ejec.)**: real 0,07h (medido)
 - **Verificación**: `coverage-check` con el marcador en `tasks.md` → exit 0 explícito; tests de split y de interop pasan.
 - **Changelog**: La vía rápida de `/dev-cycle` ya puede cerrar QA: el ledger ligero declara «sin UI» y qa lo acepta, el implementer trabaja sin `improvement-plan.md`, la Lente A exige la evidencia del rojo con TDD activo y quick-implement encuentra el método también en Codex.
@@ -268,6 +268,11 @@ GREEN fix1: `pytest agent-kits/shared/test_work_resume.py` → `59 passed` (B1: 
 RED: `tests/test_coverage_check.py (escenario_h15) + tests/test_quick_path_gates.py` falló con coverage-check con el marcador en tasks.md sin improvement-plan.md sale exit 1; 6 failed: implementer exige el plan, qa y dev-cycle solo leen el marcador del plan, la Lente A no pide RED:, tdd cita una comprobacion inexistente, quick-implement en Codex resuelve commands/dev-cycle.md inexistente · 2026-11-09.
 
 GREEN: `python tests/test_coverage_check.py` → `OK … todo pasa` (marcador en el frontmatter de `tasks.md` sin plan → exit 0 con «declarado en tasks.md»; en la prosa no exime; el del plan sigue mandando); `pytest tests/test_quick_path_gates.py` → `6 passed` (implementer, qa, dev-cycle, Lente A criterio (5b), tdd y la receta de quick-implement ejecutada en Bash con un plugin de Codex sin `commands/` → resuelve `interop/codex/command-skills/custom-agents-dev-cycle/references/command.md`); `tests/test_dev_cycle_split.py` → `10 passed`, ahorro de la vía rápida 6055 → 6080 (preámbulo histórico de quick-implement condensado; 4 filas de reemplazo registradas); `test_skill_size.py` 37, `test_context_footprint.py` 15, `test_source_snapshot.py` 33 + 1 skipped, `test_native_guardrail_dispatch.py` 14, `test_user_handbooks.py` 4, `test_npm_payload.py` 5 passed; `lint_plugin.py` 0 errores; `evals/check.py` 0 errores; `export-interop.py --check` → `92 ficheros al día`. Fuera de alcance: el aviso de ledger-lint para `RED:` que proponía la auditoría (ledger-lint no lee `dev.json`); la comprobación queda en la Lente A · 2026-11-09.
+
+
+RED: `tests/test_quick_path_gates.py -k fix1` falló con fix1: 3 failed: la via rapida con UI no tiene camino de QA (A3); CONTRACTS E1, docs/agents/qa.md, qa P1 e implementer P1 solo hablan de improvement-plan.md (A4); sin deuda del aviso de ledger-lint sin RED (A2) · 2026-11-09.
+
+GREEN fix1: `pytest tests/test_quick_path_gates.py` → `9 passed` (A3: un cambio con interfaz va al flujo completo, en el filtro de quick-implement y en la vía rápida de `/dev-cycle`; A4: CONTRACTS E1, `docs/agents/qa.md`, P1 de qa y del implementer nombran el `tasks.md` ligero; A2: el aviso de ledger-lint sin `RED:` queda como deuda en T-21); `tests/test_dev_cycle_split.py` → `10 passed`, ahorro de la vía rápida 6231 → 6189 (2 filas de reemplazo); `test_skill_size.py` 37, `test_context_footprint.py` 15, `test_source_snapshot.py` 33 + 1 skipped; `export-interop.py --check` → `92 ficheros al día` · 2026-11-09.
 
 ### T-09 — Dashboards completos con roadmaps grandes
 
@@ -461,7 +466,7 @@ GREEN fix1: `pytest tests/test_ledger_write.py -k "fix1 or h24"` → `4 passed`;
 
 - **Estado**: borrador
 - **Descripción**: Menores de la auditoría: Lente D en `dev-cycle`, `quick-implement` y CLAUDE.md; hooks globales y ADR-023 en CLAUDE.md; consola frente a panel servido; rutas de memoria que no viajan; shells muertos; degradación sin node; `release.py` (5 manifiestos, `.MANUAL-COPY` pendiente); cookie por puerto; mapa de errores y `aria-live` de la consola.
-- **Notas**: Incluye la deuda de T-05: nueva edición PDF de los manuales `docs/guides/subscription-efficiency.md` y `docs/guides/quality-playbook.md` para que digan que lite despacha al implementer nativo.
+- **Notas**: Incluye la deuda de T-08 (revisión fase 2 intento 1, A2): un aviso de ledger-lint para las tareas `completado` sin `RED:` ni `TDD n/a` cuando `dev.json` trae `tdd: true` (hoy solo lo comprueba la Lente A, criterio 5b). Incluye la deuda de T-05: nueva edición PDF de los manuales `docs/guides/subscription-efficiency.md` y `docs/guides/quality-playbook.md` para que digan que lite despacha al implementer nativo.
 - **Archivos**: `CLAUDE.md`, `commands/*.md`, `skills/**/SKILL.md`, `docs/**`, `hooks/*.sh`, `scripts/release.py`, `skills/plugin-panel/**`, `interop/**`, tests afectados.
 - **Verificación**: lint 0 errores, evals 0 errores, interop al día, CI completa en Linux verde.
 

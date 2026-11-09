@@ -62,7 +62,7 @@ Lee `agent-kits/shared/ledger-write.md` al escribirlo: writer preferente, obliga
 ---
 
 ## 2) FLUJO (6 pasos)
-**P1. Contexto.** Localiza la iniciativa; lee `improvement-plan.md` (arquitectura, archivos, criterios) y `tasks.md` (fases y tareas T-XX). Explora el repo (Read/Grep/Glob) para ubicar los módulos reales a tocar.
+**P1. Contexto.** Localiza la iniciativa; lee `improvement-plan.md` (arquitectura, archivos, criterios) y `tasks.md` (fases y tareas T-XX); en la vía rápida, solo el `tasks.md` ligero. Explora el repo (Read/Grep/Glob) para ubicar los módulos reales a tocar.
 
 **P1-bis. Disciplina de desarrollo (config opt-in).** Lee `.claude/dev.json` si existe (lo crea `/setup`): `{tdd, worktree, subagentes}` — los tres con default `false`; fichero ausente o corrupto = defaults + aviso (comportamiento clásico, nunca bloquea). `subagentes` lo gestiona el orquestador `/dev-cycle` (con `subagentes: true`, las tareas las despacha él a subagentes frescos con brief de `task-brief.py`, y tú solo entras como fallback cuando un despacho falla dos veces); `tdd` y `worktree` los aplicas tú (P2 y P3).
 
