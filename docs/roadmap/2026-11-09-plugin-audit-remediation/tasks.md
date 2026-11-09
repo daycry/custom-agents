@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 5 | 6 | 83.3% |
+| Fase 1 | 6 | 6 | 100.0% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **5** | **21** | **23.8%** |
+| **TOTAL** | **6** | **21** | **28.6%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -141,7 +141,7 @@ GREEN fix1: `pytest tests/test_native_guardrail_dispatch.py` → `7 passed` (DOC
 
 ### T-06 — Puertas que fallan cerradas
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-8 y H-12. `review-lens-select` en `auto` activa C y D ante error; `guardrail-check` deniega `reset --hard`, `clean -f*`, borrar ramas remotas y `stash drop|clear`.
 - **Archivos**: `skills/adversarial-review/scripts/review-lens-select.py`, `skills/adversarial-review/scripts/test_review_lens_select.py`, `agent-kits/shared/guardrail-check.py`, `agent-kits/shared/test_guardrail_check.py`, `skills/adversarial-review/SKILL.md`, `tests/test_graphiti_security.py`, `CHANGELOG.md`, `CHANGELOG.es.md` (añadidos por el implementer: entrada `### Fixed` de toda la Fase 1, commit aparte pedido por el orquestador), `skills/adversarial-review/references/lens-c-heuristics.md`, `agents/implementer.md`, `docs/agents/implementer.md`, `interop/**` (revisión intento 1, gaps 5 y 6).
 - **Verificación**: tests de los dos scripts → pasan con los casos nuevos.
@@ -333,3 +333,26 @@ GREEN fix1: `pytest agent-kits/shared/test_guardrail_check.py` → `190 passed` 
 
 **Criterios de aceptación**
 - [ ] Los menores de la auditoría quedan corregidos o descartados con motivo en este ledger.
+
+## Revisión de dos lentes — intento 1: Fase 1 (T-01…T-06) — 12 gaps corregidos (5 Important, 7 Minor), 4 descartados por el orquestador (T-01, T-02, T-03, T-04, T-05, T-06)
+
+Lentes: A + B + C (C por `review-lens-select.py`: guardarraíles, instalador y red). Corrección en `fix1` por el implementer, con RED/GREEN en cada tarea.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | `guardrail-check.py`: abreviaturas (`--ha`, `--fo`, `--del`), `push --mirror/--prune`, `clean.requireForce` en línea y alias `-c alias.*` saltaban las denegaciones | T-06 | corregido | `_abrevia` + `_claves_config`; `test_guardrail_check.py` 190 passed (commit 4fe305c) |
+| 2 | Important | `qa-gate.py`: `[failed, skipped]` sin `stats` contaba como saltado y ocultaba el fallo | T-02 | corregido | la rama skipped exige todos los resultados saltados; `test_qa_gate.py` 7 passed (3645f7b) |
+| 3 | Important | `usage-meter.py`: estado con BOM o ilegible tratado como vacío y sobrescrito | T-01 | corregido | `utf-8-sig`; start/close exit 3 sin escribir, status avisa; `test_usage_meter.py` 80 passed (cc93811) |
+| 4 | Important | `docs/agents/implementer.md` y `agent-kits/shared/README.md` aún decían «lite en el hilo actual» | T-05 | corregido | textos actualizados; `DOCS` del test ampliada; `test_native_guardrail_dispatch.py` 7 passed (27ae7d4) |
+| 5 | Important | docstring de `review-lens-select.py` y `lens-c-heuristics.md` decían «error → false» | T-06 | corregido | alineados con «error → true en auto» (4fe305c) |
+| 6 | Minor | `agents/implementer.md` y `docs/agents/implementer.md` no listaban las nuevas denegaciones | T-06 | corregido | listas ampliadas; interop regenerado, `--check` 92 al día (4fe305c, 27ae7d4) |
+| 7 | Minor | `.git` roto trataba el caso como «fuera de repo» y apagaba C y D | T-06 | corregido | `_hay_git_arriba` → error → C y D true; fuera de git real sigue false y documentado; `test_review_lens_select.py` 62 passed (4fe305c) |
+| 8 | Minor | `worklog.py`: `nan`/`inf`, campos de tipo equivocado con traceback, `os.replace` con PermissionError | T-01 | corregido | rechazo de no finitos, validación de forma → exit 2, reintento acotado; `test_worklog.py` 11 passed (cc93811) |
+| 9 | Minor | `uninstall` aislaba por proveedor pero no por manifiesto | T-03 | corregido | bucle por `sitiosManifiesto` con try por manifiesto; `installer.test.mjs` 184 pass (0a7f98e) |
+| 10 | Minor | `codex-plugin-state.mjs` aceptaba entradas relativas del PATH; `correr` lanzaba el nombre pelado | T-03 | corregido | filtro de absolutas; `correr` da ENOENT propio; `codex-plugin-state.test.mjs` 7 pass (0a7f98e) |
+| 11 | Minor | sin respaldo del tipo `implementer` con el bundle copiado | T-05 | corregido | prosa en `dev-cycle.md` y `phase3-subagents.md`; ahorro vía rápida 6055 (27ae7d4) |
+| 12 | Minor | cabecera del CHANGELOG sin el slug que usa `changelog-sync` | T-06 | corregido | cabeceras con `` `plugin-audit-remediation` `` (2a70dd0); al cerrar la iniciativa, las fases 2-4 se añaden a mano bajo esa sección porque `changelog-sync` la da por publicada |
+| 13 | Minor | `git checkout -- .`/`git restore .`/`checkout -f` | T-06 | descartado (ampliación de H-12, no forma equivalente; propuesta para una iniciativa posterior) | decisión del orquestador |
+| 14 | Minor | envoltorios `nice/timeout/sudo/xargs/find -exec/$G` saltan todas las reglas git | T-06 | descartado (limitación previa del parser, fuera del diff) | decisión del orquestador |
+| 15 | Minor | `guardrail-check.py:709-711` deja pasar ante excepción interna | T-06 | descartado (diseño previo, ADR-007: un guardrail roto no bloquea) | decisión del orquestador |
+| 16 | Minor | `setTrustAnchors` con `--dir` dentro de `~/.claude/plugins` en `--scope user` | T-03 | descartado (escenario no reproducido; queda como propuesta) | decisión del orquestador |
