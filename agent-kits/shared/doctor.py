@@ -1501,6 +1501,13 @@ def _marcadores(plugin_root, project):
     d = None
     if os.path.isfile(script):
         d = _json_de(_correr([sys.executable, script, "status", "--state", state])[0])
+    if d is not None and d.get("avisos"):
+        # Revisión intento 2: estado ilegible → start/close salen con exit 3 sin medir.
+        return [linea(AVISO, "marcadores de medición",
+                      f"`usage-state.json` ilegible ({'; '.join(map(str, d['avisos']))[:200]}): "
+                      "`usage-meter.py start/close` no escriben y la medición degrada a estimada",
+                      f"respáldalo (`{state}.bak`) y bórralo: es ESTADO, no config — los siguientes "
+                      "`usage-meter.py start` lo recrean")]
     if d is None:                       # degradación: leer el estado directamente
         crudo, err = _leer_json(state)
         if err:

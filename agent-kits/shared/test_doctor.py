@@ -3260,3 +3260,17 @@ def test_automatizaciones_en_md_sin_cambiar_veredictos_ni_bloques(tmp_path):
     assert md.index("## Automatizaciones") < md.index("## Resumen")
     assert veredictos_md(md) == [l["estado"] for l in lineas(inf)]
     assert len(inf["bloques"]) == 8
+
+
+def test_fix2_doctor_avisa_de_usage_state_ilegible_con_arreglo(tmp_path):
+    """Revisión intento 2 (B3): /doctor no ignora los avisos de `usage-meter.py status`."""
+    claude = tmp_path / ".claude"
+    claude.mkdir()
+    (claude / "usage-state.json").write_text("{ roto", encoding="utf-8")
+    lineas = doctor._marcadores(ROOT, str(tmp_path))
+    avisos = [l for l in lineas if l["estado"] == doctor.AVISO]
+    assert avisos, lineas
+    assert "usage-state.json" in avisos[0]["detalle"]
+    assert "respáldalo" in avisos[0]["arreglo"] and ".bak" in avisos[0]["arreglo"], avisos[0]
+    assert "bórralo" in avisos[0]["arreglo"], avisos[0]
+

@@ -315,6 +315,55 @@ def test_fix1_replace_con_permission_error_reintenta_y_sale_limpio(monkeypatch):
         assert os.listdir(tmp) == [], os.listdir(tmp)
 
 
+# --- Revisión de dos lentes, intento 2 (B4, A2) ---
+
+def test_fix2_campos_internos_de_tasks_invalidos_exit2():
+    for tarea in ({"worklog": "mucho"}, {"worklog": -1}, {"worklogImpl": None},
+                  {"worklogRevision": float("nan") if False else "nan"},
+                  {"reviewAttempts": {}}, {"reviewAttempts": [{"intento": 1, "horas": -2}]},
+                  {"reviewAttempts": ["x"]}):
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = json.dumps({"tasks": {"T-01": tarea}}).encode("utf-8")
+            sp = _prep(tmp, raw)
+            r = _raw(tmp, "plan", "--task", "T-01", "--issue", "K-1", "--ia-real", "1",
+                     "--sup-real", "0", "--fecha", "2026-07-18", "--apply")
+            assert r.returncode == 2 and "Traceback" not in r.stderr, (tarea, r.stderr)
+            assert "error" in json.loads(r.stdout), r.stdout
+            assert open(sp, "rb").read() == raw
+
+
+def test_fix2_numeros_de_config_invalidos_exit2():
+    casos = [("rates.json", {"horasJornada": 8, "ratioSupervision": "x"}),
+             ("rates.json", {"horasJornada": 8, "ratioSupervision": -0.5}),
+             ("rates.json", {"horasJornada": 0}), ("jira.json", {"horasJornada": -8}),
+             ("jira.json", {"horasJornada": "ocho"}), ("rates.json", {"horasJornada": [8]})]
+    for nombre, contenido in casos:
+        with tempfile.TemporaryDirectory() as tmp:
+            sp = _prep(tmp)
+            with open(os.path.join(tmp, nombre), "w", encoding="utf-8") as f:
+                f.write(json.dumps(contenido))
+            r = _raw(tmp, "plan", "--task", "T-01", "--issue", "K-1", "--ia-real", "1",
+                     "--fecha", "2026-07-18", "--apply")
+            assert r.returncode == 2 and "Traceback" not in r.stderr, (nombre, contenido, r.stderr)
+            assert "error" in json.loads(r.stdout), r.stdout
+            assert not os.path.exists(sp)
+    with tempfile.TemporaryDirectory() as tmp:      # Infinity no es JSON estándar pero Python lo lee
+        sp = _prep(tmp)
+        with open(os.path.join(tmp, "rates.json"), "w", encoding="utf-8") as f:
+            f.write('{"horasJornada": Infinity}')
+        r = _raw(tmp, "plan", "--task", "T-01", "--issue", "K-1", "--ia-real", "1",
+                 "--fecha", "2026-07-18", "--apply")
+        assert r.returncode == 2 and not os.path.exists(sp), r.stdout
+
+
+def test_fix2_contracts_describe_exit_real_de_usage_meter():
+    """Revisión intento 2 (A2): CONTRACTS.md ya no promete exit 0 siempre en usage-meter."""
+    texto = open(os.path.join(ROOT, "docs", "agents", "CONTRACTS.md"), encoding="utf-8").read()
+    fila = next(l for l in texto.splitlines() if l.startswith("| E7 "))
+    assert "`0` siempre" not in fila, fila
+    assert "`3`" in fila and "ilegible" in fila, fila
+
+
 if __name__ == "__main__":
     try:
         main()

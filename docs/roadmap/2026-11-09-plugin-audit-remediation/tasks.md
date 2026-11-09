@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 3 | 6 | 50.0% |
+| Fase 1 | 4 | 6 | 66.7% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **3** | **21** | **14.3%** |
+| **TOTAL** | **4** | **21** | **19.0%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -28,11 +28,11 @@ changelog: Fixed
 
 ### T-01 — worklog sin pérdida de datos
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-1 y H-2. Un estado ilegible o con BOM no se trata como vacío ni se sobrescribe; escritura atómica; fecha futura y horas negativas rechazadas.
-- **Archivos**: `skills/jira-sync/scripts/worklog.py`, `tests/test_worklog.py`, `agent-kits/shared/usage-meter.py`, `agent-kits/shared/test_usage_meter.py` (añadidos en la revisión intento 1, gap 3: mismo defecto de estado ilegible tratado como vacío).
+- **Archivos**: `skills/jira-sync/scripts/worklog.py`, `tests/test_worklog.py`, `agent-kits/shared/usage-meter.py`, `agent-kits/shared/test_usage_meter.py` (añadidos en la revisión intento 1, gap 3: mismo defecto de estado ilegible tratado como vacío), `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py`, `docs/agents/CONTRACTS.md` (revisión intento 2: ⚠️ de `/doctor` y contrato E7).
 - **Verificación**: `python -m pytest -q tests/test_worklog.py` → todos pasan, con casos de BOM, JSON corrupto, fecha futura y horas negativas.
-- **Changelog**: El worklog de Jira ya no pierde el banco de horas: un estado con BOM se lee, uno ilegible detiene la imputación sin escribir, y se rechazan fechas futuras y horas negativas.
+- **Changelog**: El worklog de Jira y la medición de uso ya no pierden su estado: con BOM se lee, ilegible detiene la escritura (usage-meter sale con exit 3) y se rechazan fechas y horas imposibles.
 - **Cerrada**: 2026-11-09
 
 **Criterios de aceptación**
@@ -49,6 +49,11 @@ GREEN: `python -m pytest -q tests/test_worklog.py` → `8 passed in 6.18s` (BOM,
 RED: `agent-kits/shared/test_usage_meter.py -k fix1 + tests/test_worklog.py -k fix1` falló con fix1: usage-meter 2 failed (BOM e ilegible tratados como vacio y sobrescritos); worklog 3 failed (nan/inf aceptados, tipos erroneos con traceback, PermissionError en os.replace sin reintento) · 2026-11-09.
 
 GREEN fix1: `pytest tests/test_worklog.py` → `11 passed` (nan/inf, 7 formas de tipo equivocado sin traceback, reintento acotado de `os.replace` ante PermissionError); `pytest agent-kits/shared/test_usage_meter.py` → `80 passed` (BOM conserva marcadores; ilegible o raíz no objeto → start/close exit 3 sin escribir, status exit 0 con aviso; el test histórico de estado corrupto conserva el caso de marcador corrupto y los casos ilegibles pasan al test nuevo); `test_jira_flow.py` → `74 passed` · 2026-11-09.
+
+
+RED: `tests/test_worklog.py -k fix2 + agent-kits/shared/test_doctor.py -k fix2` falló con fix2: 4 failed: tasks internos y numeros de config invalidos aceptados o con traceback, CONTRACTS.md promete exit 0 siempre, doctor ignora el aviso de usage-state ilegible · 2026-11-09.
+
+GREEN fix2: `pytest tests/test_worklog.py` → `14 passed` (campos internos de `tasks` y números de `rates.json`/`jira.json` validados → exit 2; fila E7 de CONTRACTS con exit 3); `pytest agent-kits/shared/test_doctor.py` → `230 passed, 1 skipped` + el test nuevo en verde tras ajustar su aserción (`17 passed` con `-k "fix2 or marcador"`); `test_jira_flow.py` → `74 passed`. `doctor.py`/`usage-meter.py` sin huella `sha256_lf` · 2026-11-09.
 
 ### T-02 — qa-gate sin falso verde
 
@@ -103,6 +108,9 @@ GREEN: `node --test tests/installer.test.mjs` → `tests 182 · pass 182 · fail
 RED: `tests/installer.test.mjs --test-name-pattern=revision intento 1 + tests/codex-plugin-state.test.mjs relative PATH` falló con fix1: 3 fail: plugin no verificable bloquea la copy del mismo proveedor, correr exportado/sin error propio si la CLI falta, codex.cmd plantado resuelto via entrada relativa del PATH · 2026-11-09.
 
 GREEN fix1: `node --test tests/installer.test.mjs` → `pass 184 · fail 0` (uninstall aislado por manifiesto; `correr` sin ruta real → ENOENT propio); `node --test tests/codex-plugin-state.test.mjs` → `pass 7 · fail 0` (entradas relativas del PATH ignoradas, el `codex.cmd` plantado no se ejecuta); `tests/install-auth.test.mjs` → `pass 7`; `tests/codex-native-install.test.mjs` → `pass 11`. `codex-plugin-state.mjs` sin huella `sha256_lf` · 2026-11-09.
+
+
+RED: `installer.test.mjs C8 + codex-plugin-state.test.mjs NoDefaultCurrentDirectoryInExePath` falló con fix2: 3 fail: correr y runCodexQuery lanzan sin NoDefaultCurrentDirectoryInExePath (con el entorno limpio cmd.exe resolveria node.bat del proyecto); run-hook no lo fija · 2026-11-09.
 
 ### T-04 — Graphiti sin proxy
 

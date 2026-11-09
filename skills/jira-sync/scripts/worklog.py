@@ -66,6 +66,10 @@ class EntradaInvalida(Exception):
     """Estado/config ilegible o argumento imposible: exit 2 sin escribir nada."""
 
 
+def _numero(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
 def load_json(path, default):
     """Ausente → default; ilegible (JSON roto, raíz no objeto, E/S) → EntradaInvalida.
 
@@ -124,21 +128,30 @@ def fecha_valida(valor):
     return d.isoformat()
 
 
+def _config_num(fuentes, clave, defecto, positivo):
+    """Primer valor presente de `clave` en las configs: número finito (> 0 si `positivo`, ≥ 0 si no).
+    Un valor presente pero inválido es config ilegible → exit 2 (revisión intento 2)."""
+    for nombre, datos in fuentes:
+        if clave in datos and datos[clave] is not None:
+            v = datos[clave]
+            if not _numero(v) or (v <= 0 if positivo else v < 0):
+                raise EntradaInvalida(f"{nombre}: `{clave}` debe ser un número finito "
+                                      f"{'> 0' if positivo else '≥ 0'} (vale {v!r}); no se escribe nada")
+            return float(v)
+    return defecto
+
+
 def cfg(args):
     rates = load_json(args.rates or find_up(["rates.json"]), {})
     jira = load_json(args.jira or find_up(["jira.json"]), {})
-    jornada = float(jira.get("horasJornada") or rates.get("horasJornada") or DEF_JORNADA)
-    ratio = float(rates.get("ratioSupervision") or DEF_RATIO)
+    jornada = _config_num((("jira.json", jira), ("rates.json", rates)), "horasJornada", DEF_JORNADA, True)
+    ratio = _config_num((("rates.json", rates),), "ratioSupervision", DEF_RATIO, False)
     policy = args.policy or jira.get("alCubrirJornada") or "preguntar"
     return jornada, ratio, policy
 
 
 def state_path(args):
     return args.state or find_up(["jira-state.json"]) or os.path.join(".claude", "jira-state.json")
-
-
-def _numero(v):
-    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
 
 
 def load_state(args):
@@ -159,6 +172,16 @@ def load_state(args):
                               "no se escribe nada")
     if not isinstance(st["tasks"], dict) or not all(isinstance(t, dict) for t in st["tasks"].values()):
         raise EntradaInvalida(f"{path}: `tasks` debe ser un objeto de objetos; no se escribe nada")
+    for tid, t in st["tasks"].items():
+        for campo in ("worklog", "worklogImpl", "worklogRevision"):
+            if campo in t and not (_numero(t[campo]) and t[campo] >= 0):
+                raise EntradaInvalida(f"{path}: `tasks.{tid}.{campo}` debe ser un número finito ≥ 0; "
+                                      "no se escribe nada")
+        intentos = t.get("reviewAttempts", [])
+        if not isinstance(intentos, list) or not all(
+                isinstance(a, dict) and _numero(a.get("horas")) and a["horas"] >= 0 for a in intentos):
+            raise EntradaInvalida(f"{path}: `tasks.{tid}.reviewAttempts` debe ser una lista de "
+                                  "{intento, fecha, horas ≥ 0}; no se escribe nada")
     return st
 
 
