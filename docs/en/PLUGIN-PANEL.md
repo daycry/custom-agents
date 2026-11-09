@@ -110,7 +110,8 @@ A missing value is `null` and is stated ("sin datos"); it is never drawn as 0.
 | Iniciativas (Initiatives) | Read-only kanban, one column per spec state (`borrador`, `aprobada`, `implementada`, `obsoleta`) and one card per initiative with its alerts as text; hours and cost charts with their table. A card with a plan links to `plan-<id16>.html` | `api/cartera` |
 | Plan (`plan-<id16>.html`) | Kanban of the ledger tasks with the five vocabulary columns (`borrador`, `en-progreso`, `en-revision`, `completado`, `cancelado`) and an "unrecognised state" strip showing the literal; task detail; progress and hours per phase charts and a burndown | `api/plan-<id16>`, `api/plan-<id16>-<T-XX>` |
 
-- **`api/cartera`**: initiatives of `docs/roadmap/` (at most 128 folders listed, 64 rows, response
+- **`api/cartera`**: initiatives of `docs/roadmap/` (reads up to 4,096 names, sorts them newest first and walks at most 128 folders; the other
+  initiatives are counted by name in `recorte.omitidas`; 64 rows, response
   <= 64 KiB). Each initiative falls in ONE spec category: the four states, `ilegible`,
   `sin_spec` (fast path) or `no_reconocido` (with its literal). The estimated cost is shown as
   `evaluation.md` writes it; only the first euro amount is extracted for the sum.
@@ -229,7 +230,9 @@ they do not authenticate authors or prove agents are running. Progress polling
 performs no journal, usage-meter, memory or backend queries, or state writes.
 Memory is read only after an explicit action.
 
-Reads reject redirected or changed paths. Limits: 128 entries, 256 KiB per ledger,
+Reads reject redirected or changed paths. Limits: up to 4,096 names sorted newest first
+(beyond that, the prefix the file system returns is sorted and the read is incomplete),
+128 folders walked, those that do not fit in 1 MiB by their 16 KiB header, 256 KiB per ledger,
 1 MiB cumulative, 64 initiatives, eight visible active tasks per initiative and
 64 KiB JSON. Incomplete reads, unreadable ledgers, unknown states and truncation
 remain partial. Text is redacted and bounded; bodies, free-form verification

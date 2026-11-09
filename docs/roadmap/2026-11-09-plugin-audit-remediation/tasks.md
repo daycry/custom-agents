@@ -17,10 +17,10 @@ changelog: Fixed
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
-| Fase 2 | 4 | 6 | 66.7% |
+| Fase 2 | 5 | 6 | 83.3% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **10** | **21** | **47.6%** |
+| **TOTAL** | **11** | **21** | **52.4%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -284,9 +284,9 @@ GREEN fix2: `pytest tests/test_quick_path_gates.py tests/test_dev_cycle_split.py
 
 ### T-09 — Dashboards completos con roadmaps grandes
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-17 a H-20. Cartera y progreso de la más nueva a la más antigua y con aviso honesto; progreso por cabecera, sin leer el ledger entero; planes con ledger > 256 KiB operables desde la consola; un plan nuevo no da 404; errores mapeados en la UI.
-- **Archivos**: `skills/plugin-panel/scripts/panel_data.py`, `skills/plugin-panel/scripts/serve_panel.py`, `skills/plugin-panel/scripts/console_service.py`, `skills/plugin-panel/assets/control-center.js`, `skills/plugin-panel/assets/page-iniciativas.js`, `tests/test_panel_*.py`, `tests/test_console_*.py`, `agent-kits/shared/local-read.py` (lectura acotada de un prefijo para la cabecera de un ledger grande), `skills/plugin-panel/assets/panel-live.js` (valida y rotula `fuente: resumen`), `tests/test_control_center_http.py` (su contrato «sin improvement-plan.md → 503» pasa a la vía rápida operable) (añadidos por el implementer).
+- **Archivos**: `skills/plugin-panel/scripts/panel_data.py`, `skills/plugin-panel/scripts/serve_panel.py`, `skills/plugin-panel/scripts/console_service.py`, `skills/plugin-panel/assets/control-center.js`, `skills/plugin-panel/assets/page-iniciativas.js`, `tests/test_panel_*.py`, `tests/test_console_*.py`, `agent-kits/shared/local-read.py` (lectura acotada de un prefijo para la cabecera de un ledger grande), `skills/plugin-panel/assets/panel-live.js` (valida y rotula `fuente: resumen`), `tests/test_control_center_http.py` (su contrato «sin improvement-plan.md → 503» pasa a la vía rápida operable) (añadidos por el implementer), `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `docs/agents/CONTRACTS.md` (revisión intento 2: topes reales del listado y del recorrido).
 - **Tiempo IA (ejec.)**: real 0,28h (medido)
 - **Verificación**: tests del panel y de la consola con 70 iniciativas y ledgers > 256 KiB → pasan.
 - **Changelog**: Los paneles muestran primero las iniciativas más recientes y dicen cuántas antiguas quedan fuera; el progreso de ledgers grandes sale de su resumen en vez de marcarse como demasiado grande, la consola puede continuar o revisar planes grandes o de vía rápida, y un plan creado con el panel abierto ya tiene página.
@@ -308,6 +308,8 @@ GREEN fix1: `pytest tests/test_panel_large_roadmaps.py` → `11 passed` (B2: con
 
 
 RED: `tests/test_panel_large_roadmaps.py -k fix2` falló con fix2: 4 failed: review_initiatives pierde las 12 mas nuevas con 140 carpetas (A-I1); 600 carpetas sin ledger se recorren todas (D-1); el recuento de omitidas llama a exists (C-1); topes de 4096 nombres sin documentar · 2026-11-09.
+
+GREEN fix2: `pytest tests/test_panel_large_roadmaps.py` → `15 passed` (A-I1: `review_initiatives` con 140 carpetas incluye las 12 más nuevas; D-1: con 600 carpetas sin ledger, cartera y progreso hacen como mucho `MAX_SCAN` + 1 listados; C-1: las omitidas se cuentan por nombre, sin `exists` sobre carpetas omitidas —en HEAD, 70 llamadas—; topes de 4.096 nombres y 128 carpetas documentados en PLUGIN-PANEL ES/EN, CONTRACTS E35 y `local-read.py`); `tests/test_panel_server.py` 137 + 2 skipped, `tests/test_panel_review_server.py` 67, `tests/test_panel_data.py` 17 passed · 2026-11-09.
 
 ### T-10 — Índice de sesión por prioridad
 

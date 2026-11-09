@@ -181,3 +181,56 @@ def test_fix1_c1_resumen_con_miles_de_espacios_no_bloquea(tmp_path):
     result = load('serve_panel.py').progress_snapshot(tmp_path)
     assert time.monotonic() - started < 5
     assert result['initiatives'][0]['fuente'] == 'resumen'
+
+
+
+# ------------------------------------------------- revisión intento 2 (fase 2): A-I1, D-1, C-1, C+D
+
+def test_fix2_ai1_con_140_carpetas_las_mas_nuevas_se_pueden_revisar(tmp_path):
+    for n in range(140):
+        initiative(tmp_path, dated(n)).with_name('improvement-plan.md').write_text('# Plan\n', encoding='utf-8')
+    found = load('serve_panel.py').review_initiatives(tmp_path)
+    assert {'docs/roadmap/' + dated(n) for n in range(128, 140)} <= set(found.values())
+
+
+def test_fix2_d1_miles_de_carpetas_sin_ledger_no_se_recorren_enteras(tmp_path, monkeypatch):
+    for n in range(600):
+        (tmp_path / 'docs/roadmap' / f'2024-{1 + n // 28 % 12:02}-{1 + n % 28:02}-vacia-{n:04}').mkdir(parents=True)
+    initiative(tmp_path, '2026-11-01-real')
+    for name in ('panel_data.py', 'serve_panel.py'):
+        module = load(name)
+        reader = module._load_shared('local-read.py')
+        calls = []
+        real = reader.list_names
+        reader.list_names = lambda *a, **k: calls.append(a[1]) or real(*a, **k)
+        monkeypatch.setattr(module, '_load_shared', lambda n, r=reader, orig=module._load_shared: r if n == 'local-read.py' else orig(n))
+        if name == 'panel_data.py':
+            result = module.cartera(tmp_path)
+            assert result['iniciativas'][0]['slug'] == '2026-11-01-real'
+        else:
+            result = module.progress_snapshot(tmp_path)
+            assert result['initiatives'][0]['title'] == 'real'
+        assert len(calls) <= module.MAX_SCAN + 1, (name, len(calls))
+
+
+def test_fix2_c1_el_recuento_de_omitidas_no_toca_el_disco(tmp_path, monkeypatch):
+    for n in range(140):
+        initiative(tmp_path, dated(n))
+    module = load('panel_data.py')
+    import os
+    real_exists = os.path.exists
+    omitidas = {dated(n) for n in range(70)}          # las más antiguas: quedan fuera de las 64 filas
+    def guard(path):
+        if any(nombre in str(path) for nombre in omitidas):
+            raise AssertionError('exists() sobre una carpeta omitida: ' + str(path))
+        return real_exists(path)
+    monkeypatch.setattr(module.os.path, 'exists', guard)
+    result = module.cartera(tmp_path)
+    assert result['recorte']['omitidas'] == 140 - len(result['iniciativas'])
+
+
+def test_fix2_cd_los_topes_reales_estan_documentados():
+    for rel in ('docs/PLUGIN-PANEL.md', 'docs/en/PLUGIN-PANEL.md', 'docs/agents/CONTRACTS.md'):
+        texto = (ROOT / rel).read_text(encoding='utf-8')
+        assert '4.096' in texto or '4,096' in texto or '4096' in texto, rel
+    assert 'MAX_SORTED_NAMES' in (ROOT / 'agent-kits/shared/local-read.py').read_text(encoding='utf-8').split('def list_names', 1)[1][:1500]

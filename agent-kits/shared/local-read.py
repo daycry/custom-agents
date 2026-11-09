@@ -232,6 +232,9 @@ def list_names(root, relative, *, max_entries=128, scan_limit=None, newest_first
     With `scan_limit` (>= max_entries) up to that many names are read, sorted
     (descending with `newest_first`, for dated folders) and only THEN cut to
     max_entries, so the cut never depends on the filesystem order (fix1, B2).
+    `newest_first` without `scan_limit` reads up to MAX_SORTED_NAMES names: beyond that
+    many, the sorted prefix is the one the filesystem returned and the result is incomplete
+    (documented cap, fix2).
     """
     def result(status, names=None, complete=False):
         return {'status': status, 'names': [] if names is None else names, 'complete': complete}

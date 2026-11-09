@@ -32,6 +32,7 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 MAX_SCAN = 128                      # carpetas de docs/roadmap que se listan
 MAX_NOMBRES = 4096                  # nombres que se leen para ordenar ANTES de cortar (fix1, B2: baratos)
+_FECHADA = re.compile(r'\d{4}-\d{2}-\d{2}-', re.ASCII)   # nombre de carpeta de iniciativa
 MAX_INITIATIVES = 64                # filas de la respuesta
 MAX_FILE_BYTES = 256 * 1024         # tope de lectura de un ledger (local-read.py)
 MAX_ARTIFACT_BYTES = 1024 * 1024    # un artefacto mayor no se abre
@@ -335,10 +336,16 @@ def cartera(project):
     escaneado = 0
     # H-17: de la más nueva a la más antigua (las carpetas empiezan por su fecha): los topes de filas, lectura y
     # salida recortan siempre las más ANTIGUAS, y `recorte` dice cuántas quedan fuera.
+    # fix2 (D-1, C-1): ordenados los nombres, se recorren como mucho MAX_SCAN carpetas; las demás con
+    # nombre de iniciativa (fecha delante) se cuentan como omitidas POR NOMBRE, sin tocar el disco.
     carpetas = sorted(listado['names'], reverse=True)
-    candidatas = 0
+    restantes = carpetas[MAX_SCAN:]
+    carpetas = carpetas[:MAX_SCAN]
+    if restantes:
+        issue('scan_budget')
+    candidatas = sum(1 for nombre in restantes if _FECHADA.match(nombre))
     for indice, carpeta in enumerate(carpetas):
-        directorio = reader.list_names(project, 'docs/roadmap/' + carpeta, max_entries=1)
+        directorio = reader.list_names(project, 'docs/roadmap/' + carpeta, max_entries=MAX_SCAN)
         if directorio['status'] in ('not_found', 'not_regular'):
             continue                                            # los índices del roadmap son ficheros
         if directorio['status'] not in ('ok', 'incomplete'):
@@ -354,14 +361,13 @@ def cartera(project):
                 rec = dashboard._scan_una(ruta)
             except (OSError, ValueError, UnicodeError, RecursionError, KeyError, TypeError, AttributeError):
                 rec = None; issue('unreadable')
-            if rec is None and not any(os.path.exists(os.path.join(ruta, n)) for n in ('spec.md', 'evaluation.md', 'tasks.md')):
-                continue                                        # no es una carpeta de iniciativa
+            if rec is None and not set(directorio['names']) & {'spec.md', 'evaluation.md', 'tasks.md'}:
+                continue                                        # no es una carpeta de iniciativa (por su listado)
         candidatas += 1
         if len(filas) == MAX_INITIATIVES:
             issue('row_budget')
-            # fix1 (B2): solo cuentan las carpetas que SON iniciativas (spec, evaluación o ledger)
-            candidatas += sum(1 for resto in carpetas[indice + 1:] if any(
-                os.path.exists(os.path.join(raiz, resto, n)) for n in ('spec.md', 'evaluation.md', 'tasks.md')))
+            # fix2 (C-1): las que quedan se cuentan por nombre (fecha delante), sin `exists` que siga enlaces
+            candidatas += sum(1 for resto in carpetas[indice + 1:] if _FECHADA.match(resto))
             break
         fila = _fila_base(carpeta, rec)
         if tamano is None and rec is None:

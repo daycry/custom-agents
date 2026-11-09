@@ -112,7 +112,8 @@ Un dato ausente es `null` y se dice («sin datos»); nunca se pinta como 0.
 | Iniciativas | Kanban de solo lectura, una columna por estado de spec (`borrador`, `aprobada`, `implementada`, `obsoleta`) y una tarjeta por iniciativa con sus alertas en texto; gráficos de horas y coste con su tabla. La tarjeta con plan es un enlace a `plan-<id16>.html` | `api/cartera` |
 | Plan (`plan-<id16>.html`) | Kanban de las tareas del ledger con las cinco columnas del vocabulario (`borrador`, `en-progreso`, `en-revision`, `completado`, `cancelado`) y una franja «Estado no reconocido» con el literal; detalle de tarea; gráficos de avance y horas por fase y burndown | `api/plan-<id16>`, `api/plan-<id16>-<T-XX>` |
 
-- **`api/cartera`**: iniciativas de `docs/roadmap/` (máx. 128 carpetas listadas, 64 filas, respuesta
+- **`api/cartera`**: iniciativas de `docs/roadmap/` (lee hasta 4.096 nombres, los ordena de la más nueva a la más antigua y recorre como mucho 128 carpetas;
+  las demás iniciativas se cuentan por nombre en `recorte.omitidas`; 64 filas, respuesta
   ≤ 64 KiB). Cada iniciativa cae en UNA categoría de spec: los cuatro estados, `ilegible`,
   `sin_spec` (vía rápida) o `no_reconocido` (con su literal). El coste estimado se muestra
   como lo escribe `evaluation.md`; solo el primer importe en euros se extrae para sumar.
@@ -228,8 +229,10 @@ SHA-256 identifican texto UTF-8 sin BOM, incluyendo saltos de línea; no autenti
 al autor ni demuestran ejecución de agentes. La actualización de Progreso no consulta journal, usage-meter, memoria o
 backends, ni escribe estados. Memoria se consulta solo por una acción explícita.
 
-La lectura rechaza redirecciones y cambios durante el acceso. Límites: 128
-entradas, 256 KiB por ledger, 1 MiB acumulado, 64 iniciativas, ocho tareas visibles
+La lectura rechaza redirecciones y cambios durante el acceso. Límites: hasta 4.096
+nombres ordenados de la más nueva a la más antigua (por encima, se ordena el prefijo que
+devuelve el sistema de ficheros y la lectura queda incompleta), 128 carpetas recorridas,
+las que no caben en 1 MiB por su cabecera de 16 KiB, 256 KiB por ledger, 1 MiB acumulado, 64 iniciativas, ocho tareas visibles
 por iniciativa y 64 KiB JSON. Lectura incompleta, ledger ilegible, estado
 desconocido o recorte se indican como parciales. Texto redactado y acotado;
 sin cuerpos, verificaciones libres o rutas absolutas.
