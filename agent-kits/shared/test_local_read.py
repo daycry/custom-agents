@@ -199,7 +199,7 @@ def test_permission_failure_does_not_echo_exception_or_become_absence(tmp_path, 
     assert 'PRIVATE_EXCEPTION_SENTINEL' not in str(result)
 
 
-@pytest.mark.parametrize('where', ['file', 'parent', 'root'])
+@pytest.mark.parametrize('where', ['file', 'parent'])
 def test_symlink_is_rejected_before_opening_external_sentinel(tmp_path, reader, monkeypatch, where):
     root = tmp_path / 'root'; root.mkdir()
     outside = tmp_path / 'outside'; outside.mkdir()
@@ -338,7 +338,7 @@ def test_listing_failure_is_not_absence_and_does_not_disclose_text(tmp_path, rea
     assert reader.list_names(tmp_path, 'docs') == {'status': 'unreadable', 'names': [], 'complete': False}
 
 
-@pytest.mark.parametrize('where', ['directory', 'parent', 'root'])
+@pytest.mark.parametrize('where', ['directory', 'parent'])
 def test_listing_rejects_symlink_before_scandir(tmp_path, reader, monkeypatch, where):
     root = tmp_path / 'root'; root.mkdir()
     outside = tmp_path / 'outside'; outside.mkdir()
@@ -453,3 +453,21 @@ def test_file_change_after_read_is_reported_without_returning_stale_content(tmp_
             return data
     monkeypatch.setattr(reader.os, 'fdopen', lambda *a, **k: ChangedHandle(original(*a, **k)))
     assert reader.read_text(tmp_path, 'entry.md') == {'status': 'changed_path', 'text': None, 'bytes': 5}
+
+
+
+def test_fix3_root_behind_a_link_is_the_trust_anchor_and_below_links_stay_refused(tmp_path, reader):
+    """Fase 2, revisión intento 3 (B): la raíz del proyecto se resuelve una vez (ancla de confianza,
+    como el instalador); un enlace POR DEBAJO de ella sigue rechazado."""
+    root = tmp_path / 'root'; (root / 'docs').mkdir(parents=True)
+    (root / 'docs' / 'entry.md').write_text('owned', encoding='utf8')
+    outside = tmp_path / 'outside'; outside.mkdir()
+    (outside / 'entry.md').write_text('EXTERNAL_SENTINEL', encoding='utf8')
+    try:
+        link = tmp_path / 'root-link'; link.symlink_to(root, target_is_directory=True)
+        (root / 'colada').symlink_to(outside, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip('native symlink privilege unavailable: ' + str(exc.winerror if os.name == 'nt' else exc.errno))
+    assert reader.read_text(link, 'docs/entry.md')['text'] == 'owned'
+    assert reader.list_names(link, 'docs')['names'] == ['entry.md']
+    assert reader.read_text(link, 'colada/entry.md')['status'] == 'redirected_path'

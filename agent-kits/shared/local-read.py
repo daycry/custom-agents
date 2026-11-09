@@ -63,14 +63,18 @@ def _paths(root, relative):
     parts = relative.split('/')
     if any(part in ('', '.', '..') for part in parts):
         raise ValueError('invalid_path')
-    root = Path(os.path.abspath(root))
+    # fix3 (B): the project root is the trust anchor, resolved ONCE (a `/tmp` of macOS, a linked
+    # `~/code` or a Windows junction above it is the user's choice); below it, redirects stay refused.
+    root = Path(os.path.realpath(os.path.abspath(root)))
     target = root.joinpath(*parts)
     return root, target
 
 
 def _checked(root, target):
-    """Snapshot every ancestor without following redirects; keep directory identities."""
-    ancestors = list(reversed(target.parent.parents)) + [target.parent]
+    """Snapshot every ancestor from the (resolved) root down without following redirects; keep
+    directory identities. Components above the root are not checked: the root is the anchor."""
+    ancestors = [path for path in list(reversed(target.parent.parents)) + [target.parent]
+                 if path == root or root in path.parents]
     snapshots = []
     for path in ancestors:
         info = os.lstat(path)

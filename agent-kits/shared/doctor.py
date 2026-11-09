@@ -1554,9 +1554,12 @@ def _iniciativas(plugin_root, project):
                       "ejecútalo a mano para ver el error: "
                       "`python3 agent-kits/shared/progress-report.py active --root docs/roadmap`")]
     activas = d.get("activas", [])
+    # fix3 (B4/B5, revisión fase 2): recorte del listado y ledgers ilegibles, nunca «ninguna» sin más
+    avisos = [linea(AVISO, "iniciativas", str(a), "revisa ese `tasks.md` o abre la iniciativa con `/work-resume`; "
+                    "el bloque de sesión mira las 128 carpetas más recientes") for a in d.get("avisos", []) if isinstance(a, str)]
     if not activas:
-        return [linea(INFO, "iniciativas", "ninguna `en-progreso`")]
-    return [linea(INFO, "iniciativa en progreso", a.get("linea") or a.get("slug", "")) for a in activas]
+        return avisos + [linea(INFO, "iniciativas", "ninguna `en-progreso`" + (" entre las revisadas" if avisos else ""))]
+    return avisos + [linea(INFO, "iniciativa en progreso", a.get("linea") or a.get("slug", "")) for a in activas]
 
 
 def _journal(project, n_curadas=0):

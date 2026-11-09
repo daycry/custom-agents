@@ -673,3 +673,113 @@ def test_fix2_cd_el_tope_de_la_regla_esta_documentado():
     for rel, clave in (("docs/WORK-RESUME.md", "128 carpetas más recientes"),
                        ("docs/en/WORK-RESUME.md", "128 most recent folders")):
         assert clave in (HERE.parent.parent / rel).read_text(encoding="utf-8"), rel
+
+
+# ------------------------------------------------- revisión intento 3 (fase 2): A, B, B3-B5, C1, A3
+
+def _enlace_de_directorio(destino, enlace):
+    """Symlink o, en Windows sin privilegios, junction. None si el sistema no permite ninguno."""
+    import os, subprocess
+    try:
+        os.symlink(destino, enlace, target_is_directory=True)
+        return enlace
+    except (OSError, NotImplementedError):
+        pass
+    if os.name == "nt":
+        r = subprocess.run(["cmd", "/c", "mklink", "/J", str(enlace), str(destino)], capture_output=True)
+        if r.returncode == 0:
+            return enlace
+    return None
+
+
+def test_fix3_a_session_nombra_la_vigente_con_marcador_abierto(tmp_path, capsys):
+    _al_100(tmp_path, "2026-10-01-alfa")
+    ledger(tmp_path, "2026-10-02-beta")
+    state = tmp_path / ".claude" / "usage-state.json"
+    state.parent.mkdir()
+    state.write_text(json.dumps({"alfa/retro.md": {"inicio": "2026-10-09T10:00:00Z"}}), encoding="utf-8")
+    assert pr.main(["session", "--root", str(tmp_path)], in_process=True) == 0
+    ultima = capsys.readouterr().out.strip().splitlines()[-1]
+    assert ultima.startswith("Ledger canónico: docs/roadmap/2026-10-01-alfa/tasks.md"), ultima
+    assert "retoma desde la tarea en-progreso" not in ultima
+
+
+def test_fix3_b_la_raiz_del_proyecto_bajo_un_enlace_es_ancla_de_confianza(tmp_path, capsys):
+    real = tmp_path / "real"
+    real.mkdir()
+    ledger(real, "2026-10-02-beta")
+    enlace = _enlace_de_directorio(real, tmp_path / "enlazado")
+    if enlace is None:
+        pytest.skip("el sistema no permite enlaces de directorio")
+    assert pr.iniciativa_vigente(enlace) == "beta"
+    assert pr.main(["session", "--root", str(enlace)], in_process=True) == 0
+    assert "- 📋 beta" in capsys.readouterr().out
+    # por debajo de la raíz, un enlace sigue rechazado
+    otra = tmp_path / "fuera"
+    ledger(otra, "2026-10-03-gamma")
+    if _enlace_de_directorio(otra / "docs" / "roadmap" / "2026-10-03-gamma", real / "docs" / "roadmap" / "2026-10-04-colada"):
+        assert {r["slug"] for r in pr.activas_acotadas(real)} == {"beta"}
+
+
+def test_fix3_b3_activa_mayor_de_256_kib_se_lee_entera(tmp_path):
+    con = ledger(tmp_path, "2026-10-02-sin-tabla")
+    con.write_text(con.read_text(encoding="utf-8").replace("- **Estado**: en-progreso\n", "- **Estado**: en-progreso\n\n" + ("relleno " * 60 + "\n") * 700, 1), encoding="utf-8")
+    rs = pr.activas_acotadas(tmp_path)
+    assert len(rs) == 1 and rs[0]["total"] == 1 and rs[0]["en_progreso"] == [{"id": "T-01", "titulo": "Continuar implementación"}]
+
+
+def test_fix3_b4_listado_recortado_se_avisa(tmp_path, capsys):
+    for n in range(130):
+        ledger(tmp_path, f"2025-{1 + n // 28:02}-{1 + n % 28:02}-vieja-{n:03}", state="completado")
+    ledger(tmp_path, "2026-10-02-beta")
+    assert pr.main(["session", "--root", str(tmp_path)], in_process=True) == 0
+    assert "Roadmap recortado: 3 carpetas más antiguas sin revisar" in capsys.readouterr().out
+    assert pr.main(["active", "--root", str(tmp_path / "docs" / "roadmap"), "--json"]) == 0
+    assert any("recortado" in a for a in json.loads(capsys.readouterr().out)["avisos"])
+
+
+def test_fix3_b5_ledger_con_codificacion_invalida_se_avisa(tmp_path, capsys):
+    ledger(tmp_path, "2026-10-02-beta")
+    roto = tmp_path / "docs" / "roadmap" / "2026-10-03-rota" / "tasks.md"
+    roto.parent.mkdir(parents=True)
+    roto.write_bytes(b"---\nestado: en-progreso\n---\n### T-01 \xff\xfe\n")
+    assert pr.main(["session", "--root", str(tmp_path)], in_process=True) == 0
+    assert "2026-10-03-rota: tasks.md ilegible (invalid_encoding)" in capsys.readouterr().out
+
+
+def test_fix3_c1_la_firma_no_atraviesa_una_carpeta_enlazada(tmp_path, monkeypatch):
+    import os
+    real = tmp_path / "fuera"
+    ledger(real, "2026-10-03-gamma")
+    ledger(tmp_path, "2026-10-02-beta")
+    if _enlace_de_directorio(real / "docs" / "roadmap" / "2026-10-03-gamma", tmp_path / "docs" / "roadmap" / "2026-10-04-colada") is None:
+        pytest.skip("sin enlaces de directorio")
+    vistos = []
+    original = os.lstat
+    monkeypatch.setattr(pr.os, "lstat", lambda path, *a, **k: vistos.append(str(path)) or original(path, *a, **k))
+    pr._SNAPSHOT_MEMO.clear()
+    pr.activas_acotadas(tmp_path)
+    assert not any("colada" in v and v.endswith("tasks.md") for v in vistos), vistos
+
+
+def test_fix3_a3_la_retoma_explicita_cita_entradas_sin_regla(tmp_path):
+    ledger(tmp_path, "2026-10-02-beta")
+    journal_entry(tmp_path, "vieja.md", initiative="beta", sid="s-vieja", summary="Sin regla", regla=None)
+    result = pr.resume(tmp_path, initiative="beta")
+    assert [e["session_id"] for e in result["history"]] == ["s-vieja"]
+    assert pr.resume(tmp_path, session_id="s-vieja")["history"][0]["session_id"] == "s-vieja"
+
+
+def test_fix3_a4_docs_con_la_regla_real_y_el_campo_del_journal():
+    repo = HERE.parent.parent
+    for rel in ("docs/observability.md", "docs/en/observability.md"):
+        texto = (repo / rel).read_text(encoding="utf-8")
+        assert "iniciativa_vigente" in texto and "128" in texto, rel
+    assert "regla_iniciativa" in (repo / "agent-kits/shared/README.md").read_text(encoding="utf-8")
+
+
+def test_fix3_deuda_de_recover_registrada_en_t21():
+    ledger_txt = " ".join((HERE.parent.parent / "docs/roadmap/2026-11-09-plugin-audit-remediation/tasks.md")
+                          .read_text(encoding="utf-8").split())
+    t21 = ledger_txt[ledger_txt.index("### T-21"):]
+    assert "journal.py recover" in t21 and "regla_iniciativa" in t21

@@ -34,6 +34,7 @@ import importlib.util
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 import time
@@ -319,6 +320,7 @@ def resumir_cabecera(path, text):
 
 
 _LEDGER_MAX = 256 * 1024
+_ACTIVA_MAX = 16 * 1024 * 1024   # fix3 (B3): las ACTIVAS (pocas) se leen enteras hasta este tope, como la consola
 _SNAPSHOT_MEMO = {}
 
 
@@ -330,13 +332,20 @@ def _estado_de(text):
     return norm_estado(fm) if fm else parsed["estado_tabla"]
 
 
-def _resumen_acotado(reader, root, relative, absoluta):
+def _resumen_acotado(reader, root, relative, absoluta, avisos=None):
     """Resumen de UN ledger con el lector acotado: 16 KiB para saber si está activo y, solo si lo
     está (o el estado no cabe en ese prefijo), hasta 256 KiB para el resumen exacto (tareas en curso
     incluidas). Por encima de 256 KiB, la cabecera. None si no se puede leer o no se sabe su estado."""
+    carpeta = os.path.basename(os.path.dirname(absoluta))
+
+    def ilegible(status):
+        # fix3 (B5): un ledger que el lector rechaza no desaparece en silencio
+        if status not in ("not_found", "not_regular") and avisos is not None:
+            avisos.append(f"{carpeta}: tasks.md ilegible ({status})")
+        return None
     read = reader.read_text(root, relative, max_bytes=_CABECERA_BYTES, prefix=True)
     if read["status"] != "ok":
-        return None
+        return ilegible(read["status"])
     try:
         if not read.get("truncated"):
             return resumir(absoluta, text=read["text"])
@@ -345,12 +354,18 @@ def _resumen_acotado(reader, root, relative, absoluta):
             return {"slug": slug_de(absoluta, {}), "path": absoluta, "estado": estado}
         read = reader.read_text(root, relative, max_bytes=_LEDGER_MAX, prefix=True)
         if read["status"] != "ok":
-            return None
+            return ilegible(read["status"])
         if not read.get("truncated"):
             return resumir(absoluta, text=read["text"])
         estado = _estado_de(read["text"])
         if estado is None:
             return None
+        if estado == "en-progreso":
+            entero = reader.read_text(root, relative, max_bytes=_ACTIVA_MAX)
+            if entero["status"] == "ok":
+                return resumir(absoluta, text=entero["text"])
+            if entero["status"] != "too_large":
+                return ilegible(entero["status"])
         r = resumir_cabecera(absoluta, read["text"]) or {
             "slug": slug_de(absoluta, {}), "path": absoluta, "completadas": 0, "total": None, "pct": 0,
             "fase": None, "en_curso": None, "en_progreso": [], "ia_real_h": None, "ia_fuente": None,
@@ -364,42 +379,63 @@ def _resumen_acotado(reader, root, relative, absoluta):
         return None
 
 
-def activas_acotadas(root):
-    """INSTANTÁNEA única de las iniciativas `en-progreso` (fix2 B-M3): la usan el escritor del journal,
-    el historial del arranque, el bloque `session` y `active --json` (memoria y statusline).
+def instantanea(root):
+    """INSTANTÁNEA única del roadmap (fix2 B-M3 + fix3): `{"activas": [...], "avisos": [...]}`. La
+    usan el escritor del journal, el historial del arranque, el bloque `session`, `active --json`
+    (memoria, statusline, `/doctor`).
 
-    Lector acotado (sin enlaces): 16 KiB por ledger para saber su estado (frontmatter o tabla de
-    cabecera) y hasta 256 KiB solo para los activos. Mira las 128 carpetas más recientes por nombre
-    (`list_names(newest_first=True)`); una iniciativa activa más antigua queda fuera (tope documentado
-    en docs/WORK-RESUME.md). Memo por proceso mientras no cambie la firma (mtime, tamaño) de ningún
-    ledger. Devuelve la lista en orden de carpeta ascendente."""
+    Lector acotado: la raíz del proyecto es el ancla (resuelta una vez); por debajo no se siguen
+    enlaces, y una carpeta enlazada no se mira por dentro ni para la firma (fix3, C1). 16 KiB por
+    ledger para saber su estado (frontmatter o tabla de cabecera), hasta 256 KiB si no aparece y, para
+    las activas, hasta 16 MiB. Mira las 128 carpetas más recientes por nombre; las más antiguas se
+    avisan («Roadmap recortado: …», fix3 B4) y los ledgers ilegibles también (fix3 B5). Memo por
+    proceso mientras no cambie la firma (mtime, tamaño) de ningún ledger."""
     reader = _load_module("vigente_local_read", "local-read.py")
-    listing = reader.list_names(root, "docs/roadmap", max_entries=_RESUME_SCAN, newest_first=True)
+    listing = reader.list_names(root, "docs/roadmap", max_entries=4096, newest_first=True)
     if listing["status"] not in ("ok", "incomplete"):
-        return []
-    carpetas = sorted(f for f in listing["names"] if _initiative_name(f))
+        return {"activas": [], "avisos": []}
+    validas = [f for f in listing["names"] if _initiative_name(f)]
+    avisos = []
+    if len(validas) > _RESUME_SCAN or not listing["complete"]:
+        resto = len(validas) - _RESUME_SCAN
+        avisos.append(f"Roadmap recortado: {max(resto, 0)}{'' if listing['complete'] else ' o más'} "
+                      "carpetas más antiguas sin revisar")
+    carpetas = sorted(validas[:_RESUME_SCAN])
+    base = os.path.join(str(root), "docs", "roadmap")
     firma = []
     for folder in carpetas:
         try:
-            info = os.lstat(os.path.join(str(root), "docs", "roadmap", folder, "tasks.md"))
+            dir_info = os.lstat(os.path.join(base, folder))
+            if reader._redirected(dir_info) or not stat.S_ISDIR(dir_info.st_mode):
+                firma.append((folder, "redirected", None))
+                continue
+            info = os.lstat(os.path.join(base, folder, "tasks.md"))
             firma.append((folder, info.st_mtime_ns, info.st_size))
         except OSError:
             firma.append((folder, None, None))
     clave = (os.path.abspath(str(root)), tuple(firma))
     memo = _SNAPSHOT_MEMO.get(clave[0])
     if memo is not None and memo[0] == clave[1]:
-        return [dict(r) for r in memo[1]]
+        return {"activas": [dict(r) for r in memo[1]], "avisos": list(memo[2])}
     out = []
     for folder, mtime_ns, _size in firma:
+        if mtime_ns == "redirected":
+            avisos.append(f"{folder}: tasks.md ilegible (redirected_path)")
+            continue
         if mtime_ns is None:
             continue
-        absoluta = os.path.join(str(root), "docs", "roadmap", folder, "tasks.md")
-        r = _resumen_acotado(reader, root, "docs/roadmap/" + folder + "/tasks.md", absoluta)
+        absoluta = os.path.join(base, folder, "tasks.md")
+        r = _resumen_acotado(reader, root, "docs/roadmap/" + folder + "/tasks.md", absoluta, avisos)
         if r and r.get("estado") == "en-progreso":
             out.append(r)
     _SNAPSHOT_MEMO.clear()
-    _SNAPSHOT_MEMO[clave[0]] = (clave[1], out)
-    return [dict(r) for r in out]
+    _SNAPSHOT_MEMO[clave[0]] = (clave[1], out, avisos)
+    return {"activas": [dict(r) for r in out], "avisos": list(avisos)}
+
+
+def activas_acotadas(root):
+    """Iniciativas `en-progreso` de la instantánea única (`instantanea`), en orden de carpeta."""
+    return instantanea(root)["activas"]
 
 
 def _lstat_mtime(path):
@@ -913,11 +949,14 @@ def cmd_active(args):
     proyecto = _proyecto_de(args.root)
     # fix2 B-M3: la misma instantánea acotada que el journal y el arranque (un `--root` que no es
     # `<proyecto>/docs/roadmap` conserva el escaneo histórico)
-    rs = activas_acotadas(proyecto) if proyecto else activas(args.root)
+    snap = instantanea(proyecto) if proyecto else {"activas": activas(args.root), "avisos": []}
+    rs = snap["activas"]
     if args.json:
         for r in rs:
             r["linea"] = linea(r)
         salida = {"activas": rs}
+        if snap["avisos"]:
+            salida["avisos"] = snap["avisos"]   # fix3 (B4/B5): recorte y ledgers ilegibles
         if len(rs) > 1:   # con una sola activa la salida es idéntica a la de siempre
             salida["iniciativa_en_curso"] = vigente_entre(rs, _leer_usage_state(args.root),
                                                           mtime=_lstat_mtime if proyecto else os.path.getmtime)
@@ -932,9 +971,10 @@ def cmd_active(args):
 
 
 def cmd_session(args):
-    rs = activas_acotadas(args.root)   # fix2 B-M3: misma instantánea acotada que el journal
+    snap = instantanea(args.root)   # fix2 B-M3: misma instantánea acotada que el journal
+    rs = snap["activas"]
     if not rs:
-        print(LINEA_NEUTRA)
+        print("\n".join([LINEA_NEUTRA] + snap["avisos"][:3]))
         return 0
     out = ["Roadmap en progreso (ledger canónico = tasks.md):"]
     # H-48: las iniciativas al 100 % solo esperan su cierre; se compactan en una línea.
@@ -953,11 +993,19 @@ def cmd_session(args):
     elif huerf:
         out.append("usage-meter: marcadores abiertos → " + ", ".join(huerf[:5])
                    + (" …" if len(huerf) > 5 else ""))
-    unica = pendientes[0] if len(pendientes) == 1 else (rs[0] if len(rs) == 1 else None)
-    rel = os.path.relpath(unica["path"], args.root) if unica \
-        else os.path.join("docs", "roadmap", "<…>", "tasks.md")
-    rel = rel.replace("\\", "/")
-    out.append(f"Ledger canónico: {rel} — retoma desde la tarea en-progreso")
+    for aviso in snap["avisos"][:3]:
+        out.append(aviso)
+    # fix3 (A): la MISMA regla que el journal, la memoria y la statusline
+    vigente = vigente_entre(rs, _leer_usage_state(os.path.join(args.root, "docs", "roadmap")), mtime=_lstat_mtime)
+    unica = next(r for r in rs if r["slug"] == vigente)
+    rel = os.path.relpath(unica["path"], args.root).replace("\\", "/")
+    if unica["en_progreso"]:
+        cola = "retoma desde la tarea en-progreso"
+    elif unica.get("total") and unica["completadas"] == unica["total"]:
+        cola = "al 100 %: /retro " + unica["slug"]
+    else:
+        cola = "sin tarea en-progreso"
+    out.append(f"Ledger canónico: {rel} — {cola}")
     # Resolve with the bounded reader on the exact folder of the single pending
     # initiative. The legacy progress scan never supplies review identities, and
     # several pending initiatives cannot select a receipt: that is not news for

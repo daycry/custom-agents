@@ -3292,3 +3292,12 @@ def test_fix3_doctor_distingue_estado_ilegible_de_marcador_corrupto(tmp_path):
     fatal = [l for l in doctor._marcadores(ROOT, str(tmp_path)) if l["estado"] == doctor.AVISO]
     assert fatal and "ilegible" in fatal[0]["detalle"] and "respáldalo" in fatal[0]["arreglo"], fatal
 
+
+
+def test_fix3_b5_doctor_avisa_de_un_ledger_ilegible_en_vez_de_decir_ninguna(tmp_path):
+    """Revisión fase 2, intento 3 (B4/B5): `/doctor` lleva los avisos de la instantánea del roadmap."""
+    roto = tmp_path / "docs" / "roadmap" / "2026-10-03-rota" / "tasks.md"
+    roto.parent.mkdir(parents=True)
+    roto.write_bytes(b"---\nestado: en-progreso\n---\n### T-01 \xff\xfe\n")
+    filas = doctor._iniciativas(ROOT, str(tmp_path))
+    assert any(f["estado"] == doctor.AVISO and "invalid_encoding" in f["detalle"] and f["arreglo"] for f in filas), filas
