@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Tests de worklog.py (tope diario + banco por issue). Ejecuta: python tests/test_worklog.py"""
+import codecs
 import json
 import os
 import subprocess
@@ -123,6 +124,129 @@ def main():
         assert len(t["reviewAttempts"]) == 2 and t["worklogRevision"] == 0.9, t
 
     print("OK: worklog.py — 13 casos en verde.")
+
+
+# --- Auditoría 2026-11-09 (H-1, H-2): sin pérdida de datos ni entradas imposibles ---
+
+def _prep(tmp, state_bytes=None):
+    json.dump({"horasJornada": 8, "ratioSupervision": 0.25},
+              open(os.path.join(tmp, "rates.json"), "w"))
+    json.dump({"alCubrirJornada": "banco"}, open(os.path.join(tmp, "jira.json"), "w"))
+    sp = os.path.join(tmp, "jira-state.json")
+    if state_bytes is not None:
+        with open(sp, "wb") as f:
+            f.write(state_bytes)
+    return sp
+
+
+def _raw(tmp, *extra):
+    cmd = [sys.executable, SCRIPT, *extra,
+           "--state", os.path.join(tmp, "jira-state.json"),
+           "--rates", os.path.join(tmp, "rates.json"),
+           "--jira", os.path.join(tmp, "jira.json")]
+    return subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+
+
+def test_casos_historicos():
+    main()
+
+
+def test_estado_con_bom_se_lee_y_conserva():
+    estado = {"imputadoPorDia": {"2026-07-17": 5},
+              "bancoHoras": [{"task": "T-09", "issueKey": "K-9", "horas": 2.0,
+                              "origen": "2026-07-16"}],
+              "tasks": {"T-09": {"issueKey": "K-9", "worklog": 5}}}
+    with tempfile.TemporaryDirectory() as tmp:
+        sp = _prep(tmp, codecs.BOM_UTF8 + json.dumps(estado).encode("utf-8"))
+        s = run(tmp, "status")
+        assert s["bancoPendiente"] == 2.0 and s["imputadoPorDia"] == {"2026-07-17": 5}, s
+        run(tmp, "plan", "--task", "T-10", "--issue", "K-10", "--ia-real", "1",
+            "--sup-real", "0", "--fecha", "2026-07-17", "--apply")
+        st = json.load(open(sp, encoding="utf-8-sig"))
+        assert st["imputadoPorDia"]["2026-07-17"] == 6, st
+        assert st["bancoHoras"][0]["task"] == "T-09" and "T-09" in st["tasks"], st
+
+
+def test_estado_corrupto_exit2_sin_escribir():
+    corrupto = b'{"imputadoPorDia": {"2026-07-17": 5}, "bancoHoras": ['
+    with tempfile.TemporaryDirectory() as tmp:
+        sp = _prep(tmp, corrupto)
+        for args in (("plan", "--task", "T-01", "--issue", "K-1", "--ia-real", "1",
+                      "--fecha", "2026-07-17", "--apply"),
+                     ("drain", "--fecha", "2026-07-18", "--apply"),
+                     ("status",)):
+            r = _raw(tmp, *args)
+            assert r.returncode == 2, (args, r.returncode, r.stdout, r.stderr)
+            assert "error" in json.loads(r.stdout), r.stdout
+            assert open(sp, "rb").read() == corrupto, "el estado ilegible se sobrescribió"
+
+
+def test_estado_raiz_no_objeto_exit2():
+    with tempfile.TemporaryDirectory() as tmp:
+        sp = _prep(tmp, b"[]")
+        r = _raw(tmp, "plan", "--task", "T-01", "--issue", "K-1", "--ia-real", "1",
+                 "--fecha", "2026-07-17", "--apply")
+        assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
+        assert open(sp, "rb").read() == b"[]"
+
+
+def test_estado_ausente_sigue_siendo_vacio():
+    with tempfile.TemporaryDirectory() as tmp:
+        sp = _prep(tmp)
+        o = run(tmp, "plan", "--task", "T-01", "--issue", "K-1", "--ia-real", "1",
+                "--sup-real", "0", "--fecha", "2026-07-17", "--apply")
+        assert o["aplicado"] and os.path.exists(sp), o
+
+
+def test_escritura_atomica_con_os_replace(monkeypatch):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("worklog_mod", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    llamadas = []
+    real = os.replace
+
+    def espia(src, dst):
+        llamadas.append((str(src), str(dst)))
+        return real(src, dst)
+
+    monkeypatch.setattr(mod.os, "replace", espia)
+    with tempfile.TemporaryDirectory() as tmp:
+        destino = os.path.join(tmp, "jira-state.json")
+        mod.save_json(destino, {"a": 1})
+        assert llamadas and llamadas[0][1] == destino, llamadas
+        assert llamadas[0][0] != destino and os.path.dirname(llamadas[0][0]) == tmp
+        assert json.load(open(destino, encoding="utf-8")) == {"a": 1}
+        assert os.listdir(tmp) == ["jira-state.json"], os.listdir(tmp)
+
+
+def test_fecha_futura_exit2():
+    import datetime
+    manana = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    with tempfile.TemporaryDirectory() as tmp:
+        sp = _prep(tmp)
+        for args in (("plan", "--task", "T-01", "--issue", "K-1", "--ia-real", "1",
+                      "--fecha", manana, "--apply"),
+                     ("drain", "--fecha", manana, "--apply")):
+            r = _raw(tmp, *args)
+            assert r.returncode == 2, (args, r.returncode, r.stdout, r.stderr)
+            assert "error" in json.loads(r.stdout), r.stdout
+        assert not os.path.exists(sp)
+        r = _raw(tmp, "plan", "--task", "T-01", "--issue", "K-1", "--ia-real", "1",
+                 "--fecha", "2026-13-40")
+        assert r.returncode == 2, (r.returncode, r.stdout)
+
+
+def test_horas_negativas_exit2():
+    with tempfile.TemporaryDirectory() as tmp:
+        sp = _prep(tmp)
+        for flag in ("--ia-real", "--ia-est", "--sup-real", "--sup-est",
+                     "--human-real", "--human-est"):
+            r = _raw(tmp, "plan", "--task", "T-01", "--issue", "K-1", flag, "-1",
+                     "--fecha", "2026-07-17", "--apply")
+            assert r.returncode == 2, (flag, r.returncode, r.stdout, r.stderr)
+            assert "error" in json.loads(r.stdout), r.stdout
+        assert not os.path.exists(sp)
 
 
 if __name__ == "__main__":

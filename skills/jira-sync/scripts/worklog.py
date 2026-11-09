@@ -60,20 +60,56 @@ def find_up(names, start="."):
         d = nd
 
 
+class EntradaInvalida(Exception):
+    """Estado/config ilegible o argumento imposible: exit 2 sin escribir nada."""
+
+
 def load_json(path, default):
+    """Ausente → default; ilegible (JSON roto, raíz no objeto, E/S) → EntradaInvalida.
+
+    Ilegible NO es vacío: tratarlo como `{}` haría que `--apply` sobrescribiera el banco
+    de horas y el worklog acumulado (auditoría H-1). `utf-8-sig` acepta el BOM de Windows.
+    """
     if not path or not os.path.exists(path):
         return default
     try:
-        with open(path, encoding="utf-8") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, OSError):
-        return default
+        with open(path, encoding="utf-8-sig") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError) as e:
+        raise EntradaInvalida(f"{path} ilegible ({e.__class__.__name__}); no se escribe nada") from e
+    if not isinstance(data, dict):
+        raise EntradaInvalida(f"{path}: la raíz no es un objeto JSON; no se escribe nada")
+    return data
 
 
 def save_json(path, data):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    """Escritura atómica: temporal hermano + os.replace (el estado previo sobrevive a un fallo)."""
+    d = os.path.dirname(os.path.abspath(path))
+    os.makedirs(d, exist_ok=True)
+    tmp = os.path.join(d, f".{os.path.basename(path)}.{os.getpid()}.tmp")
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
+def fecha_valida(valor):
+    """Hoy por defecto; formato AAAA-MM-DD y nunca futura (el docstring lo promete)."""
+    hoy = datetime.date.today()
+    if not valor:
+        return hoy.isoformat()
+    try:
+        d = datetime.date.fromisoformat(valor)
+    except ValueError as e:
+        raise EntradaInvalida(f"--fecha inválida: {valor!r} (AAAA-MM-DD)") from e
+    if d > hoy:
+        raise EntradaInvalida(f"--fecha futura: {valor} > {hoy.isoformat()}; nunca se imputa a futuro")
+    return d.isoformat()
 
 
 def cfg(args):
@@ -104,7 +140,11 @@ def pick(real, est):
 def cmd_plan(args):
     jornada, ratio, policy = cfg(args)
     st = load_state(args)
-    fecha = args.fecha or datetime.date.today().isoformat()
+    fecha = fecha_valida(args.fecha)
+    for f in ("ia_real", "ia_est", "sup_real", "sup_est", "human_real", "human_est"):
+        v = getattr(args, f)
+        if v is not None and v < 0:
+            raise EntradaInvalida(f"--{f.replace('_', '-')} negativo ({v}); las horas no pueden ser < 0")
 
     ia = pick(args.ia_real, args.ia_est)
     sup = pick(args.sup_real, args.sup_est)
@@ -172,7 +212,7 @@ def cmd_plan(args):
 def cmd_drain(args):
     jornada, _, _ = cfg(args)
     st = load_state(args)
-    fecha = args.fecha or datetime.date.today().isoformat()
+    fecha = fecha_valida(args.fecha)
     imputado = float(st["imputadoPorDia"].get(fecha, 0))
     restante = max(0.0, round(jornada - imputado, 2))
 
@@ -227,11 +267,15 @@ def main():
     ap.add_argument("--fecha"); ap.add_argument("--apply", action="store_true")
     ap.add_argument("--state"); ap.add_argument("--rates"); ap.add_argument("--jira")
     args = ap.parse_args()
-    if args.cmd == "plan":
-        if not args.task or not args.issue:
-            sys.exit("plan requiere --task y --issue")
-        sys.exit(cmd_plan(args))
-    sys.exit(cmd_drain(args) if args.cmd == "drain" else cmd_status(args))
+    if args.cmd == "plan" and (not args.task or not args.issue):
+        sys.exit("plan requiere --task y --issue")
+    cmd = {"plan": cmd_plan, "drain": cmd_drain, "status": cmd_status}[args.cmd]
+    try:
+        code = cmd(args)
+    except EntradaInvalida as e:
+        print(json.dumps({"error": str(e)}, ensure_ascii=False))
+        code = 2
+    sys.exit(code)
 
 
 if __name__ == "__main__":

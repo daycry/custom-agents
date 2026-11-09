@@ -16,27 +16,34 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 0 | 6 | 0.0% |
+| Fase 1 | 1 | 6 | 16.7% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **0** | **21** | **0.0%** |
+| **TOTAL** | **1** | **21** | **4.8%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
-**Estado**: borrador
+**Estado**: en-progreso
 
 ### T-01 — worklog sin pérdida de datos
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: H-1 y H-2. Un estado ilegible o con BOM no se trata como vacío ni se sobrescribe; escritura atómica; fecha futura y horas negativas rechazadas.
 - **Archivos**: `skills/jira-sync/scripts/worklog.py`, `tests/test_worklog.py`.
 - **Verificación**: `python -m pytest -q tests/test_worklog.py` → todos pasan, con casos de BOM, JSON corrupto, fecha futura y horas negativas.
+- **Changelog**: El worklog de Jira ya no pierde el banco de horas: un estado con BOM se lee, uno ilegible detiene la imputación sin escribir, y se rechazan fechas futuras y horas negativas.
+- **Cerrada**: 2026-11-09
 
 **Criterios de aceptación**
-- [ ] `jira-state.json` con BOM se lee bien; corrupto → exit 2 sin escribir.
-- [ ] Escritura atómica (tmp + `os.replace`).
-- [ ] `--fecha` futura y horas negativas → exit 2.
+- [x] `jira-state.json` con BOM se lee bien; corrupto → exit 2 sin escribir.
+- [x] Escritura atómica (tmp + `os.replace`).
+- [x] `--fecha` futura y horas negativas → exit 2.
+
+
+RED: `tests/test_worklog.py (6 casos nuevos)` falló con 6 failed, 2 passed: BOM leido como vacio (bancoPendiente 0), corrupto/futura/negativas exit 0 con aplicado, raiz lista traceback exit 1, save_json sin os.replace · 2026-11-09.
+
+GREEN: `python -m pytest -q tests/test_worklog.py` → `8 passed in 6.18s` (BOM, corrupto, raíz lista, ausente, os.replace, fecha futura/inválida, 6 flags negativos + 13 casos históricos); `test_jira_flow.py` → `74 passed` · 2026-11-09.
 
 ### T-02 — qa-gate sin falso verde
 
