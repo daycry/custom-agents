@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 2 | 6 | 33.3% |
+| Fase 1 | 3 | 6 | 50.0% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **2** | **21** | **9.5%** |
+| **TOTAL** | **3** | **21** | **14.3%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -52,7 +52,7 @@ GREEN fix1: `pytest tests/test_worklog.py` → `11 passed` (nan/inf, 7 formas de
 
 ### T-02 — qa-gate sin falso verde
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-3 y menor C4. Un test con `expectedStatus: "skipped"` no cuenta como pasado; BOM y raíz no objeto dan veredicto, no traceback.
 - **Archivos**: `agent-kits/qa/qa-gate.py`, `tests/test_qa_gate.py`.
 - **Verificación**: `python -m pytest -q tests/test_qa_gate.py` → todos pasan, con los casos nuevos.
@@ -72,6 +72,11 @@ GREEN: `python -m pytest -q tests/test_qa_gate.py` → `6 passed in 4.63s` (skip
 RED: `tests/test_qa_gate.py::test_fallo_seguido_de_saltado_no_desaparece` falló con fix1: [failed, skipped] contado como skipped (counts.skipped 1), el fallo previo desaparecia · 2026-11-09.
 
 GREEN fix1: `pytest tests/test_qa_gate.py` → `7 passed in 4.83s` (la rama skipped exige TODOS los resultados saltados) · 2026-11-09.
+
+
+RED: `tests/test_qa_gate.py::test_fix2_sin_ningun_passed_no_es_flaky_ni_se_justifica` falló con fix2: [failed, skipped] con expectedStatus skipped contado flaky y justificado -> VERDE sin haber pasado nunca · 2026-11-09.
+
+GREEN fix2: `pytest tests/test_qa_gate.py` → `8 passed` (flaky exige al menos un `passed`); `python tests/test_qa_gate.py` → `13/13 OK` · 2026-11-09.
 
 ### T-03 — Instalador robusto en Windows y con configuración ajena
 

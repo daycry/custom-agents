@@ -182,3 +182,13 @@ def test_fallo_seguido_de_saltado_no_desaparece():
         data = json.loads(out)
         assert code == 1 and data["verdict"] == "NO-VERDE", (exp, data)
         assert data["counts"]["skipped"] == 0, (exp, data)
+
+
+def test_fix2_sin_ningun_passed_no_es_flaky_ni_se_justifica():
+    """Revisión intento 2: `[failed, skipped]` con expectedStatus skipped NO es flaky (nunca pasó);
+    una justificación de flaky no puede volverlo VERDE."""
+    res = results([("ok", ["passed"], "passed"), ("nunca pasa", ["failed", "skipped"], "skipped")])
+    code, out = run(res, justify={"nunca pasa": "timing conocido"})
+    data = json.loads(out)
+    assert code == 1 and data["verdict"] == "NO-VERDE", data
+    assert data["counts"]["flaky"] == 0 and data["counts"]["failed"] == 1, data

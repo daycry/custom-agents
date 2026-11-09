@@ -51,8 +51,10 @@ def walk_tests(suite, out):
                 out.append((title, fid, "skipped"))
             elif all(s == expected for s in statuses):
                 out.append((title, fid, "expected"))
-            elif final == expected and len(statuses) > 1:
-                out.append((title, fid, "flaky"))          # falló y pasó al reintento
+            elif final == expected and len(statuses) > 1 and "passed" in statuses:
+                # falló y pasó al reintento. Sin NINGÚN `passed` no es flaky sino fallo
+                # (revisión intento 2): `[failed, skipped]` nunca pasó y no se puede justificar.
+                out.append((title, fid, "flaky"))
             else:
                 out.append((title, fid, "unexpected"))
     for child in suite.get("suites", []):
