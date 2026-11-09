@@ -106,7 +106,6 @@ def _memory(knowledge, progress, root):
     MEMORIA_TOPE_CHARS = 1200      # ≤ 300 tokens (spec CA-10); tope PROPIO, antes del recorte global a TOPE_CHARS
     MEMORIA_LIMIT = 8              # aciertos ÚNICOS que se muestran como mucho; el tope de caracteres es el que manda
     MEMORIA_MAX_INICIATIVAS = 2    # iniciativas activas que se consultan (una consulta en proceso por iniciativa); más → se dice en la cabecera
-    shared = str(SHARED).replace(chr(92), "/") if os.name == "nt" else str(SHARED)
     try:
         with open(os.path.join(root, ".claude", "dev.json"), encoding="utf-8-sig") as f:
             cfg = json.load(f)
@@ -125,7 +124,12 @@ def _memory(knowledge, progress, root):
         except ValueError:
             return {}
 
-    activas = run(progress, "active", "--root", os.path.join(root, "docs", "roadmap"), "--json").get("activas", [])
+    datos = run(progress, "active", "--root", os.path.join(root, "docs", "roadmap"), "--json")
+    # H-48: la iniciativa en curso primero, después las pendientes y al final las que están al 100 %
+    # (sort estable: dentro de cada grupo se conserva el orden de carpetas).
+    en_curso = datos.get("iniciativa_en_curso")
+    activas = sorted(datos.get("activas", []),
+                     key=lambda a: (a.get("slug") != en_curso, (a.get("pct") or 0) >= 100))
     # Con ≥ 2 activas del mismo área los aciertos se repiten: se DEDUPLICAN por ID ANTES de contar (antes `total`
     # sumaba por iniciativa y `lineas` deduplicaba: cabecera inflada, «… y N más» falso y, con el tope apretando,
     # la línea falsa desalojaba aciertos reales — revisión intento 1, gap 3). Se consultan como mucho
@@ -159,16 +163,16 @@ def _memory(knowledge, progress, root):
     lineas = [t[2] for t in unicos[:MEMORIA_LIMIT]]
     if not lineas:
         return ''
-    kf = os.path.join(shared, "knowledge-find.py")
+    kf = "knowledge-find.py"   # H-48: sin ruta absoluta; se ejecuta desde el kit compartido ($SHAREDKIT)
     nota = (f" · {len(activas)} iniciativas activas, consultadas las {len(consultadas)} primeras; fuera: "
             + ", ".join(a.get("slug", "?") for a in fuera_activas)) if fuera_activas else ""
     cab = (f"Memoria técnica del área activa (docs/knowledge · {total} acierto(s) de knowledge-find.py{nota}; el estado va "
            "delante: aceptada = doctrina, propuesta = indicio, obsoleta = no aplicar):")
-    pie = f"Detalle solo por ID: python3 \"{kf}\" --show <ID>  (o --related <ID>: su grafo curado)"
+    pie = f"Detalle solo por ID (kit compartido, $SHAREDKIT): {kf} --show <ID>  (o --related <ID>: su grafo curado)"
     n = len(lineas)
     while n > 0:
         fuera = total - n                                         # N REAL: únicos que no se muestran
-        extra = [f"… y {fuera} más: python3 \"{kf}\" {' · '.join(ordenes)}"] if fuera > 0 else []
+        extra = [f"… y {fuera} más: {kf} {' · '.join(ordenes)}"] if fuera > 0 else []
         bloque = "\n".join([cab] + [f"- {l}" for l in lineas[:n]] + extra + [pie])
         if len(bloque) <= MEMORIA_TOPE_CHARS:
             return bloque

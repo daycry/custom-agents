@@ -394,8 +394,10 @@ lo que "ya no hay que volver a descubrir" cada vez, generalizando el patrón de 
   `progress-report.py session` añade recordatorios de la única iniciativa activa
   dentro de sus 15 líneas, conservando referencias enteras.
   `SessionStart` usa `resume --history-only` en startup/resume (≤ 25 líneas), sin
-  historial en compact. La selección implícita exige una única iniciativa
-  `en-progreso`; varias son ambiguas y, si no hay ninguna, no toma el journal global.
+  historial en compact. En `/work-resume` la selección implícita exige una única
+  iniciativa `en-progreso` y varias son ambiguas; el arranque cita la iniciativa en
+  curso (marcador abierto o ledger más reciente) aunque haya varias o los ledgers
+  superen 1 MiB, nunca una no activa, y sin ninguna no toma el journal global.
   La vista manual no ejecuta replay, meter, Git ni backends. El bloque de progreso
   y la recuperación del hook conservan sus métodos separados; el hook entero
   sigue teniendo operaciones de recuperación. [Contrato de lectura](WORK-RESUME.md).

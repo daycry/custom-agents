@@ -429,3 +429,30 @@ def test_en_curso_helpers_directos(tmp_path):
     def _falla(p):
         raise OSError(p)
     assert pr.iniciativa_en_curso(rs, {"a/F1": "no es un dict", "b/F1": {"ultimoCierre": "x"}}, mtime=_falla) == "a"
+
+
+# ------------------------------------------------------------------ H-48: bloque de sesión compacto
+
+AL_100_ACTIVA = COMPLETADO.replace("estado: completado", "estado: en-progreso", 1)
+
+
+def test_h48_session_compacta_las_iniciativas_al_100(tmp_path):
+    ledger(tmp_path, "2026-09-01-cerrable", AL_100_ACTIVA)
+    ledger(tmp_path, "2026-09-03-otra-cerrable", AL_100_ACTIVA)
+    ledger(tmp_path, "2026-09-02-demo", DOS_FASES)
+    code, out, _ = run("session", "--root", str(tmp_path))
+    lines = out.strip().splitlines()
+    assert code == 0
+    assert "2 al 100 % pendientes de cierre: /retro cerrable, /retro otra-cerrable" in lines
+    assert not any(l.startswith("- 📋 cerrable") or l.startswith("- 📋 otra-cerrable") for l in lines)
+    assert any(l.startswith("- 📋 demo ·") for l in lines)
+    # Con una sola iniciativa pendiente, la línea de retoma nombra su ledger, no «<…>».
+    assert lines[-1].startswith("Ledger canónico: docs/roadmap/2026-09-02-demo/tasks.md")
+
+
+def test_h48_session_sin_linea_opaca_de_revisiones(tmp_path):
+    ledger(tmp_path, "2026-09-02-demo", DOS_FASES)
+    ledger(tmp_path, "2026-09-04-otra", DOS_FASES.replace("tasks: demo", "tasks: otra"))
+    code, out, _ = run("session", "--root", str(tmp_path))
+    assert code == 0 and "- 📋 otra ·" in out
+    assert "Revisiones: selección de iniciativa" not in out

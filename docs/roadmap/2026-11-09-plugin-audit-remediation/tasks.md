@@ -17,10 +17,10 @@ changelog: Fixed
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
-| Fase 2 | 0 | 6 | 0.0% |
+| Fase 2 | 1 | 6 | 16.7% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **6** | **21** | **28.6%** |
+| **TOTAL** | **7** | **21** | **33.3%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -153,6 +153,7 @@ GREEN: `pytest tests/test_graphiti_security.py -k ignoran_proxy` → `1 passed` 
 - **Archivos**: `commands/dev-cycle.md`, `agent-kits/dev-cycle/references/phase3-subagents.md`, `skills/quick-implement/SKILL.md`, `agent-kits/shared/task-brief.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `interop/**`, `tests/test_dev_cycle_split.py`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/fixtures/dev-cycle-paragraphs.json`, `tests/test_native_guardrail_dispatch.py`, `docs/agents/CONTRACTS.md`, `docs/guides/quality-playbook.md`, `docs/guides/subscription-efficiency.md` (añadidos por el implementer: E3, también describían «lite en el hilo actual»), `docs/agents/implementer.md`, `agent-kits/shared/README.md` (revisión intento 1, gap 4), `commands/setup.md` (revisión intento 2, A1).
 - **Verificación**: test que exige el despacho a `implementer` en lite y subagentes → pasa; `export-interop.py --check` al día; ahorro de la vía rápida ≥ 6000.
 - **Changelog**: La implementación se entrega siempre a la identidad nativa del implementer, también en el perfil lite y con subagentes, para que su guardia de rama, alcance y git aplique.
+- **Notas**: Deuda (orquestador, 2026-11-09): los manuales `docs/guides/subscription-efficiency.md` y `docs/guides/quality-playbook.md` (edición 2026-11-04) siguen diciendo que lite implementa en el hilo actual; requiere una nueva edición PDF (sus PDF de `output/pdf/` están atados a esa edición). Seguimiento en T-21.
 - **Cerrada**: 2026-11-09
 
 **Criterios de aceptación**
@@ -223,24 +224,32 @@ GREEN fix3b: `.venv/Scripts/python -m pytest -q agent-kits/shared/test_guardrail
 
 ## Fase 2 — Funciones documentadas que no funcionan
 
-**Estado**: borrador
+**Estado**: en-progreso
 
 ### T-07 — Retoma de sesión: journal y bloque útil
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: H-14, H-27 y H-48. Reinyectar la última entrada del journal sin depender de la selección global de ledgers; iniciativa en curso primero en memoria; líneas opacas fuera; iniciativas al 100 % compactadas; pie sin ruta absoluta; `clear` también en Claude.
-- **Archivos**: `agent-kits/shared/progress-report.py`, `hooks/session-context.py`, `hooks/hooks.json`, `agent-kits/shared/test_progress_report.py`, `tests/test_session_context.py`, `tests/test_hooks_shell.py`, `interop/**`, `docs/observability.md`, `docs/en/observability.md`.
+- **Archivos**: `agent-kits/shared/progress-report.py`, `hooks/session-context.py`, `hooks/hooks.json`, `agent-kits/shared/test_progress_report.py`, `tests/test_session_context.py`, `tests/test_hooks_shell.py`, `interop/**`, `docs/observability.md`, `docs/en/observability.md`, `hooks/session-context.sh` (oráculo de bytes del compositor nativo: mismo pie y mismo orden de memoria), `agent-kits/shared/test_work_resume.py` (casos H-14/H-48 del historial del arranque), `tests/test_graphiti_security.py` (huella `sha256_lf` de `hooks/session-context.py`), `docs/WORK-RESUME.md`, `docs/en/WORK-RESUME.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md` (E3: describían la selección del historial al arrancar) (añadidos por el implementer).
+- **Tiempo IA (ejec.)**: real 0,77h (medido)
 - **Verificación**: test con más de 1 MiB de ledgers y dos iniciativas activas → se reinyecta la entrada del journal; tests de sesión existentes pasan.
+- **Changelog**: Al arrancar o retomar se vuelve a citar la última entrada del journal aunque haya varias iniciativas activas o ledgers grandes, y el bloque de sesión agrupa las iniciativas al 100 % pendientes de `/retro`, sin líneas opacas ni rutas absolutas; `/clear` también reinyecta el contexto en Claude Code.
+- **Cerrada**: 2026-11-09
 
 **Criterios de aceptación**
-- [ ] El journal se reinyecta con ledgers grandes y varias iniciativas activas.
-- [ ] Sin «Journal: incomplete» ni rutas absolutas en el bloque.
+- [x] El journal se reinyecta con ledgers grandes y varias iniciativas activas.
+- [x] Sin «Journal: incomplete» ni rutas absolutas en el bloque.
+
+
+RED: `test_work_resume.py -k 'h14 or h48' + test_progress_report.py -k h48 + tests/test_session_context.py -k 'h14 or h27 or h48'` falló con 12 failed: history-only imprime Journal: incomplete con mas de 1 MiB de ledgers y Journal: ambiguous con dos activas; sin compactar las de 100 %; Revisiones: seleccion de iniciativa incomplete; memoria consulta por orden de carpeta; pie con ruta absoluta; matcher SessionStart sin clear · 2026-11-09.
+
+GREEN: `pytest agent-kits/shared/test_progress_report.py agent-kits/shared/test_work_resume.py` → `96 passed`; `pytest tests/test_session_context.py` → `44 passed in 283.90s` (incl. equivalencia de bytes nativo/shell); `pytest tests/test_hooks_shell.py -k "memoria or tope or activas or h14"` → `13 passed`; `pytest tests/test_graphiti_security.py` → `126 passed` (huella nueva; el pie ya no cita una ruta que el cierre no resuelve); `test_review_resume.py` 18 passed, `test_resume_curation.py` 25 passed, `test_source_snapshot.py` 33 passed 1 skipped, `test_context_footprint.py` 15 passed, `test_roadmap_index.py` 71 passed; `export-interop.py --check` → `92 ficheros al día`. En este repo el bloque ya trae el journal y compacta 3 iniciativas al 100 %. Decisiones: con varias activas o más de 1 MiB de ledgers el arranque cita la iniciativa en curso (marcador abierto o ledger más reciente) y nunca una no activa (cambia el contrato anterior «ambigua → nada»; `/work-resume` conserva la ambigüedad explícita); un fallo de selección no deja línea; el pie nombra `knowledge-find.py` y `$SHAREDKIT` sin ruta; `clear` reinyecta índice, progreso y memoria, no el journal · 2026-11-09.
 
 ### T-08 — Vía rápida con qa-gate y TDD verificados
 
 - **Estado**: borrador
 - **Descripción**: H-15 y H-16. El implementer acepta el ledger ligero; qa acepta `test-plan: n/a (sin UI)` en `tasks.md`; la Lente A comprueba `RED:`/`TDD n/a` con `tdd: true`.
-- **Archivos**: `agents/implementer.md`, `agents/qa.md`, `agent-kits/qa/coverage-check.py`, `tests/test_coverage_check.py`, `skills/adversarial-review/references/lens-prompts.md`, `skills/tdd/SKILL.md`, `commands/dev-cycle.md`, `skills/quick-implement/SKILL.md`, `interop/**`, `tests/test_dev_cycle_split.py`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/fixtures/dev-cycle-paragraphs.json`.
+- **Archivos**: `agents/implementer.md`, `agents/qa.md`, `agent-kits/qa/coverage-check.py`, `tests/test_coverage_check.py`, `tests/test_quick_path_gates.py` (añadido por el implementer: contratos de prosa H-15/H-16 y resolución en Codex), `skills/adversarial-review/references/lens-prompts.md`, `skills/tdd/SKILL.md`, `commands/dev-cycle.md`, `skills/quick-implement/SKILL.md`, `interop/**`, `tests/test_dev_cycle_split.py`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/fixtures/dev-cycle-paragraphs.json`.
 - **Verificación**: `coverage-check` con el marcador en `tasks.md` → exit 0 explícito; tests de split y de interop pasan.
 
 **Criterios de aceptación**
@@ -387,6 +396,7 @@ GREEN fix3b: `.venv/Scripts/python -m pytest -q agent-kits/shared/test_guardrail
 
 - **Estado**: borrador
 - **Descripción**: Menores de la auditoría: Lente D en `dev-cycle`, `quick-implement` y CLAUDE.md; hooks globales y ADR-023 en CLAUDE.md; consola frente a panel servido; rutas de memoria que no viajan; shells muertos; degradación sin node; `release.py` (5 manifiestos, `.MANUAL-COPY` pendiente); cookie por puerto; mapa de errores y `aria-live` de la consola.
+- **Notas**: Incluye la deuda de T-05: nueva edición PDF de los manuales `docs/guides/subscription-efficiency.md` y `docs/guides/quality-playbook.md` para que digan que lite despacha al implementer nativo.
 - **Archivos**: `CLAUDE.md`, `commands/*.md`, `skills/**/SKILL.md`, `docs/**`, `hooks/*.sh`, `scripts/release.py`, `skills/plugin-panel/**`, `interop/**`, tests afectados.
 - **Verificación**: lint 0 errores, evals 0 errores, interop al día, CI completa en Linux verde.
 

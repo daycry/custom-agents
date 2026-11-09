@@ -186,3 +186,69 @@ def test_native_output_matches_shell_bytes(tmp_path, runtime, case):
         assert artefacts(project) == artefacts(native_project)
     if case == 'memory':
         assert 'Memoria técnica'.encode('utf-8') in before.stdout
+
+
+# ------------------------------------------------- H-14, H-27, H-48 (auditoría 2026-11-09)
+
+def test_h48_memoria_consulta_primero_la_iniciativa_en_curso(tmp_path):
+    module = native_module()
+    consultas = []
+    def progress(_args):
+        print(json.dumps({'activas': [
+            {'slug': 'cerrada', 'path': 'x/tasks.md', 'pct': 100},
+            {'slug': 'vieja', 'path': 'y/tasks.md', 'pct': 10},
+            {'slug': 'actual', 'path': 'z/tasks.md', 'pct': 30}],
+            'iniciativa_en_curso': 'actual'}))
+        return 0
+    def knowledge(args):
+        consultas.append(args[args.index('--iniciativa') + 1])
+        print(json.dumps({'aciertos': [{'id': 'ADR-001', 'linea': 'acierto', 'puntuacion': 1}]}))
+        return 0
+    text = module._memory(SimpleNamespace(main=knowledge), SimpleNamespace(main=progress), str(tmp_path))
+    assert consultas == ['actual', 'vieja']
+    assert 'fuera: cerrada' in text
+
+
+def test_h48_pie_de_memoria_sin_ruta_absoluta(tmp_path):
+    module = native_module()
+    def progress(_args):
+        print(json.dumps({'activas': [{'slug': 'demo', 'path': 'missing/tasks.md'}]}))
+        return 0
+    def knowledge(_args):
+        print(json.dumps({'aciertos': [{'id': f'ADR-{n:03d}', 'linea': 'x' * 150, 'puntuacion': 1}
+                                       for n in range(20)]}))
+        return 0
+    text = module._memory(SimpleNamespace(main=knowledge), SimpleNamespace(main=progress), str(tmp_path))
+    assert 'Detalle solo por ID (kit compartido, $SHAREDKIT): knowledge-find.py --show <ID>' in text
+    assert 'más: knowledge-find.py --contexto' in text
+    assert str(module.SHARED) not in text and str(module.SHARED).replace(chr(92), '/') not in text
+
+
+def test_h27_session_start_de_claude_reinyecta_tras_clear():
+    hooks = json.loads((ROOT / 'hooks/hooks.json').read_text(encoding='utf-8'))
+    matchers = [entry['matcher'] for entry in hooks['hooks']['SessionStart']]
+    assert any('clear' in matcher.split('|') for matcher in matchers), matchers
+
+
+def test_h14_compose_con_ledgers_grandes_y_dos_activas_reinyecta_el_journal(tmp_path, monkeypatch):
+    module = native_module()
+    project, led = legacy.proyecto(tmp_path)
+    (project / '.claude/dev.json').write_text('{"sesion":{"indice":false,"memoria":false}}', encoding='utf-8')
+    for index in range(5):
+        big = project / f'docs/roadmap/2025-01-0{index + 1}-big{index}/tasks.md'
+        big.parent.mkdir(parents=True)
+        big.write_text(led.read_text(encoding='utf-8').replace('estado: en-progreso', 'estado: completado', 1)
+                       + ('relleno ' * 60 + '\n') * 500, encoding='utf-8')
+    other = project / 'docs/roadmap/2026-01-02-other/tasks.md'
+    other.parent.mkdir(parents=True)
+    other.write_bytes(led.read_bytes())
+    (project / '.claude/usage-state.json').write_text(
+        json.dumps({'demo/T-01': {'inicio': '2026-01-03T00:00:00Z'}}), encoding='utf-8')
+    legacy._owned_history(project, 'selected.md', 'demo', 'Selected history')
+    legacy._owned_history(project, 'other.md', 'other', 'History of the other initiative')
+    monkeypatch.setenv('CLAUDE_PLUGIN_ROOT', str(ROOT))
+    output = module.compose({'source': 'startup', 'session_id': 'h14'}, root=str(project))
+    context = json.loads(output)['hookSpecificOutput']['additionalContext']
+    assert 'Selected history' in context and 'History of the other initiative' not in context
+    assert 'Journal: incomplete' not in context and 'Journal: ambiguous' not in context
+    assert 'Revisiones: selección de iniciativa' not in context

@@ -269,11 +269,14 @@ def test_history_only_no_history_injects_nothing(tmp_path, history, capsys):
 
 
 @pytest.mark.parametrize("status", ["ambiguous", "incomplete", "malformed"])
-def test_history_only_failure_has_status_and_no_transcription(tmp_path, history, capsys, status):
+def test_h48_history_only_failure_injects_no_opaque_line(tmp_path, history, capsys, status):
+    """H-48: a failed history selection no longer prints an opaque «Journal: <status>»
+    line into the session block; /work-resume keeps reporting the status."""
     ledger(tmp_path, "2026-10-09-demo")
     history[0].update(status=status)
     assert pr.main(["resume", "--root", str(tmp_path), "--history-only"]) == 0
-    assert capsys.readouterr().out.strip() == "Journal: " + status
+    assert capsys.readouterr().out == ""
+    assert pr.resume(tmp_path, initiative="demo")["status"] == status
 
 
 def test_large_history_summary_with_resolvable_identity_can_select_ledger(tmp_path, history):
@@ -465,3 +468,45 @@ def test_history_only_keeps_continuity_quote(tmp_path, capsys):
     out = capsys.readouterr().out
     assert "historial citado" in out and "objetivo: Cerrar D-085" in out
     assert "siguientes pasos: implementar; verde" in out
+
+
+# ------------------------------------------------- H-14: journal at startup without the global selection
+
+def _big_completed_ledgers(root, count=5, size=240 * 1024):
+    for index in range(count):
+        path = ledger(root, f"2026-01-0{index + 1}-big{index}", state="completado")
+        path.write_text(path.read_text(encoding="utf-8") + ("relleno " * 60 + "\n") * (size // 481),
+                        encoding="utf-8")
+
+
+def test_h14_history_only_with_more_than_1_mib_of_ledgers_reinjects_journal(tmp_path, capsys):
+    _big_completed_ledgers(tmp_path)
+    ledger(tmp_path, "2026-10-09-demo")
+    journal_entry(tmp_path, "demo.md", initiative="demo", summary="Entrada vigente de demo")
+    assert pr.main(["resume", "--root", str(tmp_path), "--history-only"]) == 0
+    out = capsys.readouterr().out
+    assert "Entrada vigente de demo" in out and "Journal: incomplete" not in out
+
+
+def test_h14_history_only_with_two_active_uses_the_initiative_in_progress(tmp_path, capsys):
+    ledger(tmp_path, "2026-10-08-demo")
+    ledger(tmp_path, "2026-10-09-other")
+    journal_entry(tmp_path, "demo.md", initiative="demo", sid="s-demo", summary="Historia de demo")
+    journal_entry(tmp_path, "other.md", initiative="other", sid="s-other", summary="Historia de other")
+    journal_entry(tmp_path, "ajena.md", initiative="ajena", sid="s-ajena", summary="Historia ajena")
+    state = tmp_path / ".claude" / "usage-state.json"
+    state.parent.mkdir()
+    state.write_text(json.dumps({"demo/T-01": {"inicio": "2026-10-09T10:00:00Z"}}), encoding="utf-8")
+    assert pr.main(["resume", "--root", str(tmp_path), "--history-only"]) == 0
+    out = capsys.readouterr().out
+    assert "Historia de demo" in out
+    assert "Historia de other" not in out and "Historia ajena" not in out
+    assert "Journal: ambiguous" not in out
+
+
+def test_h14_history_only_never_injects_history_of_a_non_active_initiative(tmp_path, capsys):
+    _big_completed_ledgers(tmp_path)
+    ledger(tmp_path, "2026-10-09-demo")
+    journal_entry(tmp_path, "ajena.md", initiative="ajena", summary="Historia ajena")
+    assert pr.main(["resume", "--root", str(tmp_path), "--history-only"]) == 0
+    assert capsys.readouterr().out == ""

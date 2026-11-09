@@ -130,7 +130,10 @@ It runs only the Python compositor. It uses no meter, replay/recover, Git, backe
 network or materialization processes, and reads no raw transcripts to fill gaps.
 Automatic capture and recovery retain their own hook contracts. At startup/resume,
 `SessionStart` uses `resume --history-only` to select history through the same ledger
-resolver; compact omits that part. The progress and replay blocks remain separate.
+resolver; compact omits that part. When that resolver yields no single initiative
+(several active or more than 1 MiB of ledgers), it quotes the initiative in progress
+among the active ones and never a non-active one. A failed selection leaves no line
+in the session block; this view still reports the status. The progress and replay blocks remain separate.
 This view does not make the entire `SessionStart` hook read-only.
 
 The facade finds `agent-kits/shared/` through the six roots in

@@ -503,6 +503,19 @@ def _resume_ledger(root, initiative, reader):
     return "ok", matches[0][1], [], []
 
 
+def _history_initiative(root):
+    """Slug de la iniciativa en curso entre las activas, para el historial del arranque (H-14).
+
+    Lee los ledgers como `session` (el mismo arranque ya los lee) y desempata con
+    `iniciativa_en_curso`: marcador abierto del meter o el ledger más reciente.
+    Sin activas → None: nunca se cita el historial de una iniciativa no activa."""
+    roadmap = os.path.join(str(root), "docs", "roadmap")
+    rs = activas(roadmap)
+    if not rs:
+        return None
+    return rs[0]["slug"] if len(rs) == 1 else iniciativa_en_curso(rs, _leer_usage_state(roadmap))
+
+
 def _resume_reviews(root, ledger_path, *, deadline=None):
     """Only the exact ledger-selected initiative; no global or historical fallback."""
     try:
@@ -568,6 +581,16 @@ def resume(root, *, initiative=None, session_id=None, runtime=None, entry=None, 
             if not _initiative_name(initiative):
                 return finish("invalid_selection", issues=[{"status": "invalid_historical_initiative"}])
     status, summary, candidates, issues = _resume_ledger(root, initiative, reader)
+    if summary is None and _history_only and initiative is None and session_id is None and entry is None:
+        # H-14: the startup history must not depend on the bounded global ledger
+        # selection (1 MiB budget, single active initiative). Take the initiative
+        # in progress among the active ones and quote only its own entries.
+        slug = _history_initiative(root)
+        if slug is None:
+            return finish(status, candidates=candidates, issues=issues)
+        selected_history = journal.select_entries(root, initiative=slug, runtime=runtime)
+        return finish(selected_history["status"] if selected_history["complete"] else "incomplete",
+                      history=selected_history["entries"], issues=selected_history["issues"])
     if summary is None:
         return finish(status, candidates=candidates, issues=issues,
                       history=selected_history["entries"] if selected_history else None)
@@ -706,30 +729,42 @@ def cmd_session(args):
         print(LINEA_NEUTRA)
         return 0
     out = ["Roadmap en progreso (ledger canónico = tasks.md):"]
-    for r in rs:
+    # H-48: las iniciativas al 100 % solo esperan su cierre; se compactan en una línea.
+    cerrables = [r for r in rs if r["total"] and r["completadas"] == r["total"]]
+    pendientes = [r for r in rs if r not in cerrables]
+    for r in pendientes:
         out.append("- " + linea(r))
         for t in r["en_progreso"]:
             out.append(f"  · en-progreso: {t['id']} {t['titulo']}".rstrip())
+    if cerrables:
+        out.append(f"{len(cerrables)} al 100 % pendientes de cierre: "
+                   + ", ".join("/retro " + r["slug"] for r in cerrables))
     huerf = marcadores_huerfanos(args.root, in_process=getattr(args, 'in_process', False))
     if huerf is None:
         out.append("usage-meter: no disponible")
     elif huerf:
         out.append("usage-meter: marcadores abiertos → " + ", ".join(huerf[:5])
                    + (" …" if len(huerf) > 5 else ""))
-    rel = os.path.relpath(rs[0]["path"], args.root) if len(rs) == 1 \
+    unica = pendientes[0] if len(pendientes) == 1 else (rs[0] if len(rs) == 1 else None)
+    rel = os.path.relpath(unica["path"], args.root) if unica \
         else os.path.join("docs", "roadmap", "<…>", "tasks.md")
     rel = rel.replace("\\", "/")
     out.append(f"Ledger canónico: {rel} — retoma desde la tarea en-progreso")
-    # Resolve with the bounded reader. The legacy progress scan never supplies
-    # review identities, and multiple active initiatives cannot select a receipt.
-    try:
-        reader = _load_module('session_review_reader', 'local-read.py')
-        status, summary, _, _ = _resume_ledger(args.root, None, reader)
-        review_lines = _review_text_lines(_resume_reviews(args.root, summary['path'],
-            deadline=time.monotonic() + 0.75)) if summary else (
-            ['Revisiones: selección de iniciativa ' + status] if status != 'not_found' else [])
-    except (ImportError, OSError, SyntaxError):
-        review_lines = ['Revisiones: lector no disponible']
+    # Resolve with the bounded reader on the exact folder of the single pending
+    # initiative. The legacy progress scan never supplies review identities, and
+    # several pending initiatives cannot select a receipt: that is not news for
+    # the session block, so no opaque status line is added (H-48).
+    review_lines = []
+    if unica:
+        try:
+            reader = _load_module('session_review_reader', 'local-read.py')
+            folder = os.path.basename(os.path.dirname(os.path.abspath(unica["path"])))
+            _, summary, _, _ = _resume_ledger(args.root, folder, reader)
+            if summary:
+                review_lines = _review_text_lines(_resume_reviews(args.root, summary['path'],
+                                                                  deadline=time.monotonic() + 0.75))
+        except (ImportError, OSError, SyntaxError):
+            review_lines = ['Revisiones: lector no disponible']
     if review_lines:
         # Keep complete IDs. Reserve one line for omissions, rather than cutting
         # a reference in half or silently hiding an open review.
@@ -745,7 +780,9 @@ def cmd_resume(args):
     result = resume(args.root, initiative=args.initiative, session_id=args.session_id,
                     runtime=args.runtime, entry=args.entry, _history_only=args.history_only)
     if args.history_only:
-        if result["status"] == "ok" and not result["history"]:
+        # H-48: the session block gets history or nothing; a failed selection is
+        # reported by /work-resume, not as an opaque «Journal: <status>» line.
+        if result["status"] != "ok" or not result["history"]:
             return 0
         journal = _load_module("resume_render_journal", "journal.py")
         print(journal.selected_text({"status": result["status"], "entries": result["history"]}))

@@ -273,9 +273,9 @@ installing or updating the plugin, in three steps (write down the actual result,
 1. **Progress line.** With an `en-progreso` initiative, edit its `docs/roadmap/<slug>/tasks.md` (tick a
    criterion, say) → the `📋 <slug> · T-XX/N …` line must show up as a system message. Repeat the same
    edit without changing the state → silence (debounce).
-2. **Session context.** resume the session (`claude --resume`, or wait for a compaction; `/clear` does NOT fire the hook: the matcher is `startup|resume|compact`) → the piece index
+2. **Session context.** resume the session (`claude --resume`, `/clear` or wait for a compaction; the matcher is `startup|resume|clear|compact`, as in Codex; the journal is only quoted on `startup|resume`) → the piece index
    (`Plugin custom-agents — índice de piezas…`, Comandos/Skills/Agentes blocks) and the `progress-report.py session` block
-   (active initiatives, task in progress, "resume from…") come in as context; with nothing active only the index comes in,
+   (active initiatives, task in progress, "resume from…"; those at 100 % go in one line «N al 100 % pendientes de cierre: /retro <slug>») come in as context; with nothing active only the index comes in,
    and with `dev.json` `sesion.indice: false` only the roadmap. Activation check: ask for something that matches a skill
    without naming it ("review this diff for me") and verify it gets invoked.
 3. **Implementer guard hook.** As `implementer` (e.g. `@implementer …`), try to write

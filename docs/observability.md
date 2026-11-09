@@ -272,9 +272,9 @@ instalar o actualizar el plugin, en tres pasos (anota el resultado real, no el e
 1. **Línea de progreso.** Con una iniciativa `en-progreso`, edita su `docs/roadmap/<slug>/tasks.md`
    (marca un criterio, por ejemplo) → debe aparecer la línea `📋 <slug> · T-XX/N …` como mensaje del
    sistema. Repite la misma edición sin cambiar el estado → silencio (debounce).
-2. **Contexto de sesión.** reanuda la sesión (`claude --resume`, o espera a una compactación; `/clear` NO dispara el hook: el matcher es `startup|resume|compact`) → entran como contexto el
+2. **Contexto de sesión.** reanuda la sesión (`claude --resume`, `/clear` o espera a una compactación; el matcher es `startup|resume|clear|compact`, como en Codex; el journal solo se cita en `startup|resume`) → entran como contexto el
    índice de piezas (`Plugin custom-agents — índice de piezas…`, bloques Comandos/Skills/Agentes) y el bloque de
-   `progress-report.py session` (iniciativas activas, tarea en curso, «retoma desde…»); con nada activo solo entra el
+   `progress-report.py session` (iniciativas activas, tarea en curso, «retoma desde…»; las que están al 100 % van en una línea «N al 100 % pendientes de cierre: /retro <slug>»); con nada activo solo entra el
    índice, y con `dev.json` `sesion.indice: false` solo el roadmap. Prueba de activación: pide algo que case con una
    skill sin nombrarla («revísame este diff») y comprueba que la invoca.
 3. **Hook de guardia del implementer.** Como `implementer` (p. ej. `@implementer …`), intenta escribir

@@ -393,8 +393,10 @@ have to be re-discovered", generalizing the bookend pattern from `agents/nemesis
   `progress-report.py session` adds reminders for the sole active initiative
   within its 15 lines, retaining whole references.
   `SessionStart` uses `resume --history-only` at startup/resume (≤ 25 lines), with
-  no history on compact. Implicit selection requires one `en-progreso` initiative;
-  several are ambiguous, and zero active initiatives cannot select global history.
+  no history on compact. In `/work-resume` implicit selection requires one
+  `en-progreso` initiative and several are ambiguous; startup quotes the initiative
+  in progress (open marker or most recent ledger) even with several or more than
+  1 MiB of ledgers, never a non-active one, and with none it selects no global history.
   The manual view runs no replay, meter, Git or backends. The hook's progress and
   recovery blocks retain separate methods; the complete hook still performs recovery.
   [Read contract](WORK-RESUME.md).

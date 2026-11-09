@@ -173,7 +173,7 @@ _CITAS_POR_NOMBRE = {
 # This is a closure declaration, never an egress exception. Any owner change needs review.
 _CARGAS_LOCALES_REVISADAS = {
     "hooks/session-context.py": {
-        "sha256_lf": "95a2b20b0c2f3a9471bc16b5baf7386be377cf690fc8ee77603affb4d206644d",
+        "sha256_lf": "85800527064b67b8aa910a11d485b177e4b6ad88319dc7fc441da7edf7725358",
         "dependencies": ("agent-kits/shared/journal.py", "agent-kits/shared/skill-index.py",
                          "agent-kits/shared/progress-report.py", "agent-kits/shared/knowledge-find.py"),
     },
