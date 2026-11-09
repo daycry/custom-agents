@@ -17,10 +17,10 @@ changelog: Fixed
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
-| Fase 2 | 6 | 6 | 100.0% |
+| Fase 2 | 1 | 6 | 16.7% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **12** | **21** | **57.1%** |
+| **TOTAL** | **7** | **21** | **33.3%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -230,7 +230,7 @@ GREEN fix3b: `.venv/Scripts/python -m pytest -q agent-kits/shared/test_guardrail
 
 - **Estado**: completado
 - **Descripción**: H-14, H-27 y H-48. Reinyectar la última entrada del journal sin depender de la selección global de ledgers; iniciativa en curso primero en memoria; líneas opacas fuera; iniciativas al 100 % compactadas; pie sin ruta absoluta; `clear` también en Claude.
-- **Archivos**: `agent-kits/shared/progress-report.py`, `hooks/session-context.py`, `hooks/hooks.json`, `agent-kits/shared/test_progress_report.py`, `tests/test_session_context.py`, `tests/test_hooks_shell.py`, `interop/**`, `docs/observability.md`, `docs/en/observability.md`, `hooks/session-context.sh` (oráculo de bytes del compositor nativo: mismo pie y mismo orden de memoria), `agent-kits/shared/test_work_resume.py` (casos H-14/H-48 del historial del arranque), `tests/test_graphiti_security.py` (huella `sha256_lf` de `hooks/session-context.py`), `docs/WORK-RESUME.md`, `docs/en/WORK-RESUME.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md` (E3: describían la selección del historial al arrancar) (añadidos por el implementer).
+- **Archivos**: `agent-kits/shared/progress-report.py`, `hooks/session-context.py`, `hooks/hooks.json`, `agent-kits/shared/test_progress_report.py`, `tests/test_session_context.py`, `tests/test_hooks_shell.py`, `interop/**`, `docs/observability.md`, `docs/en/observability.md`, `hooks/session-context.sh` (oráculo de bytes del compositor nativo: mismo pie y mismo orden de memoria), `agent-kits/shared/test_work_resume.py` (casos H-14/H-48 del historial del arranque), `tests/test_graphiti_security.py` (huella `sha256_lf` de `hooks/session-context.py`), `docs/WORK-RESUME.md`, `docs/en/WORK-RESUME.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md` (E3: describían la selección del historial al arrancar) (añadidos por el implementer), `agent-kits/shared/journal.py` (revisión intento 1, B1: el escritor usa la misma regla que el lector), `agent-kits/shared/README.md`, `skills/plugin-dev/references/claude-code-contracts.md` (revisión intento 1, A5: matcher con `clear`).
 - **Tiempo IA (ejec.)**: real 0,77h (medido)
 - **Verificación**: test con más de 1 MiB de ledgers y dos iniciativas activas → se reinyecta la entrada del journal; tests de sesión existentes pasan.
 - **Changelog**: Al arrancar o retomar se vuelve a citar la última entrada del journal aunque haya varias iniciativas activas o ledgers grandes, y el bloque de sesión agrupa las iniciativas al 100 % pendientes de `/retro`, sin líneas opacas ni rutas absolutas; `/clear` también reinyecta el contexto en Claude Code.
@@ -245,9 +245,14 @@ RED: `test_work_resume.py -k 'h14 or h48' + test_progress_report.py -k h48 + tes
 
 GREEN: `pytest agent-kits/shared/test_progress_report.py agent-kits/shared/test_work_resume.py` → `96 passed`; `pytest tests/test_session_context.py` → `44 passed in 283.90s` (incl. equivalencia de bytes nativo/shell); `pytest tests/test_hooks_shell.py -k "memoria or tope or activas or h14"` → `13 passed`; `pytest tests/test_graphiti_security.py` → `126 passed` (huella nueva; el pie ya no cita una ruta que el cierre no resuelve); `test_review_resume.py` 18 passed, `test_resume_curation.py` 25 passed, `test_source_snapshot.py` 33 passed 1 skipped, `test_context_footprint.py` 15 passed, `test_roadmap_index.py` 71 passed; `export-interop.py --check` → `92 ficheros al día`. En este repo el bloque ya trae el journal y compacta 3 iniciativas al 100 %. Decisiones: con varias activas o más de 1 MiB de ledgers el arranque cita la iniciativa en curso (marcador abierto o ledger más reciente) y nunca una no activa (cambia el contrato anterior «ambigua → nada»; `/work-resume` conserva la ambigüedad explícita); un fallo de selección no deja línea; el pie nombra `knowledge-find.py` y `$SHAREDKIT` sin ruta; `clear` reinyecta índice, progreso y memoria, no el journal · 2026-11-09.
 
+
+RED: `test_work_resume.py + test_progress_report.py + tests/test_session_context.py -k fix1` falló con fix1: 9 failed: el escritor del journal etiqueta otra iniciativa que el lector (B1, sin iniciativa_vigente comun); seleccion por escaneo completo sin tope (C2) y usage-state releido (D1); Ledger canonico apunta a la de 100 % (B4) y memoria agrupa por pct redondeado; revisiones omitidas sin aviso con ledger grande (B5); memoria vacia si la en curso no tiene aciertos; matcher sin clear en 5 documentos (A5) · 2026-11-09.
+
+GREEN fix1: `pytest agent-kits/shared/test_work_resume.py` → `59 passed` (B1: el escritor real `journal.py write` etiqueta `gamma`, la en curso pendiente, y el lector la cita; con marcador abierto ambos eligen `beta`; C2: `iniciativa_vigente` no llama a `activas()` y resuelve un ledger de ~330 KiB por su cabecera acotada; D1: `usage-state.json` se lee una vez por proceso si no cambia); `agent-kits/shared/test_progress_report.py` → `43 passed` (B4: «Ledger canónico» y la vigente son la pendiente aunque la de 100 % sea más reciente; B5: «Revisiones omitidas: ledger > 256 KiB; /work-resume --initiative …»); `tests/test_session_context.py` → `46 passed` + la equivalencia `replay-codex` falló una vez por tiempos y pasó al repetirla (`-k "matches_shell_bytes and replay"` → 3 passed); casos fix1: memoria por `completadas == total`, memoria que consulta más iniciativas si las primeras no traen aciertos, ningún documento con el matcher sin `clear`; `test_journal.py` 192 passed + 10 skipped, `test_review_resume.py` 18, `test_resume_curation.py` 25, `tests/test_graphiti_security.py` 126 passed (huella nueva de `session-context.py`). En este repo la vigente es `plugin-audit-remediation` y el bloque de memoria sale con 2 aciertos; el historial no sale porque las entradas existentes se etiquetaron con la regla vieja (primera alfabética), no por un fallo de selección · 2026-11-09.
+
 ### T-08 — Vía rápida con qa-gate y TDD verificados
 
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Descripción**: H-15 y H-16. El implementer acepta el ledger ligero; qa acepta `test-plan: n/a (sin UI)` en `tasks.md`; la Lente A comprueba `RED:`/`TDD n/a` con `tdd: true`.
 - **Archivos**: `agents/implementer.md`, `agents/qa.md`, `agent-kits/qa/coverage-check.py`, `tests/test_coverage_check.py`, `tests/test_quick_path_gates.py` (añadido por el implementer: contratos de prosa H-15/H-16 y resolución en Codex), `skills/adversarial-review/references/lens-prompts.md`, `skills/tdd/SKILL.md`, `commands/dev-cycle.md`, `skills/quick-implement/SKILL.md`, `interop/**`, `tests/test_dev_cycle_split.py`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/fixtures/dev-cycle-paragraphs.json`, `tests/test_native_guardrail_dispatch.py` (añadido por el implementer: los dos manuales con edición PDF revertidos por el orquestador pasan a deuda vigilada T-05 → T-21).
 - **Tiempo IA (ejec.)**: real 0,07h (medido)
@@ -266,7 +271,7 @@ GREEN: `python tests/test_coverage_check.py` → `OK … todo pasa` (marcador en
 
 ### T-09 — Dashboards completos con roadmaps grandes
 
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Descripción**: H-17 a H-20. Cartera y progreso de la más nueva a la más antigua y con aviso honesto; progreso por cabecera, sin leer el ledger entero; planes con ledger > 256 KiB operables desde la consola; un plan nuevo no da 404; errores mapeados en la UI.
 - **Archivos**: `skills/plugin-panel/scripts/panel_data.py`, `skills/plugin-panel/scripts/serve_panel.py`, `skills/plugin-panel/scripts/console_service.py`, `skills/plugin-panel/assets/control-center.js`, `skills/plugin-panel/assets/page-iniciativas.js`, `tests/test_panel_*.py`, `tests/test_console_*.py`, `agent-kits/shared/local-read.py` (lectura acotada de un prefijo para la cabecera de un ledger grande), `skills/plugin-panel/assets/panel-live.js` (valida y rotula `fuente: resumen`), `tests/test_control_center_http.py` (su contrato «sin improvement-plan.md → 503» pasa a la vía rápida operable) (añadidos por el implementer).
 - **Tiempo IA (ejec.)**: real 0,28h (medido)
@@ -285,7 +290,7 @@ GREEN: `pytest tests/test_panel_large_roadmaps.py` → `8 passed` (70 iniciativa
 
 ### T-10 — Índice de sesión por prioridad
 
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Descripción**: H-21 y menor de BOM. El índice ordena por prioridad de ciclo y lee `dev.json` con `utf-8-sig`.
 - **Archivos**: `agent-kits/shared/skill-index.py`, `agent-kits/shared/test_skill_index.py`, `agent-kits/shared/README.md` (E3: describía el recorte; añadido por el implementer), `interop/**` (el índice de OpenCode se deriva de `skill-index.py`; faltó regenerarlo en el commit de T-10 y se corrigió en c078d2d), `tests/test_native_role_context.py` (CI de c078d2d: su muestra `architect` queda recortada con el nuevo orden; pasa a `planner`, siempre visible; el test sigue comprobando el prefijo nativo por runtime).
 - **Tiempo IA (ejec.)**: real 0,01h (medido)
@@ -304,9 +309,12 @@ GREEN: `pytest agent-kits/shared/test_skill_index.py` → `30 passed` (casos H-2
 
 GREEN (seguimiento CI): `pytest tests/test_native_role_context.py` → `3 passed` (muestra `planner` en vez de `architect`, recortado por el orden del ciclo); `export-interop.py --check` → `92 ficheros al día` tras c078d2d (la CI de 742a6b4 falló en `test_arbol_generado_al_dia` por el índice de OpenCode sin regenerar) · 2026-11-09.
 
+
+RED: `agent-kits/shared/test_skill_index.py::test_fix1_a1_todos_los_agentes_y_los_comandos_del_ciclo_siempre_visibles` falló con fix1: 1 failed: solo 5 agentes visibles (faltan analyst, architect, documenter, knowledge-curator, nemesis) por la cuota fija por grupo · 2026-11-09.
+
 ### T-11 — Un solo troceo del ledger
 
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Descripción**: H-22, H-23, H-26 y menores de ledger-lint. `scope-check`, `coverage-check` y `jira-flow` usan el troceo de `ledger-lint` (bloques de código y secciones posteriores fuera); resumen dentro de bloques de código ignorado; vocabulario de `estado` validado a nivel ledger.
 - **Archivos**: `agent-kits/shared/ledger-lint.py`, `agent-kits/shared/scope-check.py`, `agent-kits/qa/coverage-check.py`, `skills/jira-sync/scripts/jira-flow.py`, sus tests, `agent-kits/shared/copias.json`, `tests/test_ledger_single_parser.py` (añadido por el implementer: casos H-22/H-23/H-26, resumen en bloque de código, vocabulario y los ledgers del repo).
 - **Tiempo IA (ejec.)**: real 0,09h (medido)
@@ -323,9 +331,12 @@ RED: `tests/test_ledger_single_parser.py` falló con 5 failed: scope-check suma 
 
 GREEN: `pytest tests/test_ledger_single_parser.py` → `7 passed` (scope-check sin el `Archivos` de un bloque de código ni el de `## Notas`; coverage-check sin la tarea fantasma, también copiado sin el kit compartido; jira-flow con la Verificación entera y `_campo` que no cruza líneas; resumen citado ignorado; `estado: terminado` → error; los 68 ledgers del repo sin errores); `agent-kits/shared/test_scope_check.py` 31, `tests/test_ledger_lint.py` 9, `skills/jira-sync/scripts/test_jira_flow.py` 74, `tests/test_copias_declaradas.py` 30, `tests/test_ledger_write.py` 29 + 2 skipped, `agent-kits/shared/test_task_brief.py` 92 passed; `python tests/test_coverage_check.py` → `OK`; `ledger-lint.py` sobre `docs/roadmap/*/tasks.md` → 68 ficheros, 0 con exit ≠ 0. Decisión: el troceo único es `bloques_de_tarea()` de `ledger-lint.py`; coverage-check conserva un respaldo local con el mismo criterio (no es una copia literal, así que no entra en `copias.json`) y jira-flow usa el del kit si está · 2026-11-09.
 
+
+RED: `tests/test_ledger_single_parser.py -k fix1` falló con fix1: 3 failed: respaldos de coverage-check y jira-flow sin el criterio de bloques_de_tarea (valla de cuatro, corte en Fase); copias sin declarar; en batch parse_ledger y bloques por tarea · 2026-11-09.
+
 ### T-12 — Bucle de revisión y dueño del commit
 
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Descripción**: H-24 y H-25. «Seguir» tras el 3.er intento abre un ciclo nuevo con OK del usuario; un solo dueño del commit.
 - **Archivos**: `commands/dev-cycle.md`, `agents/implementer.md`, `skills/adversarial-review/SKILL.md`, `agent-kits/shared/ledger-write.py`, `agent-kits/shared/test_ledger_write.py`, `interop/**`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/test_ledger_write.py` (la suite real del writer está en `tests/`, no en `agent-kits/shared/`; nota del implementer), `tests/test_review_cycle_owner.py`, `agent-kits/shared/ledger-write.md`, `docs/COMMIT-SELECTION.md`, `docs/en/COMMIT-SELECTION.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/agents/implementer.md` (E3: describían el límite de intentos o el dueño del commit), `CHANGELOG.md`, `CHANGELOG.es.md` (entrada `### Fixed` de toda la Fase 2) (añadidos por el implementer).
 - **Tiempo IA (ejec.)**: real 0,07h (medido)
@@ -341,6 +352,9 @@ GREEN: `pytest tests/test_ledger_single_parser.py` → `7 passed` (scope-check s
 RED: `tests/test_ledger_write.py -k h24 + tests/test_review_cycle_owner.py` falló con 4 failed: ledger-write review rechaza --attempt 4 (choices 1-3) aunque dev-cycle ofrece seguir; sin --new-cycle-ok en dev-cycle, adversarial-review ni ledger-write.md; implementer P4 y la Fase 6 describen dos procedimientos de commit · 2026-11-09.
 
 GREEN: `pytest tests/test_ledger_write.py` → `32 passed, 2 skipped` (intento 4 sin `--new-cycle-ok` → `new_cycle_ok_required` sin escribir; con el OK → cabecera `intento 4: … — ciclo 2, abierto con OK del usuario: «…» (T-01, T-02)` que ledger-lint acepta; 5 y 6 sin repetir el OK, el 7 vuelve a pedirlo; OK fuera de lugar, vacío, multilínea o de más de 200 caracteres → rechazado; el test histórico «1, 2, 4 tras tres intentos → rechazado» sigue igual); `pytest tests/test_review_cycle_owner.py` → `2 passed` (dev-cycle, adversarial-review y ledger-write.md describen el ciclo nuevo; el procedimiento de commit vive en P4 del implementer y la Fase 6 solo lo verifica); `tests/test_dev_cycle_split.py` → `10 passed`, ahorro de la vía rápida 6080 → 6231 (el procedimiento de `commit-selection.py` pasa de la Fase 6 al implementer; 2 filas de reemplazo); `test_skill_size.py` 37, `test_context_footprint.py` 15, `test_source_snapshot.py` 33 + 1 skipped, `test_native_guardrail_dispatch.py` 14, `test_doctrina_viaja.py` 11, `test_lite_profile.py` 30, `test_commit_selection_cli.py` 10, `test_user_handbooks.py` 4, `test_npm_payload.py` 5, `test_roadmap_index.py` 71 passed; `lint_plugin.py` 0 errores; `evals/check.py` 0 errores; `export-interop.py --check` → `92 ficheros al día`. Decisión: cada ciclo de revisión tiene 3 intentos; «seguir» abre el siguiente (4-6, 7-9) solo con el OK citado y el writer no admite más de 9 · 2026-11-09.
+
+
+RED: `tests/test_ledger_write.py::test_fix1_b3_un_t_nn_dentro_de_la_cita_no_atribuye_el_intento_a_otra_tarea` falló con fix1: 1 failed: el T-07 de la cita entra en menciones de la seccion de revision · 2026-11-09.
 
 ## Fase 3 — Rendimiento de procesos
 
@@ -510,3 +524,7 @@ Lentes: A + B + C. Corrección en `fix3` por el implementer; cada gap con test d
 | 13 | Important | `commit.gpgsign` en la lista blanca dejaba desactivar la firma (`-c commit.gpgsign=false`, `git config commit.gpgsign false`) — detectado en la verificación dirigida del orquestador | T-06 | corregido | solo con valor verdadero; falso, vacío, sin valor o `--config-env` → deny; `test_fix3b_commit_gpgsign_solo_con_valor_verdadero`, `test_fix3b_changelog_y_docs_dicen_que_commit_gpgsign_solo_vale_verdadero` (2357747) |
 
 **Decisión del orquestador:** al 3.er intento con gaps, el orquestador decide seguir con un ciclo final acotado (autorización del usuario «con todo»); se verifica con tests dirigidos y CI, sin 4.º intento de lentes.
+
+## Revisión de dos lentes — intento 1: Fase 2 (T-07…T-12) (T-07, T-08, T-09, T-10, T-11, T-12)
+
+Pendiente de revisión; sin veredicto.

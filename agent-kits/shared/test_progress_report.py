@@ -456,3 +456,25 @@ def test_h48_session_sin_linea_opaca_de_revisiones(tmp_path):
     code, out, _ = run("session", "--root", str(tmp_path))
     assert code == 0 and "- 📋 otra ·" in out
     assert "Revisiones: selección de iniciativa" not in out
+
+
+
+# ------------------------------------------------- revisión intento 1 (fase 2): B4, B5
+
+def test_fix1_b4_ledger_canonico_es_la_pendiente_aunque_la_de_100_sea_mas_reciente(tmp_path):
+    import os
+    cerrable = ledger(tmp_path, "2026-09-05-cerrable", AL_100_ACTIVA)
+    demo = ledger(tmp_path, "2026-09-02-demo", DOS_FASES)
+    os.utime(demo, (1_000_000_000, 1_000_000_000))
+    os.utime(cerrable, (2_000_000_000, 2_000_000_000))
+    assert pr.iniciativa_vigente(tmp_path) == "demo"
+    code, out, _ = run("session", "--root", str(tmp_path))
+    assert out.strip().splitlines()[-1].startswith("Ledger canónico: docs/roadmap/2026-09-02-demo/tasks.md")
+
+
+def test_fix1_b5_revisiones_omitidas_por_ledger_grande_se_dicen(tmp_path):
+    p = ledger(tmp_path, "2026-09-02-demo", DOS_FASES)
+    p.write_text(DOS_FASES + ("relleno " * 60 + "\n") * 700, encoding="utf-8")
+    code, out, _ = run("session", "--root", str(tmp_path))
+    assert code == 0
+    assert "Revisiones omitidas: ledger > 256 KiB; /work-resume --initiative 2026-09-02-demo" in out

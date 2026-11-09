@@ -1739,6 +1739,8 @@ def tareas_cambiadas(root, avisos, timeout=GIT_TIMEOUT):
 # ------------------------------------------------------------------ roadmap / meter / transcripción
 
 def iniciativa_activa(root):
+    """La MISMA regla que el lector del historial (`progress-report.iniciativa_vigente`, B1): la
+    iniciativa en curso entre las activas pendientes, no la primera por orden alfabético."""
     pr = _load_module("progress_report", "progress-report.py")
     roadmap = os.path.join(root, "docs", "roadmap")
     if pr is None or not os.path.isdir(roadmap):
@@ -1747,10 +1749,9 @@ def iniciativa_activa(root):
         import contextlib
         import io
         with contextlib.redirect_stderr(io.StringIO()):
-            rs = pr.activas(roadmap)
+            return pr.iniciativa_vigente(root)
     except Exception:  # noqa: BLE001
         return None
-    return rs[0]["slug"] if rs else None
 
 
 def marcadores_cerrados(root, fecha):

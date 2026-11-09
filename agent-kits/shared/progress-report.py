@@ -63,6 +63,7 @@ def _load_module(name, filename):
 _ll = _load_module("ledger_lint", "ledger-lint.py")
 parse_ledger = _ll.parse_ledger
 norm_estado = _ll.norm_estado
+sin_vallas = _ll.sin_vallas
 
 
 def fmt_horas(horas):
@@ -228,16 +229,148 @@ def iniciativa_en_curso(rs, estado, mtime=os.path.getmtime):
     return max(rs, key=_t)["slug"]
 
 
+_USAGE_STATE_MEMO = {}
+
+
 def _leer_usage_state(root):
     """`<proyecto>/.claude/usage-state.json` (root = <proyecto>/docs/roadmap), lectura directa:
-    sin lanzar usage-meter. Ausente o corrupto -> {}."""
+    sin lanzar usage-meter. Ausente o corrupto -> {}. Memo por proceso mientras no cambie su
+    firma (mtime, tamaño): el arranque lo consulta varias veces y no lo relee (D1)."""
     proyecto = os.path.dirname(os.path.dirname(os.path.abspath(root)))
+    ruta = os.path.join(proyecto, ".claude", "usage-state.json")
     try:
-        with open(os.path.join(proyecto, ".claude", "usage-state.json"), encoding="utf-8") as f:
+        info = os.stat(ruta)
+        firma = (info.st_mtime_ns, info.st_size)
+    except OSError:
+        return {}
+    memo = _USAGE_STATE_MEMO.get(ruta)
+    if memo is not None and memo[0] == firma:
+        return memo[1]
+    try:
+        with open(ruta, encoding="utf-8") as f:
             data = json.load(f)
     except (OSError, ValueError):
         return {}
-    return data if isinstance(data, dict) else {}
+    data = data if isinstance(data, dict) else {}
+    _USAGE_STATE_MEMO.clear()
+    _USAGE_STATE_MEMO[ruta] = (firma, data)
+    return data
+
+
+_CABECERA_BYTES = 16 * 1024
+
+
+def _celdas(linea):
+    """Celdas de una fila de tabla Markdown, sin regex con cuantificadores que compitan (C1)."""
+    s = linea.strip()
+    if not s.startswith("|"):
+        return None
+    return [c.strip() for c in s.strip("|").split("|")]
+
+
+def resumir_cabecera(path, text):
+    """Progreso de un ledger desde su frontmatter y su tabla «Resumen de progreso» (prefijo acotado).
+
+    Para ledgers que no se leen enteros (> tope): `completadas`/`total` del TOTAL o de la suma de
+    fases, la fase pendiente y `en_progreso` vacío (no se conoce desde la cabecera). Las líneas de
+    dentro de un bloque de código no cuentan. `None` si el prefijo no trae una tabla usable."""
+    lineas = sin_vallas(text.lstrip("\ufeff")).splitlines()
+    frontmatter = {}
+    if lineas and lineas[0].strip() == "---":
+        for ln in lineas[1:]:
+            if ln.strip() == "---":
+                break
+            m = re.match(r"^([A-Za-z_][\w-]*)[ \t]*:(.*)$", ln)
+            if m:
+                frontmatter[m.group(1)] = m.group(2).split("#", 1)[0].strip()
+    inicio = next((i for i, ln in enumerate(lineas) if re.match(r"^##[ \t]+Resumen de progreso", ln)), None)
+    if inicio is None:
+        return None
+    fases, total_fila = [], None
+    for ln in lineas[inicio + 1:]:
+        if ln.startswith("## "):
+            break
+        celdas = _celdas(ln)
+        if not celdas or len(celdas) < 3:
+            continue
+        nombre = celdas[0].strip("*").strip()
+        hechas, total = celdas[1].strip("*").strip(), celdas[2].strip("*").strip()
+        if not (hechas.isdigit() and total.isdigit()):
+            continue
+        fila = (nombre, int(hechas), int(total))
+        if nombre.upper() == "TOTAL":
+            total_fila = fila
+        elif nombre.lower().startswith("fase"):
+            fases.append(fila)
+    if not fases and total_fila is None:
+        return None
+    hechas = total_fila[1] if total_fila else sum(f[1] for f in fases)
+    total = total_fila[2] if total_fila else sum(f[2] for f in fases)
+    if total <= 0 or hechas > total:
+        return None
+    fase = None
+    if fases:
+        i = next((n for n, f in enumerate(fases) if f[1] < f[2]), len(fases) - 1)
+        fase = {"indice": i + 1, "total": len(fases), "nombre": nombre_fase(fases[i][0])}
+    estado = norm_estado(frontmatter["estado"]) if frontmatter.get("estado") else None
+    return {"slug": slug_de(path, frontmatter), "path": path, "estado": estado,
+            "completadas": hechas, "total": total, "pct": round(100 * hechas / total), "fase": fase,
+            "en_curso": None, "en_progreso": [], "ia_real_h": None, "ia_fuente": None, "ia_real_fmt": None}
+
+
+def activas_acotadas(root):
+    """Iniciativas `en-progreso` leídas con el lector acotado (sin enlaces, sin leer más de
+    `_CABECERA_BYTES` de los ledgers grandes, resueltos por su cabecera). Para elegir la iniciativa
+    vigente sin un escaneo completo sin tope (C2)."""
+    reader = _load_module("vigente_local_read", "local-read.py")
+    listing = reader.list_names(root, "docs/roadmap", max_entries=_RESUME_SCAN)
+    if listing["status"] not in ("ok", "incomplete"):
+        return []
+    out = []
+    for folder in listing["names"]:
+        if not _initiative_name(folder):
+            continue
+        relative = "docs/roadmap/" + folder + "/tasks.md"
+        read = reader.read_text(root, relative, max_bytes=_CABECERA_BYTES, prefix=True)
+        if read["status"] != "ok":
+            continue
+        absoluta = os.path.join(str(root), "docs", "roadmap", folder, "tasks.md")
+        try:
+            r = (resumir_cabecera(absoluta, read["text"]) if read.get("truncated")
+                 else resumir(absoluta, text=read["text"]))
+            if r is None:
+                # Sin tabla de resumen en la cabecera: su estado sí se conoce; el avance, no
+                # (`total: None` cuenta como pendiente, nunca como «al 100 %»).
+                fm = parse_ledger(read["text"])["frontmatter"]
+                if fm.get("estado"):
+                    r = {"slug": slug_de(absoluta, fm), "path": absoluta, "estado": norm_estado(fm["estado"]),
+                         "completadas": 0, "total": None}
+        except (ValueError, TypeError, KeyError, OverflowError, RecursionError):
+            r = None
+        if r and r["estado"] == "en-progreso":
+            out.append(r)
+    return out
+
+
+def _lstat_mtime(path):
+    return os.lstat(path).st_mtime
+
+
+def vigente_entre(rs, estado, mtime=os.path.getmtime):
+    """Regla ÚNICA de «la iniciativa en curso» (escritor y lector del journal, bloque de sesión y
+    memoria): entre las activas que aún tienen tareas pendientes —las que están al 100 % solo si no
+    hay otra—, `iniciativa_en_curso` (marcador abierto o ledger más reciente)."""
+    if not rs:
+        return None
+    pendientes = [r for r in rs if r["total"] is None or r["completadas"] < r["total"]] or rs
+    return pendientes[0]["slug"] if len(pendientes) == 1 else iniciativa_en_curso(pendientes, estado, mtime)
+
+
+def iniciativa_vigente(root):
+    """Slug de la iniciativa en curso del proyecto `root` (B1: misma función para el escritor del
+    journal y para el historial del arranque). None sin activas."""
+    roadmap = os.path.join(str(root), "docs", "roadmap")
+    return vigente_entre(activas_acotadas(root), _leer_usage_state(roadmap), mtime=_lstat_mtime)
 
 
 def marcadores_huerfanos(root=".", *, in_process=False):
@@ -509,11 +642,7 @@ def _history_initiative(root):
     Lee los ledgers como `session` (el mismo arranque ya los lee) y desempata con
     `iniciativa_en_curso`: marcador abierto del meter o el ledger más reciente.
     Sin activas → None: nunca se cita el historial de una iniciativa no activa."""
-    roadmap = os.path.join(str(root), "docs", "roadmap")
-    rs = activas(roadmap)
-    if not rs:
-        return None
-    return rs[0]["slug"] if len(rs) == 1 else iniciativa_en_curso(rs, _leer_usage_state(roadmap))
+    return iniciativa_vigente(root)
 
 
 def _resume_reviews(root, ledger_path, *, deadline=None):
@@ -711,7 +840,7 @@ def cmd_active(args):
             r["linea"] = linea(r)
         salida = {"activas": rs}
         if len(rs) > 1:   # con una sola activa la salida es idéntica a la de siempre
-            salida["iniciativa_en_curso"] = iniciativa_en_curso(rs, _leer_usage_state(args.root))
+            salida["iniciativa_en_curso"] = vigente_entre(rs, _leer_usage_state(args.root))
         print(json.dumps(salida, ensure_ascii=False))
         return 0
     if not rs:
@@ -759,7 +888,10 @@ def cmd_session(args):
         try:
             reader = _load_module('session_review_reader', 'local-read.py')
             folder = os.path.basename(os.path.dirname(os.path.abspath(unica["path"])))
-            _, summary, _, _ = _resume_ledger(args.root, folder, reader)
+            status, summary, _, _ = _resume_ledger(args.root, folder, reader)
+            if status == "too_large":
+                # B5: sin la lectura acotada no hay revisiones que mostrar; se dice y se da el camino.
+                review_lines = ["Revisiones omitidas: ledger > 256 KiB; /work-resume --initiative " + folder]
             if summary:
                 review_lines = _review_text_lines(_resume_reviews(args.root, summary['path'],
                                                                   deadline=time.monotonic() + 0.75))

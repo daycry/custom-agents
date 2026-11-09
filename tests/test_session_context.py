@@ -252,3 +252,50 @@ def test_h14_compose_con_ledgers_grandes_y_dos_activas_reinyecta_el_journal(tmp_
     assert 'Selected history' in context and 'History of the other initiative' not in context
     assert 'Journal: incomplete' not in context and 'Journal: ambiguous' not in context
     assert 'Revisiones: selección de iniciativa' not in context
+
+
+
+# ------------------------------------------------- revisión intento 1 (fase 2): B4, memoria, A5
+
+def test_fix1_b4_memoria_agrupa_al_final_solo_las_completas_de_verdad(tmp_path):
+    module = native_module()
+    consultas = []
+    def progress(_args):
+        print(json.dumps({'activas': [
+            {'slug': 'cerrada', 'path': 'z/tasks.md', 'pct': 100, 'completadas': 3, 'total': 3},
+            {'slug': 'otra', 'path': 'y/tasks.md', 'pct': 10, 'completadas': 1, 'total': 10},
+            {'slug': 'casi', 'path': 'x/tasks.md', 'pct': 100, 'completadas': 199, 'total': 200}],
+            'iniciativa_en_curso': 'otra'}))
+        return 0
+    def knowledge(args):
+        consultas.append(args[args.index('--iniciativa') + 1])
+        print(json.dumps({'aciertos': [{'id': 'ADR-001', 'linea': 'acierto', 'puntuacion': 1}]}))
+        return 0
+    module._memory(SimpleNamespace(main=knowledge), SimpleNamespace(main=progress), str(tmp_path))
+    assert consultas == ['otra', 'casi'], '199/200 no está al 100 %'
+
+
+def test_fix1_memoria_no_desaparece_si_la_en_curso_no_tiene_aciertos(tmp_path):
+    module = native_module()
+    def progress(_args):
+        print(json.dumps({'activas': [
+            {'slug': 'actual', 'path': 'x/tasks.md', 'completadas': 1, 'total': 5},
+            {'slug': 'segunda', 'path': 'y/tasks.md', 'completadas': 1, 'total': 5},
+            {'slug': 'tercera', 'path': 'z/tasks.md', 'completadas': 1, 'total': 5}],
+            'iniciativa_en_curso': 'actual'}))
+        return 0
+    def knowledge(args):
+        slug = args[args.index('--iniciativa') + 1]
+        print(json.dumps({'aciertos': [{'id': 'ADR-009', 'linea': 'ADR-009 · acierto', 'puntuacion': 1}]
+                          if slug == 'tercera' else []}))
+        return 0
+    text = module._memory(SimpleNamespace(main=knowledge), SimpleNamespace(main=progress), str(tmp_path))
+    assert 'ADR-009' in text
+
+
+def test_fix1_a5_ningun_documento_cita_el_matcher_sin_clear():
+    viejo = 'startup|resume|compact'
+    for rel in ('docs/CONVENTIONS.md', 'docs/en/CONVENTIONS.md', 'agent-kits/shared/README.md',
+                'agent-kits/shared/skill-index.py', 'skills/plugin-dev/references/claude-code-contracts.md',
+                'docs/observability.md', 'docs/en/observability.md', 'hooks/session-context.sh'):
+        assert viejo not in (ROOT / rel).read_text(encoding='utf-8'), rel

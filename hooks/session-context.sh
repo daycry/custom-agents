@@ -232,6 +232,7 @@ import json, os, re, subprocess, sys
 MEMORIA_TOPE_CHARS = 1200      # ≤ 300 tokens (spec CA-10); tope PROPIO, antes del recorte global a TOPE_CHARS
 MEMORIA_LIMIT = 8              # aciertos ÚNICOS que se muestran como mucho; el tope de caracteres es el que manda
 MEMORIA_MAX_INICIATIVAS = 2    # iniciativas activas que se consultan (un subproceso cada una); más → se dice en la cabecera
+MEMORIA_MAX_RESPALDO = 4       # tope de consultas cuando las primeras no dan ningún acierto
 shared, root = sys.argv[1], sys.argv[2]
 try:
     with open(os.path.join(root, ".claude", "dev.json"), encoding="utf-8-sig") as f:
@@ -250,15 +251,24 @@ def run(*args):
 datos = run(os.path.join(shared, "progress-report.py"), "active", "--root", os.path.join(root, "docs", "roadmap"), "--json")
 # H-48: la iniciativa en curso primero, después las pendientes y al final las que están al 100 %.
 en_curso = datos.get("iniciativa_en_curso")
-activas = sorted(datos.get("activas", []),
-                 key=lambda a: (a.get("slug") != en_curso, (a.get("pct") or 0) >= 100))
+def _completa(a):   # fix1 (B4): completadas == total, no el % redondeado (199/200 no está al 100 %)
+    if isinstance(a.get("total"), int) and isinstance(a.get("completadas"), int):
+        return a["total"] > 0 and a["completadas"] == a["total"]
+    return (a.get("pct") or 0) >= 100
+activas = sorted(datos.get("activas", []), key=lambda a: (a.get("slug") != en_curso, _completa(a)))
 # Con ≥ 2 activas del mismo área los aciertos se repiten: se DEDUPLICAN por ID ANTES de contar (antes `total`
 # sumaba por iniciativa y `lineas` deduplicaba: cabecera inflada, «… y N más» falso y, con el tope apretando,
 # la línea falsa desalojaba aciertos reales — revisión intento 1, gap 3). Se consultan como mucho
 # MEMORIA_MAX_INICIATIVAS; si hay más, la cabecera lo dice y nombra las que quedan fuera.
-consultadas, fuera_activas = activas[:MEMORIA_MAX_INICIATIVAS], activas[MEMORIA_MAX_INICIATIVAS:]
+consultadas, fuera_activas = [], []
 por_id, orden, ordenes = {}, [], []
-for a in consultadas:
+for a in activas:
+    # fix1: si las primeras no traen ningún acierto, se consultan más (hasta MEMORIA_MAX_RESPALDO)
+    # antes de dar el bloque por vacío: la en curso sin aciertos no apaga la memoria del área.
+    if len(consultadas) >= MEMORIA_MAX_INICIATIVAS and (por_id or len(consultadas) >= MEMORIA_MAX_RESPALDO):
+        fuera_activas.append(a)
+        continue
+    consultadas.append(a)
     slug, path = a.get("slug", ""), a.get("path", "")
     titulo = ""
     try:

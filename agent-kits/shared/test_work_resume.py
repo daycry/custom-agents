@@ -510,3 +510,76 @@ def test_h14_history_only_never_injects_history_of_a_non_active_initiative(tmp_p
     journal_entry(tmp_path, "ajena.md", initiative="ajena", summary="Historia ajena")
     assert pr.main(["resume", "--root", str(tmp_path), "--history-only"]) == 0
     assert capsys.readouterr().out == ""
+
+
+# ------------------------------------------------- revisión intento 1 (fase 2): B1, C2/D1, B4
+
+def _al_100(root, folder):
+    path = root / "docs" / "roadmap" / folder / "tasks.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("---\nestado: en-progreso\n---\n## Fase 1 — Trabajo\n"
+                    "### T-01 — Hecha\n\n- **Estado**: completado\n", encoding="utf-8")
+    return path
+
+
+def _journal_cli(root, *args):
+    import subprocess, sys
+    return subprocess.run([sys.executable, str(HERE / "journal.py"), *args, "--root", str(root)],
+                          capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
+
+
+def test_fix1_b1_escritor_y_lector_del_journal_eligen_la_misma_iniciativa(tmp_path, capsys):
+    """B1: el escritor etiquetaba con la primera activa alfabética y el lector con la en curso."""
+    import os
+    alfa = _al_100(tmp_path, "2026-10-01-alfa")          # al 100 %: no es «la en curso» si hay otra
+    beta = ledger(tmp_path, "2026-10-02-beta")
+    gamma = ledger(tmp_path, "2026-10-03-gamma")
+    os.utime(alfa, (2_000_000_000, 2_000_000_000))       # la más reciente, pero al 100 %
+    os.utime(beta, (1_000_000_000, 1_000_000_000))
+    os.utime(gamma, (1_500_000_000, 1_500_000_000))
+    assert pr.iniciativa_vigente(tmp_path) == "gamma"
+    enrich = tmp_path / "enrich.json"
+    enrich.write_text(json.dumps({"resumen": "Trabajo real de la sesion"}), encoding="utf-8")
+    result = _journal_cli(tmp_path, "write", "--session-id", "s-b1", "--reason", "clear", "--ia", "off",
+                          "--enrich", str(enrich))
+    assert result.returncode == 0, result.stderr
+    escrita = next((tmp_path / "docs/knowledge/journal").glob("*.md")).read_text(encoding="utf-8")
+    assert 'iniciativa: "gamma"' in escrita, escrita[:400]
+    assert pr.main(["resume", "--root", str(tmp_path), "--history-only"]) == 0
+    assert "s-b1" in capsys.readouterr().out
+
+
+def test_fix1_b1_marcador_abierto_manda_en_escritor_y_lector(tmp_path):
+    ledger(tmp_path, "2026-10-02-beta")
+    ledger(tmp_path, "2026-10-03-gamma")
+    state = tmp_path / ".claude" / "usage-state.json"
+    state.parent.mkdir()
+    state.write_text(json.dumps({"beta/T-01": {"inicio": "2026-10-09T10:00:00Z"}}), encoding="utf-8")
+    assert pr.iniciativa_vigente(tmp_path) == "beta"
+    assert _journal_cli(tmp_path, "write", "--session-id", "s-mk", "--reason", "clear", "--ia", "off").returncode == 0
+    escrita = next((tmp_path / "docs/knowledge/journal").glob("*.md")).read_text(encoding="utf-8")
+    assert 'iniciativa: "beta"' in escrita
+
+
+def test_fix1_c2_la_seleccion_usa_el_lector_acotado_y_no_el_escaneo_completo(tmp_path, monkeypatch):
+    """C2/D1: ni `activas()` (open().read() sin tope, sigue enlaces) ni una segunda lectura del meter."""
+    big = ledger(tmp_path, "2026-10-02-grande")
+    big.write_text(big.read_text(encoding="utf-8") + ("relleno " * 60 + "\n") * 700, encoding="utf-8")
+    monkeypatch.setattr(pr, "activas", lambda *a, **k: pytest.fail("escaneo completo sin tope"))
+    assert pr.iniciativa_vigente(tmp_path) == "grande"   # > 256 KiB: se lee su cabecera acotada
+
+
+def test_fix1_d1_usage_state_se_lee_una_vez_por_proceso_si_no_cambia(tmp_path, monkeypatch):
+    state = tmp_path / ".claude" / "usage-state.json"
+    state.parent.mkdir()
+    state.write_text("{}", encoding="utf-8")
+    import builtins
+    real, lecturas = builtins.open, []
+    def contar(path, *a, **k):
+        if str(path).endswith("usage-state.json"):
+            lecturas.append(path)
+        return real(path, *a, **k)
+    monkeypatch.setattr(builtins, "open", contar)
+    roadmap = str(tmp_path / "docs" / "roadmap")
+    pr._leer_usage_state(roadmap); pr._leer_usage_state(roadmap)
+    assert len(lecturas) == 1
