@@ -14,18 +14,16 @@ description: >
 Atajo en lenguaje natural para la VÍA RÁPIDA de /dev-cycle — implementa UN cambio pequeño y bien definido conservando el ledger canónico y las puertas de calidad (revisión de dos lentes + qa-gate), sin papeleo de PM (sin spec, evaluación ni plan). No duplica el método: delega en la vía rápida de `commands/dev-cycle.md`, su fuente única. NO la uses si el trabajo tiene incógnitas o varias fases, toca muchos ficheros, el usuario quiere presupuesto o traza PM (eso es /pm-cycle o el flujo completo de /dev-cycle), el usuario ya escribió /dev-cycle (respeta el comando), o el cambio es trivial de una línea (hazlo directamente, sin ciclo); ante la duda, PREGUNTA antes de arrancar. Úsala cuando el usuario pida implementar algo concreto SIN escribir el comando y diga "implementa X rápido", "hazme este cambio pequeño", "añade X directo", "arréglalo sin papeleo", "solo impleméntalo".
 
 
-Existe por una razón histórica: cuando nació, los **commands** (`/dev-cycle`) solo se disparaban
-con la barra. Hoy Claude Code los invoca también por descripción (como a las skills), pero esta
-puerta de entrada sigue aportando lo que el comando no puede: un filtro de idoneidad en lenguaje
-natural que redirige a `/pm-cycle` o al flujo completo cuando el cambio NO es pequeño y claro
-(los evals `evals/cases/skill-quick-implement.json` lo miden). Es esa puerta — y nada más.
+Aporta lo que el comando no puede: un filtro de idoneidad en lenguaje natural que redirige a
+`/pm-cycle` o al flujo completo cuando el cambio NO es pequeño y claro (lo miden los evals
+`evals/cases/skill-quick-implement.json`). Es esa puerta — y nada más.
 
 > **Fuente única, cero duplicación (regla del repo).** Esta skill **NO** reimplementa la vía
 > rápida: la resuelve y la sigue. Si el método cambia en `commands/dev-cycle.md`, cambia aquí
 > automáticamente.
 >
 > ```bash
-> R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$PWD/$M" ] && R="$PWD"; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DEVCYCLE="${R:+$R/commands/dev-cycle.md}"
+> R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$PWD/$M" ] && R="$PWD"; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DEVCYCLE="${R:+$R/commands/dev-cycle.md}"; [ -f "$DEVCYCLE" ] || DEVCYCLE="${R:+$R/interop/codex/command-skills/custom-agents-dev-cycle/references/command.md}"
 > ```
 >
 > Qué seguir de ese fichero, en este orden: **Fase 0** (preparación: carpeta de la iniciativa) → **Fase

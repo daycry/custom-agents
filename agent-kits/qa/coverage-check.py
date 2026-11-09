@@ -336,9 +336,19 @@ def que_se_exime(tasks_text, spec_path, gwt_ids):
 
 
 def sin_ui_declarado(tasks_path):
-    """¿El `improvement-plan.md` de la carpeta de la iniciativa declara `test-plan: n/a (sin UI)`
-    en su frontmatter? Devuelve (bool, ruta_del_plan|None, línea no canónica|None). Nunca lanza."""
+    """¿La iniciativa declara `test-plan: n/a (sin UI)` en el frontmatter de su `improvement-plan.md`
+    o, en la vía rápida de `/dev-cycle` (H-15: sin plan), en el del propio `tasks.md` ligero?
+    Devuelve (bool, ruta_del_fichero_que_lo_declara|None, línea no canónica|None). Nunca lanza."""
     plan = os.path.join(os.path.dirname(os.path.abspath(tasks_path)), "improvement-plan.md")
+    declarado = _marcador_en(plan)
+    if declarado[0] or os.path.isfile(plan):
+        return declarado
+    ligero = _marcador_en(tasks_path)
+    return ligero if ligero[0] else (False, None, None)
+
+
+def _marcador_en(plan):
+    """(bool, ruta|None, línea no canónica|None) del marcador en el frontmatter de `plan`."""
     if not os.path.isfile(plan):
         return False, None, None
     try:
@@ -393,7 +403,8 @@ def main():
     if marcador_no_canonico:
         print(f"⚠️  el marcador del plan («{marcador_no_canonico}») NO está en la forma canónica "
               f"«{MARCADOR_SIN_UI}»: se acepta, pero escrito así el `grep` del literal con el que "
-              "el resto de la cadena lo busca no lo encuentra — corrígelo en improvement-plan.md")
+              "el resto de la cadena lo busca no lo encuentra — corrígelo en "
+              f"{os.path.basename(plan_md)}")
     if not os.path.isfile(plan_path):
         if gwt_ids and not sin_ui:
             # los [GWT] prometen test: sin test-plan, son cobertura que falta

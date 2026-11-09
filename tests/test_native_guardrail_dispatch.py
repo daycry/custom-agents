@@ -18,10 +18,14 @@ DOCS = [ROOT / p for p in ("docs/CONVENTIONS.md", "docs/en/CONVENTIONS.md",
                            "docs/FLOWS.md", "docs/en/FLOWS.md",
                            # revisión intento 1 (gap 4): también describían «lite en el hilo actual»
                            "docs/agents/implementer.md", "agent-kits/shared/README.md",
-                           "docs/agents/CONTRACTS.md", "docs/guides/quality-playbook.md",
-                           "docs/guides/subscription-efficiency.md",
+                           "docs/agents/CONTRACTS.md",
                            # revisión intento 2 (A1): /setup también describía lite
                            "commands/setup.md")]
+# Los manuales con edición PDF publicada (2026-11-04) están atados a esa edición por
+# tests/test_user_handbooks.py y tests/test_npm_payload.py: su corrección espera una edición nueva y
+# queda como deuda registrada en el ledger (T-05 → T-21), que este test vigila.
+HANDBOOKS = ("docs/guides/quality-playbook.md", "docs/guides/subscription-efficiency.md")
+LEDGER = ROOT / "docs/roadmap/2026-11-09-plugin-audit-remediation/tasks.md"
 
 
 def _section(text, start, end_re=r"\n## "):
@@ -70,6 +74,15 @@ def test_docs_describen_lite_con_implementer_nativo():
         texto = " ".join(doc.read_text(encoding="utf-8").split())
         assert "hilo actual" not in texto and "current thread" not in texto, doc
         assert "implementer" in texto, doc
+
+
+def test_manuales_publicados_con_lite_antiguo_son_deuda_registrada():
+    ledger = " ".join(LEDGER.read_text(encoding="utf-8").split())
+    t21 = ledger[ledger.index("### T-21"):]
+    for manual in HANDBOOKS:
+        texto = " ".join((ROOT / manual).read_text(encoding="utf-8").split())
+        if "hilo actual" in texto:
+            assert manual in t21 and "edición PDF" in t21, manual
 
 
 def test_respaldo_de_id_nativo_en_instalacion_copiada():

@@ -5,9 +5,9 @@
     {
       "before_sha256": "0cb54a3904a6584fbda161ccc7c9f4af1e86c0837818bad258d0b5f0d88b794c",
       "before_file": "commands/dev-cycle.md",
-      "after_sha256": "19029b43ac6547200fcbc40662059fa8e6c53e50965cec5cf1b03d63ecb1beef",
+      "after_sha256": "7e904d1e9b68bcf77bc5cb5172e29eaf4cb5bce4cbcc65e3e5537d4eb15e667e",
       "after_file": "commands/dev-cycle.md",
-      "reason": "Neutral measurement handoff; retains start/close, measured/estimated distinction, fix windows and reviewer allocation."
+      "reason": "Neutral measurement handoff; retains start/close, measured/estimated distinction, fix windows and reviewer allocation. Audit H-15: the light ledger declares `test-plan: n/a (sin UI)` when there is no UI and qa reads that marker from tasks.md in the quick path (no improvement-plan.md), so the quick path has an executable QA gate; the equivalent ledger and ADR remarks are condensed to keep the quick-path saving."
     },
     {
       "before_sha256": "35918c8063f7a49bfec19df53fc6644fa3fccb6f806bdaffd2c8ab96658c9a6c",
@@ -26,9 +26,9 @@
     {
       "before_sha256": "b30f4ec711db248b9d44bd90fce87c24f281089c1cb40bc9e1269065a517d368",
       "before_file": "commands/dev-cycle.md",
-      "after_sha256": "de41fee3fb67c0d19af510c5f2b45aff3a211d577556b745b4e6e7e6eb3cb44a",
+      "after_sha256": "faffc9ed781ab7edc8c946aa58ac9317bb4c3613f9b0cb4db5891ebd0136d666",
       "after_file": "commands/dev-cycle.md",
-      "reason": "Full/quick paths and mandatory review/QA unchanged; external projection described without a Jira dependency. Audit H-6/H-7 token compensation: the fast-track rationale (cheap two-lens review and qa-gate versus expensive PM paperwork) is condensed to its conclusion; both gates stay in the same paragraph."
+      "reason": "Full/quick paths and mandatory review/QA unchanged; external projection described without a Jira dependency. Audit H-6/H-7 token compensation: the fast-track rationale (cheap two-lens review and qa-gate versus expensive PM paperwork) is condensed to its conclusion; both gates stay in the same paragraph. Audit H-15: the light ledger declares `test-plan: n/a (sin UI)` when there is no UI and qa reads that marker from tasks.md in the quick path (no improvement-plan.md), so the quick path has an executable QA gate; the equivalent ledger and ADR remarks are condensed to keep the quick-path saving."
     },
     {
       "before_sha256": "ec7f72535e0c8c84027d5e33407cb6e6ef63dcee1c5894f6e6a650fcd7435c8c",
@@ -54,9 +54,9 @@
     {
       "before_sha256": "8e15bf0f237208675ea4ee570e0cdff09091b50d58b0fde63b3dd7122d297621",
       "before_file": "skills/quick-implement/SKILL.md",
-      "after_sha256": "fe5e71125437b089717a7746c3a17d8c8921d8ce17144896714934ab6fc8b914",
+      "after_sha256": "afade3d0646dc786737a6dbbdabfdb853776655395a18f65f8715ba5a658a39a",
       "after_file": "skills/quick-implement/SKILL.md",
-      "reason": "Plugin-root resolution fix: ${CLAUDE_PLUGIN_ROOT} first (own repo first where master preferred it), then the real-bundle marker agent-kits/shared/ledger-lint.py root by root (project, this plugin's marketplace caches, user) bounded to the install layout (-maxdepth 5, jobs/ and worktrees/ excluded per root), highest version within a cache, stop at the first hit, empty when nothing matches; same lookup target and gate."
+      "reason": "Plugin-root resolution fix: ${CLAUDE_PLUGIN_ROOT} first (own repo first where master preferred it), then the real-bundle marker agent-kits/shared/ledger-lint.py root by root (project, this plugin's marketplace caches, user) bounded to the install layout (-maxdepth 5, jobs/ and worktrees/ excluded per root), highest version within a cache, stop at the first hit, empty when nothing matches; same lookup target and gate. Audit H-15 (Codex): the Codex plugin ships no commands/, so DEVCYCLE falls back to the generated copy interop/codex/command-skills/custom-agents-dev-cycle/references/command.md; the historical preamble is condensed to its conclusion to keep the quick-path saving."
     },
     {
       "before_sha256": "144a3a36420a1b4aae1dd64ab85f89ee7d07c720009177ea7fd40b3b29931d78",
@@ -85,6 +85,13 @@
       "after_sha256": "72d6c4322d073410cce1bdbcdba7b0ba73c7e3c1ab5099c1b29a85b10e3dc03d",
       "after_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
       "reason": "Audit H-6/H-7: brief-only dispatch uses subagent_type = native implementer ID from native-roles.json with the brief as prompt, never a generic subagent (native-guardrail.py only protects that identity), with the bare `implementer` type when the bundle is copied into .claude/agents/; the fallback after the second attempt is a direct dispatch to the native implementer instead of the main context; return states, gates and parallel batch unchanged."
+    },
+    {
+      "before_sha256": "ecde50b4e2ea57a0e19584b95d03682b2a705e3e45e639bf191c697bcb02d382",
+      "before_file": "skills/quick-implement/SKILL.md",
+      "after_sha256": "50a69c9711ec4a709d8fb332109f8b19e3b6e4d261a74408dff16fedb0afd70c",
+      "after_file": "skills/quick-implement/SKILL.md",
+      "reason": "Audit H-15 (Codex): the Codex plugin ships no commands/, so DEVCYCLE falls back to the generated copy interop/codex/command-skills/custom-agents-dev-cycle/references/command.md; the historical preamble is condensed to its conclusion to keep the quick-path saving."
     }
   ]
 }

@@ -49,7 +49,7 @@ R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$PWD/$M" ] 
    typo del test. Comando por stack: lee `references/by-stack.md` **solo al llegar aquí** si no
    sabes cómo correr un único test en el proyecto. Registra la evidencia en el ledger, en la tarea:
    `RED: <fichero::test> falló con <error resumido> · <AAAA-MM-DD>`; usa el contrato de `agent-kits/shared/ledger-write.md` (writer preferente, obligatorio en lite).
-   **Sin esa línea el TDD de la tarea no cuenta** (lo verifica la Lente A de `adversarial-review`
+   **Sin esa línea el TDD de la tarea no cuenta** (lo verifica la Lente A de `adversarial-review`, criterio (5b) de `skills/adversarial-review/references/lens-prompts.md`,
    y lo exige el orquestador al validar un `DONE` de subagente).
 2. **GREEN — el cambio MÍNIMO que hace pasar ese test.** Nada de «ya que estoy». Vuelve a correr
    solo ese test → pasa. Corre los tests vecinos del módulo (no la suite entera) para no romper lo

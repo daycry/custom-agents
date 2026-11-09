@@ -17,10 +17,10 @@ changelog: Fixed
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
-| Fase 2 | 1 | 6 | 16.7% |
+| Fase 2 | 2 | 6 | 33.3% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **7** | **21** | **33.3%** |
+| **TOTAL** | **8** | **21** | **38.1%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -247,14 +247,22 @@ GREEN: `pytest agent-kits/shared/test_progress_report.py agent-kits/shared/test_
 
 ### T-08 — Vía rápida con qa-gate y TDD verificados
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: H-15 y H-16. El implementer acepta el ledger ligero; qa acepta `test-plan: n/a (sin UI)` en `tasks.md`; la Lente A comprueba `RED:`/`TDD n/a` con `tdd: true`.
-- **Archivos**: `agents/implementer.md`, `agents/qa.md`, `agent-kits/qa/coverage-check.py`, `tests/test_coverage_check.py`, `tests/test_quick_path_gates.py` (añadido por el implementer: contratos de prosa H-15/H-16 y resolución en Codex), `skills/adversarial-review/references/lens-prompts.md`, `skills/tdd/SKILL.md`, `commands/dev-cycle.md`, `skills/quick-implement/SKILL.md`, `interop/**`, `tests/test_dev_cycle_split.py`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/fixtures/dev-cycle-paragraphs.json`.
+- **Archivos**: `agents/implementer.md`, `agents/qa.md`, `agent-kits/qa/coverage-check.py`, `tests/test_coverage_check.py`, `tests/test_quick_path_gates.py` (añadido por el implementer: contratos de prosa H-15/H-16 y resolución en Codex), `skills/adversarial-review/references/lens-prompts.md`, `skills/tdd/SKILL.md`, `commands/dev-cycle.md`, `skills/quick-implement/SKILL.md`, `interop/**`, `tests/test_dev_cycle_split.py`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/fixtures/dev-cycle-paragraphs.json`, `tests/test_native_guardrail_dispatch.py` (añadido por el implementer: los dos manuales con edición PDF revertidos por el orquestador pasan a deuda vigilada T-05 → T-21).
+- **Tiempo IA (ejec.)**: real 0,07h (medido)
 - **Verificación**: `coverage-check` con el marcador en `tasks.md` → exit 0 explícito; tests de split y de interop pasan.
+- **Changelog**: La vía rápida de `/dev-cycle` ya puede cerrar QA: el ledger ligero declara «sin UI» y qa lo acepta, el implementer trabaja sin `improvement-plan.md`, la Lente A exige la evidencia del rojo con TDD activo y quick-implement encuentra el método también en Codex.
+- **Cerrada**: 2026-11-09
 
 **Criterios de aceptación**
-- [ ] La vía rápida tiene un camino de QA ejecutable.
-- [ ] La Lente A comprueba la evidencia TDD.
+- [x] La vía rápida tiene un camino de QA ejecutable.
+- [x] La Lente A comprueba la evidencia TDD.
+
+
+RED: `tests/test_coverage_check.py (escenario_h15) + tests/test_quick_path_gates.py` falló con coverage-check con el marcador en tasks.md sin improvement-plan.md sale exit 1; 6 failed: implementer exige el plan, qa y dev-cycle solo leen el marcador del plan, la Lente A no pide RED:, tdd cita una comprobacion inexistente, quick-implement en Codex resuelve commands/dev-cycle.md inexistente · 2026-11-09.
+
+GREEN: `python tests/test_coverage_check.py` → `OK … todo pasa` (marcador en el frontmatter de `tasks.md` sin plan → exit 0 con «declarado en tasks.md»; en la prosa no exime; el del plan sigue mandando); `pytest tests/test_quick_path_gates.py` → `6 passed` (implementer, qa, dev-cycle, Lente A criterio (5b), tdd y la receta de quick-implement ejecutada en Bash con un plugin de Codex sin `commands/` → resuelve `interop/codex/command-skills/custom-agents-dev-cycle/references/command.md`); `tests/test_dev_cycle_split.py` → `10 passed`, ahorro de la vía rápida 6055 → 6080 (preámbulo histórico de quick-implement condensado; 4 filas de reemplazo registradas); `test_skill_size.py` 37, `test_context_footprint.py` 15, `test_source_snapshot.py` 33 + 1 skipped, `test_native_guardrail_dispatch.py` 14, `test_user_handbooks.py` 4, `test_npm_payload.py` 5 passed; `lint_plugin.py` 0 errores; `evals/check.py` 0 errores; `export-interop.py --check` → `92 ficheros al día`. Fuera de alcance: el aviso de ledger-lint para `RED:` que proponía la auditoría (ledger-lint no lee `dev.json`); la comprobación queda en la Lente A · 2026-11-09.
 
 ### T-09 — Dashboards completos con roadmaps grandes
 

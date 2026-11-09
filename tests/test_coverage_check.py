@@ -605,7 +605,26 @@ spec: v
     # B4-3 / B4-4: la carpeta declarada sin barra cuenta; la extensión que no es de interfaz, no
     escenario_b43_b44()
 
+    # H-15 (auditoría 2026-11-09): la vía rápida no tiene improvement-plan.md; el marcador vale
+    # en el frontmatter del tasks.md ligero
+    escenario_h15_marcador_en_tasks_md_de_la_via_rapida()
+
     print("OK: coverage-check con criterios [GWT] y marcador sin-UI — todo pasa.")
+
+
+def escenario_h15_marcador_en_tasks_md_de_la_via_rapida():
+    ligero = "---\ntasks: x\nverificacion: obligatoria\ntest-plan: n/a (sin UI)\n---\n" + TASKS_OK
+    rc, js, out = run(ligero, None, spec=SPEC_GWT)
+    eq(rc, 0, "H-15: marcador en tasks.md sin improvement-plan.md -> exit 0 explicito")
+    eq(js["test_plan_na"], True, "H-15: test_plan_na desde tasks.md")
+    assert "declarado en tasks.md" in out, out
+    # en la prosa del ledger no decide nada: solo el frontmatter
+    prosa = TASKS_OK + "\nSe habla de `test-plan: n/a (sin UI)` en una nota.\n"
+    rc, js, _ = run(prosa, None, spec=SPEC_GWT)
+    eq(rc, 1, "H-15: el marcador citado en la prosa de tasks.md no exime")
+    # el del plan, si existe, sigue mandando y no se duplica el aviso
+    rc, js, out = run(ligero, None, spec=SPEC_GWT, improvement_plan=PLAN_NA)
+    eq((rc, js["test_plan_na"]), (0, True), "H-15: plan con marcador sigue valiendo")
 
 
 if __name__ == "__main__":
