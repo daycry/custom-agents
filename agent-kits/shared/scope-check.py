@@ -189,11 +189,15 @@ def excluido(path, excluir):
     return patron_excluyente(path, excluir) is not None
 
 
-def _load_parse_ledger():
+def _load_lint():
     spec = importlib.util.spec_from_file_location("ledger_lint", os.path.join(HERE, "ledger-lint.py"))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    return mod.parse_ledger
+    return mod
+
+
+def _load_parse_ledger():
+    return _load_lint().parse_ledger
 
 
 # ------------------------------------------------------------------- git ----
@@ -324,12 +328,11 @@ def patrones_del_ledger(text, parse_ledger):
     parsed = parse_ledger(text)
     ids = [t["id"] for t in parsed["tareas"]]
     patrones = []
-    # trocear por cabeceras de tarea para atribuir cada campo a su T-XX
-    chunks = re.split(r"^(?=###\s+T-\d+\b)", text, flags=re.M)
-    for ch in chunks:
-        m = re.match(r"###\s+(T-\d+)\b", ch)
-        tid = m.group(1) if m and m.group(1) in ids else None
-        if not tid:
+    # Troceo ÚNICO de `ledger-lint.py` (H-22): un `Archivos` dentro de un bloque de código o en una
+    # sección posterior (`## Notas`) no es de ninguna tarea y no amplía el alcance.
+    bloques = parse_ledger.__globals__.get("bloques_de_tarea") or _load_lint().bloques_de_tarea
+    for tid, ch in bloques(text).items():
+        if tid not in ids:
             continue
         for ln in ch.splitlines():
             if not re.match(r"^\s*-\s*\*\*Archivos\*\*\s*:", ln):

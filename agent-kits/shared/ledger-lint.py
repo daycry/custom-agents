@@ -489,6 +489,31 @@ def parse_verificacion(lines, i):
     return {"items": items, "ejecutada": ejecutada, "inline": inline}, j
 
 
+_TROCEO_TAREA_RE = re.compile(r"^###\s+(T-\d+)\b")
+_TROCEO_FIN_RE = re.compile(r"^(##\s|###\s+Fase\b)")
+
+
+def bloques_de_tarea(text):
+    """{T-XX: texto del bloque} con las MISMAS fronteras que `parse_ledger`: desde `### T-XX` hasta la
+    siguiente `### T-YY`, `### Fase …` o cabecera `## …`, y con las líneas de dentro de un bloque de
+    código vaciadas (`sin_vallas`). Troceo ÚNICO del ledger (auditoría 2026-11-09, H-22/H-23/H-26):
+    lo usan `scope-check.py`, `coverage-check.py` y `jira-flow.py` en lugar de su propio `re.split`.
+    Una tarea repetida conserva su primer bloque, como el resto de campos."""
+    out, actual, lineas = {}, None, []
+    for ln in sin_vallas(text.lstrip("\ufeff")).splitlines():
+        m = _TROCEO_TAREA_RE.match(ln)
+        if m or _TROCEO_FIN_RE.match(ln):
+            if actual is not None and actual not in out:
+                out[actual] = "\n".join(lineas)
+            actual, lineas = (m.group(1), [ln]) if m else (None, [])
+            continue
+        if actual is not None:
+            lineas.append(ln)
+    if actual is not None and actual not in out:
+        out[actual] = "\n".join(lineas)
+    return out
+
+
 def parse_ledger(text):
     """Parser ESTRUCTURAL del ledger (sin efectos secundarios, importable).
 
@@ -764,6 +789,14 @@ def lint(path, *, text=None, parsed=None):
     if not all_tasks:
         warnings.append("no se han detectado tareas `### T-XX` (¿formato distinto?)")
 
+    # El `estado` del LEDGER (frontmatter o fila `| **Estado** |`) usa el mismo vocabulario que las
+    # tareas: un valor fuera de él no lo reconoce ningún consumidor (auditoría 2026-11-09).
+    fm_estado = parsed["frontmatter"].get("estado")
+    estado_ledger = norm_estado(fm_estado) if fm_estado else parsed["estado_tabla"]
+    if estado_ledger and estado_ledger not in ESTADOS:
+        errors.append(f"estado del ledger inválido «{estado_ledger}» "
+                      f"(vocabulario: {' · '.join(sorted(ESTADOS))})")
+
     for t in all_tasks:
         if t["estado"] is None:
             warnings.append(f"{t['id']}: sin campo **Estado** (legacy)")
@@ -866,9 +899,10 @@ def lint(path, *, text=None, parsed=None):
                 f"intento N: <resumen>` (`##` exacto, sin paréntesis tras N)")
 
     # ---- tabla de resumen (completadas/total por fase) ----
+    # Un resumen citado dentro de un bloque de código no es el del ledger (auditoría 2026-11-09).
     resumen_rows = re.findall(
         r"^\|\s*\*{0,2}\s*(Fase\s+(?:\d+|única|unica)\b[^|*]*)\*{0,2}\s*\|\s*\*{0,2}(\d+)\*{0,2}\*?\s*\|\s*\*{0,2}(\d+)\*{0,2}\s*\|",
-        text, re.M | re.I)
+        sin_vallas(text), re.M | re.I)
     if not resumen_rows:
         warnings.append("sin tabla «Resumen de progreso» reconocible (legacy)")
     else:

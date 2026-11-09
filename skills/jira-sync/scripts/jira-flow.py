@@ -153,9 +153,14 @@ def _cargar_ledger_lint():
 _TASK_BLOCK_RE = r"\n(?=###\s+T-\d+\b)"
 
 
-def _bloque_de_tarea(texto, tid):
-    """Texto crudo de `### T-XX … ` hasta la siguiente `### T-YY` o `## `, o None si no existe."""
-    partes = re.split(_TASK_BLOCK_RE, texto)
+def _bloque_de_tarea(texto, tid, ledger_lint=None):
+    """Texto de `### T-XX … ` hasta la siguiente `### T-YY`, `### Fase` o `## `, o None si no existe.
+    Con `ledger-lint.py` disponible usa su troceo único (bloques de código fuera, H-26); sin él, el
+    troceo local sobre el texto sin vallas."""
+    ledger_lint = ledger_lint or _cargar_ledger_lint()
+    if ledger_lint is not None and hasattr(ledger_lint, "bloques_de_tarea"):
+        return ledger_lint.bloques_de_tarea(texto).get(tid)
+    partes = re.split(_TASK_BLOCK_RE, sin_vallas(texto))
     for p in partes:
         m = re.match(r"###\s+(T-\d+)\b", p.strip())
         if m and m.group(1) == tid:
@@ -168,7 +173,8 @@ def _bloque_de_tarea(texto, tid):
 def _campo(bloque, nombre):
     """Valor de `- **Nombre**: valor` (tolera un paréntesis entre el `**` y los dos puntos, como
     en `- **Verificación** (ejecutada 2026-…: salida …): python3 -m pytest … → …`)."""
-    m = re.search(rf"^-\s*\*\*{re.escape(nombre)}\*\*(?:\s*\([^\n]*?\))?\s*:\s*(.+)$", bloque, re.M)
+    # `[ \t]*` y no `\s*`: un campo vacío no se traga la línea siguiente (H-26)
+    m = re.search(rf"^-[ \t]*\*\*{re.escape(nombre)}\*\*(?:[ \t]*\([^\n]*?\))?[ \t]*:[ \t]*(\S[^\n]*)$", bloque, re.M)
     return m.group(1).strip() if m else None
 
 
@@ -198,7 +204,7 @@ def _archivos_clave(campo_archivos, maximo=5):
 def detalle_tarea(texto, tid, ledger_lint):
     """dict con lo que hace falta para el comentario `implementado` de UNA tarea, TODO leído del
     ledger (nunca inventado). None si la tarea no existe en el ledger."""
-    bloque = _bloque_de_tarea(texto, tid)
+    bloque = _bloque_de_tarea(texto, tid, ledger_lint)
     if bloque is None:
         return None
     titulo_m = re.match(r"###\s+T-\d+\s*(?:[—–:-]\s*)?(.*)", bloque.strip().splitlines()[0])
@@ -206,6 +212,11 @@ def detalle_tarea(texto, tid, ledger_lint):
     desc = _primera_frase(_campo(bloque, "Descripción") or "")
     archivos = _archivos_clave(_campo(bloque, "Archivos") or "")
     verif = _acortar(_campo(bloque, "Verificación"))
+    if ledger_lint is not None:
+        # La Verificación en sub-lista llega ENTERA (todos sus ítems), como la lee el parser (H-26).
+        tarea = next((t for t in ledger_lint.parse_ledger(texto)["tareas"] if t["id"] == tid), None)
+        if tarea and tarea.get("verificacion"):
+            verif = _acortar(tarea["verificacion"], 400)
     ia_est, ia_real = (None, None)
     hum_est, hum_real = (None, None)
     sup_est, sup_real = (None, None)

@@ -58,6 +58,7 @@ o el diff no aporta ficheros: ahí la fuente «diff» no ha aportado nada, y afi
 lo contrario con `rutas_ui_degradado: null` era la misma degradación silenciosa por
 otra puerta (gap R4a-30).
 """
+import importlib.util
 import json
 import os
 import re
@@ -335,6 +336,33 @@ def que_se_exime(tasks_text, spec_path, gwt_ids):
     return "", []
 
 
+def bloques_de_tarea(text):
+    """{T-XX: bloque} con el troceo de `agent-kits/shared/ledger-lint.py` (fuente única, H-23). Sin el
+    kit compartido (instalación parcial), el mismo criterio local: líneas de dentro de un bloque de
+    código fuera y cada bloque hasta la siguiente `### T-`, `### Fase` o `## `."""
+    lint = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "shared", "ledger-lint.py")
+    if os.path.isfile(lint):
+        try:
+            spec = importlib.util.spec_from_file_location("coverage_ledger_lint", lint)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod.bloques_de_tarea(text)
+        except Exception:  # noqa: BLE001 - kit roto: degrada al troceo local, nunca a ninguno
+            pass
+    out, actual, lineas = {}, None, []
+    for ln in _sin_fences(text).splitlines():
+        m = re.match(r"^###\s+(T-\d+)\b", ln)
+        if m or re.match(r"^(##\s|###\s+Fase\b)", ln):
+            if actual is not None and actual not in out:
+                out[actual] = "\n".join(lineas)
+            actual, lineas = (m.group(1), [ln]) if m else (None, [])
+        elif actual is not None:
+            lineas.append(ln)
+    if actual is not None and actual not in out:
+        out[actual] = "\n".join(lineas)
+    return out
+
+
 def sin_ui_declarado(tasks_path):
     """¿La iniciativa declara `test-plan: n/a (sin UI)` en el frontmatter de su `improvement-plan.md`
     o, en la vía rápida de `/dev-cycle` (H-15: sin plan), en el del propio `tasks.md` ligero?
@@ -483,22 +511,20 @@ def main():
     for m in re.finditer(r"^\s*[-*]\s*((?:E2E|M|API|A11Y)-\d+)\b", plan, re.M | re.I):
         defined.add(m.group(1).upper())
 
-    tasks = open(tasks_path, encoding="utf-8", errors="replace").read()
-    task_re = re.compile(r"^###\s+(T-\d+)[^\n]*", re.M)
+    tasks = open(tasks_path, encoding="utf-8-sig", errors="replace").read()
     cubre_re = re.compile(r"^\s*-\s*\*\*Cubre \(tests\)\*\*\s*:\s*(.*)$", re.M)
 
-    # trocear por tarea
-    positions = [(m.start(), m.group(1)) for m in task_re.finditer(tasks)]
+    # trocear por tarea con el troceo ÚNICO de ledger-lint (H-23): una tarea citada en un bloque de
+    # código o un campo de una sección posterior no es de ninguna tarea
+    bloques = bloques_de_tarea(tasks)
     errors, sin_cobertura, referenced = [], [], set()
-    if not positions:
+    if not bloques:
         print("❌ no se han detectado tareas `### T-XX` en tasks.md — la puerta no puede validar cobertura")
         print(json.dumps({"applies": True, "broken_refs": 0, "no_tasks": True,
                           "test_plan_na": sin_ui,
                           "marcador_no_canonico": marcador_no_canonico}, ensure_ascii=False))
         sys.exit(1)
-    for i, (pos, tid) in enumerate(positions):
-        end = positions[i + 1][0] if i + 1 < len(positions) else len(tasks)
-        chunk = tasks[pos:end]
+    for tid, chunk in bloques.items():
         m = cubre_re.search(chunk)
         if not m:
             sin_cobertura.append(tid)

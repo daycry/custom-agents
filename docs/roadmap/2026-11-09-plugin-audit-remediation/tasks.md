@@ -17,10 +17,10 @@ changelog: Fixed
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
-| Fase 2 | 4 | 6 | 66.7% |
+| Fase 2 | 5 | 6 | 83.3% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **10** | **21** | **47.6%** |
+| **TOTAL** | **11** | **21** | **52.4%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -304,20 +304,28 @@ GREEN: `pytest agent-kits/shared/test_skill_index.py` → `30 passed` (casos H-2
 
 ### T-11 — Un solo troceo del ledger
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: H-22, H-23, H-26 y menores de ledger-lint. `scope-check`, `coverage-check` y `jira-flow` usan el troceo de `ledger-lint` (bloques de código y secciones posteriores fuera); resumen dentro de bloques de código ignorado; vocabulario de `estado` validado a nivel ledger.
-- **Archivos**: `agent-kits/shared/ledger-lint.py`, `agent-kits/shared/scope-check.py`, `agent-kits/qa/coverage-check.py`, `skills/jira-sync/scripts/jira-flow.py`, sus tests, `agent-kits/shared/copias.json`.
+- **Archivos**: `agent-kits/shared/ledger-lint.py`, `agent-kits/shared/scope-check.py`, `agent-kits/qa/coverage-check.py`, `skills/jira-sync/scripts/jira-flow.py`, sus tests, `agent-kits/shared/copias.json`, `tests/test_ledger_single_parser.py` (añadido por el implementer: casos H-22/H-23/H-26, resumen en bloque de código, vocabulario y los ledgers del repo).
+- **Tiempo IA (ejec.)**: real 0,09h (medido)
 - **Verificación**: casos con bloques de código en `tasks.md` para los cuatro scripts → pasan; los 67 ledgers del repo siguen dando exit 0.
+- **Changelog**: La puerta de alcance, la cobertura de QA y el volcado a Jira trocean el ledger igual que ledger-lint: un ejemplo dentro de un bloque de código o una sección de notas ya no amplía el alcance ni crea tareas fantasma, y la Verificación en sub-lista llega entera a Jira; ledger-lint ignora un resumen citado y rechaza un estado de ledger fuera del vocabulario.
+- **Cerrada**: 2026-11-09
 
 **Criterios de aceptación**
-- [ ] Un `Archivos` o `### T-XX` dentro de un bloque de código no cuenta.
-- [ ] La Verificación en sub-lista llega entera a Jira.
+- [x] Un `Archivos` o `### T-XX` dentro de un bloque de código no cuenta.
+- [x] La Verificación en sub-lista llega entera a Jira.
+
+
+RED: `tests/test_ledger_single_parser.py` falló con 5 failed: scope-check suma el Archivos de un bloque de codigo (**/*); coverage-check crea la tarea fantasma T-99 con referencia rota; jira-flow solo lleva el primer item de la Verificacion; ledger-lint cuenta un resumen citado en un bloque de codigo; estado del ledger fuera de vocabulario aceptado · 2026-11-09.
+
+GREEN: `pytest tests/test_ledger_single_parser.py` → `7 passed` (scope-check sin el `Archivos` de un bloque de código ni el de `## Notas`; coverage-check sin la tarea fantasma, también copiado sin el kit compartido; jira-flow con la Verificación entera y `_campo` que no cruza líneas; resumen citado ignorado; `estado: terminado` → error; los 68 ledgers del repo sin errores); `agent-kits/shared/test_scope_check.py` 31, `tests/test_ledger_lint.py` 9, `skills/jira-sync/scripts/test_jira_flow.py` 74, `tests/test_copias_declaradas.py` 30, `tests/test_ledger_write.py` 29 + 2 skipped, `agent-kits/shared/test_task_brief.py` 92 passed; `python tests/test_coverage_check.py` → `OK`; `ledger-lint.py` sobre `docs/roadmap/*/tasks.md` → 68 ficheros, 0 con exit ≠ 0. Decisión: el troceo único es `bloques_de_tarea()` de `ledger-lint.py`; coverage-check conserva un respaldo local con el mismo criterio (no es una copia literal, así que no entra en `copias.json`) y jira-flow usa el del kit si está · 2026-11-09.
 
 ### T-12 — Bucle de revisión y dueño del commit
 
 - **Estado**: borrador
 - **Descripción**: H-24 y H-25. «Seguir» tras el 3.er intento abre un ciclo nuevo con OK del usuario; un solo dueño del commit.
-- **Archivos**: `commands/dev-cycle.md`, `agents/implementer.md`, `skills/adversarial-review/SKILL.md`, `agent-kits/shared/ledger-write.py`, `agent-kits/shared/test_ledger_write.py`, `interop/**`, `tests/fixtures/dev-cycle-modular-replacements.json`.
+- **Archivos**: `commands/dev-cycle.md`, `agents/implementer.md`, `skills/adversarial-review/SKILL.md`, `agent-kits/shared/ledger-write.py`, `agent-kits/shared/test_ledger_write.py`, `interop/**`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/test_ledger_write.py` (la suite real del writer está en `tests/`, no en `agent-kits/shared/`; nota del implementer).
 - **Verificación**: test del writer con ciclo nuevo → pasa; interop al día.
 
 **Criterios de aceptación**
