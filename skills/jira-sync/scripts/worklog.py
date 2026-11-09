@@ -34,8 +34,10 @@ operan sobre la fecha dada (hoy por defecto).
 import argparse
 import datetime
 import json
+import math
 import os
 import sys
+import time
 
 # Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -92,7 +94,17 @@ def save_json(path, data):
             json.dump(data, f, ensure_ascii=False, indent=2)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp, path)
+        for intento in range(4):
+            try:
+                os.replace(tmp, path)
+                break
+            except PermissionError as e:
+                # Windows: un lector concurrente (antivirus, OneDrive, el editor) retiene el
+                # fichero un instante. Reintento breve y acotado; si persiste, error limpio.
+                if intento == 3:
+                    raise EntradaInvalida(f"no puedo reemplazar {path} ({e}); el estado previo queda "
+                                          "intacto: cierra quien lo tenga abierto y repite") from e
+                time.sleep(0.05 * (2 ** intento))
     finally:
         if os.path.exists(tmp):
             os.remove(tmp)
@@ -125,11 +137,28 @@ def state_path(args):
     return args.state or find_up(["jira-state.json"]) or os.path.join(".claude", "jira-state.json")
 
 
+def _numero(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
 def load_state(args):
-    st = load_json(state_path(args), {})
+    path = state_path(args)
+    st = load_json(path, {})
     st.setdefault("imputadoPorDia", {})
     st.setdefault("bancoHoras", [])
     st.setdefault("tasks", {})
+    # Forma mínima que el cálculo necesita: un campo de tipo equivocado es estado ilegible
+    # (exit 2 sin escribir), nunca un traceback a mitad de imputación (revisión intento 1).
+    dia = st["imputadoPorDia"]
+    if not isinstance(dia, dict) or not all(_numero(v) for v in dia.values()):
+        raise EntradaInvalida(f"{path}: `imputadoPorDia` debe ser un objeto fecha → horas; no se escribe nada")
+    banco = st["bancoHoras"]
+    if not isinstance(banco, list) or not all(
+            isinstance(e, dict) and _numero(e.get("horas")) and "task" in e and "issueKey" in e for e in banco):
+        raise EntradaInvalida(f"{path}: cada entrada de `bancoHoras` necesita task, issueKey y horas numéricas; "
+                              "no se escribe nada")
+    if not isinstance(st["tasks"], dict) or not all(isinstance(t, dict) for t in st["tasks"].values()):
+        raise EntradaInvalida(f"{path}: `tasks` debe ser un objeto de objetos; no se escribe nada")
     return st
 
 
@@ -143,8 +172,8 @@ def cmd_plan(args):
     fecha = fecha_valida(args.fecha)
     for f in ("ia_real", "ia_est", "sup_real", "sup_est", "human_real", "human_est"):
         v = getattr(args, f)
-        if v is not None and v < 0:
-            raise EntradaInvalida(f"--{f.replace('_', '-')} negativo ({v}); las horas no pueden ser < 0")
+        if v is not None and (not math.isfinite(v) or v < 0):
+            raise EntradaInvalida(f"--{f.replace('_', '-')} inválido ({v}); las horas deben ser un número finito ≥ 0")
 
     ia = pick(args.ia_real, args.ia_est)
     sup = pick(args.sup_real, args.sup_est)

@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 3 | 6 | 50.0% |
+| Fase 1 | 4 | 6 | 66.7% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **3** | **21** | **14.3%** |
+| **TOTAL** | **4** | **21** | **19.0%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -28,9 +28,9 @@ changelog: Fixed
 
 ### T-01 — worklog sin pérdida de datos
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-1 y H-2. Un estado ilegible o con BOM no se trata como vacío ni se sobrescribe; escritura atómica; fecha futura y horas negativas rechazadas.
-- **Archivos**: `skills/jira-sync/scripts/worklog.py`, `tests/test_worklog.py`.
+- **Archivos**: `skills/jira-sync/scripts/worklog.py`, `tests/test_worklog.py`, `agent-kits/shared/usage-meter.py`, `agent-kits/shared/test_usage_meter.py` (añadidos en la revisión intento 1, gap 3: mismo defecto de estado ilegible tratado como vacío).
 - **Verificación**: `python -m pytest -q tests/test_worklog.py` → todos pasan, con casos de BOM, JSON corrupto, fecha futura y horas negativas.
 - **Changelog**: El worklog de Jira ya no pierde el banco de horas: un estado con BOM se lee, uno ilegible detiene la imputación sin escribir, y se rechazan fechas futuras y horas negativas.
 - **Cerrada**: 2026-11-09
@@ -44,6 +44,11 @@ changelog: Fixed
 RED: `tests/test_worklog.py (6 casos nuevos)` falló con 6 failed, 2 passed: BOM leido como vacio (bancoPendiente 0), corrupto/futura/negativas exit 0 con aplicado, raiz lista traceback exit 1, save_json sin os.replace · 2026-11-09.
 
 GREEN: `python -m pytest -q tests/test_worklog.py` → `8 passed in 6.18s` (BOM, corrupto, raíz lista, ausente, os.replace, fecha futura/inválida, 6 flags negativos + 13 casos históricos); `test_jira_flow.py` → `74 passed` · 2026-11-09.
+
+
+RED: `agent-kits/shared/test_usage_meter.py -k fix1 + tests/test_worklog.py -k fix1` falló con fix1: usage-meter 2 failed (BOM e ilegible tratados como vacio y sobrescritos); worklog 3 failed (nan/inf aceptados, tipos erroneos con traceback, PermissionError en os.replace sin reintento) · 2026-11-09.
+
+GREEN fix1: `pytest tests/test_worklog.py` → `11 passed` (nan/inf, 7 formas de tipo equivocado sin traceback, reintento acotado de `os.replace` ante PermissionError); `pytest agent-kits/shared/test_usage_meter.py` → `80 passed` (BOM conserva marcadores; ilegible o raíz no objeto → start/close exit 3 sin escribir, status exit 0 con aviso; el test histórico de estado corrupto conserva el caso de marcador corrupto y los casos ilegibles pasan al test nuevo); `test_jira_flow.py` → `74 passed` · 2026-11-09.
 
 ### T-02 — qa-gate sin falso verde
 

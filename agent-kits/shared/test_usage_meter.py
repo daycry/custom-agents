@@ -782,10 +782,10 @@ def test_calibration_ignora_tablas_posteriores_y_fuera_de_rango(entorno, tmp_pat
 
 
 def test_state_corrupto_degrada_sin_crashear(entorno):
-    """State con formas inesperadas → exit 0 y degradación con aviso (contrato 'nunca bloquea')."""
+    """Marcador corrupto dentro de un objeto → exit 0 y degradación con aviso (contrato 'nunca bloquea')."""
     _, tdir, state = entorno
     _write(tdir / "sesion.jsonl", [_rec("m1", inp=10)])
-    for corrupto in ('{"a.md": 5}', '["x"]', "{esto no es json"):
+    for corrupto in ('{"a.md": 5}',):
         state.write_text(corrupto, encoding="utf-8")
         rc, res = _run(None, ["close", "--artefacto", "a.md", "--state", str(state),
                               "--transcript-dir", str(tdir)])
@@ -796,6 +796,33 @@ def test_state_corrupto_degrada_sin_crashear(entorno):
         rc, _ = _run(None, ["start", "--artefacto", "b.md", "--state", str(state),
                             "--transcript-dir", str(tdir)])
         assert rc == 0
+
+
+def test_fix1_state_ilegible_no_se_sobrescribe(entorno):
+    """Revisión intento 1 (gap 3): ilegible o raíz no objeto ≠ vacío. start/close no escriben y
+    salen con exit 3 (la medición degrada: el ciclo sigue con estimación); status solo avisa."""
+    _, tdir, state = entorno
+    _write(tdir / "sesion.jsonl", [_rec("m1", inp=10)])
+    for corrupto in ('["x"]', "{esto no es json", '{"spec": {"inicio": "2026'):
+        state.write_text(corrupto, encoding="utf-8")
+        for argv in (["start", "--artefacto", "b.md"], ["close", "--artefacto", "a.md"]):
+            rc, res = _run(None, argv + ["--state", str(state), "--transcript-dir", str(tdir)])
+            assert rc == 3, (corrupto, argv, rc, res)
+            assert res["ok"] is False and "ilegible" in res["error"], res
+            assert state.read_text(encoding="utf-8") == corrupto, "el estado ilegible se sobrescribió"
+        rc, res = _run(None, ["status", "--state", str(state)])
+        assert rc == 0 and res["marcadores"] == [] and res.get("avisos"), res
+
+
+def test_fix1_state_con_bom_conserva_marcadores(entorno):
+    _, tdir, state = entorno
+    _write(tdir / "sesion.jsonl", [_rec("m1", inp=10)])
+    previo = {"spec": {"version": 2, "inicio": "2026-11-09T00:00:00Z", "offsets": {}}}
+    state.write_bytes(b"\xef\xbb\xbf" + json.dumps(previo).encode("utf-8"))
+    rc, _ = _run(None, ["start", "--artefacto", "plan", "--state", str(state),
+                        "--transcript-dir", str(tdir)])
+    assert rc == 0
+    assert sorted(json.loads(state.read_text(encoding="utf-8-sig"))) == ["plan", "spec"]
 
 
 def test_marcador_sin_offsets_degrada_con_aviso(entorno):

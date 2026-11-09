@@ -32,6 +32,9 @@ carpeta corregida en 2026-09-10, ver T-01 de usage-meter-transcripts):
 
 El formato JSONL es interno de Claude Code (no API pública): ante cualquier problema de
 lectura este script DEGRADA a fuente="estimado" y NUNCA bloquea (exit 0 salvo error de uso).
+Excepción: un `usage-state.json` ilegible o con raíz no objeto NO se trata como vacío al escribir
+(se perderían los marcadores ajenos): `start`/`close` no escriben y salen con exit 3 y JSON
+`{"ok": false, "fuente": "estimado", ...}`; quien llama degrada a estimación y sigue.
 
 Uso:
   usage-meter.py start  --artefacto <clave> [--state FICHERO] [--transcript-dir DIR]
@@ -169,20 +172,33 @@ def _project_transcript_dir():
 
 def _load_json(path):
     try:
-        with open(path, encoding="utf-8") as f:
+        with open(path, encoding="utf-8-sig") as f:   # -sig: BOM de Windows
             return json.load(f)
     except Exception:
         return None
 
 
-def _load_state(path, avisos=None):
-    """Estado de marcadores, SIEMPRE un dict de dicts (state corrupto degrada, no rompe)."""
+class StateIlegible(Exception):
+    """`usage-state.json` existe pero no es un objeto JSON legible (revisión intento 1, gap 3)."""
+
+
+def _load_state(path, avisos=None, estricto=False):
+    """Estado de marcadores, SIEMPRE un dict de dicts. Ausente → vacío. Ilegible o raíz no
+    objeto: con `estricto` (quien va a ESCRIBIR) lanza StateIlegible para no sobrescribir los
+    marcadores ajenos; sin él (lectura) degrada a vacío con aviso. Un marcador corrupto dentro
+    de un objeto legible se descarta con aviso, como siempre."""
     raw = _load_json(path)
     if raw is None:
-        if Path(path).is_file() and avisos is not None:
-            avisos.append(f"state ilegible ({path}); se trata como vacío")
+        if Path(path).is_file():
+            if estricto:
+                raise StateIlegible(f"state ilegible ({path}); no se escribe nada")
+            if avisos is not None:
+                avisos.append(f"state ilegible ({path}); se trata como vacío")
         return {}
     if not isinstance(raw, dict):
+        if estricto:
+            raise StateIlegible(f"state ilegible ({path}): la raíz es {type(raw).__name__}, no un objeto; "
+                                "no se escribe nada")
         if avisos is not None:
             avisos.append(f"state con forma inesperada ({type(raw).__name__}); se trata como vacío")
         return {}
@@ -562,7 +578,7 @@ def _horas(tokens, ratio):
 def cmd_start(args):
     avisos = []
     tdir = args.transcript_dir or _project_transcript_dir()
-    state = _load_state(args.state, avisos)
+    state = _load_state(args.state, avisos, estricto=True)
     marcador = {"version": 2, "inicio": _now_iso(), "transcriptDir": str(tdir) if tdir else None,
                 "offsets": _snapshot_offsets(tdir), "ventana_id": "win-" + uuid.uuid4().hex,
                 "revision_medicion": 0}
@@ -600,7 +616,7 @@ def _identidad_medicion(marcador, tdir, avisos):
 
 def cmd_close(args):
     avisos = []
-    state = _load_state(args.state, avisos)
+    state = _load_state(args.state, avisos, estricto=True)
     marcador = state.get(args.artefacto)
     fin = _now_iso()
     resultado = {"artefacto": args.artefacto,
@@ -696,9 +712,9 @@ def cmd_close(args):
     return 0
 
 
-def status(path):
+def status(path, avisos=None):
     """Return the same read-only status used by the CLI without another interpreter."""
-    state = _load_state(path)
+    state = _load_state(path, avisos)
     ahora = datetime.now(timezone.utc)
     out = []
     for clave, m in state.items():
@@ -714,7 +730,11 @@ def status(path):
 
 
 def cmd_status(args):
-    print(json.dumps(status(args.state), ensure_ascii=False, indent=2))
+    avisos = []
+    salida = status(args.state, avisos)
+    if avisos:
+        salida["avisos"] = avisos
+    print(json.dumps(salida, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -764,7 +784,14 @@ def main(argv=None):
     sp.set_defaults(fn=cmd_fmt)
 
     args = p.parse_args(argv)
-    return args.fn(args)
+    try:
+        return args.fn(args)
+    except StateIlegible as e:
+        # Exit 3 (no es error de uso ni bloquea el ciclo): la medición degrada a estimación y
+        # el estado ajeno queda intacto para que el usuario lo repare.
+        print(json.dumps({"ok": False, "artefacto": getattr(args, "artefacto", None),
+                          "fuente": "estimado", "error": str(e)}, ensure_ascii=False))
+        return 3
 
 
 if __name__ == "__main__":

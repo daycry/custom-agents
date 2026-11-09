@@ -249,6 +249,72 @@ def test_horas_negativas_exit2():
         assert not os.path.exists(sp)
 
 
+# --- Revisión de dos lentes, intento 1 (gap 8) ---
+
+def test_fix1_horas_no_finitas_exit2():
+    with tempfile.TemporaryDirectory() as tmp:
+        sp = _prep(tmp)
+        for valor in ("nan", "inf", "-inf", "Infinity"):
+            r = _raw(tmp, "plan", "--task", "T-01", "--issue", "K-1", f"--ia-real={valor}",
+                     "--fecha", "2026-07-17", "--apply")
+            assert r.returncode == 2, (valor, r.returncode, r.stdout, r.stderr)
+            assert "error" in json.loads(r.stdout), r.stdout
+        assert not os.path.exists(sp)
+
+
+def test_fix1_campos_de_tipo_equivocado_exit2_sin_traceback():
+    casos = [{"imputadoPorDia": None}, {"imputadoPorDia": []}, {"bancoHoras": {}},
+             {"bancoHoras": [{"task": "T-1", "issueKey": "K"}]}, {"bancoHoras": ["x"]},
+             {"tasks": []}, {"imputadoPorDia": {"2026-07-18": "mucho"}}]
+    for estado in casos:
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = json.dumps(estado).encode("utf-8")
+            sp = _prep(tmp, raw)
+            for args in (("plan", "--task", "T-01", "--issue", "K-1", "--ia-real", "1",
+                          "--fecha", "2026-07-18", "--apply"),
+                         ("drain", "--fecha", "2026-07-18", "--apply"), ("status",)):
+                r = _raw(tmp, *args)
+                assert r.returncode == 2 and "Traceback" not in r.stderr, (estado, args, r.stderr)
+                assert "error" in json.loads(r.stdout), r.stdout
+                assert open(sp, "rb").read() == raw
+
+
+def test_fix1_replace_con_permission_error_reintenta_y_sale_limpio(monkeypatch):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("worklog_mod_fix1", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    llamadas = []
+    real = os.replace
+
+    def bloqueado_dos_veces(src, dst):
+        llamadas.append(dst)
+        if len(llamadas) <= 2:
+            raise PermissionError(13, "acceso denegado")
+        return real(src, dst)
+
+    monkeypatch.setattr(mod.os, "replace", bloqueado_dos_veces)
+    monkeypatch.setattr(mod.time, "sleep", lambda _s: None)
+    with tempfile.TemporaryDirectory() as tmp:
+        destino = os.path.join(tmp, "jira-state.json")
+        mod.save_json(destino, {"a": 1})
+        assert len(llamadas) == 3 and json.load(open(destino)) == {"a": 1}
+
+    def siempre_bloqueado(src, dst):
+        raise PermissionError(13, "acceso denegado")
+
+    monkeypatch.setattr(mod.os, "replace", siempre_bloqueado)
+    with tempfile.TemporaryDirectory() as tmp:
+        destino = os.path.join(tmp, "jira-state.json")
+        try:
+            mod.save_json(destino, {"a": 1})
+        except mod.EntradaInvalida as e:
+            assert "jira-state.json" in str(e)
+        else:
+            raise AssertionError("un replace bloqueado debe acabar en EntradaInvalida (exit 2)")
+        assert os.listdir(tmp) == [], os.listdir(tmp)
+
+
 if __name__ == "__main__":
     try:
         main()
