@@ -17,10 +17,10 @@ changelog: Fixed
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
-| Fase 2 | 1 | 6 | 16.7% |
+| Fase 2 | 3 | 6 | 50.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **7** | **21** | **33.3%** |
+| **TOTAL** | **9** | **21** | **42.9%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -290,7 +290,7 @@ GREEN: `pytest tests/test_panel_large_roadmaps.py` → `8 passed` (70 iniciativa
 
 ### T-10 — Índice de sesión por prioridad
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-21 y menor de BOM. El índice ordena por prioridad de ciclo y lee `dev.json` con `utf-8-sig`.
 - **Archivos**: `agent-kits/shared/skill-index.py`, `agent-kits/shared/test_skill_index.py`, `agent-kits/shared/README.md` (E3: describía el recorte; añadido por el implementer), `interop/**` (el índice de OpenCode se deriva de `skill-index.py`; faltó regenerarlo en el commit de T-10 y se corrigió en c078d2d), `tests/test_native_role_context.py` (CI de c078d2d: su muestra `architect` queda recortada con el nuevo orden; pasa a `planner`, siempre visible; el test sigue comprobando el prefijo nativo por runtime).
 - **Tiempo IA (ejec.)**: real 0,01h (medido)
@@ -311,6 +311,8 @@ GREEN (seguimiento CI): `pytest tests/test_native_role_context.py` → `3 passed
 
 
 RED: `agent-kits/shared/test_skill_index.py::test_fix1_a1_todos_los_agentes_y_los_comandos_del_ciclo_siempre_visibles` falló con fix1: 1 failed: solo 5 agentes visibles (faltan analyst, architect, documenter, knowledge-curator, nemesis) por la cuota fija por grupo · 2026-11-09.
+
+GREEN fix1: `pytest agent-kits/shared/test_skill_index.py tests/test_native_role_context.py` → `34 passed` (A1: los 10 agentes y `/setup`, `/dev-cycle`, `/pm-cycle`, `/work-resume` siempre visibles; las skills opcionales se resumen; el test histórico del reparto proporcional pasa a exigir los 8 agentes visibles); índice del repo 3383 caracteres, 45 líneas; `export-interop.py` → índice de OpenCode regenerado, `--check` → `92 ficheros al día`. `skill-index.py` también corrige su docstring (matcher con `clear`, A5) · 2026-11-09.
 
 ### T-11 — Un solo troceo del ledger
 
@@ -336,7 +338,7 @@ RED: `tests/test_ledger_single_parser.py -k fix1` falló con fix1: 3 failed: res
 
 ### T-12 — Bucle de revisión y dueño del commit
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-24 y H-25. «Seguir» tras el 3.er intento abre un ciclo nuevo con OK del usuario; un solo dueño del commit.
 - **Archivos**: `commands/dev-cycle.md`, `agents/implementer.md`, `skills/adversarial-review/SKILL.md`, `agent-kits/shared/ledger-write.py`, `agent-kits/shared/test_ledger_write.py`, `interop/**`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/test_ledger_write.py` (la suite real del writer está en `tests/`, no en `agent-kits/shared/`; nota del implementer), `tests/test_review_cycle_owner.py`, `agent-kits/shared/ledger-write.md`, `docs/COMMIT-SELECTION.md`, `docs/en/COMMIT-SELECTION.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/agents/implementer.md` (E3: describían el límite de intentos o el dueño del commit), `CHANGELOG.md`, `CHANGELOG.es.md` (entrada `### Fixed` de toda la Fase 2) (añadidos por el implementer).
 - **Tiempo IA (ejec.)**: real 0,07h (medido)
@@ -355,6 +357,8 @@ GREEN: `pytest tests/test_ledger_write.py` → `32 passed, 2 skipped` (intento 4
 
 
 RED: `tests/test_ledger_write.py::test_fix1_b3_un_t_nn_dentro_de_la_cita_no_atribuye_el_intento_a_otra_tarea` falló con fix1: 1 failed: el T-07 de la cita entra en menciones de la seccion de revision · 2026-11-09.
+
+GREEN fix1: `pytest tests/test_ledger_write.py -k "fix1 or h24"` → `4 passed`; fichero completo `32 passed, 2 skipped` (B3: un `T-NN` en la cita del OK se escribe con guion U+2011, se lee igual y `menciones` solo ve T-01 y T-02) · 2026-11-09.
 
 ## Fase 3 — Rendimiento de procesos
 

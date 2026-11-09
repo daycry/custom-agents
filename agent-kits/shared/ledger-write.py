@@ -159,7 +159,10 @@ def transform(text, args):
         need(opens_cycle, "new_cycle_ok_unexpected")
         quote = single_line(args.new_cycle_ok, 200)
         need(bool(quote.strip()) and not any(c in quote for c in "«»()"), "invalid_new_cycle_ok")
-        summary += f" — ciclo {(args.attempt - 1) // 3 + 1}, abierto con OK del usuario: «{quote.strip()}»"
+        # B3: un `T-NN` citado no es una tarea de este intento; el guion se cambia por U+2011
+        # (se lee igual y `ids_de_tarea` no lo cuenta).
+        quote = re.sub(r"\bT-(\d+)", "T\u2011\\1", quote.strip())
+        summary += f" — ciclo {(args.attempt - 1) // 3 + 1}, abierto con OK del usuario: «{quote}»"
     else:
         need(not opens_cycle, "new_cycle_ok_required", 1)
     header = f"## Revisión de dos lentes — intento {args.attempt}: {summary} ({', '.join(tasks)})"

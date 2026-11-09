@@ -413,3 +413,19 @@ def test_h24_el_ok_es_una_cita_de_una_linea_sin_secretos(tmp_path):
         result = call(path, "review", "--attempt", "4", "--tasks", "T-01,T-02", "--summary", "Fixture",
                       "--new-cycle-ok", bad)
         assert result.returncode != 0, bad
+
+
+def test_fix1_b3_un_t_nn_dentro_de_la_cita_no_atribuye_el_intento_a_otra_tarea(tmp_path):
+    """B3 (revisión fase 2): `ids_de_tarea` contaba cualquier `T-NN` de la cita del OK."""
+    path = tmp_path / "tasks.md"
+    _three_attempts(path)
+    ok = call(path, "review", "--attempt", "4", "--tasks", "T-01,T-02", "--summary", "Fixture",
+              "--new-cycle-ok", "seguir, y que T-07 espere")
+    assert ok.returncode == 0, ok.stdout + ok.stderr
+    spec = importlib.util.spec_from_file_location("fix1_b3_lint", ROOT / "agent-kits/shared/ledger-lint.py")
+    lint_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lint_mod)
+    text = path.read_text(encoding="utf-8")
+    seccion = lint_mod.secciones_revision(text)[-1]
+    assert lint_mod.menciones(seccion) == {"T-01", "T-02"}, lint_mod.menciones(seccion)
+    assert "T\u201107 espere" in text and lint_mod.ultimo_intento_para(lint_mod.secciones_revision(text), {"T-07"}) is None
