@@ -120,6 +120,8 @@ def test_private_kit_lookup_executes_in_real_shell(tmp_path, shell, layout):
     kit = bundle / 'agent-kits/dev-cycle'
     (kit / 'references').mkdir(parents=True)
     (kit / 'references/phase2-planning.md').write_text('canonical-phase-owner\n', encoding='utf-8')
+    (bundle / 'agent-kits/shared').mkdir(parents=True)   # marcador de bundle real (regla 5)
+    (bundle / 'agent-kits/shared/ledger-lint.py').write_text('#\n', encoding='utf-8')
     core = COMMAND.read_text(encoding='utf-8')
     section = core.split('## Detalle por fase:', 1)[1].split('## Contexto técnico compartido', 1)[0]
     recipe = re.search(r'```' + shell + r'\n(.*?)\n```', section, re.S)[1]

@@ -25,8 +25,7 @@ natural que redirige a `/pm-cycle` o al flujo completo cuando el cambio NO es pe
 > automáticamente.
 >
 > ```bash
-> # sin raíz sustituida, $PWD/commands cubre trabajar SOBRE el propio repo del plugin
-> DEVCYCLE="${CLAUDE_PLUGIN_ROOT}/commands/dev-cycle.md"; [ -f "$DEVCYCLE" ] || DEVCYCLE="$(for r in "$PWD"/.{claude,codex,opencode} "$PWD/commands" ~/.{claude,codex,config/opencode}; do find "$r" -type f -path '*commands/dev-cycle.md' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
+> R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DEVCYCLE="$R/commands/dev-cycle.md"
 > ```
 >
 > Qué seguir de ese fichero, en este orden: **Fase 0** (preparación: carpeta de la iniciativa) → **Fase
@@ -73,7 +72,7 @@ solo van los nombres, para no mantener una copia que se desincronice:
    tareas: contaría los mismos tokens dos veces.
 3. **Implementación** por `implementer`, con la disciplina de `.claude/dev.json` si está activa
    (si `tdd: true`, el implementer sigue la skill **`tdd`**). Antes de despacharlo, resuelve su tier
-   con `python3 "$SHAREDKIT/model-tier.py" implementer --json` (`SHAREDKIT="${DEVCYCLE%/commands/dev-cycle.md}/agent-kits/shared"`, del mismo bundle que el `DEVCYCLE` de arriba) y pasa `model` al Agent tool solo si
+   con `python3 "$SHAREDKIT/model-tier.py" implementer --json` (`SHAREDKIT="$R/agent-kits/shared"`, con la raíz `R` observada al resolver `DEVCYCLE`) y pasa `model` al Agent tool solo si
    `fuente.model` es `dev.json` (el `effort` de `dev.json` es informativo; sin script → frontmatter).
 4. **Las puertas NO se saltan**: la revisión adversarial es la skill **`adversarial-review`** (fuente
    única del método: puerta `scope-check.py` antes de gastar revisores, lentes A/B + lente C de

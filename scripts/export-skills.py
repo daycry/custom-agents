@@ -82,7 +82,7 @@ NO_VIAJA = (
 
 FIND_RE = re.compile(r'find(?:\s+"\$(?:PWD|HOME)/[^"]*")+')
 # Bucle de resolución actual (regla 5): `for r in "$PWD"/.{claude,…} [más raíces] ~/.{…}; do`.
-LOOP_RE = re.compile(r'for r in(?:\s+(?:"\$PWD"/\.\{[^}\s]*\}|~/\.\{[^}\s]*\}|"\$(?:PWD|HOME)/[^"]*"))+; do')
+LOOP_RE = re.compile(r'for r in(?:\s+(?:"\$PWD"/\.\{[^}\s]*\}|~/\.\{[^}\s]*\}(?:/[^\s;"]+)?|"\$(?:PWD|HOME)/[^"]*"))+; do')
 FIND_COLGANDO = 'find "$PWD/.claude"'
 LOOP_COLGANDO = 'for r in "$PWD"/.{claude,'
 SHARED_REF_RE = re.compile(r"(?:agent-kits/shared|\$SHAREDKIT)/([A-Za-z0-9_.\-]+)")

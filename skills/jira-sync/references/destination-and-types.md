@@ -35,7 +35,7 @@ Resultado buscado, sea cual sea el modo: **`{ projectKey, parentKey|null }`**.
 Si la herramienta de crear artefactos está disponible:
 1. Localiza la plantilla sin depender del scope:
    ```bash
-   TPL="${CLAUDE_PLUGIN_ROOT}/skills/jira-sync/assets/jira-picker.template.html"; [ -f "$TPL" ] || TPL="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type f -path '*skills/jira-sync/assets/jira-picker.template.html' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
+   R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; TPL="$R/skills/jira-sync/assets/jira-picker.template.html"
    ```
 2. Resuelve también el helper con las raíces de runtime: `agent-kits/shared/render-artifact.py`. Guarda un fichero JSON y asigna su **ruta**, nunca el JSON inline, a `CONFIG_FILE`. Incluye únicamente las claves `SERVER_PROJECTS` (nombre completo del tool), `SERVER_SEARCH` y `CLOUD_ID`: `python3 "$RENDERER" --template jira-picker --config "$CONFIG_FILE"` emite el HTML seguro por stdout. No sustituyas marcadores ni concatentes valores dentro de HTML/JavaScript. Si falta el helper, usa el Paso 1-B.
 3. Publícala con `create_artifact` (con `mcp_tools=[getVisibleJiraProjects, searchJiraIssuesUsingJql]`). El artefacto busca proyectos, resuelve claves/URLs de issue directas y busca padre por clave/texto/JQL en vivo.

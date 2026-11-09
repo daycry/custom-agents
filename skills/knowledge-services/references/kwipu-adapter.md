@@ -44,7 +44,7 @@ Ni configurar ni consultar inicia contenedores, ingesta o reindexación.
 Localiza `knowledge-find.py` con las seis raíces de instalación:
 
 ```bash
-SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="$R/agent-kits/shared"
 python3 "$SHAREDKIT/knowledge-find.py" --root . --intent evidencia --json "regla de diseño"
 ```
 
@@ -423,7 +423,7 @@ Con Kwipu corriendo en `http://127.0.0.1:8765` y un `taxonomy.json` con `backend
 (localiza el script con el patrón de seis raíces, ver `SKILL.md` § Uso):
 
 ```bash
-KSSKILL="${CLAUDE_PLUGIN_ROOT}/skills/knowledge-services/scripts/knowledge-sync.py"; [ -f "$KSSKILL" ] || KSSKILL="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type f -path '*skills/knowledge-services/scripts/knowledge-sync.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; KSSKILL="$R/skills/knowledge-services/scripts/knowledge-sync.py"
 python3 "$KSSKILL" --backend kwipu --root <proyecto> --check
 python3 "$KSSKILL" --backend kwipu --root <proyecto> --dry-run
 python3 "$KSSKILL" --backend kwipu --root <proyecto>
@@ -444,7 +444,7 @@ Diseño O1 de `setup-statusline-polish` (C-07). El script **solo añade**: nunca
 previo y el fichero conserva su identidad. Ejemplos con `<stack>/…` (la ruta del stack no se persiste).
 
 ```bash
-KPA="${CLAUDE_PLUGIN_ROOT}/skills/knowledge-services/scripts/kwipu-project-add.py"; [ -f "$KPA" ] || KPA="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type f -path '*skills/knowledge-services/scripts/kwipu-project-add.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; KPA="$R/skills/knowledge-services/scripts/kwipu-project-add.py"
 python3 "$KPA" --stack <stack> --root .                            # vista previa: estado, bloque, sha256
 python3 "$KPA" --stack <stack> --root . --apply --esperado <sha256> # escribe (tras confirmar)
 ```

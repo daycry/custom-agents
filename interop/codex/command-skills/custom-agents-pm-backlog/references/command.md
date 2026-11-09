@@ -18,7 +18,7 @@ mejor relación valor/coste, favoreciendo quick wins).
 1. Reúne los datos con la skill **`roadmap-dashboard`** (resumen JSON de todas las iniciativas):
 
    ```bash
-   DASH="${CLAUDE_PLUGIN_ROOT}/skills/roadmap-dashboard/scripts/build_dashboard.py"; [ -f "$DASH" ] || DASH="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude,config/opencode}; do find "$r" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
+   R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DASH="$R/skills/roadmap-dashboard/scripts/build_dashboard.py"
    python3 "$DASH" --root docs/roadmap --json
    ```
 

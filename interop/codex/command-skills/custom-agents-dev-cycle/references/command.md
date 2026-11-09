@@ -33,22 +33,20 @@ No supongas que las variables sobreviven entre bloques de shell: conserva la
 ruta observada y asígnala de nuevo en cada bloque que la necesite.
 
 ```bash
-if [ -f "$PWD/agent-kits/dev-cycle/references/phase2-planning.md" ]; then
-  DEVKIT="$PWD/agent-kits/dev-cycle"
-else
-  DEVKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/dev-cycle"; [ -d "$DEVKIT" ] || DEVKIT="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude,config/opencode}; do find "$r" -type d -path '*agent-kits/dev-cycle' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
-fi
+if [ -f "$PWD/agent-kits/shared/ledger-lint.py" ]; then R="$PWD"; else
+  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"
+fi; DEVKIT="$R/agent-kits/dev-cycle"
 ```
 
 ```powershell
-$DevCycleKit = "$PWD/agent-kits/dev-cycle", "${CLAUDE_PLUGIN_ROOT}/agent-kits/dev-cycle" |
-  Where-Object { Test-Path -LiteralPath "$_/references/phase2-planning.md" } | select -First 1
-foreach ($r in $(if (!$DevCycleKit) { "$PWD/.codex", "$PWD/.claude", "$PWD/.opencode", "$HOME/.codex", "$HOME/.claude", "$HOME/.config/opencode" })) {
-  $o = Get-ChildItem -LiteralPath $r -Filter phase2-planning.md -File -Recurse -ea 0 |
-    Where-Object { ($_.FullName -replace '\\', '/') -match '/agent-kits/dev-cycle/references/phase2-planning\.md$' -and $_.FullName -notmatch '[\\/]\.claude[\\/]jobs[\\/]' } |
+$M = 'agent-kits/shared/ledger-lint.py'; $R = "${CLAUDE_PLUGIN_ROOT}"; if (Test-Path -LiteralPath "$PWD/$M") { $R = "$PWD" }
+foreach ($r in $(if (!(Test-Path -LiteralPath "$R/$M")) { "$PWD/.codex", "$PWD/.claude", "$PWD/.opencode", "$HOME/.codex/plugins/cache", "$HOME/.claude/plugins/cache", "$HOME/.codex", "$HOME/.claude", "$HOME/.config/opencode" })) {
+  $o = Get-ChildItem -LiteralPath $r -Filter ledger-lint.py -File -Recurse -Depth 5 -ea 0 |
+    Where-Object { ($_.FullName -replace '\\', '/') -like "*/$M" -and $_.FullName -notmatch '[\\/]\.claude[\\/]jobs[\\/]' } |
     Sort-Object { [regex]::Replace($_.FullName, '\d+', { $args[0].Value.PadLeft(9, '0') }) } | select -Last 1
-  if ($o) { $DevCycleKit = $o.Directory.Parent.FullName; break }
+  if ($o) { $R = $o.Directory.Parent.Parent.FullName; break }
 }
+$DevCycleKit = "$R/agent-kits/dev-cycle"
 ```
 
 | Referencia en `agent-kits/dev-cycle/references/` | Cuándo leerla |
@@ -127,7 +125,7 @@ una contradicción nueva se comunica y resuelve antes del trabajo afectado.
 > **Modelo del agente (tiering configurable, capa 2).** Antes de despachar CUALQUIER agente por nombre (`evaluator`, `architect`, `planner`, `implementer`, `qa`, `documenter`, `nemesis`), resuelve su tier efectivo y pasa `model` en el parámetro `model` del Agent tool (contrato oficial sub-agents.md, verificado 2026-09-03: el parámetro por invocación tiene prioridad sobre el frontmatter):
 >
 > ```bash
-> SHAREDKIT="${DEVKIT%/dev-cycle}/shared"   # mismo bundle que el DEVKIT resuelto al principio
+> SHAREDKIT="$R/agent-kits/shared"   # R: la raíz observada al resolver DEVKIT, reasignada aquí
 > python3 "$SHAREDKIT/model-tier.py" <agente> --json     # {"model": "...", "effort": "...", "fuente": {"model": "frontmatter|dev.json", ...}}
 > ```
 >

@@ -51,7 +51,7 @@ nada**: cada línea lleva su veredicto y, si algo falla, **qué comando lo arreg
 1. Localiza el script del kit compartido y ejecútalo:
 
    ```bash
-   DOC="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared/doctor.py"; [ -f "$DOC" ] || DOC="$(for r in "$PWD"/.{opencode,claude,codex} ~/.{config/opencode,claude,codex}; do find "$r" -type f -path '*agent-kits/shared/doctor.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
+   R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache ~/.{claude,codex}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DOC="$R/agent-kits/shared/doctor.py"
    python3 "$DOC"            # informe Markdown · exit 0 sin ❌, 1 con ❌
    python3 "$DOC" --json     # lo mismo para consumo por script
    python3 "$DOC" --verbose  # incluye las capacidades opt-in sin su fichero de config (alias --all)

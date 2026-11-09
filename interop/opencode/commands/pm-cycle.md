@@ -43,7 +43,7 @@ Este paso no inicia servicios ni genera piezas de proyecto.
 > **Modelo del agente (tiering configurable, capa 2).** Antes de despachar un agente por nombre, resuelve su tier efectivo y pasa `model` en el parámetro `model` del Agent tool (contrato oficial: el parámetro por invocación gana al frontmatter; el `effort` de `dev.json` es informativo porque el Agent tool no lo admite por invocación — el efectivo es el del frontmatter):
 >
 > ```bash
-> SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$(for r in "$PWD"/.{opencode,claude,codex} ~/.{config/opencode,claude,codex}; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
+> R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache ~/.{claude,codex}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="$R/agent-kits/shared"
 > python3 "$SHAREDKIT/model-tier.py" evaluator --json     # {"model": "...", "effort": "...", "fuente": {...}}
 > ```
 >

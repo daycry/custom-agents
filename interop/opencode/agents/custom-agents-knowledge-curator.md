@@ -59,8 +59,8 @@ Graphiti directamente (`graphiti-memory` T-03, `docs/agents/CONTRACTS.md` E18).
   antes de retirar su fuente exacta verificada. No prometas atomicidad de varios archivos.
 - Resuelve tu kit y el compartido sin rutas fijas:
   ```bash
-  MIKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/knowledge-curator"; [ -d "$MIKIT" ] || MIKIT="$(for r in "$PWD"/.{opencode,claude,codex} ~/.{config/opencode,claude,codex}; do find "$r" -type d -path '*agent-kits/knowledge-curator' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
-  SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$(for r in "$PWD"/.{opencode,claude,codex} ~/.{config/opencode,claude,codex}; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
+  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache ~/.{claude,codex}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; MIKIT="$R/agent-kits/knowledge-curator"
+  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache ~/.{claude,codex}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="$R/agent-kits/shared"
   # gate readonly: "$MIKIT/curator-gate.py" · persistencia: "$SHAREDKIT/knowledge-curation.py"
   # taxonomia/indice: "$SHAREDKIT/knowledge-schema.py" / "$SHAREDKIT/knowledge-index.py"
   ```

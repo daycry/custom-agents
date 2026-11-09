@@ -48,7 +48,7 @@ La salida es **una sola cosa**: `docs/roadmap/<fecha>-<slug>/spec.md`, usando la
 `spec.md` del kit del evaluator** (así toda la cadena spec→evaluación→plan encaja sin fricción):
 
 ```bash
-EVALKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/evaluator"; [ -d "$EVALKIT" ] || EVALKIT="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude,config/opencode}; do find "$r" -type d -path '*agent-kits/evaluator' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; EVALKIT="$R/agent-kits/evaluator"
 # plantilla en "$EVALKIT/templates/spec.md"
 ```
 
@@ -99,7 +99,7 @@ madura, léela y pregunta solo por lo que falte.
 - **Mide el coste de generación** (iniciativa coste-generacion). Al EMPEZAR la spec:
 
   ```bash
-  SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude,config/opencode}; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
+  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="$R/agent-kits/shared"
   python3 "$SHAREDKIT/usage-meter.py" start --artefacto "docs/roadmap/<fecha>-<slug>/spec.md"
   ```
 

@@ -31,7 +31,7 @@ como nota de release (por eso las notas de la v1.16.0 se escribieron a mano). El
 Resolución de rutas (regla 5 de CONVENTIONS — nunca rutas fijas):
 
 ```bash
-CLS="${CLAUDE_PLUGIN_ROOT}/skills/changelog-sync/scripts/changelog-sync.py"; [ -f "$CLS" ] || CLS="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type f -path '*skills/changelog-sync/scripts/changelog-sync.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; CLS="$R/skills/changelog-sync/scripts/changelog-sync.py"
 ```
 
 ## Cuándo usarla

@@ -56,7 +56,7 @@ cosa.
 *Evidencia:* diff del fix + test de regresión en verde + suite en verde.
 
 **Cierre de Fase 4 — memoria técnica (siempre activa, D3).** Localiza el kit compartido:
-`SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"`.
+`R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="$R/agent-kits/shared"`.
 Con la Fase 4 completa (fix aplicado, no propuesto), comprueba el umbral de
 `"$SHAREDKIT/knowledge-write.md"`: si esta causa raíz
 costó **≥1 ciclo de depuración** (llegaste a esta skill) o **rompió/casi rompió una garantía del

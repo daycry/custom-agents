@@ -62,8 +62,8 @@ usuario lo pide.
   Git destructivo también bloqueado; desactivable en `.claude/dev.json` `guardrails`.
 - **Plantilla y fragmentos (resolución sin rutas fijas, regla 5 de CONVENTIONS):**
   ```bash
-  ARCHKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/architect"; [ -d "$ARCHKIT" ] || ARCHKIT="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude,config/opencode}; do find "$r" -type d -path '*agent-kits/architect' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
-  SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude,config/opencode}; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
+  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; ARCHKIT="$R/agent-kits/architect"
+  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="$R/agent-kits/shared"
   # plantilla en "$ARCHKIT/templates/design.md"; sin kit (instalación parcial): reproduce sus 7 secciones y avisa
   ```
 - **Estados de `design.md`:** `borrador` (opciones abiertas) · `aprobado` (opción validada por el usuario)
