@@ -59,15 +59,22 @@ class Service:
         value=DATA.plan(workspace.root,plan);C.need(value is not None,'plan_not_found',404)
         slug=DATA._carpeta(workspace.root,plan,C.bundled('local-read.py'))
         C.need(type(slug) is str and re.fullmatch('[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9]+(?:-[a-z0-9]+)*',slug),'plan_unavailable',503)
-        C.need(value.get('status') in ('ok','partial') and type(value.get('tareas')) is list,'plan_unavailable',503)
+        # H-19: a ledger above the view limit (`fuera_de_tope`) can still be continued or reviewed: the prompt
+        # names the folder and the session reads it; only a selected task needs the projected task list.
+        C.need(value.get('status') in ('ok','partial') and type(value.get('tareas')) is list
+               or value.get('status')=='fuera_de_tope' and not task,'plan_unavailable',503)
         if task:self.task(ident,plan,task)
         reader=C.bundled('local-read.py');paths=['docs/roadmap/'+slug+'/'+name for name in ('tasks.md','improvement-plan.md')]
         def fingerprints():
+            # H-19: the digest covers ledgers far above the 256 KiB view limit (bounded at 16 MiB), and the
+            # quick path has no improvement-plan.md: its absence is part of the fingerprint, not an error.
             result={}
             for path in paths:
-                row=reader.read_bytes(workspace.root,path,max_bytes=256*1024,include_digest=True)
+                row=reader.read_bytes(workspace.root,path,max_bytes=16*1024*1024,include_digest=True)
+                if row['status']=='not_found' and not path.endswith('/tasks.md'):
+                    result[path]=None;continue
                 C.need(row['status']=='ok','plan_source_unavailable',503)
-                result[path]=hashlib.sha256(row['data']).hexdigest()
+                result[path]=row['sha256']
             return result
         before=fingerprints()
         instructions={'continue':'Continúa la iniciativa siguiendo el workflow dev-cycle de custom-agents.',

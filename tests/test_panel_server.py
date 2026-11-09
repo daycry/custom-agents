@@ -45,7 +45,8 @@ def test_projection_reuses_canonical_counts_and_content_identity(service, tmp_pa
     body = json.dumps(result)
     assert str(path) not in body and '### T-01' not in body
     assert set(row) == {'id', 'title', 'estado', 'total', 'completadas', 'pct',
-                       'fase', 'en_progreso', 'source_sha256'}
+                       'fase', 'en_progreso', 'source_sha256', 'fuente'}
+    assert row['fuente'] == 'ledger'
 
 
 def test_projection_redacts_before_truncating_and_removes_controls(service, tmp_path):
@@ -95,8 +96,12 @@ def test_projection_total_read_budget_is_enforced(service, tmp_path, monkeypatch
                                     'names': ['item' + str(n) for n in range(128)]}, read_text=read)
     monkeypatch.setattr(service, '_load_shared', lambda name: reader if name == 'local-read.py' else real(name))
     result = service.progress_snapshot(tmp_path)
-    assert sum(calls) <= 1024 * 1024 and len(calls) == 4
-    assert not result['complete'] and {'status': 'scan_budget'} in result['issues']
+    # H-18: 1 MiB of whole ledgers (the newest four here), then only bounded headers of the rest,
+    # within their own budget; the total never exceeds 1 MiB + 128 headers.
+    full, heads = calls[:4], calls[4:]
+    assert sum(full) <= 1024 * 1024 and all(limit == service.HEAD_BYTES for limit in heads)
+    assert sum(calls) <= 1024 * 1024 + 128 * service.HEAD_BYTES
+    assert len(result['initiatives']) == 64 and {'status': 'row_budget'} in result['issues']
 
 
 def test_projection_output_and_rows_remain_bounded(service, tmp_path):

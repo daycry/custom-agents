@@ -207,7 +207,10 @@ def test_prepare_selected_task_includes_local_notes_and_requires_fresh_sources(s
     assert request(server,base+'/prepare','POST',{'action':'approve','task':'T-01'},cookie)[0]==400
     folder=server.workspaces['one'].root/'docs/roadmap/2026-10-31-pilot'
     (folder/'improvement-plan.md').unlink()
-    assert request(server,base+'/prepare','POST',{'action':'continue','task':None},cookie)[0]==503
+    # H-19: a quick-path initiative has no improvement-plan.md; its ledger is the source that must exist.
+    assert request(server,base+'/prepare','POST',{'action':'continue','task':None},cookie)[0]==200
+    (folder/'tasks.md').unlink()
+    assert request(server,base+'/prepare','POST',{'action':'continue','task':None},cookie)[0] in (404,503)
 
 def test_native_session_routes_use_the_registered_project_and_single_use_controls(server):
     import time

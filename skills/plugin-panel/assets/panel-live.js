@@ -23,6 +23,7 @@
    if(typeof item.source_sha256!=='string'||!/^[a-f0-9]{64}$/.test(item.source_sha256))return false;
    if(item.fase!==null&&(!item.fase||!integer(item.fase.indice)||!integer(item.fase.total)||item.fase.indice<1||item.fase.indice>item.fase.total||!text(item.fase.nombre)))return false;
    if(item.tiene_plan!==undefined&&typeof item.tiene_plan!=='boolean')return false;
+   if(item.fuente!==undefined&&item.fuente!=='ledger'&&item.fuente!=='resumen')return false;
    if(!Array.isArray(item.en_progreso)||item.en_progreso.length>8||item.en_progreso.some(task=>!task||!text(task.id)||[...task.id].length>20||!text(task.titulo)))return false;
   }
   return true;
@@ -46,6 +47,7 @@
    card.append(element('small',states[item.estado]),element('h3',item.title||'Iniciativa sin título'));
    card.append(element('p',item.completadas+' de '+item.total+' tareas completadas · '+item.pct+' %'));
    if(item.fase)card.append(element('p','Fase '+item.fase.indice+' de '+item.fase.total+' · '+item.fase.nombre));
+   if(item.fuente==='resumen')card.append(element('p','Cifras del resumen de progreso del ledger (ledger grande: sus tareas en curso no se han leído)'));
    if(item.en_progreso.length){
     card.append(element('p','Tareas declaradas en progreso'));
     const list=element('ul');for(const task of item.en_progreso)list.append(element('li',task.id+' · '+task.titulo));card.append(list);

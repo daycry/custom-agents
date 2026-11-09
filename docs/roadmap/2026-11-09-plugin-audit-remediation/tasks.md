@@ -17,10 +17,10 @@ changelog: Fixed
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
-| Fase 2 | 2 | 6 | 33.3% |
+| Fase 2 | 3 | 6 | 50.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **8** | **21** | **38.1%** |
+| **TOTAL** | **9** | **21** | **42.9%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -266,14 +266,22 @@ GREEN: `python tests/test_coverage_check.py` → `OK … todo pasa` (marcador en
 
 ### T-09 — Dashboards completos con roadmaps grandes
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: H-17 a H-20. Cartera y progreso de la más nueva a la más antigua y con aviso honesto; progreso por cabecera, sin leer el ledger entero; planes con ledger > 256 KiB operables desde la consola; un plan nuevo no da 404; errores mapeados en la UI.
-- **Archivos**: `skills/plugin-panel/scripts/panel_data.py`, `skills/plugin-panel/scripts/serve_panel.py`, `skills/plugin-panel/scripts/console_service.py`, `skills/plugin-panel/assets/control-center.js`, `skills/plugin-panel/assets/page-iniciativas.js`, `tests/test_panel_*.py`, `tests/test_console_*.py`.
+- **Archivos**: `skills/plugin-panel/scripts/panel_data.py`, `skills/plugin-panel/scripts/serve_panel.py`, `skills/plugin-panel/scripts/console_service.py`, `skills/plugin-panel/assets/control-center.js`, `skills/plugin-panel/assets/page-iniciativas.js`, `tests/test_panel_*.py`, `tests/test_console_*.py`, `agent-kits/shared/local-read.py` (lectura acotada de un prefijo para la cabecera de un ledger grande), `skills/plugin-panel/assets/panel-live.js` (valida y rotula `fuente: resumen`), `tests/test_control_center_http.py` (su contrato «sin improvement-plan.md → 503» pasa a la vía rápida operable) (añadidos por el implementer).
+- **Tiempo IA (ejec.)**: real 0,28h (medido)
 - **Verificación**: tests del panel y de la consola con 70 iniciativas y ledgers > 256 KiB → pasan.
+- **Changelog**: Los paneles muestran primero las iniciativas más recientes y dicen cuántas antiguas quedan fuera; el progreso de ledgers grandes sale de su resumen en vez de marcarse como demasiado grande, la consola puede continuar o revisar planes grandes o de vía rápida, y un plan creado con el panel abierto ya tiene página.
+- **Cerrada**: 2026-11-09
 
 **Criterios de aceptación**
-- [ ] Las iniciativas más nuevas nunca se recortan antes que las antiguas.
-- [ ] Un ledger > 256 KiB se puede continuar y revisar desde la consola.
+- [x] Las iniciativas más nuevas nunca se recortan antes que las antiguas.
+- [x] Un ledger > 256 KiB se puede continuar y revisar desde la consola.
+
+
+RED: `tests/test_panel_large_roadmaps.py` falló con 7 failed: con 70 iniciativas la cartera pierde las 6 mas nuevas y no dice el recorte; progreso con 12 ledgers de 200 KiB da too_large falso; prepare de un plan sin improvement-plan.md da plan_source_unavailable y con ledger de 330 KiB plan_unavailable; la UI no mapea esos errores; un plan creado tras arrancar no tiene pagina · 2026-11-09.
+
+GREEN: `pytest tests/test_panel_large_roadmaps.py` → `8 passed` (70 iniciativas: se recortan las 6 más antiguas y `recorte` lo dice, con aviso en Iniciativas; 12 ledgers de ~200 KiB sin `too_large` falso, de la más nueva a la más antigua y los que no caben con `fuente: resumen` desde su cabecera; `prepare` continúa y revisa un plan de vía rápida sin `improvement-plan.md` y uno de ~330 KiB; errores `plan_*` mapeados en la consola; un plan creado tras arrancar se sirve por HTTP con su `api/plan-<id>`; el test HTTP de H-20 se añadió tras el arreglo, sin rojo propio: el rojo de H-20 es el de `plan_page_path`); `test_panel_server.py` → `137 passed, 2 skipped` (contrato de filas con `fuente`; presupuesto: 1 MiB de ledgers enteros + cabeceras de 16 KiB acotadas); `test_control_center_http.py` → `21 passed` (sin `improvement-plan.md` → 200, sin `tasks.md` → error); `test_panel_data.py` 17, `test_panel_contract_golden.py` 6, `test_panel_iniciativas_ui.py` 20, `test_panel_live_ui.py` 32, `test_panel_plan_ui.py` 124, `test_panel_pages.py` 32, `test_panel_export.py` 31+1s, `test_panel_fix1..4` 33+1s/18/8/14, `test_console_service.py` 5, `test_audit_console.py` 8, `test_code_receipts.py` 88, `test_console_encoding.py` 744 (serve_panel.py vuelve a ser ASCII), `test_local_read.py` 70+6s, `test_local_read_stability.py` 24, `test_source_snapshot.py` 33+1s passed. Decisión: la huella de la consola usa `read_bytes` con tope de 16 MiB, no un hash en streaming; queda como límite declarado · 2026-11-09.
 
 ### T-10 — Índice de sesión por prioridad
 

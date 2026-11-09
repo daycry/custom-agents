@@ -230,10 +230,13 @@ def _totales(filas, issues):
             'procedencia': {k: sum(f['procedencia'][k] for f in filas) for k in ('medidos', 'estimados', 'desconocidos')}}
 
 
+_ID_CARPETA = re.compile(r'\d{4}-\d{2}-\d{2}-')   # carpeta de iniciativa con fecha (no un índice del roadmap)
+
+
 def _vacia(status, issue=None):
     resultado = {'version': 1, 'source': 'roadmap_cartera',
                  'observed_at': datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z'),
-                 'status': status, 'complete': status == 'ok', 'issues': [], 'iniciativas': [],
+                 'status': status, 'complete': status == 'ok', 'issues': [], 'iniciativas': [], 'recorte': None,
                  'totales': {'iniciativas': 0, 'por_estado': dict.fromkeys(CATEGORIAS, 0), 'tareas': None,
                              'fuera_de_tope': [], 'coste': {'real_eur': None, 'real_n': 0, 'est_eur': None, 'est_n': 0},
                              'procedencia': {'medidos': 0, 'estimados': 0, 'desconocidos': 0}}}
@@ -332,7 +335,11 @@ def cartera(project):
     raiz = os.path.join(str(project), 'docs', 'roadmap')
     registros, filas, extra = [], [], {}
     escaneado = 0
-    for carpeta in listado['names']:
+    # H-17: de la más nueva a la más antigua (las carpetas empiezan por su fecha): los topes de filas, lectura y
+    # salida recortan siempre las más ANTIGUAS, y `recorte` dice cuántas quedan fuera.
+    carpetas = sorted(listado['names'], reverse=True)
+    candidatas = 0
+    for indice, carpeta in enumerate(carpetas):
         directorio = reader.list_names(project, 'docs/roadmap/' + carpeta, max_entries=1)
         if directorio['status'] in ('not_found', 'not_regular'):
             continue                                            # los índices del roadmap son ficheros
@@ -351,8 +358,11 @@ def cartera(project):
                 rec = None; issue('unreadable')
             if rec is None and not any(os.path.exists(os.path.join(ruta, n)) for n in ('spec.md', 'evaluation.md', 'tasks.md')):
                 continue                                        # no es una carpeta de iniciativa
+        candidatas += 1
         if len(filas) == MAX_INITIATIVES:
-            issue('row_budget'); break
+            issue('row_budget')
+            candidatas += sum(1 for resto in carpetas[indice + 1:] if _ID_CARPETA.match(resto))
+            break
         fila = _fila_base(carpeta, rec)
         if tamano is None and rec is None:
             fila['motivo'] = 'fuera_de_tope'
@@ -384,8 +394,14 @@ def cartera(project):
         fila['alertas'] = alertas
     resultado['iniciativas'] = filas
     resultado['totales'] = _totales(filas, issues)
+    # Se reserva el tamaño del aviso antes de medir la respuesta (nunca la empuja por encima del tope).
+    resultado['recorte'] = {'mostradas': MAX_INITIATIVES, 'omitidas': MAX_SCAN, 'criterio': 'mas_nuevas_primero'}
     while filas and len(json.dumps(resultado, ensure_ascii=False).encode('utf8')) > MAX_RESPONSE_BYTES:
         filas.pop(); issue('output_budget'); resultado['totales'] = _totales(filas, issues)
+    resultado['recorte'] = None
+    if candidatas > len(filas):
+        resultado['recorte'] = {'mostradas': len(filas), 'omitidas': candidatas - len(filas),
+                                'criterio': 'mas_nuevas_primero'}
     if not resultado['complete']:
         resultado['status'] = 'partial'
     return resultado

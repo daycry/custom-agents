@@ -92,7 +92,7 @@ def _unchanged(snapshots):
     return True
 
 
-def read_bytes(root, relative, *, max_bytes=MAX_BYTES, include_digest=False, include_identity=False):
+def read_bytes(root, relative, *, max_bytes=MAX_BYTES, include_digest=False, include_identity=False, prefix=False):
     """Return an explicit status; never echo exception text, write files or follow redirects.
 
     File and parent identity checks run before reading the descriptor; reads are
@@ -101,11 +101,14 @@ def read_bytes(root, relative, *, max_bytes=MAX_BYTES, include_digest=False, inc
     stamps must match, bytes must be identical, and the final generation stable.
     Both reads share max_bytes + 1; `bytes` reports their cumulative consumption.
     These observations do not establish an atomic snapshot across multiple files.
+    With `prefix=True` a larger file is not `too_large`: only its first max_bytes
+    bytes are read, `truncated` says whether more exist and `size` gives its size
+    (a header reader; the caller decides whether a prefix is enough).
     """
     def _result(status, data=None, size=0):
         return {'status': status, 'data': data, 'bytes': size}
 
-    if type(include_digest) is not bool or type(include_identity) is not bool:
+    if type(include_digest) is not bool or type(include_identity) is not bool or type(prefix) is not bool:
         return _result('invalid_options')
     if type(max_bytes) is not int or max_bytes <= 0:
         return _result('invalid_limit')
@@ -129,7 +132,7 @@ def read_bytes(root, relative, *, max_bytes=MAX_BYTES, include_digest=False, inc
         info, snapshots = _checked(root, target)
         if not stat.S_ISREG(info.st_mode):
             return _result('not_regular')
-        if info.st_size > max_bytes:
+        if info.st_size > max_bytes and not prefix:
             return _result('too_large')
         flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0) | getattr(os, 'O_BINARY', 0)
         fd = os.open(target, flags)
@@ -137,21 +140,21 @@ def read_bytes(root, relative, *, max_bytes=MAX_BYTES, include_digest=False, inc
         opened = os.fstat(fd)
         if _identity(opened) != _identity(info) or not _unchanged(snapshots):
             return _result('changed_path')
-        if opened.st_size > max_bytes:
+        if opened.st_size > max_bytes and not prefix:
             return _result('too_large')
         with os.fdopen(fd, 'rb') as handle:
             fd = None
             # A failed read may have consumed part of this allocation; charge it
             # conservatively instead of allowing callers to retry for free.
             read_cost = max_bytes + 1
-            raw = handle.read(max_bytes + 1)
+            raw = handle.read(max_bytes if prefix else max_bytes + 1)
             read_cost = len(raw)
             after = os.fstat(handle.fileno())
             observed_paths = snapshots + [(target, _identity(info))]
             if _identity(after) != _identity(opened) or not _unchanged(observed_paths):
                 return _result('changed_path', size=read_cost)
             if _generation(after) != _generation(opened):
-                if (not _WINDOWS_READ or _content_stamp(after) != _content_stamp(opened)
+                if (prefix or not _WINDOWS_READ or _content_stamp(after) != _content_stamp(opened)
                         or after.st_ctime_ns == opened.st_ctime_ns or 2 * len(raw) > max_bytes):
                     return _result('changed_path', size=read_cost)
                 repeat_start = os.fstat(handle.fileno())
@@ -172,6 +175,9 @@ def read_bytes(root, relative, *, max_bytes=MAX_BYTES, include_digest=False, inc
         if len(raw) > max_bytes:
             return _result('too_large', size=read_cost)
         result = _result('ok', raw, read_cost)
+        if prefix:
+            result['truncated'] = after.st_size > len(raw)
+            result['size'] = after.st_size
         if include_digest:
             result['sha256'] = hashlib.sha256(raw).hexdigest()
         if include_identity:
@@ -189,16 +195,28 @@ def read_bytes(root, relative, *, max_bytes=MAX_BYTES, include_digest=False, inc
             os.close(fd)
 
 
-def read_text(root, relative, *, max_bytes=MAX_BYTES, include_digest=False):
-    """Decode the same bounded, validated bytes without changing their optional digest."""
-    raw = read_bytes(root, relative, max_bytes=max_bytes, include_digest=include_digest)
+def read_text(root, relative, *, max_bytes=MAX_BYTES, include_digest=False, prefix=False):
+    """Decode the same bounded, validated bytes without changing their optional digest.
+
+    A truncated prefix may end inside a UTF-8 sequence: only that incomplete tail
+    (at most three bytes) is dropped; any other invalid byte stays an error."""
+    raw = read_bytes(root, relative, max_bytes=max_bytes, include_digest=include_digest, prefix=prefix)
     if raw['status'] != 'ok':
         return _result(raw['status'], size=raw['bytes'])
-    try:
-        text = raw['data'].decode('utf-8-sig')
-    except UnicodeDecodeError:
+    data = raw['data']
+    text = None
+    for cut in range(4 if raw.get('truncated') else 1):
+        try:
+            text = data[:len(data) - cut].decode('utf-8-sig')
+            break
+        except UnicodeDecodeError:
+            continue
+    if text is None:
         return _result('invalid_encoding', size=raw['bytes'])
     result = _result('ok', text, raw['bytes'])
+    if prefix:
+        result['truncated'] = raw['truncated']
+        result['size'] = raw['size']
     if include_digest:
         result['sha256'] = raw['sha256']
     return result
