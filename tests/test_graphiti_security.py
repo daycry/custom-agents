@@ -123,7 +123,7 @@ _BOOTSTRAP_NODE_HASHES = {
 # prompt capture; same local executables/imports, no network path (review 2026-10-29).
 # F2 T-09/T-10: fixed local marker and combined local parser only; self-audit in
 # testing/t10-egress-boundary-review-2026-10-29.json. Independent phase review remains T-19.
-_LAUNCHER_NODE_HASH = "40a908fa54d78bc802b7212f57ba879f234b526fd9966e258d5db29d5c562ee1"
+_LAUNCHER_NODE_HASH = "66b5b2cf8c7029cef9882263cfbdd6d4e29a4b840dcb3e2e09989382fe398f77"   # revisado 2026-11-09: NoDefaultCurrentDirectoryInExePath y PATH absoluto, sin red
 _EXT_RE = "|".join(_EXT_ESCANEABLES + _EXT_NO_ESCANEABLES)
 # Gap #155 (Important, fix1 Fase 4): el lookahead final quita los falsos positivos del escaneo de
 # CODIGO (`hashlib.sha256` casaba como `hashlib.sh`). Hace falta porque a partir de este fix una
@@ -173,7 +173,7 @@ _CITAS_POR_NOMBRE = {
 # This is a closure declaration, never an egress exception. Any owner change needs review.
 _CARGAS_LOCALES_REVISADAS = {
     "hooks/session-context.py": {
-        "sha256_lf": "ef68ca4c03ac360b8b1609aab84f58b350a8cb5a5fa37321ed3a288a4da3630c",
+        "sha256_lf": "95a2b20b0c2f3a9471bc16b5baf7386be377cf690fc8ee77603affb4d206644d",
         "dependencies": ("agent-kits/shared/journal.py", "agent-kits/shared/skill-index.py",
                          "agent-kits/shared/progress-report.py", "agent-kits/shared/knowledge-find.py"),
     },
