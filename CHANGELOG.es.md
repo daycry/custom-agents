@@ -11,7 +11,7 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
-### Fixed — corrección de la auditoría del plugin, fase 1: seguridad y pérdida de datos (2026-11-09)
+### Fixed — iniciativa `plugin-audit-remediation`, fase 1: seguridad y pérdida de datos (2026-11-09)
 
 - El worklog de Jira ya no pierde el banco de horas: un estado con BOM se lee, uno ilegible detiene la ejecución sin escribir, el guardado es atómico y se rechazan fechas futuras y horas negativas.
 - La puerta de QA ya no da verde cuando todos los tests se saltaron; un `results.json` con BOM o con forma inesperada recibe un rojo claro en vez de un traceback.

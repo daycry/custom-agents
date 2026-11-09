@@ -11,7 +11,7 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
-### Fixed — plugin audit remediation, phase 1: security and data loss (2026-11-09)
+### Fixed — `plugin-audit-remediation` initiative, phase 1: security and data loss (2026-11-09)
 
 - The Jira worklog no longer loses the hour bank: a state file with a BOM is read, an unreadable one stops the run without writing, saves are atomic, and future dates or negative hours are rejected.
 - The QA gate no longer turns green when every test was skipped; a `results.json` with a BOM or an unexpected shape now gets a clear red verdict instead of a traceback.
