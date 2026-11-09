@@ -34,8 +34,10 @@ Reglas (cada una desactivable en `.claude/dev.json` → `"guardrails": {…}`):
                  que son comandos (no pasan por este hook), no el implementer.
   git            Bash: `git commit --no-verify|-n` y overrides explícitos de core.hooksPath en commit → deny;
                  `git push --force|-f|--force-with-lease` → deny; `git branch -D` → deny;
-                 `git reset --hard`, `git clean -f*` (salvo `-n`/`--dry-run`), `git push --delete|-d`
-                 o refspec `:rama`, `git stash drop|clear` → deny (auditoría 2026-11-09, H-12);
+                 `git reset --hard`, `git clean -f*` o con `clean.requireForce` en línea (salvo `-n`/
+                 `--dry-run`), `git push --delete|-d|--mirror|--prune` o refspec `:rama`,
+                 `git stash drop|clear` y cualquier `-c alias.*` en línea → deny (auditoría 2026-11-09,
+                 H-12); las opciones largas se reconocen también abreviadas (`--ha`, `--fo`, `--del`);
                  `git checkout|switch main|master` → deny solo si la rama actual es una feature;
                  `rm -rf` sobre `/`, `~`, `.git`, `.` → deny; refspec `+rama` en push = force;
                  se analizan también las cadenas de `sh -c "…"`/`bash -c '…'`.
@@ -527,6 +529,43 @@ def _subcomandos_shell(toks):
     return []
 
 
+def _abrevia(token, option, minimo):
+    """Git acepta abreviaturas únicas de opciones largas (`--ha` = `--hard`), como en commit."""
+    return len(token) >= minimo and option.startswith(token)
+
+
+def _claves_config(toks, bindings):
+    """Claves (en minúsculas) de la configuración puesta EN LÍNEA para esta invocación de git:
+    `-c k=v`, `-ck=v`, `--config-env=k=VAR` y las variables GIT_CONFIG_PARAMETERS/KEY_n."""
+    claves = set()
+    i = 1
+    while i < len(toks) and toks[i].startswith("-"):
+        option, config = toks[i], None
+        if option in _GIT_GLOBAL_VALUES:
+            if i + 1 >= len(toks):
+                break
+            if option in ("-c", "--config-env"):
+                config = toks[i + 1]
+            i += 2
+        else:
+            if option.startswith("-c") and not option.startswith("--"):
+                config = option[2:]
+            elif option.startswith("--config-env="):
+                config = option.split("=", 1)[1]
+            i += 1
+        if config:
+            claves.add(config.split("=", 1)[0].lower())
+    try:
+        parametros = shlex.split((bindings or {}).get("GIT_CONFIG_PARAMETERS", ""))
+    except ValueError:
+        parametros = []
+    claves.update(p.split("=", 1)[0].lower() for p in parametros if p)
+    for key, value in (bindings or {}).items():
+        if re.fullmatch(r"GIT_CONFIG_KEY_[0-9]+", key):
+            claves.add(str(value).lower())
+    return claves
+
+
 def check_git(command, branch, _depth=0, _env=None):
     """Razón de deny o None. `branch` = rama actual (None si no hay git).
     Recursivo SOLO sobre lo que una shell ejecutaría (`sh -c "git push --force"`, `bash -c '…'`,
@@ -561,22 +600,28 @@ def check_git(command, branch, _depth=0, _env=None):
                         or (t.startswith("+") and len(t) > 1):          # refspec `+main` = force
                     return ("`git push` forzado bloqueado: reescribe historia compartida — "
                             "haz push normal; si de verdad hace falta, que lo pida el usuario.")
+        if toks and _program_name(toks[0]) == "git" \
+                and any(k.startswith("alias.") for k in _claves_config(toks, bindings)):
+            return ("alias de git definido en línea bloqueado (`-c alias.*`): su valor puede ser una orden "
+                    "destructiva que el guardarraíl no ve — escribe la orden completa.")
         i = _es_git(toks, "push")
         if i >= 0:
             for t in toks[i + 1:]:
-                if t == "--delete" or (re.fullmatch(r"-[a-zA-Z]+", t) and "d" in t) \
+                if _abrevia(t, "--delete", 4) or _abrevia(t, "--mirror", 4) or _abrevia(t, "--prune", 5) \
+                        or (re.fullmatch(r"-[a-zA-Z]+", t) and "d" in t) \
                         or re.fullmatch(r"\+?:[^:]+", t):              # refspec `:rama` = borrar
-                    return ("`git push` que borra una rama remota bloqueado (`--delete`/`-d`/`:rama`) — "
-                            "la limpieza de ramas la dirige el ritual de cierre de /dev-cycle (Fase 6).")
+                    return ("`git push` que borra ramas remotas bloqueado (`--delete`/`-d`/`:rama`/`--mirror`/"
+                            "`--prune`) — la limpieza de ramas la dirige el ritual de cierre de /dev-cycle (Fase 6).")
         i = _es_git(toks, "reset")
-        if i >= 0 and "--hard" in toks[i + 1:]:
+        if i >= 0 and any(_abrevia(t, "--hard", 4) for t in toks[i + 1:]):
             return ("`git reset --hard` bloqueado: descarta cambios sin comitear que pueden no ser "
                     "tuyos — revierte solo lo de tu intento (`git diff <foto> -- <ficheros> | git apply -R`).")
         i = _es_git(toks, "clean")
         if i >= 0:
             rest = toks[i + 1:]
-            forzado = any(t == "--force" or (re.fullmatch(r"-[a-zA-Z]+", t) and "f" in t) for t in rest)
-            simulado = any(t == "--dry-run" or (re.fullmatch(r"-[a-zA-Z]+", t) and "n" in t) for t in rest)
+            forzado = any(_abrevia(t, "--force", 3) or (re.fullmatch(r"-[a-zA-Z]+", t) and "f" in t) for t in rest) \
+                or "clean.requireforce" in _claves_config(toks, bindings)
+            simulado = any(_abrevia(t, "--dry-run", 3) or (re.fullmatch(r"-[a-zA-Z]+", t) and "n" in t) for t in rest)
             if forzado and not simulado:
                 return ("`git clean -f` bloqueado: borra ficheros sin seguimiento sin recuperación — "
                         "borra por nombre solo los ficheros nuevos de tu intento.")

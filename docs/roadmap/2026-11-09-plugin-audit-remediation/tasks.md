@@ -138,7 +138,7 @@ GREEN fix1: `pytest tests/test_native_guardrail_dispatch.py` → `7 passed` (DOC
 
 - **Estado**: en-progreso
 - **Descripción**: H-8 y H-12. `review-lens-select` en `auto` activa C y D ante error; `guardrail-check` deniega `reset --hard`, `clean -f*`, borrar ramas remotas y `stash drop|clear`.
-- **Archivos**: `skills/adversarial-review/scripts/review-lens-select.py`, `skills/adversarial-review/scripts/test_review_lens_select.py`, `agent-kits/shared/guardrail-check.py`, `agent-kits/shared/test_guardrail_check.py`, `skills/adversarial-review/SKILL.md`, `tests/test_graphiti_security.py`, `CHANGELOG.md`, `CHANGELOG.es.md` (añadidos por el implementer: entrada `### Fixed` de toda la Fase 1, commit aparte pedido por el orquestador).
+- **Archivos**: `skills/adversarial-review/scripts/review-lens-select.py`, `skills/adversarial-review/scripts/test_review_lens_select.py`, `agent-kits/shared/guardrail-check.py`, `agent-kits/shared/test_guardrail_check.py`, `skills/adversarial-review/SKILL.md`, `tests/test_graphiti_security.py`, `CHANGELOG.md`, `CHANGELOG.es.md` (añadidos por el implementer: entrada `### Fixed` de toda la Fase 1, commit aparte pedido por el orquestador), `skills/adversarial-review/references/lens-c-heuristics.md`, `agents/implementer.md`, `docs/agents/implementer.md`, `interop/**` (revisión intento 1, gaps 5 y 6).
 - **Verificación**: tests de los dos scripts → pasan con los casos nuevos.
 - **Changelog**: Las puertas fallan cerradas: si no se puede evaluar el diff se activan las lentes de seguridad y rendimiento, y el implementer ya no puede descartar cambios, borrar ramas remotas ni vaciar stashes.
 - **Cerrada**: 2026-11-09
@@ -154,6 +154,8 @@ GREEN: `pytest skills/adversarial-review/scripts/test_review_lens_select.py` →
 
 
 RED: `agent-kits/shared/test_guardrail_check.py -k fix1_formas` falló con fix1: 23 failed: --ha/--fo/--del/--mirror/--prune, clean.requireForce en linea y -c alias.* permitidos; clean --dr -f denegado · 2026-11-09.
+
+GREEN fix1: `pytest agent-kits/shared/test_guardrail_check.py` → `190 passed` (abreviaturas `--ha/--fo/--del/--mir/--pru`, `--mirror`/`--prune`, `clean.requireForce` por `-c`, `--config-env`, `GIT_CONFIG_*`, cualquier `-c alias.*`; siguen permitidos `reset --soft`, `stash list`, `push origin rama`, `push -u`, `clean -n`/`--dr -f`); `pytest skills/adversarial-review/scripts/test_review_lens_select.py` → `62 passed in 185.50s` (`.git` roto → C y D true con aviso); docstring y `lens-c-heuristics.md` alineados; lista de `agents/implementer.md`/`docs/agents/implementer.md` ampliada; `export-interop.py --check` → `92 ficheros al día` · 2026-11-09.
 
 ## Fase 2 — Funciones documentadas que no funcionan
 

@@ -501,3 +501,29 @@ def test_memory_scope_explicit_optout_is_preserved(agent):
 def test_memory_scope_does_not_match_other_project_docs():
     assert decide(write("docs/knowledge-howto.md")) is None
     assert arch(write("docs/roadmap/own/design.md")) is None
+
+
+# --- Revisión de dos lentes, intento 1 (gap 1): abreviaturas, configuración y alias ---
+@pytest.mark.parametrize("cmd", [
+    "git reset --ha", "git reset --har HEAD~1",
+    "git clean --fo", "git clean --forc -d", "git clean --f",
+    "git push --del origin x", "git push origin --delet x", "git push --de origin x",
+    "git push --mirror origin", "git push --mir origin", "git push --prune origin", "git push --pru origin",
+    "git -c clean.requireForce=false clean", "git -c clean.requireforce=0 clean -d",
+    "git -cclean.requireForce=false clean", "git --config-env=clean.requireForce=V clean",
+    "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=clean.requireForce GIT_CONFIG_VALUE_0=false git clean",
+    "GIT_CONFIG_PARAMETERS=\"'clean.requireforce=false'\" git clean",
+    "git -c alias.wipe='reset --hard' wipe", "git -c alias.x=status x",
+    "git --config-env=alias.x=V x", "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=alias.x GIT_CONFIG_VALUE_0=status git x",
+])
+def test_fix1_formas_equivalentes_destructivas_se_deniegan(cmd):
+    assert decide(bash(cmd)), cmd
+
+
+@pytest.mark.parametrize("cmd", [
+    "git reset --soft HEAD~1", "git reset --mixed", "git stash list", "git push origin feature/x",
+    "git push -u origin feature/x", "git clean -n", "git clean --dry-run", "git clean --dr -f",
+    "git -c core.quotepath=false status", "git -c color.ui=never log --oneline",
+])
+def test_fix1_formas_no_destructivas_siguen_permitidas(cmd):
+    assert decide(bash(cmd)) is None, cmd
