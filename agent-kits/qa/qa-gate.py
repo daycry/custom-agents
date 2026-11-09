@@ -43,7 +43,9 @@ def walk_tests(suite, out):
             final = statuses[-1]
             if "interrupted" in statuses or final == "interrupted":
                 out.append((title, fid, "interrupted"))   # ejecución abortada: NO es verde
-            elif final == "skipped":
+            elif all(s == "skipped" for s in statuses):
+                # TODOS saltados (revisión intento 1): `[failed, skipped]` (test.skip en el
+                # reintento) conserva su fallo y cae en flaky/unexpected más abajo.
                 # ANTES que `expected`: con expectedStatus "skipped" un saltado casaría con
                 # expected y contaría como pasado (falso verde con 0 ejecutados, H-3).
                 out.append((title, fid, "skipped"))

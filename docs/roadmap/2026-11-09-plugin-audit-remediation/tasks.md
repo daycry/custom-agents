@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 6 | 6 | 100.0% |
+| Fase 1 | 2 | 6 | 33.3% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **6** | **21** | **28.6%** |
+| **TOTAL** | **2** | **21** | **9.5%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -28,7 +28,7 @@ changelog: Fixed
 
 ### T-01 — worklog sin pérdida de datos
 
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Descripción**: H-1 y H-2. Un estado ilegible o con BOM no se trata como vacío ni se sobrescribe; escritura atómica; fecha futura y horas negativas rechazadas.
 - **Archivos**: `skills/jira-sync/scripts/worklog.py`, `tests/test_worklog.py`.
 - **Verificación**: `python -m pytest -q tests/test_worklog.py` → todos pasan, con casos de BOM, JSON corrupto, fecha futura y horas negativas.
@@ -63,9 +63,14 @@ RED: `tests/test_qa_gate.py (5 casos nuevos)` falló con 5 failed: skipped sin s
 
 GREEN: `python -m pytest -q tests/test_qa_gate.py` → `6 passed in 4.63s` (skipped sin stats, skipped+passed, BOM, raíz lista, 4 estructuras inesperadas sin traceback); `python tests/test_qa_gate.py` → `13/13 OK` · 2026-11-09.
 
+
+RED: `tests/test_qa_gate.py::test_fallo_seguido_de_saltado_no_desaparece` falló con fix1: [failed, skipped] contado como skipped (counts.skipped 1), el fallo previo desaparecia · 2026-11-09.
+
+GREEN fix1: `pytest tests/test_qa_gate.py` → `7 passed in 4.83s` (la rama skipped exige TODOS los resultados saltados) · 2026-11-09.
+
 ### T-03 — Instalador robusto en Windows y con configuración ajena
 
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Descripción**: H-4, H-9, H-10, H-11, H-13 y menores del instalador. Buscar las CLI sin el directorio actual; `merge` con lectura estricta; `uninstall` aislado por proveedor; enlaces solo prohibidos en lo que crea el instalador; aviso de rutas absolutas en configuración compartida; misma exclusión de tests desde un clon que en npm.
 - **Archivos**: `install/install.mjs`, `install/providers.mjs`, `install/manifest-auth.mjs`, `tests/installer.test.mjs`, `tests/install-auth.test.mjs`, `docs/INSTALL.md`, `docs/en/INSTALL.md`.
 - **Verificación**: `node --test tests/installer.test.mjs tests/install-auth.test.mjs` → 0 fail, con casos nuevos para `.cmd` plantado, JSON ilegible en `merge`, manifiesto no verificable en `uninstall` y HOME bajo un enlace.
@@ -103,7 +108,7 @@ GREEN: `pytest tests/test_graphiti_security.py -k ignoran_proxy` → `1 passed` 
 
 ### T-05 — Guardarraíles en perfil lite y en subagentes
 
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Descripción**: H-6 y H-7. La implementación siempre se despacha a la identidad nativa `implementer` (también en `lite` y con subagentes), para que la guardia nativa aplique.
 - **Archivos**: `commands/dev-cycle.md`, `agent-kits/dev-cycle/references/phase3-subagents.md`, `skills/quick-implement/SKILL.md`, `agent-kits/shared/task-brief.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `interop/**`, `tests/test_dev_cycle_split.py`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/fixtures/dev-cycle-paragraphs.json`, `tests/test_native_guardrail_dispatch.py`, `docs/agents/CONTRACTS.md`, `docs/guides/quality-playbook.md`, `docs/guides/subscription-efficiency.md` (añadidos por el implementer: E3, también describían «lite en el hilo actual»).
 - **Verificación**: test que exige el despacho a `implementer` en lite y subagentes → pasa; `export-interop.py --check` al día; ahorro de la vía rápida ≥ 6000.
@@ -121,7 +126,7 @@ GREEN: `pytest tests/test_native_guardrail_dispatch.py` → `6 passed`; `tests/t
 
 ### T-06 — Puertas que fallan cerradas
 
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Descripción**: H-8 y H-12. `review-lens-select` en `auto` activa C y D ante error; `guardrail-check` deniega `reset --hard`, `clean -f*`, borrar ramas remotas y `stash drop|clear`.
 - **Archivos**: `skills/adversarial-review/scripts/review-lens-select.py`, `skills/adversarial-review/scripts/test_review_lens_select.py`, `agent-kits/shared/guardrail-check.py`, `agent-kits/shared/test_guardrail_check.py`, `skills/adversarial-review/SKILL.md`, `tests/test_graphiti_security.py`, `CHANGELOG.md`, `CHANGELOG.es.md` (añadidos por el implementer: entrada `### Fixed` de toda la Fase 1, commit aparte pedido por el orquestador).
 - **Verificación**: tests de los dos scripts → pasan con los casos nuevos.

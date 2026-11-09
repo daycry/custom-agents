@@ -173,3 +173,12 @@ def test_estructura_inesperada_es_rojo_sin_traceback():
 
 if __name__ == "__main__":
     main()
+
+
+def test_fallo_seguido_de_saltado_no_desaparece():
+    """Revisión intento 1 (gap 2): `[failed, skipped]` (test.skip(testInfo.retry > 0)) no es saltado."""
+    for exp in ("skipped", "passed"):
+        code, out = run(results([("reintento saltado", ["failed", "skipped"], exp)]))
+        data = json.loads(out)
+        assert code == 1 and data["verdict"] == "NO-VERDE", (exp, data)
+        assert data["counts"]["skipped"] == 0, (exp, data)
