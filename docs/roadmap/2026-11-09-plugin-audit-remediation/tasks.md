@@ -541,6 +541,26 @@ Lentes: A + B + C. Corrección en `fix3` por el implementer; cada gap con test d
 
 **Decisión del orquestador:** al 3.er intento con gaps, el orquestador decide seguir con un ciclo final acotado (autorización del usuario «con todo»); se verifica con tests dirigidos y CI, sin 4.º intento de lentes.
 
-## Revisión de dos lentes — intento 1: Fase 2 (T-07…T-12) (T-07, T-08, T-09, T-10, T-11, T-12)
+## Revisión de dos lentes — intento 1: Fase 2 (T-07…T-12) — 4 Important y 11 Minor corregidos en fix1, ninguno descartado (T-07, T-08, T-09, T-10, T-11, T-12)
 
-Pendiente de revisión; sin veredicto.
+Lentes: A + B + C + D. Corrección en `fix1` por el implementer; cada gap con un test dedicado que lo nombra (`test_fix1_*`).
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | B1: el escritor del journal etiquetaba con la primera activa alfabética y el lector elegía la en curso: con ≥ 2 activas no se reinyectaba nada | T-07 | corregido | `progress-report.iniciativa_vigente` es la regla única de escritor (`journal.iniciativa_activa`) y lector; excluye las de 100 % salvo que no haya otra; `test_fix1_b1_*` escribe con `journal.py write` y lee con `resume --history-only` (078abb3) |
+| 2 | Important | B2: `list_names` cortaba en 128 en orden de `scandir` antes de ordenar; con > 128 carpetas se perdían las más nuevas y `recorte.omitidas` contaba carpetas con fecha que no son iniciativas | T-09 | corregido | `list_names(newest_first=True)` lee hasta 4.096 nombres, ordena y corta; cartera, progreso y `_carpeta` lo usan; omitidas solo cuenta iniciativas; `test_fix1_b2_*` con 140 carpetas (1c71a3f) |
+| 3 | Important | C1: `_SUMMARY_ROW` con retroceso cúbico bloqueaba el servidor con una fila de miles de espacios | T-09 | corregido | `_header_summary` delega en `progress-report.resumir_cabecera` (celdas por `split`); `test_fix1_c1_*` con 20.000 espacios < 5 s, antes cortado por el `timeout` de 600 s (1c71a3f) |
+| 4 | Important | A1: la cuota fija por grupo dejaba 5 agentes y ocultaba nemesis, analyst, architect, documenter y knowledge-curator | T-10 | corregido | cuotas fijas para los 10 agentes y los comandos de `PRIORIDAD`; las skills opcionales se resumen; índice de OpenCode regenerado; `test_fix1_a1_*` (b83eede) |
+| 5 | Minor | C2/D1: `_history_initiative` usaba `activas()` sin tope que sigue enlaces, otro escaneo completo y otra lectura de `usage-state.json` | T-07 | corregido | `activas_acotadas` con `local-read` (cabecera acotada de los ledgers grandes) y memo de `usage-state.json` por firma; `test_fix1_c2_*`, `test_fix1_d1_*` (078abb3) |
+| 6 | Minor | B3: un `T-NN` en la cita de `--new-cycle-ok` entraba en las menciones del intento | T-12 | corregido | el guion del `T-NN` citado pasa a U+2011; `test_fix1_b3_*` (6dd78a1) |
+| 7 | Minor | B4: la en curso se elegía también entre las de 100 % y la memoria agrupaba por el % redondeado | T-07 | corregido | `vigente_entre` sobre las pendientes; memoria por `completadas == total`; `test_fix1_b4_*` (078abb3) |
+| 8 | Minor | B5: con un ledger pendiente > 256 KiB las revisiones desaparecían sin aviso | T-07 | corregido | línea «Revisiones omitidas: ledger > 256 KiB; /work-resume --initiative <carpeta>»; `test_fix1_b5_*` (078abb3) |
+| 9 | Minor | B6: los respaldos locales de coverage-check y jira-flow no seguían el criterio de `bloques_de_tarea` | T-11 | corregido | copias literales de `sin_vallas` y `bloques_de_tarea` declaradas en `copias.json` (paridad en `test_copias_declaradas.py`); `test_fix1_b6_*` (1faafb2) |
+| 10 | Minor | D2: en `--batch`, jira-flow cargaba ledger-lint y troceaba/parseaba el ledger una vez por tarea | T-11 | corregido | carga memoizada y `_troceo` una vez por texto; `test_fix1_d2_*` (1faafb2) |
+| 11 | Minor | A3: la vía rápida CON UI seguía sin QA ejecutable | T-08 | corregido | decisión: un cambio con interfaz va al flujo completo (filtro de quick-implement y vía rápida de `/dev-cycle`); `test_fix1_a3_*` (7bc6f6d) |
+| 12 | Minor | A4: CONTRACTS E1, `docs/agents/qa.md`, P1 de qa y del implementer decían que el marcador solo vale en `improvement-plan.md` | T-08 | corregido | nombran el `tasks.md` ligero; `test_fix1_a4_*` (7bc6f6d) |
+| 13 | Minor | A5: matcher `startup\|resume\|compact` desfasado en CONVENTIONS ES/EN, shared README, `skill-index.py` y `claude-code-contracts.md` | T-07 | corregido | todos con `clear`; `test_fix1_a5_*` (078abb3, b83eede) |
+| 14 | Minor | A2: el aviso de ledger-lint para tareas cerradas sin `RED:`/`TDD n/a` se descartó sin deuda | T-08 | corregido como deuda | registrado en T-21 (ledger-lint no lee `dev.json`); `test_fix1_a2_*` lo vigila (7bc6f6d) |
+| 15 | Minor | A6: `tests/test_native_guardrail_dispatch.py` (de T-05) se modificó dentro de T-08 sin traza | T-08 | anotado | se cambió en 828fdfa porque el orquestador devolvió los dos manuales a su edición PDF del 2026-11-04 (205f1ed) y su test exigía el texto nuevo: salen de `DOCS` y un test nuevo exige su deuda en T-21; el fichero está declarado en el `Archivos` de T-08 |
+
+Notas: (a) en el arranque de este repo el historial no sale porque las entradas existentes se etiquetaron con la regla vieja; las nuevas usan la regla única. (b) la equivalencia de bytes `replay-codex` de `tests/test_session_context.py` falló una vez por tiempos y pasó al repetirla. (c) el ahorro de la vía rápida queda en 6189 (≥ 6000).
