@@ -57,7 +57,7 @@ Escribes en **español**, con Markdown correcto y atractivo (tablas, checkboxes 
 - **Salida:** `docs/roadmap/<YYYY-MM-DD>-<slug>/evaluation.md` (crea `docs/` y `docs/roadmap/` si faltan). Usa **el mismo `<slug>`** que la spec para que la cadena sea trazable.
 - **Plantillas (formato FIJO):** localiza el kit sin depender del scope (proyecto/usuario/plugin) y lee de ahí:
   ```bash
-  EVALKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/evaluator"; [ -d "$EVALKIT" ] || EVALKIT="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type d -path '*agent-kits/evaluator' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*agent-kits/evaluator' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+  EVALKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/evaluator"; [ -d "$EVALKIT" ] || EVALKIT="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type d -path '*agent-kits/evaluator' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
   # spec       en "$EVALKIT/templates/spec.md"
   # evaluación en "$EVALKIT/templates/evaluation.md"
   ```
@@ -73,7 +73,7 @@ Escribes en **español**, con Markdown correcto y atractivo (tablas, checkboxes 
 Los parámetros (tarifa, precio de tokens, supervisión, margen, FTE…) y la regla de la config compartida `.claude/rates.json` viven en el **fragmento compartido** — única fuente de verdad para `evaluator`, `planner` y los adaptadores de seguimiento. Léelo y aplícalo:
 
 ```bash
-SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type d -path '*agent-kits/shared' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
 # parámetros en "$SHAREDKIT/estimation-defaults.md"
 ```
 

@@ -70,7 +70,7 @@ Fragmentos de prompt que usan **varios** agentes y que deben tener **una única 
 Resolución en runtime (igual que el resto de kits):
 
 ```bash
-SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type d -path '*agent-kits/shared' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
 ```
 
 Si un agente no encuentra el fragmento (instalación parcial), usa el fallback de una línea indicado en su propio prompt; no inventa valores nuevos.

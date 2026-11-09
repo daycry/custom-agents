@@ -68,7 +68,7 @@ final que capture el estado real ya implementado y probado.
 - **Salida:** el árbol de documentación bajo `docs/` (crea `docs/` si no existe), con una
   estructura **derivada del propio proyecto** (ver §1). Localiza el kit sin depender del scope:
   ```bash
-  DOCKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/documenter"; [ -d "$DOCKIT" ] || DOCKIT="$({ find "$PWD/.opencode" "$PWD/.claude" "$PWD/.codex" -type d -path '*agent-kits/documenter' 2>/dev/null; for r in "$HOME/.config/opencode" "$HOME/.claude" "$HOME/.codex"; do find "$r" -type d -path '*agent-kits/documenter' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+  DOCKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/documenter"; [ -d "$DOCKIT" ] || DOCKIT="$(for r in "$PWD"/.{opencode,claude,codex} ~/.{config/opencode,claude,codex}; do find "$r" -type d -path '*agent-kits/documenter' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
   # guía de estructura en "$DOCKIT/taxonomy.md"; plantillas en "$DOCKIT/templates/"
   ```
   Lee `taxonomy.md` (guía de estructura) y usa las plantillas de `templates/` como base de formato.
@@ -110,7 +110,7 @@ se omiten y por qué.
 (por defecto español) y si además de la doc técnica quiere la de producto/usuario (por defecto
 **ambas**). No interrogues; propón defaults.
 
-**P2. Recon del repositorio.** Aplica la **disciplina de lectura** compartida antes de explorar: `SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$({ find "$PWD/.opencode" "$PWD/.claude" "$PWD/.codex" -type d -path '*agent-kits/shared' 2>/dev/null; for r in "$HOME/.config/opencode" "$HOME/.claude" "$HOME/.codex"; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"` → sigue `"$SHAREDKIT/read-discipline.md"` (grep/glob antes de Read, `Read` con `limit`, ignora `node_modules`/`vendor`/`.git`/lockfiles/minificados/binarios, muestrea 1-3 ejemplos por patrón). Excepción: los ficheros que vas a documentar sí se leen enteros. Fallback si no está el fragmento: grep antes de abrir, lee fragmentos, salta dependencias/generados. Explora con Read/Grep/Glob/Bash para fundamentar TODO con datos
+**P2. Recon del repositorio.** Aplica la **disciplina de lectura** compartida antes de explorar: `SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$(for r in "$PWD"/.{opencode,claude,codex} ~/.{config/opencode,claude,codex}; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"` → sigue `"$SHAREDKIT/read-discipline.md"` (grep/glob antes de Read, `Read` con `limit`, ignora `node_modules`/`vendor`/`.git`/lockfiles/minificados/binarios, muestrea 1-3 ejemplos por patrón). Excepción: los ficheros que vas a documentar sí se leen enteros. Fallback si no está el fragmento: grep antes de abrir, lee fragmentos, salta dependencias/generados. Explora con Read/Grep/Glob/Bash para fundamentar TODO con datos
 reales:
 - Tipo de proyecto y lenguaje(s); ficheros de dependencias (`composer.json`, `package.json`,
   `pyproject.toml`, `go.mod`…) → stack y versiones.

@@ -18,7 +18,7 @@
 
 **[modo fase]** Antes de agrupar, **valida el ledger** con el script compartido — un `tasks.md` mal formado (una `T-XX` fuera de fase, resumen descuadrado) crearía issues incorrectos:
 ```bash
-LL="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared/ledger-lint.py"; [ -f "$LL" ] || LL="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type f -path '*agent-kits/shared/ledger-lint.py' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type f -path '*agent-kits/shared/ledger-lint.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+LL="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared/ledger-lint.py"; [ -f "$LL" ] || LL="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type f -path '*agent-kits/shared/ledger-lint.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
 python3 "$LL" "docs/roadmap/<fecha>-<slug>/tasks.md"   # exit 0 obligatorio para volcar en modo fase
 ```
 Si da incoherencias duras, repórtalas y no vuelques hasta que el ledger esté limpio. Con el ledger en verde y el "sí", por cada **Fase** del plan (agrupa las `T-XX` por su fase leyendo `tasks.md`):

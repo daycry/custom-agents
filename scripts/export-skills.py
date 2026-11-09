@@ -81,7 +81,10 @@ NO_VIAJA = (
 )
 
 FIND_RE = re.compile(r'find(?:\s+"\$(?:PWD|HOME)/[^"]*")+')
+# Bucle de resolución actual (regla 5): `for r in "$PWD"/.{claude,…} [más raíces] ~/.{…}; do`.
+LOOP_RE = re.compile(r'for r in(?:\s+(?:"\$PWD"/\.\{[^}\s]*\}|~/\.\{[^}\s]*\}|"\$(?:PWD|HOME)/[^"]*"))+; do')
 FIND_COLGANDO = 'find "$PWD/.claude"'
+LOOP_COLGANDO = 'for r in "$PWD"/.{claude,'
 SHARED_REF_RE = re.compile(r"(?:agent-kits/shared|\$SHAREDKIT)/([A-Za-z0-9_.\-]+)")
 PY_NAME_RE = re.compile(r'[A-Za-z0-9_\-]+\.py')
 # referencias a ficheros del paquete citadas en los .md (placeholders <…>/{…} se ignoran)
@@ -163,8 +166,11 @@ def ficheros_skill(root, skill):
 
 
 def reescribir(texto):
-    """`find "$PWD/.claude" … "$HOME/.claude"` → `find "${PORTABLE_ROOT:-.}"`. Devuelve (texto, n)."""
-    return FIND_RE.subn('find "${PORTABLE_ROOT:-.}"', texto)
+    """`find "$PWD/.claude" … "$HOME/.claude"` → `find "${PORTABLE_ROOT:-.}"`, y el bucle de raíces
+    `for r in "$PWD"/.{…} ~/.{…}; do` → `for r in "${PORTABLE_ROOT:-.}"; do`. Devuelve (texto, n)."""
+    texto, n = FIND_RE.subn('find "${PORTABLE_ROOT:-.}"', texto)
+    texto, m = LOOP_RE.subn('for r in "${PORTABLE_ROOT:-.}"; do', texto)
+    return texto, n + m
 
 
 def _python_dependencies(src):
@@ -533,8 +539,9 @@ def check(pkg_root):
         if not rel.endswith((".md", ".mdc")):
             continue
         texto = read_bytes(os.path.join(pkg_root, rel)).decode("utf-8", "replace")
-        if FIND_COLGANDO in texto:
-            problemas.append(f"{rel}: queda un `{FIND_COLGANDO}` sin reescribir")
+        for colgando in (FIND_COLGANDO, LOOP_COLGANDO):
+            if colgando in texto:
+                problemas.append(f"{rel}: queda un `{colgando}` sin reescribir")
         if not rel.startswith(("skills/", "agent-kits/")):
             continue
         skill_dir = os.path.join(pkg_root, *rel.split("/")[:2]) if rel.startswith("skills/") else None

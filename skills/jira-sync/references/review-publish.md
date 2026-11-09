@@ -16,7 +16,7 @@ La skill escribe, tras CADA intento del bucle (acotado a 3 con `implementer`), l
 Evidencia`, o "sin gaps") y acto seguido publica ESE intento en Jira — no espera al cierre del bucle:
 
 ```bash
-JF="${CLAUDE_PLUGIN_ROOT}/skills/jira-sync/scripts/jira-flow.py"; [ -f "$JF" ] || JF="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type f -path '*skills/jira-sync/scripts/jira-flow.py' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type f -path '*skills/jira-sync/scripts/jira-flow.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+JF="${CLAUDE_PLUGIN_ROOT}/skills/jira-sync/scripts/jira-flow.py"; [ -f "$JF" ] || JF="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type f -path '*skills/jira-sync/scripts/jira-flow.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
 # el propio script decide si el intento N tuvo gaps para esa tarea y exige el --event que casa
 # (exit 2 si pides `gaps` sin gaps reales, o `revision` habiendo gaps — así no puedes publicar el
 # evento equivocado). `--intento N` es OBLIGATORIO en estos dos eventos: elige la sección del ledger

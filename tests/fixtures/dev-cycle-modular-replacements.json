@@ -36,6 +36,34 @@
       "after_sha256": "813731f244f86dffd04acc9089a965281bcb2b8ee75aa1ac3469217a63d1279a",
       "after_file": "commands/dev-cycle.md",
       "reason": "Publication follows the optional documentation binding; summary, retrospective and final state gates preserved."
+    },
+    {
+      "before_sha256": "3e536f113782a604a9ee984eb92eb9a561de5fe28f69616b53b13dbe61aca6fb",
+      "before_file": "commands/dev-cycle.md",
+      "after_sha256": "956b7f440d6fa9a92e283eb5fa27b9c797920dccf942339c4813d87ee02c25f8",
+      "after_file": "commands/dev-cycle.md",
+      "reason": "Plugin-root resolution fix: ${CLAUDE_PLUGIN_ROOT} first, then an ordered per-root find loop that skips ~/.claude/jobs and picks the highest cached version; same lookup target and gate."
+    },
+    {
+      "before_sha256": "cf0c8bae43b2fde085b10c67e8ed1407c07aa31c899e6733a4202353ce55286f",
+      "before_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
+      "after_sha256": "591d09d035a17acdd62ff8cbe59c1cd6ee541b94a02e26d9338ab3a894749b0d",
+      "after_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
+      "reason": "Plugin-root resolution fix: ${CLAUDE_PLUGIN_ROOT} first, then an ordered per-root find loop that skips ~/.claude/jobs and picks the highest cached version; same lookup target and gate."
+    },
+    {
+      "before_sha256": "8e15bf0f237208675ea4ee570e0cdff09091b50d58b0fde63b3dd7122d297621",
+      "before_file": "skills/quick-implement/SKILL.md",
+      "after_sha256": "06346451f41c34ea1e6497e2d58c17a5b8742148cfa05b265d9fe7e0e2bf2c72",
+      "after_file": "skills/quick-implement/SKILL.md",
+      "reason": "Plugin-root resolution fix: ${CLAUDE_PLUGIN_ROOT} first, then an ordered per-root find loop that skips ~/.claude/jobs and picks the highest cached version; same lookup target and gate."
+    },
+    {
+      "before_sha256": "144a3a36420a1b4aae1dd64ab85f89ee7d07c720009177ea7fd40b3b29931d78",
+      "before_file": "skills/quick-implement/SKILL.md",
+      "after_sha256": "9fb0de609f98eb5d8faa6c6499db9c3e4ad907fdd1ff2f8111e10339d0ab4072",
+      "after_file": "skills/quick-implement/SKILL.md",
+      "reason": "Plugin-root resolution fix: ${CLAUDE_PLUGIN_ROOT} first, then an ordered per-root find loop that skips ~/.claude/jobs and picks the highest cached version; same lookup target and gate."
     }
   ]
 }

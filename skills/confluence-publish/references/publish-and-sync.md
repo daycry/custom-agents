@@ -11,7 +11,7 @@ Resuelto el destino, ejecuta sin más preguntas:
    comparar con el manifiesto: es la política materializada en disco, y siempre tiene que reflejar
    el `docs/` de HOY.
    ```bash
-   SCOPE="${CLAUDE_PLUGIN_ROOT}/skills/confluence-publish/scripts/confluence-scope.py"; [ -f "$SCOPE" ] || SCOPE="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type f -path '*skills/confluence-publish/scripts/confluence-scope.py' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type f -path '*skills/confluence-publish/scripts/confluence-scope.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+   SCOPE="${CLAUDE_PLUGIN_ROOT}/skills/confluence-publish/scripts/confluence-scope.py"; [ -f "$SCOPE" ] || SCOPE="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type f -path '*skills/confluence-publish/scripts/confluence-scope.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
    [ -n "$SCOPE" ] && python3 "$SCOPE" --stage --root "$PWD"
    ```
    Si el script falla o no se encuentra, **degrada sin bloquear**: usa `publish.source = "docs"` y
@@ -64,7 +64,7 @@ cambiado respecto al manifiesto), **regenera el markdown del dashboard** con la 
 `roadmap-dashboard`, de modo que la página refleje el último estado:
 
 ```bash
-DASH="${CLAUDE_PLUGIN_ROOT}/skills/roadmap-dashboard/scripts/build_dashboard.py"; [ -f "$DASH" ] || DASH="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+DASH="${CLAUDE_PLUGIN_ROOT}/skills/roadmap-dashboard/scripts/build_dashboard.py"; [ -f "$DASH" ] || DASH="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
 [ -d docs/roadmap ] && python3 "$DASH" --root docs/roadmap --md docs/roadmap/dashboard.md
 ```
 
@@ -84,7 +84,7 @@ Con `publish.staging: true`, tras regenerar `dashboard.md` (si tocaba) pero **an
 qué se crea/actualiza, regenera `docs/confluence/`:
 
 ```bash
-SCOPE="${CLAUDE_PLUGIN_ROOT}/skills/confluence-publish/scripts/confluence-scope.py"; [ -f "$SCOPE" ] || SCOPE="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type f -path '*skills/confluence-publish/scripts/confluence-scope.py' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type f -path '*skills/confluence-publish/scripts/confluence-scope.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+SCOPE="${CLAUDE_PLUGIN_ROOT}/skills/confluence-publish/scripts/confluence-scope.py"; [ -f "$SCOPE" ] || SCOPE="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type f -path '*skills/confluence-publish/scripts/confluence-scope.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
 [ -n "$SCOPE" ] && python3 "$SCOPE" --stage --root "$PWD"
 ```
 

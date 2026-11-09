@@ -2,7 +2,7 @@
 1. **Brief determinista** — genera el brief con el script del kit shared (nunca lo redactes a mano):
 
    ```bash
-   SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type d -path '*agent-kits/shared' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+   SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
    python3 "$SHAREDKIT/task-brief.py" "docs/roadmap/<fecha>-<slug>" T-XX --runtime <claude-code|codex|opencode>
    ```
 

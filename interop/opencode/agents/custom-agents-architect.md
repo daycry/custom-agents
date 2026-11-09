@@ -60,8 +60,8 @@ usuario lo pide.
   Git destructivo también bloqueado; desactivable en `.claude/dev.json` `guardrails`.
 - **Plantilla y fragmentos (resolución sin rutas fijas, regla 5 de CONVENTIONS):**
   ```bash
-  ARCHKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/architect"; [ -d "$ARCHKIT" ] || ARCHKIT="$({ find "$PWD/.opencode" "$PWD/.claude" "$PWD/.codex" -type d -path '*agent-kits/architect' 2>/dev/null; for r in "$HOME/.config/opencode" "$HOME/.claude" "$HOME/.codex"; do find "$r" -type d -path '*agent-kits/architect' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
-  SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$({ find "$PWD/.opencode" "$PWD/.claude" "$PWD/.codex" -type d -path '*agent-kits/shared' 2>/dev/null; for r in "$HOME/.config/opencode" "$HOME/.claude" "$HOME/.codex"; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+  ARCHKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/architect"; [ -d "$ARCHKIT" ] || ARCHKIT="$(for r in "$PWD"/.{opencode,claude,codex} ~/.{config/opencode,claude,codex}; do find "$r" -type d -path '*agent-kits/architect' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
+  SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$(for r in "$PWD"/.{opencode,claude,codex} ~/.{config/opencode,claude,codex}; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
   # plantilla en "$ARCHKIT/templates/design.md"; sin kit (instalación parcial): reproduce sus 7 secciones y avisa
   ```
 - **Estados de `design.md`:** `borrador` (opciones abiertas) · `aprobado` (opción validada por el usuario)

@@ -17,7 +17,7 @@ Flujo CONTRACT-FIRST para APIs con `scripts/openapi-lint.py` (SIN dependencias e
 
 Resolución de rutas (regla 5 de CONVENTIONS — nunca rutas fijas):
 ```bash
-SKILL="${CLAUDE_PLUGIN_ROOT}/skills/api-contract"; [ -d "$SKILL" ] || SKILL="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$PWD/skills" -type d -path '*skills/api-contract' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*skills/api-contract' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+SKILL="${CLAUDE_PLUGIN_ROOT}/skills/api-contract"; [ -d "$SKILL" ] || SKILL="$(for r in "$PWD"/.{claude,codex,opencode} "$PWD/skills" ~/.{claude,codex,config/opencode}; do find "$r" -type d -path '*skills/api-contract' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
 ```
 
 ## Cuándo NO usarla

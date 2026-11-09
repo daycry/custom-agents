@@ -50,7 +50,7 @@ artefacto (así todos usan el mismo).
 
 1. Localiza la plantilla sin depender del scope:
    ```bash
-   TPL="${CLAUDE_PLUGIN_ROOT}/skills/confluence-publish/assets/tree-browser.template.html"; [ -f "$TPL" ] || TPL="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type f -path '*skills/confluence-publish/assets/tree-browser.template.html' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type f -path '*skills/confluence-publish/assets/tree-browser.template.html' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+   TPL="${CLAUDE_PLUGIN_ROOT}/skills/confluence-publish/assets/tree-browser.template.html"; [ -f "$TPL" ] || TPL="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type f -path '*skills/confluence-publish/assets/tree-browser.template.html' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
    ```
 2. Resuelve los datos: `cloudId` (de `getAccessibleAtlassianResources`), `homepageId` del espacio elegido (viene en `getConfluenceSpaces`), la clave y el nombre del espacio, y el `DEFAULT_NAME` (nombre de la carpeta del proyecto).
 3. Resuelve `agent-kits/shared/render-artifact.py` con las mismas raíces de runtime. Guarda un fichero JSON y asigna su **ruta**, nunca el JSON inline, a `CONFIG_FILE`. Incluye `SERVER`, `CLOUD_ID`, `HOME_ID`, `SPACE_KEY`, `SPACE_NAME`, `SPACE_INITIALS` y `DEFAULT_NAME`, y llama `python3 "$RENDERER" --template confluence-tree --config "$CONFIG_FILE"`. Publica el HTML de stdout; no sustituyas valores en el código. Si falta el helper, sigue el Paso 3-B.

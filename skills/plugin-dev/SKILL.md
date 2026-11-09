@@ -24,7 +24,7 @@ skills, también agentes, comandos, kits y hooks. La regla que gobierna todo:
 Resolución de rutas (regla 5 de CONVENTIONS — nunca rutas fijas):
 
 ```bash
-PLUGROOT="${CLAUDE_PLUGIN_ROOT}/skills/plugin-dev"; [ -d "$PLUGROOT" ] || PLUGROOT="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type d -path '*skills/plugin-dev' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*skills/plugin-dev' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+PLUGROOT="${CLAUDE_PLUGIN_ROOT}/skills/plugin-dev"; [ -d "$PLUGROOT" ] || PLUGROOT="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type d -path '*skills/plugin-dev' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
 # plantillas: "$PLUGROOT/templates/…" · convenciones: la CONVENTIONS.md del repo en que trabajas
 ```
 

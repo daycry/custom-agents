@@ -59,7 +59,7 @@ Escribes en **español**, con Markdown correcto y atractivo (tablas, emojis de s
 - El plan aporta **dos ficheros** a esa carpeta: `improvement-plan.md` y `tasks.md`. **Si la iniciativa implica UI**, añade también **`test-plan.md`** (plantilla del kit): bloques **E2E-xx** (automáticos, los ejecuta el agente `qa` con Playwright) y **M-xx** (manuales, para una persona), derivados de los criterios de aceptación; y en cada tarea de UI de `tasks.md` rellena el campo **Cubre (tests)** con los escenarios que la cubren (trazabilidad — lo valida mecánicamente `coverage-check.py` del kit de qa). Bloques **opcionales**: si la iniciativa expone o toca **endpoints**, propón añadir **API-xx** (smoke con curl); si el usuario pide **accesibilidad**, añade **A11Y-xx** (axe-core, instalación opt-in). No los incluyas por defecto: ofrécelos cuando apliquen. El `test-plan.md` lo consume el agente `qa`. **Si la iniciativa NO tiene UI, no omitas el fichero en silencio: declara `test-plan: n/a (sin UI)` en el frontmatter de `improvement-plan.md`** (literal exacto, junto a `design:`). Ese marcador es lo que leen `/dev-cycle` (Fase 3) y `qa` para terminar limpios en vez de pedirte un test-plan que no existe; sin él, `qa` avisa una vez con el comando que lo fija (`ADR-017`; era la contradicción E1 de `docs/agents/CONTRACTS.md`).
 - Plantillas base (formato FIJO): localiza el kit sin depender del scope (proyecto/usuario/plugin) y lee de ahí:
   ```bash
-  PLANKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/planner"; [ -d "$PLANKIT" ] || PLANKIT="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type d -path '*agent-kits/planner' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*agent-kits/planner' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+  PLANKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/planner"; [ -d "$PLANKIT" ] || PLANKIT="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type d -path '*agent-kits/planner' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
   # plantillas en "$PLANKIT/templates/improvement-plan.md" y "$PLANKIT/templates/tasks.md"
   ```
   Cópialas y rellénalas; no improvises otro formato.
@@ -72,7 +72,7 @@ Escribes en **español**, con Markdown correcto y atractivo (tablas, emojis de s
 Los parámetros (tarifa, precio de tokens, supervisión, margen, FTE…) y la regla de `.claude/rates.json` viven en el **fragmento compartido** — misma fuente de verdad que `evaluator`. Léelo y aplícalo:
 
 ```bash
-SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type d -path '*agent-kits/shared' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
 # parámetros en "$SHAREDKIT/estimation-defaults.md"
 ```
 

@@ -466,20 +466,23 @@ def codex_hooks_json(root):
 # `${CLAUDE_PLUGIN_ROOT}` no se sustituye y decide el `find` de respaldo, cuyo ORDEN de raíces manda.
 # Las piezas canónicas llevan el orden de Claude Code; la copia de cada runtime antepone sus raíces
 # para ejecutar SU instalación (y no la de otro runtime) cuando conviven varias.
-_RAICES_PROYECTO = '{ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type '
-_RAICES_USUARIO = 'for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do '
-_ORDEN_RUNTIME = {
-    "codex": ('{ find "$PWD/.codex" "$PWD/.claude" "$PWD/.opencode" -type ',
-              'for r in "$HOME/.codex" "$HOME/.claude" "$HOME/.config/opencode"; do '),
-    "opencode": ('{ find "$PWD/.opencode" "$PWD/.claude" "$PWD/.codex" -type ',
-                 'for r in "$HOME/.config/opencode" "$HOME/.claude" "$HOME/.codex"; do '),
+# Raíces del respaldo, en el orden canónico (Claude Code) y en el de cada runtime: bash con llaves
+# (`for r in …; do find …`) y la lista de la receta PowerShell de /dev-cycle.
+_RAICES = {
+    "claude": ('"$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}',
+               '"$PWD/.claude", "$PWD/.codex", "$PWD/.opencode", "$HOME/.claude", "$HOME/.codex", "$HOME/.config/opencode"'),
+    "codex": ('"$PWD"/.{codex,claude,opencode} ~/.{codex,claude,config/opencode}',
+              '"$PWD/.codex", "$PWD/.claude", "$PWD/.opencode", "$HOME/.codex", "$HOME/.claude", "$HOME/.config/opencode"'),
+    "opencode": ('"$PWD"/.{opencode,claude,codex} ~/.{config/opencode,claude,codex}',
+                 '"$PWD/.opencode", "$PWD/.claude", "$PWD/.codex", "$HOME/.config/opencode", "$HOME/.claude", "$HOME/.codex"'),
 }
 
 
 def raices_de_runtime(cuerpo, runtime):
-    """El cuerpo con las raíces de respaldo en la prioridad de `runtime` (solo las dos formas exactas)."""
-    proyecto, usuario = _ORDEN_RUNTIME[runtime]
-    return cuerpo.replace(_RAICES_PROYECTO, proyecto).replace(_RAICES_USUARIO, usuario)
+    """El cuerpo con las raíces de respaldo en la prioridad de `runtime` (solo las formas exactas)."""
+    for canon, propio in zip(_RAICES["claude"], _RAICES[runtime]):
+        cuerpo = cuerpo.replace(canon, propio)
+    return cuerpo
 
 
 def codex_agente(nombre, bloque, cuerpo, mapping=None, model_override=None):

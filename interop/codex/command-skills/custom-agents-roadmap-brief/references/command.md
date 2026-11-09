@@ -16,7 +16,7 @@ y lo deja en un PDF presentable. Solo lectura del roadmap. Foco opcional: **$ARG
 ## Pasos
 1. **Reúne los datos** (solo lectura) con la skill `roadmap-dashboard`:
    ```bash
-   DASH="${CLAUDE_PLUGIN_ROOT}/skills/roadmap-dashboard/scripts/build_dashboard.py"; [ -f "$DASH" ] || DASH="$({ find "$PWD/.codex" "$PWD/.claude" "$PWD/.opencode" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null; for r in "$HOME/.codex" "$HOME/.claude" "$HOME/.config/opencode"; do find "$r" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+   DASH="${CLAUDE_PLUGIN_ROOT}/skills/roadmap-dashboard/scripts/build_dashboard.py"; [ -f "$DASH" ] || DASH="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude,config/opencode}; do find "$r" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
    python3 "$DASH" --root docs/roadmap --json > /tmp/roadmap.json      # estado/presupuesto por iniciativa
    python3 "$DASH" --root docs/roadmap --metrics-md /tmp/metrics.md    # real vs estimado
    ```

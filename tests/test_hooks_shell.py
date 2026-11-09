@@ -1298,7 +1298,7 @@ def test_fix1_12_todo_find_de_setup_excluye_los_temporales_de_jobs():
     """setup-statusline-polish fix1 #12: cada `find` de seis raíces de `/setup` excluye
     `~/.claude/jobs` (el de `KPA` en 5-sexies reintroducía el patrón que corrige T-06)."""
     md = open(os.path.join(ROOT, "commands", "setup.md"), encoding="utf-8").read()
-    finds = [l.strip() for l in md.splitlines() if 'find "$PWD/.claude"' in l]
+    finds = [l.strip() for l in md.splitlines() if 'find "$PWD/.claude"' in l or 'for r in "$PWD"/.{claude,' in l]
     assert len(finds) >= 4, finds
     sin = [l for l in finds if "! -path '*/.claude/jobs/*'" not in l]
     assert not sin, sin

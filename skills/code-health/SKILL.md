@@ -26,7 +26,7 @@ en vez de «el código está sucio». Todas son **heurísticas honestas**: sirve
 Resolución de rutas (regla 5 de CONVENTIONS — nunca rutas fijas):
 
 ```bash
-CHSKILL="${CLAUDE_PLUGIN_ROOT}/skills/code-health"; [ -d "$CHSKILL" ] || CHSKILL="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$PWD/skills" -type d -path '*skills/code-health' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*skills/code-health' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+CHSKILL="${CLAUDE_PLUGIN_ROOT}/skills/code-health"; [ -d "$CHSKILL" ] || CHSKILL="$(for r in "$PWD"/.{claude,codex,opencode} "$PWD/skills" ~/.{claude,codex,config/opencode}; do find "$r" -type d -path '*skills/code-health' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
 python3 "$CHSKILL/scripts/code-health.py" <ruta> [--json] [--exclude-tests] [--exclude-path PREFIJO ...] [--baseline informe.json]
 ```
 

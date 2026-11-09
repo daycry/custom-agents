@@ -22,7 +22,7 @@ a `dashboard.md` y exporta el panel (skill `plugin-panel`, dueña de la presenta
 Localiza el script sin depender del scope (proyecto/usuario/plugin) — regla 5 de `docs/CONVENTIONS.md`:
 
 ```bash
-DASHKIT="${CLAUDE_PLUGIN_ROOT}/skills/roadmap-dashboard/scripts/build_dashboard.py"; [ -f "$DASHKIT" ] || DASHKIT="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+DASHKIT="${CLAUDE_PLUGIN_ROOT}/skills/roadmap-dashboard/scripts/build_dashboard.py"; [ -f "$DASHKIT" ] || DASHKIT="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
 
 # Markdown (para Confluence) — lo usa /roadmap-status
 python3 "$DASHKIT" --root docs/roadmap --md docs/roadmap/dashboard.md

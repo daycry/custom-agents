@@ -70,7 +70,7 @@ Plugin instalable (regla 5 de `docs/CONVENTIONS.md`): localiza el script en runt
 patrón de seis raíces, nunca una ruta relativa fija.
 
 ```bash
-KSSKILL="${CLAUDE_PLUGIN_ROOT}/skills/knowledge-services/scripts/knowledge-sync.py"; [ -f "$KSSKILL" ] || KSSKILL="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type f -path '*skills/knowledge-services/scripts/knowledge-sync.py' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type f -path '*skills/knowledge-services/scripts/knowledge-sync.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+KSSKILL="${CLAUDE_PLUGIN_ROOT}/skills/knowledge-services/scripts/knowledge-sync.py"; [ -f "$KSSKILL" ] || KSSKILL="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type f -path '*skills/knowledge-services/scripts/knowledge-sync.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
 python3 "$KSSKILL" --backend kwipu --root . --check
 python3 "$KSSKILL" --backend kwipu --root . --dry-run
 python3 "$KSSKILL" --backend kwipu --root .

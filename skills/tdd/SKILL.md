@@ -26,8 +26,8 @@ visto, no hubo TDD — hubo tests después.
 
 Resolución de rutas (regla 5 de CONVENTIONS — nunca rutas fijas):
 ```bash
-TDDSKILL="${CLAUDE_PLUGIN_ROOT}/skills/tdd"; [ -d "$TDDSKILL" ] || TDDSKILL="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$PWD/skills" -type d -path '*skills/tdd' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*skills/tdd' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
-SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type d -path '*agent-kits/shared' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+TDDSKILL="${CLAUDE_PLUGIN_ROOT}/skills/tdd"; [ -d "$TDDSKILL" ] || TDDSKILL="$(for r in "$PWD"/.{claude,codex,opencode} "$PWD/skills" ~/.{claude,codex,config/opencode}; do find "$r" -type d -path '*skills/tdd' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
+SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
 ```
 
 ## Cuándo aplica (y cuándo NO)

@@ -25,8 +25,8 @@ de **contexto fresco** que NO han visto implementar, cada uno con una lente, sob
 
 Resolución de rutas (regla 5 de CONVENTIONS — nunca rutas fijas):
 ```bash
-SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type d -path '*agent-kits/shared' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
-REVSKILL="${CLAUDE_PLUGIN_ROOT}/skills/adversarial-review"; [ -d "$REVSKILL" ] || REVSKILL="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$PWD/skills" -type d -path '*skills/adversarial-review' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*skills/adversarial-review' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex,config/opencode}; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
+REVSKILL="${CLAUDE_PLUGIN_ROOT}/skills/adversarial-review"; [ -d "$REVSKILL" ] || REVSKILL="$(for r in "$PWD"/.{claude,codex,opencode} "$PWD/skills" ~/.{claude,codex,config/opencode}; do find "$r" -type d -path '*skills/adversarial-review' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done | head -1)"
 ```
 
 ## Cuándo NO usarla
