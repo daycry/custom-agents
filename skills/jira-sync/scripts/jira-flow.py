@@ -135,16 +135,23 @@ EVENTOS_INTENTO_OBLIGATORIO = ("revision", "gaps")
 # T-03-fix3 gap #20) — antes eran privados de este fichero (`_GAP_PENDIENTE_RE`/`_gap_pendiente`).
 
 
+_LEDGER_LINT = []
+
+
 def _cargar_ledger_lint():
-    """`agent-kits/shared/ledger-lint.py` por ruta (mismo patrón que `scope-check.py`). Ya viaja con
+    """Carga memoizada (fix1, D2: una sola vez por proceso, no una por tarea).
+`agent-kits/shared/ledger-lint.py` por ruta (mismo patrón que `scope-check.py`). Ya viaja con
     el paquete portable: `references/create-and-writeback.md` lo cita (`fragmentos_shared`, T-01
     de esta iniciativa/`export-skills.py`)."""
+    if _LEDGER_LINT:
+        return _LEDGER_LINT[0]
     path = os.path.join(REPO_ROOT_DESDE_SKILL, "agent-kits", "shared", "ledger-lint.py")
     if not os.path.isfile(path):
         return None
     spec = importlib.util.spec_from_file_location("ledger_lint_jf", path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
+    _LEDGER_LINT.append(mod)
     return mod
 
 
@@ -157,17 +164,50 @@ def _bloque_de_tarea(texto, tid, ledger_lint=None):
     """Texto de `### T-XX … ` hasta la siguiente `### T-YY`, `### Fase` o `## `, o None si no existe.
     Con `ledger-lint.py` disponible usa su troceo único (bloques de código fuera, H-26); sin él, el
     troceo local sobre el texto sin vallas."""
-    ledger_lint = ledger_lint or _cargar_ledger_lint()
-    if ledger_lint is not None and hasattr(ledger_lint, "bloques_de_tarea"):
-        return ledger_lint.bloques_de_tarea(texto).get(tid)
-    partes = re.split(_TASK_BLOCK_RE, sin_vallas(texto))
-    for p in partes:
-        m = re.match(r"###\s+(T-\d+)\b", p.strip())
-        if m and m.group(1) == tid:
-            # corta en el siguiente encabezado `## ` (fin de la fase / sección de apéndice)
-            corte = re.search(r"\n##\s", p)
-            return p[:corte.start()] if corte else p
-    return None
+    return _troceo(texto, ledger_lint or _cargar_ledger_lint())[0].get(tid)
+
+
+_TROCEO_MEMO = {}
+
+
+def _troceo(texto, ledger_lint):
+    """(bloques por tarea, tareas parseadas por id) de UN ledger, calculados una vez por invocación
+    (fix1, D2: en `--batch` se troceaba y parseaba el ledger una vez por tarea)."""
+    clave = (id(ledger_lint), texto)
+    if clave not in _TROCEO_MEMO:
+        if ledger_lint is not None and hasattr(ledger_lint, "bloques_de_tarea"):
+            bloques = ledger_lint.bloques_de_tarea(texto)
+            tareas = {t["id"]: t for t in ledger_lint.parse_ledger(texto)["tareas"]}
+        else:
+            bloques, tareas = _bloques_de_tarea_local(texto), {}
+        _TROCEO_MEMO.clear()
+        _TROCEO_MEMO[clave] = (bloques, tareas)
+    return _TROCEO_MEMO[clave]
+
+
+_TROCEO_TAREA_RE = re.compile(r"^###\s+(T-\d+)\b")
+_TROCEO_FIN_RE = re.compile(r"^(##\s|###\s+Fase\b)")
+
+
+def _bloques_de_tarea_local(text):
+    """Troceo de `bloques_de_tarea` (ledger-lint) sin el kit compartido (fix1, B6)."""
+    # --8<-- bloques_de_tarea (cuerpo) — REPLICADO LITERAL en agent-kits/shared/ledger-lint.py,
+    # agent-kits/qa/coverage-check.py y skills/jira-sync/scripts/jira-flow.py (respaldos sin el kit;
+    # declarado en agent-kits/shared/copias.json, revisión fase 2 intento 1, B6).
+    out, actual, lineas = {}, None, []
+    for ln in sin_vallas(text.lstrip("\ufeff")).splitlines():
+        m = _TROCEO_TAREA_RE.match(ln)
+        if m or _TROCEO_FIN_RE.match(ln):
+            if actual is not None and actual not in out:
+                out[actual] = "\n".join(lineas)
+            actual, lineas = (m.group(1), [ln]) if m else (None, [])
+            continue
+        if actual is not None:
+            lineas.append(ln)
+    if actual is not None and actual not in out:
+        out[actual] = "\n".join(lineas)
+    return out
+    # --8<-- fin bloques_de_tarea (cuerpo)
 
 
 def _campo(bloque, nombre):
@@ -214,7 +254,7 @@ def detalle_tarea(texto, tid, ledger_lint):
     verif = _acortar(_campo(bloque, "Verificación"))
     if ledger_lint is not None:
         # La Verificación en sub-lista llega ENTERA (todos sus ítems), como la lee el parser (H-26).
-        tarea = next((t for t in ledger_lint.parse_ledger(texto)["tareas"] if t["id"] == tid), None)
+        tarea = _troceo(texto, ledger_lint)[1].get(tid)
         if tarea and tarea.get("verificacion"):
             verif = _acortar(tarea["verificacion"], 400)
     ia_est, ia_real = (None, None)

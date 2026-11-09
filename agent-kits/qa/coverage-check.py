@@ -336,6 +336,60 @@ def que_se_exime(tasks_text, spec_path, gwt_ids):
     return "", []
 
 
+# Respaldos LITERALES de agent-kits/shared/ledger-lint.py para cuando este script viaja sin el kit
+# compartido (fix1, B6): mismas vallas por tipo y longitud y mismo corte en `### Fase`/`## `.
+VALLA_PATTERN = r"^[^\S\n]*(?:`{3,}|~{3,})"
+_VALLA_RE = re.compile(VALLA_PATTERN)
+_TROCEO_TAREA_RE = re.compile(r"^###\s+(T-\d+)\b")
+_TROCEO_FIN_RE = re.compile(r"^(##\s|###\s+Fase\b)")
+
+
+def sin_vallas(text):
+    """`text` con las líneas DENTRO de una valla de código vaciadas (mismo número de líneas)."""
+    # --8<-- sin_vallas (cuerpo) — REPLICADO LITERAL en agent-kits/shared/ledger-lint.py y en
+    # skills/changelog-sync/scripts/changelog-sync.py (dos copias independientes: la skill viaja sin
+    # este kit). DECLARADO en agent-kits/shared/copias.json (ADR-016), que lista la ÚNICA diferencia
+    # tolerada (el nombre de la regex de valla); tests/test_copias_declaradas.py compara el resto
+    # byte a byte — antes solo había un test CONDUCTUAL y una divergencia sin efecto pasaba.
+    out, cerco = [], None
+    for ln in text.split("\n"):
+        m = _VALLA_RE.match(ln)
+        if cerco is None:
+            if m:
+                cerco = m.group(0).strip()[0] * len(m.group(0).strip())
+                out.append("")
+                continue
+        else:
+            out.append("")
+            if m and m.group(0).strip()[0] == cerco[0] and len(m.group(0).strip()) >= len(cerco):
+                cerco = None
+            continue
+        out.append(ln)
+    # --8<-- fin sin_vallas (cuerpo)
+    return "\n".join(out)
+
+
+def _bloques_de_tarea_local(text):
+    """Troceo de `bloques_de_tarea` (ledger-lint) sin el kit compartido."""
+    # --8<-- bloques_de_tarea (cuerpo) — REPLICADO LITERAL en agent-kits/shared/ledger-lint.py,
+    # agent-kits/qa/coverage-check.py y skills/jira-sync/scripts/jira-flow.py (respaldos sin el kit;
+    # declarado en agent-kits/shared/copias.json, revisión fase 2 intento 1, B6).
+    out, actual, lineas = {}, None, []
+    for ln in sin_vallas(text.lstrip("\ufeff")).splitlines():
+        m = _TROCEO_TAREA_RE.match(ln)
+        if m or _TROCEO_FIN_RE.match(ln):
+            if actual is not None and actual not in out:
+                out[actual] = "\n".join(lineas)
+            actual, lineas = (m.group(1), [ln]) if m else (None, [])
+            continue
+        if actual is not None:
+            lineas.append(ln)
+    if actual is not None and actual not in out:
+        out[actual] = "\n".join(lineas)
+    return out
+    # --8<-- fin bloques_de_tarea (cuerpo)
+
+
 def bloques_de_tarea(text):
     """{T-XX: bloque} con el troceo de `agent-kits/shared/ledger-lint.py` (fuente única, H-23). Sin el
     kit compartido (instalación parcial), el mismo criterio local: líneas de dentro de un bloque de
@@ -349,18 +403,7 @@ def bloques_de_tarea(text):
             return mod.bloques_de_tarea(text)
         except Exception:  # noqa: BLE001 - kit roto: degrada al troceo local, nunca a ninguno
             pass
-    out, actual, lineas = {}, None, []
-    for ln in _sin_fences(text).splitlines():
-        m = re.match(r"^###\s+(T-\d+)\b", ln)
-        if m or re.match(r"^(##\s|###\s+Fase\b)", ln):
-            if actual is not None and actual not in out:
-                out[actual] = "\n".join(lineas)
-            actual, lineas = (m.group(1), [ln]) if m else (None, [])
-        elif actual is not None:
-            lineas.append(ln)
-    if actual is not None and actual not in out:
-        out[actual] = "\n".join(lineas)
-    return out
+    return _bloques_de_tarea_local(text)
 
 
 def sin_ui_declarado(tasks_path):

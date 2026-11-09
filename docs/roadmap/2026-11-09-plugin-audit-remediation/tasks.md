@@ -17,10 +17,10 @@ changelog: Fixed
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
-| Fase 2 | 3 | 6 | 50.0% |
+| Fase 2 | 4 | 6 | 66.7% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **9** | **21** | **42.9%** |
+| **TOTAL** | **10** | **21** | **47.6%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -288,6 +288,9 @@ RED: `tests/test_panel_large_roadmaps.py` falló con 7 failed: con 70 iniciativa
 
 GREEN: `pytest tests/test_panel_large_roadmaps.py` → `8 passed` (70 iniciativas: se recortan las 6 más antiguas y `recorte` lo dice, con aviso en Iniciativas; 12 ledgers de ~200 KiB sin `too_large` falso, de la más nueva a la más antigua y los que no caben con `fuente: resumen` desde su cabecera; `prepare` continúa y revisa un plan de vía rápida sin `improvement-plan.md` y uno de ~330 KiB; errores `plan_*` mapeados en la consola; un plan creado tras arrancar se sirve por HTTP con su `api/plan-<id>`; el test HTTP de H-20 se añadió tras el arreglo, sin rojo propio: el rojo de H-20 es el de `plan_page_path`); `test_panel_server.py` → `137 passed, 2 skipped` (contrato de filas con `fuente`; presupuesto: 1 MiB de ledgers enteros + cabeceras de 16 KiB acotadas); `test_control_center_http.py` → `21 passed` (sin `improvement-plan.md` → 200, sin `tasks.md` → error); `test_panel_data.py` 17, `test_panel_contract_golden.py` 6, `test_panel_iniciativas_ui.py` 20, `test_panel_live_ui.py` 32, `test_panel_plan_ui.py` 124, `test_panel_pages.py` 32, `test_panel_export.py` 31+1s, `test_panel_fix1..4` 33+1s/18/8/14, `test_console_service.py` 5, `test_audit_console.py` 8, `test_code_receipts.py` 88, `test_console_encoding.py` 744 (serve_panel.py vuelve a ser ASCII), `test_local_read.py` 70+6s, `test_local_read_stability.py` 24, `test_source_snapshot.py` 33+1s passed. Decisión: la huella de la consola usa `read_bytes` con tope de 16 MiB, no un hash en streaming; queda como límite declarado · 2026-11-09.
 
+
+RED: `tests/test_panel_large_roadmaps.py -k fix1` falló con fix1: con 140 carpetas list_names corta en orden de scandir y la cartera pierde las mas nuevas (B2); list_names sin newest_first; una linea de resumen con 20000 espacios bloquea progress_snapshot mas de 600 s y la ejecucion la corta el timeout (C1) · 2026-11-09.
+
 ### T-10 — Índice de sesión por prioridad
 
 - **Estado**: completado
@@ -316,7 +319,7 @@ GREEN fix1: `pytest agent-kits/shared/test_skill_index.py tests/test_native_role
 
 ### T-11 — Un solo troceo del ledger
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-22, H-23, H-26 y menores de ledger-lint. `scope-check`, `coverage-check` y `jira-flow` usan el troceo de `ledger-lint` (bloques de código y secciones posteriores fuera); resumen dentro de bloques de código ignorado; vocabulario de `estado` validado a nivel ledger.
 - **Archivos**: `agent-kits/shared/ledger-lint.py`, `agent-kits/shared/scope-check.py`, `agent-kits/qa/coverage-check.py`, `skills/jira-sync/scripts/jira-flow.py`, sus tests, `agent-kits/shared/copias.json`, `tests/test_ledger_single_parser.py` (añadido por el implementer: casos H-22/H-23/H-26, resumen en bloque de código, vocabulario y los ledgers del repo).
 - **Tiempo IA (ejec.)**: real 0,09h (medido)
@@ -335,6 +338,8 @@ GREEN: `pytest tests/test_ledger_single_parser.py` → `7 passed` (scope-check s
 
 
 RED: `tests/test_ledger_single_parser.py -k fix1` falló con fix1: 3 failed: respaldos de coverage-check y jira-flow sin el criterio de bloques_de_tarea (valla de cuatro, corte en Fase); copias sin declarar; en batch parse_ledger y bloques por tarea · 2026-11-09.
+
+GREEN fix1: `pytest tests/test_ledger_single_parser.py` → `10 passed` (B6: los respaldos `_bloques_de_tarea_local` de coverage-check y jira-flow dan lo mismo que `bloques_de_tarea` con una valla de cuatro acentos y un `### Fase`; D2: en una pasada de 29 tareas `bloques_de_tarea` y `parse_ledger` corren una vez y ledger-lint se carga una vez); `tests/test_copias_declaradas.py` → `31 passed` (copias literales declaradas: `sin_vallas` gana coverage-check y el bloque nuevo `bloques_de_tarea` tiene tres sitios); `skills/jira-sync/scripts/test_jira_flow.py` → `74 passed`; `python tests/test_coverage_check.py` → `OK` · 2026-11-09.
 
 ### T-12 — Bucle de revisión y dueño del commit
 

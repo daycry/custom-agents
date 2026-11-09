@@ -499,6 +499,9 @@ def bloques_de_tarea(text):
     código vaciadas (`sin_vallas`). Troceo ÚNICO del ledger (auditoría 2026-11-09, H-22/H-23/H-26):
     lo usan `scope-check.py`, `coverage-check.py` y `jira-flow.py` en lugar de su propio `re.split`.
     Una tarea repetida conserva su primer bloque, como el resto de campos."""
+    # --8<-- bloques_de_tarea (cuerpo) — REPLICADO LITERAL en agent-kits/shared/ledger-lint.py,
+    # agent-kits/qa/coverage-check.py y skills/jira-sync/scripts/jira-flow.py (respaldos sin el kit;
+    # declarado en agent-kits/shared/copias.json, revisión fase 2 intento 1, B6).
     out, actual, lineas = {}, None, []
     for ln in sin_vallas(text.lstrip("\ufeff")).splitlines():
         m = _TROCEO_TAREA_RE.match(ln)
@@ -512,6 +515,7 @@ def bloques_de_tarea(text):
     if actual is not None and actual not in out:
         out[actual] = "\n".join(lineas)
     return out
+    # --8<-- fin bloques_de_tarea (cuerpo)
 
 
 def parse_ledger(text):

@@ -134,3 +134,40 @@ def test_h23_coverage_check_sin_el_kit_compartido_aplica_el_mismo_troceo(tmp_pat
                          capture_output=True, text=True, encoding='utf-8', errors='replace')
     data = json.loads(run.stdout.strip().splitlines()[-1])
     assert (data['broken_refs'], data['tasks_sin_cobertura']) == (0, ['T-01']), run.stdout
+
+
+# ------------------------------------------------- revisión intento 1 (fase 2): B6, D2
+
+LARGA = "````\n```\n### T-98 — dentro de una valla de cuatro\n```\n````\n"
+
+
+def test_fix1_b6_respaldos_sin_kit_siguen_el_criterio_de_bloques_de_tarea():
+    texto = LEDGER.replace("Ejemplo citado en la tarea:", LARGA + "\n### Fase 2 — Otra\n- **Archivos**: `fase/**`\n")
+    canon = LINT.bloques_de_tarea(texto)
+    cov = load('agent-kits/qa/coverage-check.py', 'fix1_cov')
+    assert cov._bloques_de_tarea_local(texto) == canon
+    assert JIRA._bloques_de_tarea_local(texto) == canon
+    assert 'T-98' not in canon and 'fase/**' not in canon['T-01']
+
+
+def test_fix1_b6_copias_declaradas_en_copias_json():
+    registro = json.loads((ROOT / 'agent-kits/shared/copias.json').read_text(encoding='utf-8'))
+    por_id = {b['id']: {c['ruta'] for c in b['copias']} for b in registro['bloques']}
+    assert 'agent-kits/qa/coverage-check.py' in por_id['sin_vallas']
+    assert {'agent-kits/qa/coverage-check.py', 'skills/jira-sync/scripts/jira-flow.py'} <= por_id['bloques_de_tarea']
+
+
+def test_fix1_d2_batch_carga_ledger_lint_y_trocea_una_vez(monkeypatch):
+    jira = load('skills/jira-sync/scripts/jira-flow.py', 'fix1_jira_batch')
+    cargas, troceos = [], []
+    real_cargar = jira._cargar_ledger_lint
+    monkeypatch.setattr(jira, '_cargar_ledger_lint', lambda: cargas.append(1) or real_cargar())
+    lint = real_cargar()
+    real_bloques, real_parse = lint.bloques_de_tarea, lint.parse_ledger
+    lint.bloques_de_tarea = lambda t: troceos.append('b') or real_bloques(t)
+    lint.parse_ledger = lambda t: troceos.append('p') or real_parse(t)
+    texto = LEDGER + ''.join(f'\n### T-{n:02} — Más\n\n- **Estado**: borrador\n' for n in range(2, 30))
+    for n in range(1, 30):
+        jira.detalle_tarea(texto, f'T-{n:02}', lint)
+    assert troceos.count('b') <= 1 and troceos.count('p') <= 1, troceos
+    assert len(cargas) <= 1
