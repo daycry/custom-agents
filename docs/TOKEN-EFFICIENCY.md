@@ -106,24 +106,30 @@ helpers no consultan conversaciones ni ejecutan modelos o servicios.
 
 La fase 4 de [la corrección de la auditoría](roadmap/2026-11-09-plugin-audit-remediation/tasks.md)
 movió texto que casi nadie necesita en cada despacho. Las cifras son **tamaño**
-(caracteres UTF-8 con LF, medidos con `context-footprint.py`; tokens = caracteres/4,
+(caracteres UTF-8 con LF, medidos con `context-footprint.py` sobre `cb6fb40` y sobre el HEAD de la corrección; tokens = caracteres/4,
 sin tokenizer) y **no** consumo observado ni facturado: reducir caracteres no acredita
 ahorro de tokens hasta medirlo con `usage-meter.py` en el mismo objetivo y modelo.
 
 | Qué cambia | Antes | Después |
 |---|---|---|
 | Revisión visual del plan, fuera de `phase2-planning.md` (solo se lee si se pide) | 18.136 | 3.034 (+15.536 en `phase2-plan-review.md`) |
-| Notas internas de `/doctor`, en `docs/reference/doctor.md` | 16.626 | 5.491 (+12.042 en la doc) |
+| Notas internas de `/doctor`, en `agent-kits/shared/doctor-reference.md` (viaja con el kit) | 16.626 | 5.700 (+12.129 en la referencia) |
 | Explicación de los avisos de `scope-check` repetida en implementer y adversarial-review | 29.396 + 18.972 | 28.632 + 18.104 (el script imprime su remedio) |
 | Agentes sin `Agent`: instrucción de delegar en Codex y OpenCode | 20 ficheros generados | −6.264 (Codex) y −5.526 (OpenCode) bytes |
 | Contexto de OpenCode | recomputado por evento y a los 30 s | reutilizado mientras no cambie su firma |
 
-Lo que sube se declara: cada agente gana 139-296 caracteres con la regla «si el
-brief ya trae la selección de capacidades o «sin integraciones», no releas
-`capability-check.md` ni `project-integrations.md`» (5.491 y 5.306 caracteres que
-un despacho con selección ya no lee), y el bloque de sesión y el brief llevan una
-línea con la ruta del kit para evitar el `find`. El ahorro de la vía rápida de
-`/dev-cycle` sigue siendo ≥ 6.000 tokens estimados (6.136).
+Lo que sube se declara. Cada agente gana entre 154 y 461 caracteres (el implementer
+baja 599 en neto). La causa es una regla: si el brief trae la selección de capacidades
+o la marca de que no hay integraciones, no se relee `capability-check.md` ni
+`project-integrations.md`. Esas lecturas suman 5.546 y 5.306 caracteres que un
+despacho con selección ya no hace. Además, el bloque de sesión y el brief llevan una
+línea con la ruta del kit para evitar el `find`, y la receta de resolución respeta esa
+ruta si ya existe.
+
+El ahorro de la vía rápida de `/dev-cycle` sigue siendo de al menos 6.000 tokens
+estimados: 6.066, tras sumar la instrucción de pasar la línea del kit a cada despacho.
+El plan pedía ampliar ese margen y baja de 6.158 a 6.066; la desviación está
+registrada en el ledger de la iniciativa.
 
 ## Evitar contexto de poco valor durante la ejecución
 
