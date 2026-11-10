@@ -4,12 +4,13 @@ skill-index.py — índice COMPACTO y DETERMINISTA de las piezas del plugin (com
 agentes) para inyectarlo como contexto al arrancar la sesión.
 Cierra la brecha de fiabilidad de activación: la `description` de una skill solo se ve cuando
 Claude la busca; este índice pone TODAS las piezas y las reglas de enrutado delante en cada
-arranque (`hooks/session-context.sh`, SessionStart `startup|resume|compact`) a coste fijo y
+arranque (`hooks/session-context.sh`, SessionStart `startup|resume|clear|compact`) a coste fijo y
 medido: ≤ LIMITE_LINEAS líneas · ≤ LIMITE_CHARS caracteres · ≤ LIMITE_LINEA por línea (los tests
-lo afirman). Si hay más piezas de las que caben, cada grupo cede proporcionalmente y cierra con
-«… y N piezas más (ver `skills/`)»; si el total de caracteres excede, el ancho por línea baja.
-Cada grupo conserva su entrada central si existe (dev-cycle, quick-implement,
-implementer), sustituyendo una entrada de su cuota sin ampliar el presupuesto.
+lo afirman). Dentro de cada grupo van primero las piezas del ciclo (`PRIORIDAD`). Si hay más
+piezas de las que caben, los agentes y los comandos del ciclo se muestran SIEMPRE y las skills
+opcionales (y los comandos fuera del ciclo) se resumen con «… y N piezas más (ver `skills/`)»; solo
+si ni eso cabe se reparte en proporción, sin bajar nunca de los agentes y comandos de `PRIORIDAD`.
+Si el total de caracteres excede, el ancho por línea baja.
 
 Lee SOLO los frontmatters (nunca los cuerpos): `commands/*.md` (description + argument-hint),
 `skills/*/SKILL.md` (name + description) y `agents/*.md` (name + description). Resumen por pieza =
@@ -42,7 +43,7 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
     except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-VERSION = "3"                      # entra en el hash: cambiar el formato invalida la caché
+VERSION = "4"                      # entra en el hash: cambiar el formato invalida la caché
 LIMITE_LINEAS = 45
 LIMITE_CHARS = 3500
 LIMITE_LINEA = 110
@@ -63,6 +64,22 @@ CABECERAS_RUNTIME = {
 }
 GRUPOS = (("command", "Comandos:"), ("skill", "Skills:"), ("agent", "Agentes:"))
 ENTRADA_CENTRAL = {"command": "dev-cycle", "skill": "quick-implement", "agent": "implementer"}
+# H-21: dentro de cada grupo, primero las piezas del ciclo (en este orden) y después el resto en orden
+# alfabético. Con el tope de 3.500 caracteres el recorte se come las opcionales, no planner, qa, tdd o /setup.
+PRIORIDAD = {
+    "command": ("dev-cycle", "pm-cycle", "setup", "work-resume", "doctor", "retro", "work-context",
+                "roadmap-status", "plugin-catalog"),
+    "skill": ("quick-implement", "adversarial-review", "tdd", "unit-tests", "debug-root-cause",
+              "changelog-sync", "stack-practices", "backend-practices", "frontend-quality",
+              "code-health", "dependency-upgrade", "api-contract", "cybersecurity", "plugin-dev"),
+    "agent": ("implementer", "planner", "qa", "reviewer", "evaluator", "analyst", "architect",
+              "documenter", "nemesis", "knowledge-curator"),
+}
+
+
+def _por_prioridad(kind, items):
+    orden = {nombre: i for i, nombre in enumerate(PRIORIDAD.get(kind, ()))}
+    return sorted(items, key=lambda p: (orden.get(p[1], len(orden)), p[1]))
 _GATILLO_RE = re.compile(r"\b(Úsal[oa]|Usal[oa]|Use (?:this |it )?when|Invócal[oa])\b", re.I)
 
 
@@ -213,14 +230,24 @@ CARPETA = {"command": "commands/", "skill": "skills/", "agent": "agents/"}
 
 
 def _cupos(ps):
-    """Piezas por grupo que caben en LIMITE_LINEAS: si sobran, cada grupo cede proporcionalmente
-    (floor) y la última línea del grupo recortado pasa a ser «… y N piezas más»."""
+    """Piezas por grupo que caben en LIMITE_LINEAS. Agentes y comandos del ciclo son fijos y las
+    skills se resumen («… y N piezas más»); con demasiados agentes, reparto por proporción con un
+    mínimo de las piezas de `PRIORIDAD` en agentes y comandos (fix2, A-M3)."""
     n = {k: sum(1 for p in ps if p[0] == k) for k, _t in GRUPOS}
     grupos = sum(1 for k in n if n[k])
     presupuesto = LIMITE_LINEAS - len(CABECERA) - grupos
     total = sum(n.values())
     if total <= presupuesto:
         return n
+    # fix1 (A1): TODOS los agentes y los comandos del ciclo (`PRIORIDAD`) son fijos; las skills
+    # opcionales se resumen con lo que queda. Solo si ni eso cabe se cae al reparto proporcional.
+    ciclo = sum(1 for p in ps if p[0] == "command" and p[1] in PRIORIDAD["command"])
+    fijo = {"agent": n["agent"], "command": max(1, ciclo) if n["command"] else 0}
+    extra_cmd = 1 if fijo["command"] < n["command"] else 0
+    resto = presupuesto - fijo["agent"] - fijo["command"] - extra_cmd
+    if n["skill"] and resto >= 2 or not n["skill"] and resto >= 0:
+        skills = n["skill"] if resto >= n["skill"] else resto - 1
+        return {**fijo, "skill": skills}
     cupo = {}
     for k in n:
         if not n[k]:
@@ -229,11 +256,17 @@ def _cupos(ps):
         # cada grupo recortado gasta una línea en «… y N más»; el resto proporcional
         c = max(1, (presupuesto * n[k]) // total)
         cupo[k] = n[k] if c >= n[k] else max(1, c - 1)
-    # ajuste determinista: si aún sobra, quita del grupo mayor; si falta, no se añade nada
+    # mínimo garantizado: los agentes y comandos de PRIORIDAD (los visibles van primero por prioridad)
+    minimo = {"agent": min(n["agent"], sum(1 for p in ps if p[0] == "agent" and p[1] in PRIORIDAD["agent"])),
+              "command": min(n["command"], max(1, ciclo) if n["command"] else 0), "skill": 1 if n["skill"] else 0}
+    for k in cupo:
+        cupo[k] = max(cupo[k], minimo[k])
+    # ajuste determinista: si aún sobra, quita primero de skills, luego del grupo mayor sin bajar del mínimo
     while sum(cupo[k] + (1 if cupo[k] < n[k] else 0) for k in cupo) > presupuesto:
-        k = max(cupo, key=lambda x: (cupo[x], x))
-        if cupo[k] <= 1:
+        candidatos = [k for k in ("skill", "agent", "command") if cupo[k] > max(1, minimo[k])]
+        if not candidatos:
             break
+        k = candidatos[0] if "skill" in candidatos else max(candidatos, key=lambda x: (cupo[x], x))
         cupo[k] -= 1
     return cupo
 
@@ -243,7 +276,7 @@ def _lineas(ps, ancho, runtime=None, mapping=None):
     roles = (mapping or {}).get("runtimes", {}).get(runtime, {})
     cupos = _cupos(ps)
     for kind, titulo in GRUPOS:
-        items = [p for p in ps if p[0] == kind]
+        items = _por_prioridad(kind, [p for p in ps if p[0] == kind])
         if not items:
             continue
         lineas.append(titulo)
@@ -303,7 +336,8 @@ def indice_desactivado(proj):
     if not proj:
         return False
     try:
-        with open(os.path.join(proj, ".claude", "dev.json"), encoding="utf-8") as f:
+        # utf-8-sig: con BOM, `sesion.indice: false` se ignoraba (auditoría 2026-11-09)
+        with open(os.path.join(proj, ".claude", "dev.json"), encoding="utf-8-sig") as f:
             cfg = json.load(f)
         sesion = cfg.get("sesion") if isinstance(cfg, dict) else None
         return isinstance(sesion, dict) and sesion.get("indice") is False

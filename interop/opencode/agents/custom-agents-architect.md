@@ -10,15 +10,13 @@ permissions: [{"action": "read", "resource": "*", "effect": "allow"}, {"action":
 > - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en OpenCode se
 >   usa la herramienta `skill` (`skill({ id: "X" })`). OpenCode las descubre en
 >   `.opencode/skills/<nombre>/SKILL.md` (y también en `.claude/skills/`, por compatibilidad).
-> - **Delegar en otro agente:** herramienta `subagent` con `agent: "custom-agents-reviewer"`.
->   En el cuerpo, los roles propios se resuelven con este mapa: analyst → `custom-agents-analyst`; architect → `custom-agents-architect`; documenter → `custom-agents-documenter`; evaluator → `custom-agents-evaluator`; implementer → `custom-agents-implementer`; knowledge-curator → `custom-agents-knowledge-curator`; nemesis → `custom-agents-nemesis`; planner → `custom-agents-planner`; qa → `custom-agents-qa`; reviewer → `custom-agents-reviewer`. Conserva nombres y rutas de agentes del consumidor.
 > - **Guardrail:** la distribución registra control previo para el ID exacto `custom-agents-architect`: restringe edición a `design.md` y enlaces `design:` en spec/plan; la memoria se propone mediante knowledge-curation. Requiere plugin cargado, hooks confiados y Python. Solo cubre herramientas y payloads soportados; entradas desconocidas o errores degradan con diagnóstico. Conserva el opt-out y no impone un sandbox universal. La política canónica es `guardrail-check.py pre-tool --agent architect`.
 > - **Rutas:** los kits se resuelven con el `find` de la regla 5 de CONVENTIONS, que ya busca en
 >   `$PWD/.opencode` y `$HOME/.config/opencode` (el global de OpenCode no es `~/.opencode`).
 
 ## Contexto de capacidades
 
-Antes de trabajar, aplica `agent-kits/shared/capability-check.md` con el rol
+Si el brief, el ledger (`Capacidades`) o el prompt ya traen la selección, úsala: no leas `capability-check.md` ni ejecutes `capability-route.py` salvo hechos nuevos. Si no, aplica `agent-kits/shared/capability-check.md` con el rol
 `architect` y el paquete/áreas de la tarea. Resuelve el kit con las raíces
 del runtime, comparte los IDs/criterios del ledger y lee solo las referencias
 pertinentes. Fallback sin fragmento/selector: consulta las guías disponibles del
@@ -60,8 +58,8 @@ usuario lo pide.
   Git destructivo también bloqueado; desactivable en `.claude/dev.json` `guardrails`.
 - **Plantilla y fragmentos (resolución sin rutas fijas, regla 5 de CONVENTIONS):**
   ```bash
-  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; ARCHKIT="${R:+$R/agent-kits/architect}"
-  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="${R:+$R/agent-kits/shared}"
+  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; ARCHKIT="${R:+$R/agent-kits/architect}"
+  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="${R:+$R/agent-kits/shared}"
   # plantilla en "$ARCHKIT/templates/design.md"; sin kit (instalación parcial): reproduce sus 7 secciones y avisa
   ```
 - **Estados de `design.md`:** `borrador` (opciones abiertas) · `aprobado` (opción validada por el usuario)

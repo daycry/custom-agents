@@ -112,6 +112,7 @@ Exit codes:
      del PROYECTO, no los assets del plugin).
 """
 import argparse
+import copy
 import hashlib
 import importlib.util
 import json
@@ -946,8 +947,24 @@ def construir_indice(path, entradas, h):
                 print('knowledge-find: limpieza de temporales incompleta', file=sys.stderr)
 
 
+# H-28 (T-13): el arranque consulta knowledge-find una vez por iniciativa activa en el MISMO proceso.
+# Quien lo compone activa esta memo (un dict) mientras dura su bloque y el corpus se lee y se parsea
+# una vez. Por defecto None: la CLI y cualquier otro uso leen el disco en cada consulta, como siempre.
+_CORPUS_MEMO = None
+
+
 def abrir_corpus(root, usar_indice=True):
     """(entradas, ruta_del_indice_o_None, {"indice": …[, "indice_motivo": …]}). Nunca lanza."""
+    memo = _CORPUS_MEMO
+    if not isinstance(memo, dict):
+        return _abrir_corpus(root, usar_indice)
+    clave = (os.path.abspath(str(root)), bool(usar_indice))
+    if clave not in memo:
+        memo[clave] = _abrir_corpus(root, usar_indice)
+    return copy.deepcopy(memo[clave])   # cada consulta recibe su copia: nada se comparte mutado
+
+
+def _abrir_corpus(root, usar_indice=True):
     ficheros = ficheros_corpus(root)
     read_info = {"corpus_read": ficheros.corpus_read}
     parsed = parsear_corpus(ficheros)

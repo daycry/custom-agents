@@ -79,10 +79,7 @@ PRE_AGENTE_CODEX = """> **Adaptación a Codex** (fichero generado; la fuente es 
 > - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en Codex se
 >   menciona `$custom-agents:X` (o se deja que Codex la active por su `description`). Las skills del plugin se
 >   cargan desde el propio plugin.
-> - **Delegar en otro agente:** usa `spawn_agent` con `agent_type` igual al ID nativo del rol
->   (por ejemplo `custom-agents-reviewer`) si la sesión ofrece esta herramienta.
->   {delegaciones}
-> - **Guardrail:** {guardrail}
+{delegar}> - **Guardrail:** {guardrail}
 > - **Rutas:** los kits se resuelven con el `find` de la regla 5 de CONVENTIONS, que ya busca en
 >   `$PWD/.codex` y `$HOME/.codex` (donde el instalador deja el plugin en Codex).
 """
@@ -91,11 +88,19 @@ PRE_AGENTE_OPENCODE = """> **Adaptación a OpenCode** (fichero generado; la fuen
 > - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en OpenCode se
 >   usa la herramienta `skill` (`skill({{ id: "X" }})`). OpenCode las descubre en
 >   `.opencode/skills/<nombre>/SKILL.md` (y también en `.claude/skills/`, por compatibilidad).
-> - **Delegar en otro agente:** herramienta `subagent` con `agent: "custom-agents-reviewer"`.
->   {delegaciones}
-> - **Guardrail:** {guardrail}
+{delegar}> - **Guardrail:** {guardrail}
 > - **Rutas:** los kits se resuelven con el `find` de la regla 5 de CONVENTIONS, que ya busca en
 >   `$PWD/.opencode` y `$HOME/.config/opencode` (el global de OpenCode no es `~/.opencode`).
+"""
+
+# Solo los agentes con `Agent` en `tools` pueden delegar (auditoría H-47): al resto no se les dice,
+# porque en OpenCode su permiso `subagent` es `deny` y la instrucción se contradice con él.
+DELEGAR_CODEX = """> - **Delegar en otro agente:** usa `spawn_agent` con `agent_type` igual al ID nativo del rol
+>   (por ejemplo `custom-agents-reviewer`) si la sesión ofrece esta herramienta.
+>   {delegaciones}
+"""
+DELEGAR_OPENCODE = """> - **Delegar en otro agente:** herramienta `subagent` con `agent: "custom-agents-reviewer"`.
+>   {delegaciones}
 """
 
 PRE_COMANDO = """> **Adaptación a {runtime}** (fichero generado; la fuente es `commands/{nombre}.md`).
@@ -492,8 +497,9 @@ def codex_agente(nombre, bloque, cuerpo, mapping=None, model_override=None):
     cuerpo = raices_de_runtime(cuerpo, "codex")
     tools = tools_de(bloque)
     mapping = mapping or native_roles(ROOT_DEFAULT)
+    delegar = DELEGAR_CODEX.format(delegaciones=delegaciones("codex", mapping)) if "Agent" in tools else ""
     pre = PRE_AGENTE_CODEX.format(nombre=nombre, guardrail=guardrail_de(nombre, tools, "Codex", mapping),
-                                 delegaciones=delegaciones("codex", mapping))
+                                 delegar=delegar)
     lineas = [cabecera("toml", "agents/%s.md" % nombre),
               "# Copia este fichero a `.codex/agents/` (proyecto) o `~/.codex/agents/` (usuario).\n",
               "name = %s" % toml_str(mapping["runtimes"]["codex"][nombre]),
@@ -587,8 +593,9 @@ def permisos_opencode(tools):
 def opencode_agente(nombre, bloque, cuerpo, mapping=None, model_override=None):
     cuerpo = raices_de_runtime(cuerpo, "opencode")
     tools = tools_de(bloque)
+    delegar = DELEGAR_OPENCODE.format(delegaciones=delegaciones("opencode", mapping)) if "Agent" in tools else ""
     pre = PRE_AGENTE_OPENCODE.format(nombre=nombre, guardrail=guardrail_de(nombre, tools, "OpenCode", mapping),
-                                    delegaciones=delegaciones("opencode", mapping))
+                                    delegar=delegar)
     pares = [
         ("description", json.dumps(campo(bloque, "description"), ensure_ascii=False)),
         # Todas las piezas del plugin son subagentes: las despacha un orquestador por nombre.

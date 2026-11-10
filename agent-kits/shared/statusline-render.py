@@ -79,7 +79,12 @@ def write_cache(root, key, data):
     temporary = None
     try:
         directory.mkdir(mode=0o700, exist_ok=True)
-        if directory.is_symlink() or directory.resolve() != directory:
+        # `.claude` itself must not be redirected (symlink or junction). The ancestors of the root may
+        # be aliases (an 8.3 short path on Windows), so compare against the real parent, not the
+        # literal one, and write through the real path (T-21, debt of phase 3).
+        real_parent = Path(os.path.realpath(directory.parent))
+        directory = real_parent / '.claude'
+        if directory.is_symlink() or Path(os.path.realpath(directory)) != directory:
             return
         ignored = directory / '.gitignore'
         if ignored.is_symlink():

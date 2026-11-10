@@ -55,6 +55,38 @@ export function observedSessionCount(inventory,managed){
  if(count)return count
  return inventory?.status==='ok'&&inventory.complete===true&&inventory.freshness?.state!=='refresh_failed'?0:null
 }
+// Review attempt 1 of phase 3 (B3): Home reads the cached inventory; until Sessions has asked for it the
+// external sessions are unknown, so the count is a lower bound («≥ N»), never a total.
+export function sessionCountLabel(inventory,managed){
+ const count=observedSessionCount(inventory,managed)
+ if(count===null||count===0)return count
+ const complete=inventory?.status==='ok'&&inventory.complete===true&&inventory.freshness?.state!=='refresh_failed'
+ return complete?count:'≥ '+count
+}
+/* Brings `root`'s children to `desired` touching only what differs: nodes already in place are not removed and
+   re-inserted, so a screen reader hears nothing again for them (gap 6 of the Phase 4 review). */
+export function reconcileChildren(root,desired){
+ const wanted=new Set(desired)
+ for(const child of [...root.children])if(!wanted.has(child))root.removeChild(child)
+ desired.forEach((node,index)=>{if(root.children[index]!==node)root.insertBefore(node,root.children[index]||null)})
+}
+/* Text to announce for the assistant's answers, in order: what is NEW with respect to what `seen` (a Map id → text
+   already announced) holds, so a streamed answer is read as it grows and an empty first fragment hides nothing. A text
+   that is not an extension of the announced one (a rewrite) is announced whole. The user's own message is an echo and
+   is never announced. Each piece is cut to `limit` characters. */
+export function newMessageAnnouncements(seen,messages,limit=280){
+ const out=[]
+ for(const message of messages||[]){
+  if(message.role==='user'){seen.set(message.id,'');continue}
+  const text=typeof message.text==='string'?message.text:''
+  const before=seen.get(message.id)||''
+  if(!text.trim()||text===before)continue
+  const fresh=text.startsWith(before)?text.slice(before.length):text
+  seen.set(message.id,text)
+  if(fresh.trim())out.push(fresh.trim().slice(0,limit))
+ }
+ return out
+}
 export function loading(root,text='Preparando esta vista…'){root.replaceChildren(el('div',text,'loading'))}
 export function empty(root,title,description,symbol='box',actions=[],compact=false){
  const box=el('div',undefined,'empty-state'+(compact?' compact':''))

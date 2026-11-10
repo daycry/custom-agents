@@ -59,10 +59,8 @@ ALLOWED = (
     'git commit --amend --no-edit',
     'git commit --no-verify --verify -m x',
     'git commit -- --no-verify',
-    'git -c commit.gpgsign=false commit -m x',
-    'git -c core.hooksPath=alternate status',
-    'GIT_CONFIG_COUNT=0 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=alternate git commit -m x',
-    'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_1=core.hooksPath GIT_CONFIG_VALUE_1=alternate git commit -m x',
+    # Revisión fix3b: desactivar la firma es saltarse una puerta; solo se permite el valor verdadero.
+    'git -c commit.gpgsign=true commit -m x',
     'env X=1 git commit -m x',
     'echo "git commit --no-verify"',
     'bash -lc \'echo "git commit --no-verify"\'',
@@ -89,9 +87,27 @@ EXTENDED_ALLOWED = (
     'git commit --message --no-v',
     'git commit -m--no-v',
     'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=alternate env -i git commit -m x',
+)
+
+# Revisión intento 2: antes se permitían por ser inertes para git; ahora el guardarraíl deniega
+# cualquier variable GIT_CONFIG_* (cierre por diseño, sin interpretar contadores ni índices).
+ENV_CONFIG_NOW_DENIED = (
+    'GIT_CONFIG_COUNT=0 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=alternate git commit -m x',
+    'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_1=core.hooksPath GIT_CONFIG_VALUE_1=alternate git commit -m x',
     'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=alternate env -u GIT_CONFIG_COUNT git commit -m x',
     'GIT_CONFIG_PARAMETERS="\'safe.setting\'=\'core.hooksPath=alternate\'" git commit -m x',
+    'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_00=core.hooksPath GIT_CONFIG_VALUE_00=alternate git commit -m x',
+    'git_config_count=1 git_config_key_0=core.hooksPath git_config_value_0=alternate git commit -m x',
+    # Revisión intento 3: `-c` solo admite la lista blanca; `core.hooksPath` fuera de commit también.
+    'git -c core.hooksPath=alternate status',
 )
+
+
+@pytest.mark.parametrize('runtime', ['claude', 'codex', 'opencode'])
+@pytest.mark.parametrize('command', ENV_CONFIG_NOW_DENIED)
+def test_fix2_any_git_config_environment_is_denied(runtime, command):
+    assert evaluate(command, runtime)['decision'] == 'deny'
+
 
 
 def evaluate(command, runtime, role='implementer', tool=None, git=True, identity=None):
@@ -160,8 +176,9 @@ def test_abbreviated_git_value_option_consumes_next_token(option):
 
 
 @pytest.mark.parametrize('option', ['--no-v', '--no-ver'])
-def test_ambiguous_git_verify_abbreviation_is_not_an_effective_flag(option):
-    assert GUARD.check_git('git commit ' + option + ' -m x', None) is None
+def test_fix2_ambiguous_git_verify_abbreviation_is_denied(option):
+    # Revisión intento 2: git rechaza un prefijo ambiguo; denegarlo de más es seguro.
+    assert GUARD.check_git('git commit ' + option + ' -m x', None)
 
 
 def test_literal_config_counter_with_long_leading_zero_prefix_is_supported():
@@ -169,9 +186,9 @@ def test_literal_config_counter_with_long_leading_zero_prefix_is_supported():
                            'GIT_CONFIG_VALUE_0=alternate git commit -m x', None)
 
 
-def test_noncanonical_config_key_index_is_not_a_git_override():
+def test_fix2_noncanonical_config_key_index_is_denied_by_design():
     assert GUARD.check_git('GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_00=core.hooksPath '
-                           'GIT_CONFIG_VALUE_00=alternate git commit -m x', None) is None
+                           'GIT_CONFIG_VALUE_00=alternate git commit -m x', None)
 
 
 @pytest.mark.parametrize('command', [
@@ -205,9 +222,9 @@ def test_git_negated_negative_verify_option_restores_hooks(restore):
 
 
 @pytest.mark.parametrize('count', ['2147483648', '9999999999', '\u00a01', '1 ', '-1'])
-def test_invalid_git_config_counter_is_not_an_executable_override(count):
+def test_fix2_invalid_git_config_counter_is_denied_by_design(count):
     assert GUARD.check_git('GIT_CONFIG_COUNT="' + count + '" GIT_CONFIG_KEY_0=core.hooksPath '
-                          'GIT_CONFIG_VALUE_0=alternate git commit -m x', None) is None
+                          'GIT_CONFIG_VALUE_0=alternate git commit -m x', None)
 
 
 @pytest.mark.parametrize('command', [

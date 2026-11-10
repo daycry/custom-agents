@@ -130,7 +130,19 @@ It runs only the Python compositor. It uses no meter, replay/recover, Git, backe
 network or materialization processes, and reads no raw transcripts to fill gaps.
 Automatic capture and recovery retain their own hook contracts. At startup/resume,
 `SessionStart` uses `resume --history-only` to select history through the same ledger
-resolver; compact omits that part. The progress and replay blocks remain separate.
+resolver; compact omits that part. When that resolver yields no single initiative
+(several active or more than 1 MiB of ledgers), it quotes the initiative in progress
+among the active ones and never a non-active one. A failed selection leaves no line
+in the session block; this view still reports the status.
+One rule picks the initiative in progress for the journal writer, the history, the
+session block, memory and the statusline: the open meter marker (even at 100 %),
+otherwise the pending initiative with the most recent ledger, otherwise the most
+recent one; ties by name. It reads the 128 most recent folders of the roadmap with the
+bounded reader (an older active one is left out) and only attributes as history the
+entries tagged `regla_iniciativa: vigente`. Capture stores in the envelope only the slug of the open marker, if
+there is one and it is a plain name (no roadmap scan); `replay` uses it as is and, without it, applies this same
+rule with a 24 h threshold for the tag (an old envelope with an invalid slug is not dead-lettered: the field is
+dropped with a notice). Startup says how many entries it omits as unattributed. The progress and replay blocks remain separate.
 This view does not make the entire `SessionStart` hook read-only.
 
 The facade finds `agent-kits/shared/` through the six roots in

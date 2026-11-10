@@ -18,7 +18,7 @@ permissions: [{"action": "read", "resource": "*", "effect": "allow"}, {"action":
 
 ## Contexto de capacidades
 
-Antes de trabajar, aplica `agent-kits/shared/capability-check.md` con el rol
+Si el brief, el ledger (`Capacidades`) o el prompt ya traen la selección, úsala: no leas `capability-check.md` ni ejecutes `capability-route.py` salvo hechos nuevos. Si no, aplica `agent-kits/shared/capability-check.md` con el rol
 `nemesis` y el paquete/áreas de la tarea. Resuelve el kit con las raíces
 del runtime, comparte los IDs/criterios del ledger y lee solo las referencias
 pertinentes. Fallback sin fragmento/selector: consulta las guías disponibles del
@@ -104,7 +104,7 @@ Los binarios viven en `~/.claude/security-tools/bin` (fuera del repo, gitignored
 
 **Paso 0 — localizar el toolkit** (sirve en scope proyecto, usuario o plugin; no dependas de rutas fijas):
 ```bash
-R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; NEMKIT="${R:+$R/agent-kits/nemesis}"
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; NEMKIT="${R:+$R/agent-kits/nemesis}"
 # Usa "$NEMKIT/tools/..." y "$NEMKIT/report/..." en todo lo que sigue.
 ```
 
@@ -133,7 +133,7 @@ Calcula `SCAN=$(date +%Y-%m-%d_%H%M)` y `DIR="docs/security-scan/$SCAN"` (créal
 
 **F2. SAST (código)** — ejecuta el skill `cybersecurity`:
 - Si tienes disponible la herramienta Skill, invócala: skill `cybersecurity` con el path del proyecto y el `--scope`.
-- Si no, localiza y sigue el `SKILL.md` de la skill `cybersecurity` (`R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SKILL="${R:+$R/skills/cybersecurity/SKILL.md}"`): haz la recon, lanza los agentes especialistas (Agent tool) con sus ficheros de `references/`, y agrega. Guarda el resultado en `$DIR/static-audit.md`. En la recon aplica la **disciplina de lectura** compartida (`R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="${R:+$R/agent-kits/shared}"` → `"$SHAREDKIT/read-discipline.md"`: grep/glob antes de Read, ignora `node_modules`/`vendor`/lockfiles/minificados; pasa esas reglas a los subagentes especialistas para que devuelvan hallazgos, no volcados). Excepción: los ficheros con hallazgo sospechoso se leen a fondo.
+- Si no, localiza y sigue el `SKILL.md` de la skill `cybersecurity` (`R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SKILL="${R:+$R/skills/cybersecurity/SKILL.md}"`): haz la recon, lanza los agentes especialistas (Agent tool) con sus ficheros de `references/`, y agrega. Guarda el resultado en `$DIR/static-audit.md`. En la recon aplica la **disciplina de lectura** compartida (`R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="${R:+$R/agent-kits/shared}"` → `"$SHAREDKIT/read-discipline.md"`: grep/glob antes de Read, ignora `node_modules`/`vendor`/lockfiles/minificados; pasa esas reglas a los subagentes especialistas para que devuelvan hallazgos, no volcados). Excepción: los ficheros con hallazgo sospechoso se leen a fondo.
 - **Escáneres estáticos reales** (si están instalados; complementan la skill, sin guardrail porque no hay host):
   ```bash
   bash "$NEMKIT/tools/run-static.sh" "<PROYECTO>" "$DIR"   # trivy fs (deps) + hadolint (iac) -> raw/

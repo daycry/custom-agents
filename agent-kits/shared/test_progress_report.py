@@ -247,6 +247,16 @@ def test_session_con_activas_bloque_acotado(tmp_path):
     assert "retoma desde la tarea en-progreso" in lines[-1]
 
 
+def test_session_archivos_sueltos_no_avisan_ni_entran_en_la_firma(tmp_path):
+    ledger(tmp_path, "2026-09-02-demo", DOS_FASES)
+    roadmap = tmp_path / "docs" / "roadmap"
+    (roadmap / "CALIBRATION.md").write_text("x", encoding="utf-8")
+    (roadmap / "README.md").write_text("x", encoding="utf-8")
+    snap = pr.instantanea(tmp_path)
+    assert not [a for a in snap["avisos"] if "ilegible" in a or "CALIBRATION" in a or "README" in a]
+    assert [r for r in snap["activas"]]
+
+
 def test_session_sin_roadmap_exit_0(tmp_path):
     code, out, _ = run("session", "--root", str(tmp_path))
     assert code == 0 and out.strip() == pr.LINEA_NEUTRA
@@ -429,3 +439,94 @@ def test_en_curso_helpers_directos(tmp_path):
     def _falla(p):
         raise OSError(p)
     assert pr.iniciativa_en_curso(rs, {"a/F1": "no es un dict", "b/F1": {"ultimoCierre": "x"}}, mtime=_falla) == "a"
+
+
+# ------------------------------------------------------------------ H-48: bloque de sesión compacto
+
+AL_100_ACTIVA = COMPLETADO.replace("estado: completado", "estado: en-progreso", 1)
+
+
+def test_h48_session_compacta_las_iniciativas_al_100(tmp_path):
+    ledger(tmp_path, "2026-09-01-cerrable", AL_100_ACTIVA)
+    ledger(tmp_path, "2026-09-03-otra-cerrable", AL_100_ACTIVA)
+    ledger(tmp_path, "2026-09-02-demo", DOS_FASES)
+    code, out, _ = run("session", "--root", str(tmp_path))
+    lines = out.strip().splitlines()
+    assert code == 0
+    assert "2 al 100 % pendientes de cierre: /retro cerrable, /retro otra-cerrable" in lines
+    assert not any(l.startswith("- 📋 cerrable") or l.startswith("- 📋 otra-cerrable") for l in lines)
+    assert any(l.startswith("- 📋 demo ·") for l in lines)
+    # Con una sola iniciativa pendiente, la línea de retoma nombra su ledger, no «<…>».
+    assert lines[-1].startswith("Ledger canónico: docs/roadmap/2026-09-02-demo/tasks.md")
+
+
+def test_h48_session_sin_linea_opaca_de_revisiones(tmp_path):
+    ledger(tmp_path, "2026-09-02-demo", DOS_FASES)
+    ledger(tmp_path, "2026-09-04-otra", DOS_FASES.replace("tasks: demo", "tasks: otra"))
+    code, out, _ = run("session", "--root", str(tmp_path))
+    assert code == 0 and "- 📋 otra ·" in out
+    assert "Revisiones: selección de iniciativa" not in out
+
+
+
+# ------------------------------------------------- revisión intento 1 (fase 2): B4, B5
+
+def test_fix1_b4_ledger_canonico_es_la_pendiente_aunque_la_de_100_sea_mas_reciente(tmp_path):
+    import os
+    cerrable = ledger(tmp_path, "2026-09-05-cerrable", AL_100_ACTIVA)
+    demo = ledger(tmp_path, "2026-09-02-demo", DOS_FASES)
+    os.utime(demo, (1_000_000_000, 1_000_000_000))
+    os.utime(cerrable, (2_000_000_000, 2_000_000_000))
+    assert pr.iniciativa_vigente(tmp_path) == "demo"
+    code, out, _ = run("session", "--root", str(tmp_path))
+    assert out.strip().splitlines()[-1].startswith("Ledger canónico: docs/roadmap/2026-09-02-demo/tasks.md")
+
+
+def test_fix1_b5_revisiones_omitidas_por_ledger_grande_se_dicen(tmp_path):
+    p = ledger(tmp_path, "2026-09-02-demo", DOS_FASES)
+    p.write_text(DOS_FASES + ("relleno " * 60 + "\n") * 700, encoding="utf-8")
+    code, out, _ = run("session", "--root", str(tmp_path))
+    assert code == 0
+    assert "Revisiones omitidas: ledger > 256 KiB; /work-resume --initiative 2026-09-02-demo" in out
+
+
+# ---------------------------------------- H-28 (auditoría 2026-11-09, T-13): una pasada
+
+def test_h28_estado_ledger_coincide_con_parse_ledger_en_los_ledgers_del_repo():
+    """La lectura de cabecera del arranque usa `estado_ledger` (sin trocear tareas): mismo estado
+    que `parse_ledger` en cada ledger del repo, entero y en el prefijo de 16 KiB."""
+    roadmap = HERE.parents[1] / "docs" / "roadmap"
+    vistos = 0
+    for path in sorted(roadmap.glob("*/tasks.md")):
+        texto = path.read_text(encoding="utf-8", errors="replace")
+        for parte in (texto, texto[:16 * 1024], "\ufeff" + texto[:4096]):
+            parsed = pr.parse_ledger(parte)
+            fm = parsed["frontmatter"].get("estado")
+            esperado = pr.norm_estado(fm) if fm else parsed["estado_tabla"]
+            assert pr._ll.estado_ledger(parte) == esperado, path
+        vistos += 1
+    assert vistos >= 10
+
+
+def test_h28_lector_una_vez_sirve_prefijos_y_lectura_entera_como_local_read(tmp_path):
+    """`_LectorUnaVez` abre el ledger una vez y devuelve lo mismo que `local-read.read_text`."""
+    reader = pr._load_module("t_local_read", "local-read.py")
+    ledger = tmp_path / "docs" / "roadmap" / "2026-01-01-x" / "tasks.md"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_bytes(("---\nestado: en-progreso\n---\n# Título ñ\n" + "línea € " * 9000).encode("utf-8"))
+    rel = "docs/roadmap/2026-01-01-x/tasks.md"
+    lector = pr._LectorUnaVez(reader, {rel: ledger.stat().st_size})
+    for kwargs in ({"max_bytes": 16 * 1024, "prefix": True}, {"max_bytes": 256 * 1024, "prefix": True},
+                   {"max_bytes": 16 * 1024 * 1024}, {"max_bytes": 1000}, {"max_bytes": 16 * 1024 + 1, "prefix": True}):
+        assert lector.read_text(tmp_path, rel, **kwargs) == reader.read_text(tmp_path, rel, **kwargs), kwargs
+    abiertos = []
+    original = reader.read_bytes
+    reader.read_bytes = lambda *a, **k: abiertos.append(k) or original(*a, **k)
+    try:
+        lector2 = pr._LectorUnaVez(reader, {rel: ledger.stat().st_size})
+        lector2.read_text(tmp_path, rel, max_bytes=16 * 1024, prefix=True)
+        lector2.read_text(tmp_path, rel, max_bytes=256 * 1024, prefix=True)
+        lector2.read_text(tmp_path, rel, max_bytes=16 * 1024 * 1024)
+    finally:
+        reader.read_bytes = original
+    assert len(abiertos) == 1, abiertos

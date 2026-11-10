@@ -32,7 +32,7 @@ dependencies:
 
 ## Contexto de capacidades
 
-Antes de trabajar, aplica `agent-kits/shared/capability-check.md` con el rol
+Si el brief, el ledger (`Capacidades`) o el prompt ya traen la selección, úsala: no leas `capability-check.md` ni ejecutes `capability-route.py` salvo hechos nuevos. Si no, aplica `agent-kits/shared/capability-check.md` con el rol
 `reviewer` y el paquete/áreas de la tarea. Resuelve el kit con las raíces
 del runtime, comparte los IDs/criterios del ledger y lee solo las referencias
 pertinentes. Fallback sin fragmento/selector: consulta las guías disponibles del

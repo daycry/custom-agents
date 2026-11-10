@@ -123,7 +123,7 @@ _BOOTSTRAP_NODE_HASHES = {
 # prompt capture; same local executables/imports, no network path (review 2026-10-29).
 # F2 T-09/T-10: fixed local marker and combined local parser only; self-audit in
 # testing/t10-egress-boundary-review-2026-10-29.json. Independent phase review remains T-19.
-_LAUNCHER_NODE_HASH = "40a908fa54d78bc802b7212f57ba879f234b526fd9966e258d5db29d5c562ee1"
+_LAUNCHER_NODE_HASH = "1abca05d5f7806ae6ea554f52ee8ce681e3dc9049c8f8d03c57d7cbee668a35d"   # revisado 2026-11-10 (T-14): JOB_EMPTY del supervisor y subagent-progress.py/journal-prompt.py locales, sin red
 _EXT_RE = "|".join(_EXT_ESCANEABLES + _EXT_NO_ESCANEABLES)
 # Gap #155 (Important, fix1 Fase 4): el lookahead final quita los falsos positivos del escaneo de
 # CODIGO (`hashlib.sha256` casaba como `hashlib.sh`). Hace falta porque a partir de este fix una
@@ -149,6 +149,7 @@ _CITAS_SIN_FICHERO_PERMITIDAS = ()
 _CITAS_POR_NOMBRE = {
     ("hooks/run-hook.mjs", "journal.py"): "agent-kits/shared/journal.py",
     ("hooks/run-hook.mjs", "journal-capture.py"): "agent-kits/shared/journal-capture.py",
+    ("hooks/run-hook.mjs", "journal-prompt.py"): "agent-kits/shared/journal-prompt.py",   # T-14 (H-31)
     ("hooks/run-hook.mjs", "native-guardrail.py"): "agent-kits/shared/native-guardrail.py",
     ("hooks/run-hook.mjs", "agent-activity-store.py"): "agent-kits/shared/agent-activity-store.py",
     ("hooks/run-hook.mjs", "ledger-post.py"): "hooks/ledger-post.py",
@@ -157,6 +158,7 @@ _CITAS_POR_NOMBRE = {
     ("hooks/session-context.py", "skill-index.py"): "agent-kits/shared/skill-index.py",
     ("hooks/session-context.py", "progress-report.py"): "agent-kits/shared/progress-report.py",
     ("hooks/session-context.py", "knowledge-find.py"): "agent-kits/shared/knowledge-find.py",
+    ("hooks/subagent-progress.py", "progress-report.py"): "agent-kits/shared/progress-report.py",   # T-14 (H-30)
     ("hooks/ledger-post.py", "ledger-lint.py"): "agent-kits/shared/ledger-lint.py",
     ("hooks/ledger-post.py", "progress-report.py"): "agent-kits/shared/progress-report.py",
     ("hooks/ledger-post.py", "local-read.py"): "agent-kits/shared/local-read.py",
@@ -173,12 +175,12 @@ _CITAS_POR_NOMBRE = {
 # This is a closure declaration, never an egress exception. Any owner change needs review.
 _CARGAS_LOCALES_REVISADAS = {
     "hooks/session-context.py": {
-        "sha256_lf": "ef68ca4c03ac360b8b1609aab84f58b350a8cb5a5fa37321ed3a288a4da3630c",
+        "sha256_lf": "5180cec9d7297a4f47f467154900360ce974c22439717511cc92e1c9e21e665b",   # f4fix3 (gaps 1 y 5): modo `drain` (solo replay); token SHAREDKIT neutralizado salvo tras `$` (expansión, no asignación); el token SHAREDKIT del consumidor se neutraliza sin distinguir mayúsculas ni forma; f4fix2 (gap 1): el texto del consumidor se neutraliza (`neutralise_kit_text`), solo vale la línea del hook; f4fix1 (gaps 1 y 17): la línea «Kit activo» va entre comillas simples (CWE-78) y también con el bloque vacío; T-19 (H-45): línea «Kit activo» con la ruta local del bundle; T-13 (H-28): título y corpus de la memoria sin releer; mismas cargas locales, sin red
         "dependencies": ("agent-kits/shared/journal.py", "agent-kits/shared/skill-index.py",
                          "agent-kits/shared/progress-report.py", "agent-kits/shared/knowledge-find.py"),
     },
     "hooks/ledger-post.py": {
-        "sha256_lf": "116d105306af39b2357cef3d597496c3f00c42d938e39bd572c24c6e606aedbc",
+        "sha256_lf": "d973901509c4ae0a14fc609334ba29eb7df636921971c5c11c86d288f2f89013",   # fase 3 fix1 (B-nota): último estado por hook; mismas cargas locales, sin red
         "dependencies": ("agent-kits/shared/ledger-lint.py", "agent-kits/shared/progress-report.py",
                          "agent-kits/shared/local-read.py", "agent-kits/shared/local-state.py",
                          "agent-kits/shared/redact.py"),
@@ -2915,3 +2917,37 @@ def test_activity_unrelated_namespace_declaration_keeps_local_quiet_data(tmp_pat
         '    parser = QuietParser()\n'
         '    parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n', encoding="utf8")
     assert _egress_por_ast(str(script)) == []
+
+
+# ====================================================================== auditoría 2026-11-09 (H-5)
+
+def test_openers_de_graphiti_ignoran_proxy_del_entorno(monkeypatch):
+    """El tráfico a Graphiti es solo local/privado: con HTTP(S)_PROXY definido (o proxy del
+    registro de Windows) el opener NO puede llevar un ProxyHandler con proxies; debe ser
+    `ProxyHandler({})`, como ya hace `markdown_export.py`."""
+    import urllib.request
+    for var in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"):
+        monkeypatch.setenv(var, "http://proxy.example.invalid:3128")
+    for var in ("NO_PROXY", "no_proxy"):
+        monkeypatch.delenv(var, raising=False)
+    construidos = []
+    real = urllib.request.build_opener
+
+    def espia(*handlers):
+        opener = real(*handlers)
+        construidos.append((handlers, opener))
+        return opener
+
+    monkeypatch.setattr(urllib.request, "build_opener", espia)
+    try:  # el puerto 9 está cerrado: el error de conexión es lo esperado, no el resultado
+        gr._post_json("http://127.0.0.1:9/mcp", {"jsonrpc": "2.0"}, {}, 0.3, False)
+    except (OSError, gr.ErrorMCP) as e:
+        assert "proxy.example.invalid" not in str(e) and "getaddrinfo" not in str(e), e
+    gr._get_health_endpoint("http://127.0.0.1:9/health", 0.3, False)
+    assert len(construidos) >= 2, "los dos caminos de red deben construir su opener"
+    for handlers, opener in construidos:
+        # build_opener añade ProxyHandler() (lee el entorno) salvo que se le pase uno explícito.
+        explicitos = [h for h in handlers if isinstance(h, urllib.request.ProxyHandler)]
+        assert explicitos and all(h.proxies == {} for h in explicitos), handlers
+        activos = [h.proxies for h in opener.handlers if isinstance(h, urllib.request.ProxyHandler)]
+        assert all(p == {} for p in activos), f"opener con proxy del entorno: {activos}"

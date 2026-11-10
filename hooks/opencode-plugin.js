@@ -1,7 +1,8 @@
 // OpenCode V2 server plugin. Business rules remain in the shared hook services.
 import { execFile, spawn } from 'node:child_process';
 import { constants, existsSync } from 'node:fs';
-import { lstat, open, readdir } from 'node:fs/promises';
+import { lstat, open, readdir, readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -36,7 +37,6 @@ const hookCatalog = JSON.parse(`{
 // custom-agents hook-catalog:end
 const bindings = Object.fromEntries(hookCatalog.bindings.map(binding => [binding.id, binding]));
 const writing = new Set(bindings.post.tools);
-const readOnly = new Set(['read', 'glob', 'grep', 'list', 'ls', 'webfetch', 'websearch']);
 // Only what the store's summary whitelist reads crosses to the activity child (agent-activity-store.py
 // `_raw_summary`); file contents, outputs and the rest of the arguments stay here.
 const summaryKeys = ['command', 'cmd', 'paths', 'files', 'file_path', 'notebook_path', 'filePath', 'path',
@@ -73,8 +73,10 @@ export default {
     if (!hooks) { console.warn('custom-agents: hook bundle unavailable'); return; }
     const controller = new AbortController();
     const children = new Set(), inflight = new Set();
-    let cached, generation = 0;
-    const invalidate = () => { cached = undefined; generation++; };
+    // One slot per session: a parent and its delegated children never evict each other (gap 11).
+    const cache = new Map(), CACHE_SESSIONS = 16;
+    let generation = 0;
+    const invalidate = () => { cache.clear(); generation++; };
     const warn = () => console.warn('custom-agents: informational hook unavailable; continuing');
     const warnGuard = () => console.warn('custom-agents: role guard unavailable; normal permissions continue');
     // Re-read the generated map for each decision; an uncertain map delegates to Python.
@@ -99,24 +101,75 @@ export default {
     }
     if (!await loadGuardedIDs()) warnGuard();
 
-    // Only metadata is scanned; unsafe or oversized trees disable reuse.
+    // Only metadata is scanned (journal entries: a digest of the lines the session block quotes);
+    // unsafe or oversized trees disable reuse. The signature is the ONLY invalidation: an event never
+    // clears the cache, because what it could change is already in the signature (H-46, gap 3).
+    const VOLATILE_KEYS = ['materializado_en', 'derivados_en', 'turnos', 'log_hasta', 'reason', 'resumen_por'];
+    // `marcadores_cerrados` is not quoted, but whether it is empty decides if an entry is a placeholder: only that signs.
+    const VOLATILE_LISTS = ['marcadores_cerrados'];
+    // The injected part of a journal entry: its front matter minus what the block never quotes
+    // (rewrite timestamps, the turn count, the cost markers). The body is not injected either.
+    function injectedDigest(text) {
+      const lines = text.split(/\r?\n/);
+      if (lines[0] !== '---') return null;
+      const end = lines.indexOf('---', 1);
+      if (end < 0) return null;
+      const kept = [];
+      let skipping = null, items = 0;
+      const closeList = () => { if (skipping) kept.push(skipping + ':#' + (items > 0)); skipping = null; items = 0; };
+      for (const line of lines.slice(1, end)) {
+        if (/^\s/.test(line) && skipping) { items++; continue; }
+        closeList();
+        const list = VOLATILE_LISTS.find(key => line.startsWith(key + ':'));
+        if (list) { skipping = list; items = line.includes('[]') ? 0 : (line.slice(list.length + 1).trim() ? 1 : 0); continue; }
+        if (VOLATILE_KEYS.some(key => line.startsWith(key + ':'))) continue;
+        kept.push(line);
+      }
+      closeList();
+      return createHash('sha1').update(kept.join('\n')).digest('hex');
+    }
     async function signature(cwd) {
-      const deadline = Date.now() + 250, rows = [];
+      const deadline = Date.now() + 1000;
       let count = 0;
+      const journalDir = normalized(join(cwd, 'docs', 'knowledge', 'journal'));
+      const queueDir = normalized(join(cwd, '.claude', 'journal'));
+      const rootRoadmap = normalized(join(cwd, 'docs', 'roadmap'));
+      // Rows are returned, never pushed, so siblings can be read concurrently and still sign in name order.
       async function visit(path, depth = 0, top = false) {
-        if (++count > 4096 || depth > 8 || Date.now() > deadline) throw new Error('cache bound');
+        if (++count > 4096 || depth > 12 || Date.now() > deadline) throw new Error('cache bound');
         let info;
         try { info = await lstat(path); }
-        catch (error) { if (error.code === 'ENOENT') { rows.push([path, 'missing']); return; } throw error; }
+        catch (error) { if (error.code === 'ENOENT') return [[path, 'missing']]; throw error; }
         if (info.isSymbolicLink()) throw new Error('cache link');
-        rows.push([path, info.dev, info.ino, info.size, info.mtimeMs, info.ctimeMs]);
-        if (!info.isDirectory()) return;
+        if (info.isFile() && normalized(dirname(path)) === journalDir) {
+          if (!path.endsWith('.md') || path.endsWith('README.md')) return [];   // the index is rebuilt on every write
+          if (info.size <= 65536) {
+            const digest = injectedDigest(await readFile(path, 'utf8'));
+            if (digest) return [[path, 'entry', digest]];
+          }
+        }
+        // A directory signs by name only: its own mtime moves with every file created or rewritten inside it, and the
+        // children already sign themselves (a new capture log or marker must not invalidate the cache).
+        const rows = [[path, ...(info.isDirectory() ? ['dir'] : [info.dev, info.ino, info.size, info.mtimeMs, info.ctimeMs])]];
+        if (!info.isDirectory()) return rows;
         const names = await readdir(path, { withFileTypes: true });
         if (names.length > 4096) throw new Error('cache bound');
         names.sort((a, b) => a.name.localeCompare(b.name));
-        for (const entry of names) {
-          if (!top || !entry.isDirectory() || entry.name === 'journal') await visit(join(path, entry.name), depth + 1);
-        }
+        const wanted = names.filter(entry => {
+          // The per-prompt capture log is volatile and never feeds the session context (H-46).
+          if (top && /^session-prompts-.*\.log$/.test(entry.name)) return false;
+          // Neither the Confluence pending marker (truncated on every edit under docs/) nor the QA evidence
+          // under an initiative's testing/ folder feeds the block (fix2 gaps 8 and 9).
+          if (top && entry.name === '.confluence-pending') return false;
+          if (entry.name === 'testing' && entry.isDirectory() && normalized(dirname(path)) === rootRoadmap) return false;
+          // Envelopes queued by the capture are replayed at the next recompute; only dead letters feed the notice.
+          if (normalized(path) === queueDir && ['outbox', 'processing', 'done'].includes(entry.name)) return false;
+          return !top || !entry.isDirectory() || entry.name === 'journal';
+        });
+        for (let index = 0; index < wanted.length; index += 64)
+          for (const part of await Promise.all(wanted.slice(index, index + 64).map(entry => visit(join(path, entry.name), depth + 1))))
+            rows.push(...part);
+        return rows;
       }
       try {
         const config = join(cwd, '.claude', 'dev.json');
@@ -132,12 +185,32 @@ export default {
           if (configValue?.sesion?.journal?.dir) return null;
         } catch (error) { if (error.code !== 'ENOENT') return null; }
         finally { await file?.close(); }
-        await visit(join(cwd, '.claude'), 0, true);
-        await visit(join(cwd, 'docs', 'roadmap'));
-        await visit(join(cwd, 'docs', 'knowledge'));
+        const rows = [
+          ...await visit(join(cwd, '.claude'), 0, true),
+          ...await visit(join(cwd, 'docs', 'roadmap')),
+          ...await visit(join(cwd, 'docs', 'knowledge'))];
         return JSON.stringify(rows);
       } catch { return null; }
     }
+
+    // A cache hit must not leave the capture queue to pile up: the envelopes are replayed (oldest first) by a
+    // background run of the replay alone (`source: 'drain'`: no index, progress or memory), without delaying the
+    // answer. A queue that did not move is tried again after DRAIN_RETRY_MS (a blocked or failed replay leaves it
+    // untouched); a queue that changed is drained at once.
+    const DRAIN_RETRY_MS = 30000;
+    let drained = '', drainedAt = 0;
+    async function drainQueue(cwd, sessionID) {
+      try {
+        const names = (await readdir(join(cwd, '.claude', 'journal', 'outbox'))).filter(name => name.endsWith('.json')).sort().join('|');
+        if (!names || (names === drained && Date.now() - drainedAt < DRAIN_RETRY_MS)) return;
+        drained = names; drainedAt = Date.now();
+        const task = run(bindings.context.handlers[0], { hook_event_name: 'SessionStart', source: 'drain', session_id: sessionID, cwd }).then(() => {});
+        inflight.add(task); void task.finally(() => inflight.delete(task));
+      } catch { /* No queue, nothing to drain. */ }
+    }
+    // Only «replay blocked by another replay» describes a moment and is never cached; the permanent notices (damaged
+    // queue, outbox.py missing) are cached like any other text.
+    const TRANSIENT_NOTICE = 'bloqueado (otro replay en curso)';
 
     // Session APIs may expose other locations. Never reuse the instance root without checking.
     async function project(sessionID) {
@@ -223,7 +296,8 @@ export default {
       try {
         if (typeof event?.prompt?.text !== 'string') return;
         const cwd = await project(event.sessionID);
-        if (cwd) { invalidate(); await run(bindings.prompt.handlers[0], {
+        // No invalidation by event: the context is reused until its signature changes (H-46).
+        if (cwd) { await run(bindings.prompt.handlers[0], {
           hook_event_name: 'UserPromptSubmit', session_id: event.sessionID, prompt: event.prompt.text, cwd,
         }); }
       } catch { warn(); }
@@ -236,7 +310,8 @@ export default {
         if (!cwd) return;
         const revision = generation, before = await signature(cwd);
         let text;
-        if (before && cached?.sessionID === event.sessionID && cached.signature === before && Date.now() < cached.until) text = cached.text;
+        const hit = cache.get(event.sessionID);
+        if (before && hit?.signature === before) { text = hit.text; void drainQueue(cwd, event.sessionID); }
         else {
           const output = await run(bindings.context.handlers[0], {
             hook_event_name: 'SessionStart', source: 'resume', session_id: event.sessionID, cwd,
@@ -245,8 +320,11 @@ export default {
           if (typeof text === 'string' && text) {
             text = text.slice(0, 10000);
             const after = before ? await signature(cwd) : null;
-            if (before && revision === generation && before === after && !controller.signal.aborted)
-              cached = { sessionID: event.sessionID, text, signature: before, until: Date.now() + 30000 };
+            if (before && revision === generation && before === after && !controller.signal.aborted && !text.includes(TRANSIENT_NOTICE)) {
+              cache.delete(event.sessionID);
+              if (cache.size >= CACHE_SESSIONS) cache.delete(cache.keys().next().value);
+              cache.set(event.sessionID, { text, signature: before });
+            }
           }
         }
         if (typeof text === 'string' && text && !controller.signal.aborted) event.system.push({ type: 'text', text });
@@ -275,7 +353,6 @@ export default {
         if (event?.status !== 'completed') return;
         const cwd = await project(event.sessionID);
         if (!cwd) return;
-        if (!readOnly.has(event.tool)) invalidate();
         if (!writing.has(event.tool)) return;
         const input = event.input;
         const native = event.result?.output;
@@ -334,14 +411,14 @@ export default {
           if ((!activity && !capture) || (event.location && !sameLocation(event.location, location))) continue;
           try {
             const cwd = await project(event.data?.sessionID);
-            if (cwd) { invalidate();
+            if (cwd) {
               // Only metadata crosses this boundary; no prompt, response, error or transcript.
               if (activity) await run(bindings.activity.handlers[0], { type: event.type,
                 data: { sessionID: event.data.sessionID,
                   ...(event.type === 'session.status' ? { status: { type: event.data.status.type } } : {}) }, cwd });
               if (capture) await run(bindings.capture.handlers[0], {
               hook_event_name: 'SessionEnd', session_id: event.data.sessionID, reason: 'other', cwd,
-            }); invalidate(); }
+            }); }
           } catch { warn(); }
         }
       } catch { if (!controller.signal.aborted) warn(); }

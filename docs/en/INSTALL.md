@@ -61,6 +61,16 @@ with the exact list of files written so `uninstall` touches nothing else. There 
 because in `project` scope both write to `<project>/.claude`: `.custom-agents-install.plugin.json`
 (plugin mode, the default) and `.custom-agents-install.json` (`--mode copy`). Requires Node 18+ and installs no dependencies.
 
+Safety limits: CLIs (`claude`, `codex`) are looked up only in **absolute** PATH entries, never in
+the current directory. An unreadable JSON file the installer has to merge stops that provider
+without rewriting the file. `uninstall` isolates each provider: one provider's unverifiable
+manifest does not prevent uninstalling the others (exit code 1). Links in your own layout (HOME,
+dotfiles such as `~/.claude`, the `--dir` itself) are accepted; a link in what the installer
+creates or deletes is rejected with `linked path segment not created by the installer`. From a
+clone it copies the same files as the npm package (no `test_*.py` or caches). When an absolute
+path is written into shareable project configuration (local `--source` without the CLI, Codex in
+`project` scope), the summary warns about it.
+
 **In Claude Code it installs the actual plugin**, it does not copy the bundle: it uses `claude plugin
 marketplace add` + `claude plugin install` if the CLI is on your PATH and, if not, writes the same
 registry it would (`plugins/installed_plugins.json` and `enabledPlugins`). That is what gives you

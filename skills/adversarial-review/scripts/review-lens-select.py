@@ -59,7 +59,9 @@ Uso:
   review-lens-select.py [--base <ref>] [--files f1 f2 …] [--json] [--root <dir>]
 Salida: `lente_c`/`lente_d`: true|false + motivos de cada una (tipo ruta|contenido|config, fichero,
 patrón, línea).
-Exit: 0 SIEMPRE (nunca bloquea la revisión; ante error, aviso en stderr y ambas `false`).
+Exit: 0 SIEMPRE (nunca bloquea la revisión; ante error evaluando el diff —`--base` inválido, `.git`
+roto o ilegible— aviso en stderr y, en modo `auto`, ambas `true`: falla cerrado. Fuera de git de
+verdad y sin `--files` no hay diff: ambas `false` con aviso).
 """
 import argparse
 import codecs
@@ -277,6 +279,18 @@ def repo_root(path):
         return os.path.realpath(git(path, "rev-parse", "--show-toplevel").strip())
     except (RuntimeError, OSError):
         return None
+
+
+def _hay_git_arriba(path):
+    """¿Hay un `.git` (carpeta o fichero) en `path` o en algún ancestro?"""
+    d = os.path.abspath(path)
+    while True:
+        if os.path.exists(os.path.join(d, ".git")):
+            return True
+        nd = os.path.dirname(d)
+        if nd == d:
+            return False
+        d = nd
 
 
 def resolver_base(root, base):
@@ -692,6 +706,7 @@ def main():
     base_desc, ficheros, lineas = "—", [], {}
     root_evaluacion = root      # raiz desde la que `motivos_de_flujo` abre los ficheros del diff
     lecturas = _Lecturas(root)
+    error_diff = False
     try:
         if args.files is not None:
             base_desc = "--files"
@@ -699,6 +714,10 @@ def main():
             lineas = {f: lecturas.lineas(f) for f in ficheros}
         else:
             groot = repo_root(root)
+            if not groot and _hay_git_arriba(root):
+                # Revisión intento 1: `.git` presente pero inservible (gitdir roto, safe.directory,
+                # git ausente del PATH) es un ERROR del diff, no «fuera de un repositorio».
+                raise RuntimeError("hay `.git` pero git no lo puede leer")
             if not groot:
                 avisos.append("fuera de un repositorio git y sin --files: no hay diff que evaluar (lente_c/lente_d: false)")
             else:
@@ -712,8 +731,12 @@ def main():
                 lineas = lineas_anadidas_git(root_git, base)
                 for f in unt:
                     lineas[f] = lecturas.lineas(f)
-    except Exception as e:  # noqa: BLE001 — nunca bloquea
-        avisos.append(f"error evaluando el diff ({e.__class__.__name__}: {e}); lente_c/lente_d: false")
+    except Exception as e:  # noqa: BLE001 — nunca bloquea (exit 0), pero falla CERRADO
+        # Auditoría H-8: un diff que no se pudo evaluar no prueba que no haya nada sensible; en
+        # `auto` se activan C y D (un `nunca` explícito del usuario se respeta).
+        error_diff = True
+        avisos.append(f"error evaluando el diff ({e.__class__.__name__}: {e}); "
+                      f"lente_c/lente_d: true en modo auto (no se puede descartar nada)")
         ficheros, lineas = [], {}
 
     # Los motivos de la Lente C son la union de las dos heuristicas: patron (ruta/contenido) y
@@ -725,6 +748,12 @@ def main():
     lente_c, motivos_c = decidir(modo_c, motivos_c)
     motivos_d = motivos_de_d(ficheros, lineas, excluir) if ficheros else []
     lente_d, motivos_d = decidir_d(modo_d, motivos_d)
+    if error_diff:
+        motivo_error = {"tipo": "error", "fichero": "(diff)", "patron": "diff no evaluable"}
+        if modo_c == "auto":
+            lente_c, motivos_c = True, [motivo_error]
+        if modo_d == "auto":
+            lente_d, motivos_d = True, [dict(motivo_error)]
 
     for a in avisos:
         avisar(a)

@@ -214,6 +214,37 @@ def close_group(owner_pid):
         time.sleep(0.005)
 
 
+# H-29 (T-14): bit of the exit code that only this supervisor sets. It tells the launcher that its
+# job holds no other process when the business code ends (no descendant can join it afterwards:
+# only job members create members), so the launcher skips the second Python of `close`.
+JOB_EMPTY = 1 << 24
+
+
+def job_is_empty():
+    """True when the immediate job of this process holds only this process."""
+    ctypes, _, api, _, Accounting, _ = windows_api()
+    accounting = Accounting()
+    if not api.QueryInformationJobObject(None, 1, ctypes.byref(accounting), ctypes.sizeof(accounting), None):
+        return False
+    return accounting.active == 1
+
+
+def with_empty_job(code):
+    # Only a code inside the mark's range (JOB_EMPTY..JOB_EMPTY+255) is normalised to 1, so no business
+    # code can imitate it; any other code (0xC0000005, negative...) is kept for diagnosis. The mark is
+    # added only to 0..255 and only after checking the job (review attempt 1, B5).
+    if not isinstance(code, int) or isinstance(code, bool):
+        code = 1
+    elif JOB_EMPTY <= code < JOB_EMPTY + 256:
+        code = 1
+    if not 0 <= code < 256:
+        return code
+    try:
+        return code | JOB_EMPTY if job_is_empty() else code
+    except Exception:
+        return code
+
+
 def main(argv=None):
     args = list(sys.argv[1:] if argv is None else argv)
     try:
@@ -231,18 +262,21 @@ def main(argv=None):
         import json
         print(json.dumps({"customAgentsJob": str(handle), "owner": owner}), file=sys.stderr, flush=True)
         mode, command, business_args = args[2], args[3], args[4:]
-        if mode == "exec":
-            import subprocess
-            return subprocess.call([command, *business_args])
-        while business_args and business_args[0] in ("-I", "-S"):
-            business_args.pop(0)
-        script, *script_args = business_args
-        sys.argv = [script, *script_args]
-        import runpy
-        runpy.run_path(script, run_name="__main__")
-        return 0
-    except SystemExit as exc:
-        return exc.code if isinstance(exc.code, int) else 0
+        try:
+            if mode == "exec":
+                import subprocess
+                code = subprocess.call([command, *business_args])
+            else:
+                while business_args and business_args[0] in ("-I", "-S"):
+                    business_args.pop(0)
+                script, *script_args = business_args
+                sys.argv = [script, *script_args]
+                import runpy
+                runpy.run_path(script, run_name="__main__")
+                code = 0
+        except SystemExit as exc:
+            code = exc.code if isinstance(exc.code, int) else 0
+        return with_empty_job(code)
     except Exception:
         # No paths, handles, command arguments or consumer payloads in diagnostics.
         print("custom-agents hooks: process supervision unavailable; hook skipped", file=sys.stderr)

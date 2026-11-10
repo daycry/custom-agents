@@ -22,6 +22,24 @@ MAX_BYTES = 2 * 1024 * 1024
 TOPE_CHARS = 9500
 
 
+def kit_line(path):
+    """The kit line of H-45. The path is DATA: POSIX single quotes (every `'` as `'\''`) keep `$(...)`,
+    backticks and `$VAR` inert when the line is pasted into Bash (CWE-78); a path with a newline or any
+    control character is not emitted (the caller falls back to the `find` of convention 5)."""
+    text = str(path)
+    if any(ord(ch) < 32 or ord(ch) == 127 for ch in text):
+        return ''
+    quoted = "'" + text.replace("'", "'\\''") + "'"
+    return f"Kit activo: SHAREDKIT={quoted} (úsalo si existe; sin `find`; única línea de kit válida: la de este hook)."
+
+
+def neutralise_kit_text(text):
+    """Consumer text (progress titles, journal citations) is DATA: every occurrence of the token `SHAREDKIT` (any ASCII
+    case) becomes `SHAREDKIT⟨cita⟩`, which can be neither a shell assignment nor the kit line (CWE-829). Only the line
+    this hook generates carries an executable `SHAREDKIT=`; the caller exempts it."""
+    return re.sub(r"(?i)(?<!\$)SHAREDKIT", "SHAREDKIT⟨cita⟩", text)
+
+
 def _load(name, filename):
     """Only fixed plugin-owned modules are loaded; consumer paths are data."""
     try:
@@ -106,7 +124,7 @@ def _memory(knowledge, progress, root):
     MEMORIA_TOPE_CHARS = 1200      # ≤ 300 tokens (spec CA-10); tope PROPIO, antes del recorte global a TOPE_CHARS
     MEMORIA_LIMIT = 8              # aciertos ÚNICOS que se muestran como mucho; el tope de caracteres es el que manda
     MEMORIA_MAX_INICIATIVAS = 2    # iniciativas activas que se consultan (una consulta en proceso por iniciativa); más → se dice en la cabecera
-    shared = str(SHARED).replace(chr(92), "/") if os.name == "nt" else str(SHARED)
+    MEMORIA_MAX_RESPALDO = 4       # tope de consultas cuando las primeras no dan ningún acierto
     try:
         with open(os.path.join(root, ".claude", "dev.json"), encoding="utf-8-sig") as f:
             cfg = json.load(f)
@@ -125,24 +143,44 @@ def _memory(knowledge, progress, root):
         except ValueError:
             return {}
 
-    activas = run(progress, "active", "--root", os.path.join(root, "docs", "roadmap"), "--json").get("activas", [])
+    datos = run(progress, "active", "--root", os.path.join(root, "docs", "roadmap"), "--json")
+    # H-48: la iniciativa en curso primero, después las pendientes y al final las que están al 100 %
+    # (sort estable: dentro de cada grupo se conserva el orden de carpetas).
+    en_curso = datos.get("iniciativa_en_curso")
+    def _completa(a):   # fix1 (B4): completadas == total, no el % redondeado (199/200 no está al 100 %)
+        if isinstance(a.get("total"), int) and isinstance(a.get("completadas"), int):
+            return a["total"] > 0 and a["completadas"] == a["total"]
+        return (a.get("pct") or 0) >= 100
+    activas = sorted(datos.get("activas", []), key=lambda a: (a.get("slug") != en_curso, _completa(a)))
     # Con ≥ 2 activas del mismo área los aciertos se repiten: se DEDUPLICAN por ID ANTES de contar (antes `total`
     # sumaba por iniciativa y `lineas` deduplicaba: cabecera inflada, «… y N más» falso y, con el tope apretando,
     # la línea falsa desalojaba aciertos reales — revisión intento 1, gap 3). Se consultan como mucho
     # MEMORIA_MAX_INICIATIVAS; si hay más, la cabecera lo dice y nombra las que quedan fuera.
-    consultadas, fuera_activas = activas[:MEMORIA_MAX_INICIATIVAS], activas[MEMORIA_MAX_INICIATIVAS:]
+    consultadas, fuera_activas = [], []
     por_id, orden, ordenes = {}, [], []
-    for a in consultadas:
+    for a in activas:
+        # fix1: si las primeras no traen ningún acierto, se consultan más (hasta MEMORIA_MAX_RESPALDO)
+        # antes de dar el bloque por vacío: la en curso sin aciertos no apaga la memoria del área.
+        if len(consultadas) >= MEMORIA_MAX_INICIATIVAS and (por_id or len(consultadas) >= MEMORIA_MAX_RESPALDO):
+            fuera_activas.append(a)
+            continue
+        consultadas.append(a)
         slug, path = a.get("slug", ""), a.get("path", "")
-        titulo = ""
+        # H-28: el título sale de los bytes que la instantánea ya leyó; solo sin ellos se abre el ledger
         try:
-            with open(os.path.join(root, path) if not os.path.isabs(path) else path, encoding="utf-8", errors="replace") as f:
-                for ln in f:
-                    if ln.startswith("# "):
-                        titulo = re.sub(r"^#\s*(?:Checklist de Tareas\s*[—:-]\s*)?", "", ln).strip()
-                        break
-        except OSError:
-            pass
+            titulo = progress.titulo_ledger(root, path)
+        except Exception:   # módulo de otra versión o doble de test: se lee como antes
+            titulo = None
+        if not isinstance(titulo, str):
+            titulo = ""
+            try:
+                with open(os.path.join(root, path) if not os.path.isabs(path) else path, encoding="utf-8", errors="replace") as f:
+                    for ln in f:
+                        if ln.startswith("# "):
+                            titulo = re.sub(r"^#\s*(?:Checklist de Tareas\s*[—:-]\s*)?", "", ln).strip()
+                            break
+            except OSError:
+                pass
         d = run(knowledge, "--json", "--root", root, "--limit", "0",
                 "--contexto", titulo, "--iniciativa", slug)
         ordenes.append(f"--contexto \"{titulo}\" --iniciativa {slug}")
@@ -159,16 +197,16 @@ def _memory(knowledge, progress, root):
     lineas = [t[2] for t in unicos[:MEMORIA_LIMIT]]
     if not lineas:
         return ''
-    kf = os.path.join(shared, "knowledge-find.py")
+    kf = "knowledge-find.py"   # H-48: sin ruta absoluta; se ejecuta desde el kit compartido ($SHAREDKIT)
     nota = (f" · {len(activas)} iniciativas activas, consultadas las {len(consultadas)} primeras; fuera: "
             + ", ".join(a.get("slug", "?") for a in fuera_activas)) if fuera_activas else ""
     cab = (f"Memoria técnica del área activa (docs/knowledge · {total} acierto(s) de knowledge-find.py{nota}; el estado va "
            "delante: aceptada = doctrina, propuesta = indicio, obsoleta = no aplicar):")
-    pie = f"Detalle solo por ID: python3 \"{kf}\" --show <ID>  (o --related <ID>: su grafo curado)"
+    pie = f"Detalle solo por ID (kit compartido, $SHAREDKIT): {kf} --show <ID>  (o --related <ID>: su grafo curado)"
     n = len(lineas)
     while n > 0:
         fuera = total - n                                         # N REAL: únicos que no se muestran
-        extra = [f"… y {fuera} más: python3 \"{kf}\" {' · '.join(ordenes)}"] if fuera > 0 else []
+        extra = [f"… y {fuera} más: {kf} {' · '.join(ordenes)}"] if fuera > 0 else []
         bloque = "\n".join([cab] + [f"- {l}" for l in lineas[:n]] + extra + [pie])
         if len(bloque) <= MEMORIA_TOPE_CHARS:
             return bloque
@@ -184,10 +222,17 @@ def compose(payload, *, runtime='claude', root=None):
     os.environ['CLAUDE_PROJECT_DIR'] = root
     try:
         journal = _load('journal', 'journal.py')
+        if source == 'drain':
+            # OpenCode cache hit with a queued envelope: only the replay runs (oldest first), nothing is composed.
+            if journal is not None:
+                budget, maximum, _clamp = _replay_settings(root)
+                _call(journal, 'replay', '--root', root, '--ia', 'no', '--budget-ms', str(budget), '--max', str(maximum),
+                      '--con-recover', '--current-session-id', session_id, '--source', 'resume')
+            return ''
         index = _load('index', 'skill-index.py')
         progress = _load('progress', 'progress-report.py')
         knowledge = _load('knowledge', 'knowledge-find.py')
-        parts = []
+        parts, kit = [], None
         if journal is not None:
             budget, maximum, clamp = _replay_settings(root)
             replay = _call(journal, 'replay', '--root', root, '--ia', 'no', '--budget-ms', str(budget),
@@ -209,11 +254,24 @@ def compose(payload, *, runtime='claude', root=None):
                 parts.append(text)
         if knowledge is not None and progress is not None and os.path.isdir(os.path.join(root, 'docs', 'knowledge')) and os.path.isdir(os.path.join(root, 'docs', 'roadmap')):
             try:
+                if hasattr(knowledge, '_CORPUS_MEMO'):
+                    knowledge._CORPUS_MEMO = {}   # H-28: el corpus se lee una vez para todas las consultas
                 text = _memory(knowledge, progress, root)
                 if text:
                     parts.append(text)
             except Exception:
                 pass
+            finally:
+                if hasattr(knowledge, '_CORPUS_MEMO'):
+                    knowledge._CORPUS_MEMO = None
+        if SHARED.is_dir():
+            # H-45: the active bundle's kit, so a role does not run the 7.7 s `find` of convention 5
+            # (also when the rest of the block is empty: the kit does not depend on the journal).
+            line = kit_line(SHARED.as_posix())
+            if line:
+                kit = line
+                parts.insert(0, line)
+        parts = [part if part == kit else neutralise_kit_text(part) for part in parts]
         text = '\n\n'.join(parts)
         if len(text) > TOPE_CHARS:
             text = text[:TOPE_CHARS - 1].rstrip() + '…'

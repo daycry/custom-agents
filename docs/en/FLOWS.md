@@ -329,7 +329,7 @@ flowchart TD
     J --> KG{"any candidates in<br/>pending or needs_changes?"}
     KG -->|yes| KC["knowledge-curator<br/>judgment + read-only gate<br/>service apply · original SHA"]
     KG -.->|"no: honest omission<br/>(one line, no failure)"| CP
-    KC --> CP["Phase 6: literal selection per task<br/>commit-selection.py preview<br/>selection · patch · other staging"]
+    KC --> CP["Phase 6: verifies the literal selection per task<br/>(implementer commits, P4: commit-selection.py)<br/>selection · patch · other staging"]
     CP --> CV{"validate on stdin<br/>current snapshot · exit 0?"}
     CV -->|yes| GC["Native Git commit --only<br/>reviewed UTF-8/NUL list<br/>check tree and preserved staging"]
     CV -.->|no| CH["commit pending<br/>visible reason · new preview"]
@@ -540,15 +540,15 @@ flowchart TD
 flowchart LR
     L[("docs/roadmap/*/tasks.md<br/>canonical ledger")] -->|Write/Edit| H1["PostToolUse hook<br/>progress-line.sh"]
     H1 -->|"systemMessage (debounced)"| U(["👀 user<br/>📋 slug · T-04/12 (33%) · fase 2/4 · en curso T-05"])
-    SA["subagent finishes"] --> H2["SubagentStop hook<br/>subagent-progress.sh"]
-    H2 -->|"systemMessage: active initiatives"| U
+    SA["subagent finishes"] --> H2["SubagentStop hook<br/>subagent-progress.sh → subagent-progress.py (one Python)"]
+    H2 -->|"systemMessage: active initiatives (own debounce)"| U
     OC["OpenCode V2: session.context"] --> H3
     OCP["OpenCode V2: session.prompt"] --> H5
     OCI["OpenCode V2: session.execution<br/>succeeded · failed · interrupted"] --> H4
     SS["session: startup · resume · compact"] --> H3["SessionStart hook<br/>session-context.sh"]
     H3 -->|"additionalContext: piece index (≤ 45 lines, hash-cached)<br/>+ resume ≤ 15 lines (in-progress task)<br/>+ journal ≤ 25 lines (startup · resume only)"| C(["🧠 session context"])
     UP["user turn"] --> H5["UserPromptSubmit hook<br/>user-prompt-capture.sh (timeout 5)"]
-    H5 -->|"journal.py capture (no stdout, exit 0; private opt-out; secrets redacted)"| LOG[(".claude/session-prompts-sid.log<br/>unversioned · 0600 · 30-day purge<br/>= session checkpoint")]
+    H5 -->|"journal-prompt.py, lightweight capture (no stdout, exit 0; private opt-out; secrets redacted)"| LOG[(".claude/session-prompts-sid.log<br/>unversioned · 0600 · 30-day purge<br/>= session checkpoint")]
     SE["Claude: closure / clear<br/>Codex: main thread ends"] --> H4["shared capture<br/>Claude: registration 5 s · Codex: registration 3 s<br/>OpenCode: adapter 20 s"]
     H4 -->|"journal-capture.py<br/>(atomic envelope ≤ 64 KiB, no materializer/git/AI/network)"| OB[(".claude/journal/outbox/<br/>event_id.json")]
     OB -->|"journal.py replay --budget-ms 300 --max 3<br/>(claim → materialize with git/log/opt-in AI → done/dead-letter)"| H3
@@ -621,9 +621,18 @@ the path does not always disable hooks.
 The grammar recognizes literal assignments and wrappers `env -i` or
 `--ignore-environment`; `-u NAME`, `-uNAME` or `--unset=NAME`; `-C DIR` or
 `--chdir=DIR`; `command -p`; `exec -a NAME`, `-c` or `-l`. It parses Git
-options `-c` and `--config-env`, `GIT_CONFIG_COUNT` with its keys and
-`GIT_CONFIG_PARAMETERS`. Executable basename matching ignores case and
+options `-c` and `--config-env` against an ALLOWLIST (`user.name`, `user.email`,
+`core.quotepath`, `commit.gpgsign` (only set to true), `init.defaultBranch`, `color.*`, `advice.*`;
+any other key is denied), classifies `git config` as read or write (it only
+writes allowlisted keys, never with `--file`/`--blob`, and never renames or
+removes sections) and denies `GIT_*`, `HOME` and `XDG_CONFIG_HOME` variables
+when the command runs git (in the same segment or exported earlier). Executable basename matching ignores case and
 handles Windows names ending in `.exe`.
+
+The guardrail prevents accidents and the known ways around these rules; it is
+not a sandbox. Wrappers (`nice`, `sudo`, `xargs`, `find -exec`), scripts the
+agent writes itself and hand-edited configuration files stay out of scope
+(ADR-023, ADR-007).
 
 Each command retains its own decision, including across lines. Quoting,
 comments and escaped line continuations keep flags separate from text.
@@ -844,14 +853,15 @@ or grant permissions. Each category selects destinations through existing routin
 
 Resolve the effective profile before dispatch. Lite loads the core and only
 references whose conditions remain active; it skips implementation subagent
-details. Each reviewer retains a separate fresh context.
+details. Each task is dispatched sequentially to the native `implementer`, whose
+guardrail does not apply to the main thread. Each reviewer retains a separate fresh context.
 
 ```mermaid
 flowchart LR
   Config[dev.json perfil lite] --> Resolver[execution-profile.py]
   Resolver --> Brief[Complete brief up to 6000]
   Resolver --> Writer[Required writer]
-  Brief --> Implement[Implementation in current thread]
+  Brief --> Implement[Native implementer in sequence]
   Implement --> A[Fresh reviewer A]
   A --> B[Fresh reviewer B and sequential conditional lenses]
   B --> QA[qa-gate and coverage]

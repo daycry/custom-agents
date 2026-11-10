@@ -314,6 +314,14 @@ def _herramientas_opcionales():
     node, npm = shutil.which("node"), shutil.which("npm")
     if node and npm:
         ls.append(linea(OK, "node/npm", "en PATH (opcional)"))
+    elif not node:
+        # Los hooks del plugin se lanzan con `node hooks/run-hook.mjs`: sin node ninguno arranca y cada
+        # uno da «command not found» (exit 127). El ciclo local no se bloquea, pero se pierden journal,
+        # índice de sesión, progreso en vivo y las guardias (auditoría 2026-11-09, menores).
+        ls.append(linea(AVISO, "node/npm", "falta node: los hooks del plugin no arrancan (cada uno da "
+                        "«command not found»; no bloquea el trabajo, pero no hay journal, índice de "
+                        "sesión, progreso en vivo ni guardias)",
+                        "instala node (v18 o superior) y reinicia la sesión; npm solo lo necesita la skill `to-pdf`"))
     else:
         falta = " y ".join(x for x, p in (("node", node), ("npm", npm)) if not p)
         ls.append(linea(INFO, "node/npm", f"falta {falta} (opcional)",
@@ -1501,6 +1509,20 @@ def _marcadores(plugin_root, project):
     d = None
     if os.path.isfile(script):
         d = _json_de(_correr([sys.executable, script, "status", "--state", state])[0])
+    previas = []
+    if d is not None and d.get("estado_ilegible"):
+        # Fatal (revisión intento 2-3): start/close salen con exit 3 sin medir.
+        return [linea(AVISO, "marcadores de medición",
+                      f"`usage-state.json` ilegible ({'; '.join(map(str, d.get('avisos') or []))[:200]}): "
+                      "`usage-meter.py start/close` no escriben y la medición degrada a estimada",
+                      f"respáldalo (`{state}.bak`) y repáralo a mano; solo si no se puede recuperar, "
+                      "bórralo (es ESTADO, no config: los siguientes `usage-meter.py start` lo recrean)")]
+    if d is not None and d.get("avisos"):
+        # No fatal: marcadores corruptos descartados; el resto del estado es válido y escribible.
+        previas.append(linea(AVISO, "marcadores de medición",
+                             f"marcador corrupto en `usage-state.json`: {'; '.join(map(str, d['avisos']))[:200]}",
+                             f"respáldalo (`{state}.bak`) y repara o quita solo esa entrada; "
+                             "conserva los demás marcadores (no borres el fichero)"))
     if d is None:                       # degradación: leer el estado directamente
         crudo, err = _leer_json(state)
         if err:
@@ -1510,10 +1532,10 @@ def _marcadores(plugin_root, project):
                             for k, v in (crudo or {}).items()]}
     abiertos = [m for m in d.get("marcadores", []) if not m.get("cerrado")]
     if not d.get("marcadores"):
-        return [linea(INFO, "marcadores de medición", "sin marcadores abiertos ni cerrados")]
+        return previas or [linea(INFO, "marcadores de medición", "sin marcadores abiertos ni cerrados")]
     if not abiertos:
-        return [linea(OK, "marcadores de medición", f"{len(d['marcadores'])} marcador(es), todos cerrados")]
-    out = []
+        return previas or [linea(OK, "marcadores de medición", f"{len(d['marcadores'])} marcador(es), todos cerrados")]
+    out = list(previas)
     for m in abiertos:
         edad = m.get("horas_desde_inicio")
         det = f"`{m.get('artefacto')}` abierto" + (f" desde hace {edad} h" if edad is not None else "")
@@ -1540,9 +1562,12 @@ def _iniciativas(plugin_root, project):
                       "ejecútalo a mano para ver el error: "
                       "`python3 agent-kits/shared/progress-report.py active --root docs/roadmap`")]
     activas = d.get("activas", [])
+    # fix3 (B4/B5, revisión fase 2): recorte del listado y ledgers ilegibles, nunca «ninguna» sin más
+    avisos = [linea(AVISO, "iniciativas", str(a), "revisa ese `tasks.md` o abre la iniciativa con `/work-resume`; "
+                    "el bloque de sesión mira las 128 carpetas más recientes") for a in d.get("avisos", []) if isinstance(a, str)]
     if not activas:
-        return [linea(INFO, "iniciativas", "ninguna `en-progreso`")]
-    return [linea(INFO, "iniciativa en progreso", a.get("linea") or a.get("slug", "")) for a in activas]
+        return avisos + [linea(INFO, "iniciativas", "ninguna `en-progreso`" + (" entre las revisadas" if avisos else ""))]
+    return avisos + [linea(INFO, "iniciativa en progreso", a.get("linea") or a.get("slug", "")) for a in activas]
 
 
 def _journal(project, n_curadas=0):

@@ -24,7 +24,7 @@ import {
 } from "../install/install.mjs"
 import {
   PROVIDERS, IDS, getProvider, buildPlan, MANIFEST, GLOBAL_DIR, PAYLOAD_CLAUDE,
-  ADAPTADOR_OPENCODE, rutaPluginOpencode,
+  ADAPTADOR_OPENCODE, rutaPluginOpencode, rutaDe, estadoCli,
 } from "../install/providers.mjs"
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
@@ -856,7 +856,7 @@ test("Codex command adapters: upgrade preserves legacy and personal bytes while 
     assert.ok(man.files.includes(norm(otherOwned)),'unrelated file ownership must remain')
     for (const [path,body] of bytes) assert.equal(readFileSync(path,'utf8'),body,'upgrade must preserve existing bytes')
     assert.ok(existsSync(join(dest,'interop','codex','command-skills','custom-agents-dev-cycle','SKILL.md')),'installed bundle is missing native adapters')
-    for (const name of ['phase1-evaluation.md','phase2-planning.md','phase3-subagents.md','phase3-jira.md','phase4-knowledge-gate.md']) {
+    for (const name of ['phase1-evaluation.md','phase2-planning.md','phase2-plan-review.md','phase3-subagents.md','phase3-jira.md','phase4-knowledge-gate.md']) {
       const relative = join('agent-kits','dev-cycle','references',name)
       assert.equal(readFileSync(join(dest,relative),'utf8'),readFileSync(join(ROOT,relative),'utf8'),
         `installed bundle must retain canonical deferred phase ${name}`)
@@ -3479,4 +3479,195 @@ test('R3 invalid uninstall scope fails before selecting any delivery',()=>{
   const target=join(project,'.claude','skills','tdd','SKILL.md')
   assert.throws(()=>cli(['uninstall','-p','claude-code','--scope','uesr','--dir',project,'-q']),error=>error.status===2)
   assert.ok(existsSync(target))
+})
+
+// ---------------------------------------------------------------- auditoría 2026-11-09 (T-03)
+
+test("auditoría H-4: una CLI plantada en el directorio actual no se resuelve ni se ejecuta", () => {
+  const dir = tmpProj(), vacio = tmpProj(), nombre = "ca-audit-probe"
+  const win = process.platform === "win32"
+  const previoCwd = process.cwd(), previoPath = process.env.PATH
+  try {
+    const exe = join(dir, win ? `${nombre}.cmd` : nombre)
+    writeFileSync(exe, win ? "@echo off\r\nexit /b 0\r\n" : "#!/bin/sh\nexit 0\n")
+    if (!win) chmodSync(exe, 0o755)
+    process.chdir(dir)
+    for (const PATH of [[vacio, SAFE_SYSTEM_PATH], [".", vacio, SAFE_SYSTEM_PATH], ["", vacio, SAFE_SYSTEM_PATH],
+                        ["ruta-relativa", vacio, SAFE_SYSTEM_PATH]].map((p) => p.join(delimiter))) {
+      process.env.PATH = PATH
+      assert.equal(rutaDe(nombre), null, `cwd plantado resuelto con PATH=${PATH}`)
+      assert.equal(estadoCli(nombre), "no", PATH)
+    }
+    process.env.PATH = [dir, SAFE_SYSTEM_PATH].join(delimiter)   // control: en el PATH absoluto SÍ
+    assert.equal(resolve(rutaDe(nombre)).toLowerCase(), resolve(exe).toLowerCase())
+  } finally {
+    process.chdir(previoCwd); process.env.PATH = previoPath
+    rmSync(dir, { recursive: true, force: true }); rmSync(vacio, { recursive: true, force: true })
+  }
+})
+
+test("auditoría H-9: un paso merge sobre JSON ilegible falla sin reescribir el fichero", () => {
+  const proj = tmpProj()
+  try {
+    // El marketplace de Codex se fusiona con un paso `merge` (no `json-set`) antes de cualquier CLI.
+    const cfg = join(proj, ".agents", "plugins", "marketplace.json")
+    mkdirSync(dirname(cfg), { recursive: true }); writeFileSync(cfg, "{ roto", "utf8")
+    assert.throws(() => cli(["install", "-p", "codex", "--dir", proj, "-y", "-q"]), (error) => {
+      assert.equal(error.status, 1)
+      assert.match(String(error.stderr), /marketplace\.json/)
+      return true
+    })
+    assert.equal(readFileSync(cfg, "utf8"), "{ roto")
+  } finally { rmSync(proj, { recursive: true, force: true }) }
+})
+
+test("auditoría H-10: un manifiesto no verificable no impide desinstalar los demás proveedores", () => {
+  const proj = tmpProj()
+  try {
+    cli(["install", "-p", "opencode", "--dir", proj, "-y", "-q"])
+    const manOpencode = join(proj, ".opencode", MANIFEST)
+    assert.ok(existsSync(manOpencode))
+    mkdirSync(join(proj, ".claude"), { recursive: true })
+    writeFileSync(join(proj, ".claude", MANIFEST), "{ no verificable", "utf8")
+    assert.throws(() => cli(["uninstall", "-p", "claude-code,opencode", "--dir", proj, "-q"]), (error) => {
+      assert.equal(error.status, 1)
+      assert.match(String(error.stderr), /unverified installation manifest/)
+      assert.doesNotMatch(String(error.stderr), /\n\s+at /)
+      return true
+    })
+    assert.equal(existsSync(manOpencode), false, "OpenCode debe desinstalarse aunque Claude Code falle")
+    assert.equal(readFileSync(join(proj, ".claude", MANIFEST), "utf8"), "{ no verificable")
+  } finally { rmSync(proj, { recursive: true, force: true }) }
+})
+
+test("auditoría H-11: un HOME enlazado y un dotfile enlazado no bloquean la instalación", () => {
+  const raiz = tmpProj()
+  try {
+    const real = join(raiz, "home-real"), enlace = join(raiz, "home-enlazado"), dotfiles = join(raiz, "dotfiles", "claude")
+    mkdirSync(real, { recursive: true }); mkdirSync(dotfiles, { recursive: true })
+    const tipo = process.platform === "win32" ? "junction" : "dir"
+    symlinkSync(real, enlace, tipo)
+    symlinkSync(dotfiles, join(real, ".claude"), tipo)
+    const proj = join(raiz, "proy"); mkdirSync(proj)
+    const env = conPath(SIN_CLI, { HOME: enlace, USERPROFILE: enlace, CLAUDE_CONFIG_DIR: join(enlace, ".claude") })
+    cli(["install", "-p", "claude-code", "--dir", proj, "-y", "-q"], { env })
+    assert.ok(existsSync(join(proj, ".claude", MANIFEST_PLUGIN)))
+    assert.ok(existsSync(join(dotfiles, "plugins", "installed_plugins.json")), "el registro va al dotfile enlazado")
+    cli(["uninstall", "-p", "claude-code", "--dir", proj, "-q"], { env })
+    assert.equal(existsSync(join(proj, ".claude", MANIFEST_PLUGIN)), false)
+  } finally { rmSync(raiz, { recursive: true, force: true }) }
+})
+
+test("auditoría H-11: un enlace DENTRO del proyecto sigue rechazado, con un error propio", () => {
+  const raiz = tmpProj()
+  try {
+    const fuera = join(raiz, "fuera"), proj = join(raiz, "proy")
+    mkdirSync(fuera); mkdirSync(proj)
+    symlinkSync(fuera, join(proj, ".claude"), process.platform === "win32" ? "junction" : "dir")
+    assert.throws(() => cli(["install", "-p", "claude-code", "--mode", "copy", "--dir", proj, "-y", "-q"]), (error) => {
+      assert.equal(error.status, 1)
+      assert.match(String(error.stderr), /linked path/i)
+      assert.doesNotMatch(String(error.stderr), /unverified installation manifest/)
+      return true
+    })
+    assert.deepEqual(readdirSync(fuera), [], "nada se escribe a través del enlace")
+  } finally { rmSync(raiz, { recursive: true, force: true }) }
+})
+
+test("auditoría H-13: desde un clon no se copian tests ni cachés de pytest (misma exclusión que npm)", () => {
+  const fs_ = ficherosDe("skills", "/dst").map((f) => f.replaceAll("\\", "/"))
+  assert.ok(fs_.length > 50)
+  const tests = fs_.filter((f) => /\/test_[^/]*\.py$/.test(f))
+  assert.deepEqual(tests.slice(0, 3), [])
+  const excluye = installerModule.excluidoDelPaquete
+  assert.equal(typeof excluye, "function")
+  for (const rel of ["skills/x/.pytest_cache/v/cache/nodeids", "skills/x/__pycache__/a.pyc", "a/b.pyc", "skills/x/scripts/test_y.py"])
+    assert.equal(excluye(rel), true, rel)
+  for (const rel of ["skills/x/scripts/y.py", "skills/x/scripts/_mcp_fake.py", "skills/x/SKILL.md", "agent-kits/shared/contest_x.py"])
+    assert.equal(excluye(rel), false, rel)
+})
+
+test("auditoría menor: avisa al escribir una ruta absoluta en configuración de proyecto compartida", () => {
+  const codexPlan = buildPlan(getProvider("codex"), { root: ROOT, dir: join("/proy"), scope: "project", version: "9.9.9" })
+  const fuente = codexPlan.find((p) => p.type === "toml-set" && p.clave === "source")
+  assert.ok(fuente && /absolut/i.test(fuente.aviso || ""), JSON.stringify(fuente))
+  const local = tmpProj()
+  try {
+    const claudePlan = buildPlan(getProvider("claude-code"), { root: ROOT, dir: join("/proy"), scope: "project",
+      version: "9.9.9", source: local, cli: { claude: false } })
+    const ajustes = claudePlan.find((p) => p.type === "json-set" && /settings\.json$/.test(p.to))
+    assert.ok(ajustes && /absolut/i.test(ajustes.aviso || ""), JSON.stringify(ajustes))
+    const repo = buildPlan(getProvider("claude-code"), { root: ROOT, dir: join("/proy"), scope: "project",
+      version: "9.9.9", source: "owner/repo", cli: { claude: false } })
+    assert.equal(repo.find((p) => p.type === "json-set" && /settings\.json$/.test(p.to)).aviso, undefined)
+    const proj = tmpProj()
+    try {
+      const out = cli(["install", "-p", "claude-code", "--dir", proj, "--source", local, "-y"], { env: conPath(SIN_CLI) })
+      assert.match(out, /absolut/i)
+    } finally { rmSync(proj, { recursive: true, force: true }) }
+  } finally { rmSync(local, { recursive: true, force: true }) }
+})
+
+// ---------------------------------------------------------------- revisión intento 1 (T-03 fix1)
+
+test("revisión intento 1 (gap 9): un manifiesto plugin no verificable no impide desinstalar la copy del mismo proveedor", () => {
+  const proj = tmpProj()
+  try {
+    cli(["install", "-p", "claude-code", "--mode", "copy", "--profile", "core", "--dir", proj, "-q"])
+    const copia = join(proj, ".claude", MANIFEST), plugin = join(proj, ".claude", MANIFEST_PLUGIN)
+    const owned = join(proj, ".claude", "skills", "tdd", "SKILL.md")
+    assert.ok(existsSync(copia) && existsSync(owned))
+    writeFileSync(plugin, "{ no verificable", "utf8")
+    assert.throws(() => cli(["uninstall", "-p", "claude-code", "--dir", proj, "-q"]), (error) => {
+      assert.equal(error.status, 1)
+      assert.match(String(error.stderr), /unverified installation manifest/)
+      return true
+    })
+    assert.equal(existsSync(copia), false, "la copy válida debe desinstalarse")
+    assert.equal(existsSync(owned), false)
+    assert.equal(readFileSync(plugin, "utf8"), "{ no verificable")
+  } finally { rmSync(proj, { recursive: true, force: true }) }
+})
+
+test("revisión intento 1 (gap 10): correr no lanza el nombre pelado si la CLI no está en el PATH absoluto", () => {
+  assert.equal(typeof installerModule.correr, "function")
+  const previoPath = process.env.PATH
+  try {
+    process.env.PATH = SAFE_SYSTEM_PATH
+    assert.throws(() => installerModule.correr("ca-audit-no-existe", ["--version"]), (error) => {
+      assert.equal(error.code, "ENOENT")
+      assert.match(error.message, /PATH/)
+      return true
+    })
+  } finally { process.env.PATH = previoPath }
+})
+
+// ---------------------------------------------------------------- revisión intento 2 (T-03 fix2)
+
+test("revisión intento 2 (C8): correr lanza las CLIs con NoDefaultCurrentDirectoryInExePath=1", () => {
+  const win = process.platform === "win32"
+  const proj = tmpProj(), bin = tmpProj(), previoPath = process.env.PATH
+  const previoNdcd = process.env.NoDefaultCurrentDirectoryInExePath
+  delete process.env.NoDefaultCurrentDirectoryInExePath   // el entorno del usuario no la trae
+  try {
+    const probe = join(bin, win ? "ca-ndcd-probe.cmd" : "ca-ndcd-probe")
+    writeFileSync(probe, win ? "@echo off\r\necho NDCD=%NoDefaultCurrentDirectoryInExePath%\r\n"
+      : "#!/bin/sh\necho \"NDCD=$NoDefaultCurrentDirectoryInExePath\"\n")
+    if (!win) chmodSync(probe, 0o755)
+    process.env.PATH = [bin, SAFE_SYSTEM_PATH].join(delimiter)
+    assert.match(installerModule.correr("ca-ndcd-probe", [], proj), /NDCD=1/)
+    if (win) {
+      // Shim de npm que llama a `node` pelado: cmd.exe miraría primero el cwd (el proyecto).
+      const marker = join(proj, "planted.txt")
+      writeFileSync(join(proj, "node.bat"), `@echo off\r\necho planted> "${marker}"\r\n`)
+      writeFileSync(join(bin, "ca-ndcd-shim.cmd"), "@echo off\r\nnode -e \"console.log('real-node')\"\r\n")
+      process.env.PATH = [bin, dirname(process.execPath), SAFE_SYSTEM_PATH].join(delimiter)
+      assert.match(installerModule.correr("ca-ndcd-shim", [], proj), /real-node/)
+      assert.equal(existsSync(marker), false, "el node.bat plantado en el proyecto no debe ejecutarse")
+    }
+  } finally {
+    process.env.PATH = previoPath
+    if (previoNdcd !== undefined) process.env.NoDefaultCurrentDirectoryInExePath = previoNdcd
+    rmSync(proj, { recursive: true, force: true }); rmSync(bin, { recursive: true, force: true })
+  }
 })

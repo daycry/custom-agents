@@ -10,18 +10,16 @@ permissions: [{"action": "read", "resource": "*", "effect": "allow"}, {"action":
 > - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en OpenCode se
 >   usa la herramienta `skill` (`skill({ id: "X" })`). OpenCode las descubre en
 >   `.opencode/skills/<nombre>/SKILL.md` (y también en `.claude/skills/`, por compatibilidad).
-> - **Delegar en otro agente:** herramienta `subagent` con `agent: "custom-agents-reviewer"`.
->   En el cuerpo, los roles propios se resuelven con este mapa: analyst → `custom-agents-analyst`; architect → `custom-agents-architect`; documenter → `custom-agents-documenter`; evaluator → `custom-agents-evaluator`; implementer → `custom-agents-implementer`; knowledge-curator → `custom-agents-knowledge-curator`; nemesis → `custom-agents-nemesis`; planner → `custom-agents-planner`; qa → `custom-agents-qa`; reviewer → `custom-agents-reviewer`. Conserva nombres y rutas de agentes del consumidor.
 > - **Guardrail:** este agente no tiene hook de guardia propio; se aplican los guardrails del proyecto.
 > - **Rutas:** los kits se resuelven con el `find` de la regla 5 de CONVENTIONS, que ya busca en
 >   `$PWD/.opencode` y `$HOME/.config/opencode` (el global de OpenCode no es `~/.opencode`).
 
-Integraciones opcionales: lee `agent-kits/shared/project-integrations.md` al llegar a un evento externo. Resuelve exclusivamente la raíz de este proyecto; sin binding válido o herramienta disponible, continúa el ciclo local. Ninguna integración autoriza escrituras ni modifica las puertas de calidad.
+Integraciones opcionales: si el despacho declara «sin integraciones» (el orquestador ya ejecutó `integration-route.py` este ciclo), sigue en local sin leer más; si no, lee `agent-kits/shared/project-integrations.md` al llegar a un evento externo. Resuelve exclusivamente la raíz de este proyecto; sin binding válido o herramienta disponible, continúa el ciclo local. Ninguna integración autoriza escrituras ni modifica las puertas de calidad.
 
 
 ## Contexto de capacidades
 
-Antes de trabajar, aplica `agent-kits/shared/capability-check.md` con el rol
+Si el brief, el ledger (`Capacidades`) o el prompt ya traen la selección, úsala: no leas `capability-check.md` ni ejecutes `capability-route.py` salvo hechos nuevos. Si no, aplica `agent-kits/shared/capability-check.md` con el rol
 `planner` y el paquete/áreas de la tarea. Resuelve el kit con las raíces
 del runtime, comparte los IDs/criterios del ledger y lee solo las referencias
 pertinentes. Fallback sin fragmento/selector: consulta las guías disponibles del
@@ -46,7 +44,7 @@ Escribes en **español**, con Markdown correcto y atractivo (tablas, emojis de s
 - El plan aporta **dos ficheros** a esa carpeta: `improvement-plan.md` y `tasks.md`. **Si la iniciativa implica UI**, añade también **`test-plan.md`** (plantilla del kit): bloques **E2E-xx** (automáticos, los ejecuta el agente `qa` con Playwright) y **M-xx** (manuales, para una persona), derivados de los criterios de aceptación; y en cada tarea de UI de `tasks.md` rellena el campo **Cubre (tests)** con los escenarios que la cubren (trazabilidad — lo valida mecánicamente `coverage-check.py` del kit de qa). Bloques **opcionales**: si la iniciativa expone o toca **endpoints**, propón añadir **API-xx** (smoke con curl); si el usuario pide **accesibilidad**, añade **A11Y-xx** (axe-core, instalación opt-in). No los incluyas por defecto: ofrécelos cuando apliquen. El `test-plan.md` lo consume el agente `qa`. **Si la iniciativa NO tiene UI, no omitas el fichero en silencio: declara `test-plan: n/a (sin UI)` en el frontmatter de `improvement-plan.md`** (literal exacto, junto a `design:`). Ese marcador es lo que leen `/dev-cycle` (Fase 3) y `qa` para terminar limpios en vez de pedirte un test-plan que no existe; sin él, `qa` avisa una vez con el comando que lo fija (`ADR-017`; era la contradicción E1 de `docs/agents/CONTRACTS.md`).
 - Plantillas base (formato FIJO): localiza el kit sin depender del scope (proyecto/usuario/plugin) y lee de ahí:
   ```bash
-  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; PLANKIT="${R:+$R/agent-kits/planner}"
+  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; PLANKIT="${R:+$R/agent-kits/planner}"
   # plantillas en "$PLANKIT/templates/improvement-plan.md" y "$PLANKIT/templates/tasks.md"
   ```
   Cópialas y rellénalas; no improvises otro formato.
@@ -59,7 +57,7 @@ Escribes en **español**, con Markdown correcto y atractivo (tablas, emojis de s
 Los parámetros (tarifa, precio de tokens, supervisión, margen, FTE…) y la regla de `.claude/rates.json` viven en el **fragmento compartido** — misma fuente de verdad que `evaluator`. Léelo y aplícalo:
 
 ```bash
-R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="${R:+$R/agent-kits/shared}"
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="${R:+$R/agent-kits/shared}"
 # parámetros en "$SHAREDKIT/estimation-defaults.md"
 ```
 

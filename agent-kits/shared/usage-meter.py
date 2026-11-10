@@ -32,6 +32,9 @@ carpeta corregida en 2026-09-10, ver T-01 de usage-meter-transcripts):
 
 El formato JSONL es interno de Claude Code (no API pública): ante cualquier problema de
 lectura este script DEGRADA a fuente="estimado" y NUNCA bloquea (exit 0 salvo error de uso).
+Excepción: un `usage-state.json` ilegible o con raíz no objeto NO se trata como vacío al escribir
+(se perderían los marcadores ajenos): `start`/`close` no escriben y salen con exit 3 y JSON
+`{"ok": false, "fuente": "estimado", ...}`; quien llama degrada a estimación y sigue.
 
 Uso:
   usage-meter.py start  --artefacto <clave> [--state FICHERO] [--transcript-dir DIR]
@@ -169,20 +172,33 @@ def _project_transcript_dir():
 
 def _load_json(path):
     try:
-        with open(path, encoding="utf-8") as f:
+        with open(path, encoding="utf-8-sig") as f:   # -sig: BOM de Windows
             return json.load(f)
     except Exception:
         return None
 
 
-def _load_state(path, avisos=None):
-    """Estado de marcadores, SIEMPRE un dict de dicts (state corrupto degrada, no rompe)."""
+class StateIlegible(Exception):
+    """`usage-state.json` existe pero no es un objeto JSON legible (revisión intento 1, gap 3)."""
+
+
+def _load_state(path, avisos=None, estricto=False):
+    """Estado de marcadores, SIEMPRE un dict de dicts. Ausente → vacío. Ilegible o raíz no
+    objeto: con `estricto` (quien va a ESCRIBIR) lanza StateIlegible para no sobrescribir los
+    marcadores ajenos; sin él (lectura) degrada a vacío con aviso. Un marcador corrupto dentro
+    de un objeto legible se descarta con aviso, como siempre."""
     raw = _load_json(path)
     if raw is None:
-        if Path(path).is_file() and avisos is not None:
-            avisos.append(f"state ilegible ({path}); se trata como vacío")
+        if Path(path).is_file():
+            if estricto:
+                raise StateIlegible(f"state ilegible ({path}); no se escribe nada")
+            if avisos is not None:
+                avisos.append(f"state ilegible ({path}); se trata como vacío")
         return {}
     if not isinstance(raw, dict):
+        if estricto:
+            raise StateIlegible(f"state ilegible ({path}): la raíz es {type(raw).__name__}, no un objeto; "
+                                "no se escribe nada")
         if avisos is not None:
             avisos.append(f"state con forma inesperada ({type(raw).__name__}); se trata como vacío")
         return {}
@@ -275,7 +291,183 @@ def _ventana_descarta(ts_dt, inicio_dt):
         return False, True
 
 
-def _sum_usage_window(tdir, offsets, inicio=None, cobertura=None):
+PODA_INTENTOS = 3   # intentos de poda de un marcador con transcripts ilegibles (revisión intento 3)
+_COLAS_BYTES = (4 * 1024, 64 * 1024)   # una línea mayor no se lee: se conserva su offset
+
+
+def _ts_de_cola(cola, desde):
+    """(timestamp | None, decidido) del último registro de `cola`. Solo decide con la línea ENTERA
+    (hay un salto de línea antes o la cola empieza en el byte 0): por su `timestamp` de la RAÍZ, o None
+    si no lo tiene o no es JSON (un `timestamp` anidado, como el de `file-history-snapshot`, no es la
+    fecha del registro; revisión intento 1 y 2, B1). Con un trozo de línea no decide: quien llama
+    prueba una cola mayor y, si ni así cabe, conserva el offset."""
+    lineas = cola.rstrip(b"\n").split(b"\n")
+    if len(lineas) == 1 and desde > 0:
+        return None, False
+    try:
+        rec = json.loads(lineas[-1])
+    except ValueError:
+        return None, True
+    ts = rec.get("timestamp") if isinstance(rec, dict) else None
+    return (_parse_iso(ts) if isinstance(ts, str) and ts else None), True
+
+
+def _ts_previo(path, offset, fh=None):
+    """Timestamp del ÚLTIMO registro antes de `offset` (los transcripts se escriben en orden: es el
+    más reciente de lo que había en el `start`). Lee una cola de 4 KiB y, si no basta, de 64 KiB (en la copia del repo, una cola de
+    1 MiB no cambiaba ningún offset y costaba 15 s de migración).
+    None si no se puede saber (quien llama conserva entonces el offset). Un error de E/S se PROPAGA
+    (OSError): quien poda no debe dar por podado un marcador que no pudo leer (D2)."""
+    for tam in _COLAS_BYTES:
+        desde = max(0, int(offset) - tam)
+        if fh is None:
+            with open(path, "rb") as propio:
+                propio.seek(desde)
+                cola = propio.read(int(offset) - desde)
+        else:
+            fh.seek(desde)
+            cola = fh.read(int(offset) - desde)
+        ts, decidido = _ts_de_cola(cola, desde)
+        if decidido:
+            return ts
+    return None
+
+
+def _candidatos_de_poda(marcador, tdir, mtimes=None):
+    """(corte_dt, {clave: offset} que se conservan sin mirar, [(clave, ruta, offset)] que necesitan la
+    fecha de su último registro previo) o None si el marcador no se puede podar. `mtimes` (dict) evita
+    repetir el `stat` de un transcript que comparten muchos marcadores (la migración)."""
+    offsets = marcador.get("offsets")
+    if marcador.get("offsets_podados") or not isinstance(offsets, dict):
+        return None
+    inicio_dt = _parse_iso(marcador.get("inicio")) if marcador.get("inicio") else None
+    if inicio_dt is None or not tdir or not Path(tdir).is_dir():
+        return None
+    corte_dt = inicio_dt - timedelta(seconds=TIMESTAMP_TOLERANCIA_SEG)
+    corte = corte_dt.timestamp()
+    pendientes = []
+    for clave, offset in offsets.items():
+        ruta = Path(tdir) / clave
+        mtime = mtimes.get(ruta) if mtimes is not None else None
+        if mtime is None:
+            try:
+                mtime = ruta.stat().st_mtime
+            except (OSError, ValueError):
+                mtime = False
+            if mtimes is not None:
+                mtimes[ruta] = mtime
+        if mtime is False:
+            continue   # ya no existe: si reaparece se lee como fichero nuevo, con el filtro por timestamp
+        if mtime < corte or not isinstance(offset, (int, float)) or offset <= 0:
+            continue   # nada escrito desde antes del corte, o nada antes del offset
+        pendientes.append((clave, ruta, offset))
+    return corte_dt, pendientes
+
+
+def _podar_offsets(marcador, tdir, ts_previo=None, plan=None):
+    """H-40 (T-13): un marcador CERRADO conserva solo los offsets que cambian la medida. Antes
+    guardaba el tamaño de todos los `.jsonl` del proyecto en cada marcador y `usage-state.json`
+    crecía sin límite (3,9 MB con ~225 marcadores), y cada arranque lo cargaba entero.
+
+    Sin offset, un transcript se lee desde 0 y el filtro por `timestamp` de T-04 descarta lo anterior
+    a `inicio - tolerancia`. El offset solo afina si en el `start` el fichero ya tenía registros
+    dentro de esa tolerancia: se conserva entonces, o si no se puede saber. Además, un transcript sin
+    offset que no se ha escrito desde antes del corte se salta sin leerlo (`podados` en
+    `_sum_usage_window`). Así re-cerrar mide exactamente lo mismo. Sin carpeta de transcripciones, sin
+    `inicio` legible o con un error de E/S al leer una cola no se poda nada (se reintentará).
+    Idempotente: `offsets_podados` marca el marcador podado."""
+    plan = plan or _candidatos_de_poda(marcador, tdir)
+    if plan is None:
+        return False
+    corte_dt, pendientes = plan
+    leer = ts_previo or _ts_previo
+    conservar, fallidos = {}, []
+    for clave, ruta, offset in pendientes:
+        try:
+            previo = leer(ruta, offset)
+        except (OSError, ValueError, OverflowError):
+            try:
+                fallidos.append([clave, ruta.stat().st_mtime, offset])
+            except OSError:
+                pass   # intento 3 (5): ya no existe; se descarta su offset, como en el camino normal
+            continue
+        if previo is None or previo >= corte_dt:
+            conservar[clave] = offset
+    if fallidos:
+        # revisión intento 2 (D): no se poda ni se marca, y solo se reintenta cuando cambie el mtime de
+        # alguno de esos transcripts. Intento 3 (5): como mucho PODA_INTENTOS veces; después se poda
+        # conservando el offset de los ilegibles (un error pasajero en un transcript viejo no deja el
+        # marcador sin podar para siempre).
+        intentos = marcador.get("poda_intentos", 0)
+        intentos = (intentos if isinstance(intentos, int) and not isinstance(intentos, bool) else 0) + 1
+        if intentos < PODA_INTENTOS:
+            marcador["poda_fallida"] = [f[:2] for f in fallidos]
+            marcador["poda_intentos"] = intentos
+            return False
+        for clave, _mtime, offset in fallidos:
+            conservar[clave] = offset
+    marcador.pop("poda_fallida", None)
+    marcador.pop("poda_intentos", None)
+    marcador["offsets"] = conservar
+    marcador["offsets_podados"] = True
+    return True
+
+
+def _fallida_sin_cambios(marcador):
+    """¿El último intento de poda falló y sus transcripts ilegibles siguen igual (mismo mtime)?"""
+    fallidos = marcador.get("poda_fallida")
+    tdir = marcador.get("transcriptDir")
+    if not isinstance(fallidos, list) or not fallidos or not tdir:
+        return False
+    for item in fallidos:
+        if not (isinstance(item, list) and len(item) == 2 and isinstance(item[0], str)):
+            return False
+        try:
+            actual = (Path(tdir) / item[0]).stat().st_mtime
+        except (OSError, ValueError):
+            actual = None
+        if actual != item[1]:
+            return False
+    return True
+
+
+def _migrar_cerrados(state):
+    """Poda los marcadores que cerró una versión anterior (H-40), con la misma regla y sin cambiar
+    su medida. Agrupa las colas por transcript: cada fichero se abre UNA vez, se leen todas sus colas
+    y se cierra antes de abrir el siguiente (D2: antes quedaban todos abiertos a la vez)."""
+    marcadores = [m for m in state.values()
+                  if isinstance(m, dict) and "ultimoCierre" in m and not m.get("offsets_podados")
+                  and not _fallida_sin_cambios(m)]
+    por_fichero, planes, mtimes = {}, [], {}
+    for m in marcadores:
+        plan = _candidatos_de_poda(m, m.get("transcriptDir"), mtimes)
+        planes.append((m, plan))
+        for _clave, ruta, offset in (plan[1] if plan else ()):
+            por_fichero.setdefault(ruta, set()).add(offset)
+    leidos = {}
+    for ruta, offsets in por_fichero.items():
+        try:
+            with open(ruta, "rb") as fh:
+                for offset in offsets:
+                    try:
+                        leidos[(ruta, offset)] = _ts_previo(ruta, offset, fh)
+                    except (OSError, ValueError, OverflowError) as e:
+                        leidos[(ruta, offset)] = e
+        except OSError as e:
+            for offset in offsets:
+                leidos[(ruta, offset)] = e
+
+    def ts_previo(ruta, offset):
+        valor = leidos.get((ruta, offset))
+        if isinstance(valor, Exception):
+            raise OSError("cola ilegible") from valor
+        return valor
+    for m, plan in planes:
+        if plan is not None:
+            _podar_offsets(m, m.get("transcriptDir"), ts_previo, plan)
+
+
+def _sum_usage_window(tdir, offsets, inicio=None, cobertura=None, podados=False):
     """Suma el usage de los registros NUEVOS (más allá del offset por fichero), con
     dedupe GLOBAL por message.id (registros repetidos de una misma respuesta, incluso
     entre el fichero principal y un subagente) y búsqueda RECURSIVA bajo la carpeta del
@@ -293,6 +485,9 @@ def _sum_usage_window(tdir, offsets, inicio=None, cobertura=None):
     `cobertura` (dict opcional, D-086): se rellena con `leidos` (ficheros con bytes nuevos en la
     ventana), `subagente` (de esos, bajo `subagents/`), `errores` (ficheros que no se pudieron leer)
     y `campos_malos` (campos de usage no numéricos contados como 0).
+
+    `podados` (H-40): los offsets son los de un marcador cerrado y podado (`_podar_offsets`); un
+    fichero sin offset cuyo mtime es anterior a `inicio - tolerancia` no tiene nada de la ventana.
     """
     seen = {}
     avisos = []
@@ -302,8 +497,17 @@ def _sum_usage_window(tdir, offsets, inicio=None, cobertura=None):
     descartados_por_ventana = 0
     timestamps_no_comparables = 0
     leidos, de_subagente, errores = 0, 0, 0
+    corte = None
+    if podados and inicio_dt is not None:
+        corte = (inicio_dt - timedelta(seconds=TIMESTAMP_TOLERANCIA_SEG)).timestamp()
     for f in sorted(tdir.rglob("*.jsonl"), key=lambda p: _rel_key(p, tdir)):
         clave = _rel_key(f, tdir)
+        if corte is not None and clave not in offsets:
+            try:
+                if f.stat().st_mtime < corte:
+                    continue   # sin escribir desde antes de la ventana (H-40)
+            except OSError:
+                pass
         start = offsets.get(clave, 0)
         if not isinstance(start, (int, float)) or start < 0:
             avisos.append(f"offset corrupto para {clave}; se relee completo")
@@ -562,13 +766,14 @@ def _horas(tokens, ratio):
 def cmd_start(args):
     avisos = []
     tdir = args.transcript_dir or _project_transcript_dir()
-    state = _load_state(args.state, avisos)
+    state = _load_state(args.state, avisos, estricto=True)
     marcador = {"version": 2, "inicio": _now_iso(), "transcriptDir": str(tdir) if tdir else None,
                 "offsets": _snapshot_offsets(tdir), "ventana_id": "win-" + uuid.uuid4().hex,
                 "revision_medicion": 0}
     if not tdir:
         marcador["aviso"] = "transcripciones no localizadas; close degradará a fuente=estimado"
     state[args.artefacto] = marcador
+    _migrar_cerrados(state)
     _save_state(args.state, state, avisos)
     salida = {"ok": True, "artefacto": args.artefacto,
               "inicio": marcador["inicio"], "ficheros": len(marcador["offsets"])}
@@ -600,7 +805,7 @@ def _identidad_medicion(marcador, tdir, avisos):
 
 def cmd_close(args):
     avisos = []
-    state = _load_state(args.state, avisos)
+    state = _load_state(args.state, avisos, estricto=True)
     marcador = state.get(args.artefacto)
     fin = _now_iso()
     resultado = {"artefacto": args.artefacto,
@@ -628,7 +833,8 @@ def cmd_close(args):
         if tdir and Path(tdir).is_dir():
             try:
                 tokens, avs = _sum_usage_window(tdir, marcador.get("offsets") or {},
-                                                 inicio=marcador.get("inicio"), cobertura=cobertura)
+                                                 inicio=marcador.get("inicio"), cobertura=cobertura,
+                                                 podados=bool(marcador.get("offsets_podados")))
                 avisos += avs
             except Exception as e:  # degradación total: nunca bloquear
                 avisos.append(f"lectura de transcripciones falló: {e}")
@@ -679,6 +885,8 @@ def cmd_close(args):
     resultado.update(_procedencia(resultado["fuente"] == "medido", cobertura, resultado["eur"], sin_precio, rates))
     if marcador:
         marcador["ultimoCierre"] = fin  # el marcador se conserva: re-close = misma ventana actualizada
+        _podar_offsets(marcador, args.transcript_dir or marcador.get("transcriptDir"))   # H-40
+        _migrar_cerrados(state)
         identidad = None
         if resultado["fuente"] == "medido":
             identidad = _identidad_medicion(marcador, tdir, avisos)
@@ -696,9 +904,9 @@ def cmd_close(args):
     return 0
 
 
-def status(path):
+def status(path, avisos=None):
     """Return the same read-only status used by the CLI without another interpreter."""
-    state = _load_state(path)
+    state = _load_state(path, avisos)
     ahora = datetime.now(timezone.utc)
     out = []
     for clave, m in state.items():
@@ -714,7 +922,16 @@ def status(path):
 
 
 def cmd_status(args):
-    print(json.dumps(status(args.state), ensure_ascii=False, indent=2))
+    avisos = []
+    salida = status(args.state, avisos)
+    if avisos:
+        salida["avisos"] = avisos
+    raw = _load_json(args.state)
+    if Path(args.state).is_file() and not isinstance(raw, dict):
+        # Fatal (revisión intento 3): con este estado start/close salen con exit 3. Un marcador
+        # corrupto dentro de un objeto legible NO lo es: el fichero sigue siendo escribible.
+        salida["estado_ilegible"] = True
+    print(json.dumps(salida, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -764,7 +981,14 @@ def main(argv=None):
     sp.set_defaults(fn=cmd_fmt)
 
     args = p.parse_args(argv)
-    return args.fn(args)
+    try:
+        return args.fn(args)
+    except StateIlegible as e:
+        # Exit 3 (no es error de uso ni bloquea el ciclo): la medición degrada a estimación y
+        # el estado ajeno queda intacto para que el usuario lo repare.
+        print(json.dumps({"ok": False, "artefacto": getattr(args, "artefacto", None),
+                          "fuente": "estimado", "error": str(e)}, ensure_ascii=False))
+        return 3
 
 
 if __name__ == "__main__":

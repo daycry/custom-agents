@@ -24,7 +24,8 @@ Qué hace `release.py X.Y.Z` (en este orden; si algo falla ANTES de escribir, no
      deuda de notas se puede publicar a sabiendas, un entorno roto no. Sin esa distinción, el
      `UnicodeEncodeError` de `lint_plugin.py` del 2026-09-03 se presentó como «PENDIENTE»
      [windows-console T-02].
-  3. Bump de la versión en los TRES sitios (plugin.json; marketplace.json metadata + entrada).
+  3. Bump de la versión en los CINCO manifiestos: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`
+     (metadata + entrada), `.codex-plugin/plugin.json`, `.agents/plugins/marketplace.json` y `package.json`.
   4. Escribe los dos CHANGELOG conservando su final de línea original (CRLF se mantiene CRLF).
   5. git: `update-index --chmod=+x` de los `.sh` en 100644 (avisando), `add` de manifiestos +
      CHANGELOG, `commit -m "chore: release vX.Y.Z"`, `tag vX.Y.Z`. El push se deja al usuario.
@@ -32,7 +33,7 @@ Qué hace `release.py X.Y.Z` (en este orden; si algo falla ANTES de escribir, no
 
   --dry-run   imprime el plan completo (secciones que movería, checks, chmod, commit, tag) sin tocar
               nada; un `[Unreleased]` vacío no lo corta: lo marca como «el release real ABORTARÍA aquí».
-  --check     verifica coherencia: las 3 versiones coinciden Y la versión actual tiene su sección
+  --check     verifica coherencia: las versiones de los 5 manifiestos coinciden Y la actual tiene su sección
               `## [X.Y.Z]` en AMBOS CHANGELOG.
 
 Uso:
@@ -454,6 +455,8 @@ def do_release(root, new, args):
         for src, dst, estado in manual_copies(root):
             if estado == "diff":
                 fallos.append(f"copia manual atrasada: cp {src} {dst}")
+            elif estado == "pendiente":     # T-21: sin su destino en .github/ tampoco está «al día»
+                fallos.append(f"copia manual pendiente: cp {src} {dst}")
             print(f"  {src} → {dst}: {estado}")
         estado_cls, dato = check_changelog_sync(root)
         if estado_cls == "falla":

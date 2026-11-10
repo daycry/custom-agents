@@ -127,6 +127,9 @@ def sha256(texto):
 
 # ------------------------------------------------------------------ secciones de revisión ----
 
+_SALTO_RE = re.compile("\n")
+
+
 def bloques_revision(texto):
     """`secciones_revision()` con `a`/`b`: el rango del bloque en `texto`. `secciones_revision`
     calcula `inicio`/`fin` sobre `sin_vallas(texto)`, que conserva el número de líneas pero no su
@@ -135,8 +138,9 @@ def bloques_revision(texto):
     if not secs:
         return secs
     limpio = LL.sin_vallas(texto)
-    nl_limpio = [i for i, c in enumerate(limpio) if c == "\n"]
-    inicios = [0] + [i + 1 for i, c in enumerate(texto) if c == "\n"]
+    # H-36 (T-16): índices de los saltos de línea por búsqueda, no enumerando cada carácter
+    nl_limpio = [m.start() for m in _SALTO_RE.finditer(limpio)]
+    inicios = [0] + [m.end() for m in _SALTO_RE.finditer(texto)]
 
     def orig(p):
         if p >= len(limpio):

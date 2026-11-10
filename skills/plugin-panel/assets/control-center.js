@@ -21,6 +21,9 @@ const errors={
  native_scope_mismatch:'El entorno devolvió un proyecto distinto. La operación se ha bloqueado.',
  project_changed:'La carpeta del proyecto ha cambiado. Revisa el registro y reinicia la consola.',
  plan_changed:'El plan cambió desde la vista previa. Revisa la versión actual antes de enviar.',
+ plan_not_found:'No se encuentra esta iniciativa en el roadmap del proyecto. Actualiza la lista de planes.',
+ plan_unavailable:'No se ha podido leer el plan de esta iniciativa. Revisa su tasks.md o elige otra tarea.',
+ plan_source_unavailable:'No se ha podido leer el tasks.md o el plan de esta iniciativa. Revisa que existan y sean legibles.',
  version_changed:'Las notas cambiaron. Se conserva tu texto; actualiza antes de guardarlo.',
  request_conflict:'Esta petición ya se utilizó con otro contenido. Comprueba lo que se recibió.',
  session_state_unavailable:'El registro de sesiones necesita revisión; no se sobrescribirá.',
@@ -32,6 +35,13 @@ const errors={
  document_unavailable:'Este documento no está disponible en el plan.',
  task_unavailable:'No se ha podido leer el detalle de esta tarea.',
  response_budget:'El resultado supera el límite de esta vista. Acota el alcance.',
+ workspace_not_found:'Este proyecto ya no está en el registro de la consola. Actualiza la lista de proyectos.',
+ session_not_found:'No se encuentra esta sesión en la consola. Actualiza la lista de conversaciones.',
+ session_not_resumable:'Esta sesión no se puede retomar ahora. Comprueba su estado en el entorno nativo.',
+ session_not_running:'La sesión no está en marcha, así que no hay nada que enviar o detener.',
+ runtime_not_enabled:'Este entorno no está habilitado para el proyecto. Actívalo en su configuración.',
+ native_busy:'El entorno nativo está atendiendo otra petición. Espera a que termine antes de repetir.',
+ native_connection_lost:'Se perdió la conexión con el entorno nativo. Comprueba que sigue en marcha y reconecta.',
  service_unavailable:'No se pudo preparar esta vista. Actualiza y revisa el diagnóstico si se repite.'}
 
 const accessStorageKey='custom-agents-console-access-v1'

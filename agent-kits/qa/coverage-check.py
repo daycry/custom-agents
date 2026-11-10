@@ -58,6 +58,7 @@ o el diff no aporta ficheros: ahí la fuente «diff» no ha aportado nada, y afi
 lo contrario con `rutas_ui_degradado: null` era la misma degradación silenciosa por
 otra puerta (gap R4a-30).
 """
+import importlib.util
 import json
 import os
 import re
@@ -335,10 +336,90 @@ def que_se_exime(tasks_text, spec_path, gwt_ids):
     return "", []
 
 
+# Respaldos LITERALES de agent-kits/shared/ledger-lint.py para cuando este script viaja sin el kit
+# compartido (fix1, B6): mismas vallas por tipo y longitud y mismo corte en `### Fase`/`## `.
+VALLA_PATTERN = r"^[^\S\n]*(?:`{3,}|~{3,})"
+_VALLA_RE = re.compile(VALLA_PATTERN)
+_TROCEO_TAREA_RE = re.compile(r"^###\s+(T-\d+)\b")
+_TROCEO_FIN_RE = re.compile(r"^(##\s|###\s+Fase\b)")
+
+
+def sin_vallas(text):
+    """`text` con las líneas DENTRO de una valla de código vaciadas (mismo número de líneas)."""
+    # --8<-- sin_vallas (cuerpo) — REPLICADO LITERAL en agent-kits/shared/ledger-lint.py y en
+    # skills/changelog-sync/scripts/changelog-sync.py (dos copias independientes: la skill viaja sin
+    # este kit). DECLARADO en agent-kits/shared/copias.json (ADR-016), que lista la ÚNICA diferencia
+    # tolerada (el nombre de la regex de valla); tests/test_copias_declaradas.py compara el resto
+    # byte a byte — antes solo había un test CONDUCTUAL y una divergencia sin efecto pasaba.
+    out, cerco = [], None
+    for ln in text.split("\n"):
+        m = _VALLA_RE.match(ln)
+        if cerco is None:
+            if m:
+                cerco = m.group(0).strip()[0] * len(m.group(0).strip())
+                out.append("")
+                continue
+        else:
+            out.append("")
+            if m and m.group(0).strip()[0] == cerco[0] and len(m.group(0).strip()) >= len(cerco):
+                cerco = None
+            continue
+        out.append(ln)
+    # --8<-- fin sin_vallas (cuerpo)
+    return "\n".join(out)
+
+
+def _bloques_de_tarea_local(text):
+    """Troceo de `bloques_de_tarea` (ledger-lint) sin el kit compartido."""
+    # --8<-- bloques_de_tarea (cuerpo) — REPLICADO LITERAL en agent-kits/shared/ledger-lint.py,
+    # agent-kits/qa/coverage-check.py y skills/jira-sync/scripts/jira-flow.py (respaldos sin el kit;
+    # declarado en agent-kits/shared/copias.json, revisión fase 2 intento 1, B6).
+    out, actual, lineas = {}, None, []
+    for ln in sin_vallas(text.lstrip("\ufeff")).splitlines():
+        m = _TROCEO_TAREA_RE.match(ln)
+        if m or _TROCEO_FIN_RE.match(ln):
+            if actual is not None and actual not in out:
+                out[actual] = "\n".join(lineas)
+            actual, lineas = (m.group(1), [ln]) if m else (None, [])
+            continue
+        if actual is not None:
+            lineas.append(ln)
+    if actual is not None and actual not in out:
+        out[actual] = "\n".join(lineas)
+    return out
+    # --8<-- fin bloques_de_tarea (cuerpo)
+
+
+def bloques_de_tarea(text):
+    """{T-XX: bloque} con el troceo de `agent-kits/shared/ledger-lint.py` (fuente única, H-23). Sin el
+    kit compartido (instalación parcial), el mismo criterio local: líneas de dentro de un bloque de
+    código fuera y cada bloque hasta la siguiente `### T-`, `### Fase` o `## `."""
+    lint = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "shared", "ledger-lint.py")
+    if os.path.isfile(lint):
+        try:
+            spec = importlib.util.spec_from_file_location("coverage_ledger_lint", lint)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod.bloques_de_tarea(text)
+        except Exception:  # noqa: BLE001 - kit roto: degrada al troceo local, nunca a ninguno
+            pass
+    return _bloques_de_tarea_local(text)
+
+
 def sin_ui_declarado(tasks_path):
-    """¿El `improvement-plan.md` de la carpeta de la iniciativa declara `test-plan: n/a (sin UI)`
-    en su frontmatter? Devuelve (bool, ruta_del_plan|None, línea no canónica|None). Nunca lanza."""
+    """¿La iniciativa declara `test-plan: n/a (sin UI)` en el frontmatter de su `improvement-plan.md`
+    o, en la vía rápida de `/dev-cycle` (H-15: sin plan), en el del propio `tasks.md` ligero?
+    Devuelve (bool, ruta_del_fichero_que_lo_declara|None, línea no canónica|None). Nunca lanza."""
     plan = os.path.join(os.path.dirname(os.path.abspath(tasks_path)), "improvement-plan.md")
+    declarado = _marcador_en(plan)
+    if declarado[0] or os.path.isfile(plan):
+        return declarado
+    ligero = _marcador_en(tasks_path)
+    return ligero if ligero[0] else (False, None, None)
+
+
+def _marcador_en(plan):
+    """(bool, ruta|None, línea no canónica|None) del marcador en el frontmatter de `plan`."""
     if not os.path.isfile(plan):
         return False, None, None
     try:
@@ -393,7 +474,8 @@ def main():
     if marcador_no_canonico:
         print(f"⚠️  el marcador del plan («{marcador_no_canonico}») NO está en la forma canónica "
               f"«{MARCADOR_SIN_UI}»: se acepta, pero escrito así el `grep` del literal con el que "
-              "el resto de la cadena lo busca no lo encuentra — corrígelo en improvement-plan.md")
+              "el resto de la cadena lo busca no lo encuentra — corrígelo en "
+              f"{os.path.basename(plan_md)}")
     if not os.path.isfile(plan_path):
         if gwt_ids and not sin_ui:
             # los [GWT] prometen test: sin test-plan, son cobertura que falta
@@ -472,22 +554,20 @@ def main():
     for m in re.finditer(r"^\s*[-*]\s*((?:E2E|M|API|A11Y)-\d+)\b", plan, re.M | re.I):
         defined.add(m.group(1).upper())
 
-    tasks = open(tasks_path, encoding="utf-8", errors="replace").read()
-    task_re = re.compile(r"^###\s+(T-\d+)[^\n]*", re.M)
+    tasks = open(tasks_path, encoding="utf-8-sig", errors="replace").read()
     cubre_re = re.compile(r"^\s*-\s*\*\*Cubre \(tests\)\*\*\s*:\s*(.*)$", re.M)
 
-    # trocear por tarea
-    positions = [(m.start(), m.group(1)) for m in task_re.finditer(tasks)]
+    # trocear por tarea con el troceo ÚNICO de ledger-lint (H-23): una tarea citada en un bloque de
+    # código o un campo de una sección posterior no es de ninguna tarea
+    bloques = bloques_de_tarea(tasks)
     errors, sin_cobertura, referenced = [], [], set()
-    if not positions:
+    if not bloques:
         print("❌ no se han detectado tareas `### T-XX` en tasks.md — la puerta no puede validar cobertura")
         print(json.dumps({"applies": True, "broken_refs": 0, "no_tasks": True,
                           "test_plan_na": sin_ui,
                           "marcador_no_canonico": marcador_no_canonico}, ensure_ascii=False))
         sys.exit(1)
-    for i, (pos, tid) in enumerate(positions):
-        end = positions[i + 1][0] if i + 1 < len(positions) else len(tasks)
-        chunk = tasks[pos:end]
+    for tid, chunk in bloques.items():
         m = cubre_re.search(chunk)
         if not m:
             sin_cobertura.append(tid)

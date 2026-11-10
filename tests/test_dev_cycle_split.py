@@ -14,9 +14,12 @@ import test_hooks_shell as legacy
 ROOT = Path(__file__).resolve().parents[1]
 COMMAND = ROOT / 'commands/dev-cycle.md'
 KIT = ROOT / 'agent-kits/dev-cycle/references'
-REFERENCES = ('phase1-evaluation.md', 'phase2-planning.md', 'phase3-subagents.md',
-              'phase3-jira.md', 'phase4-knowledge-gate.md')
-CORE_REFERENCES = tuple(name for name in REFERENCES if name != 'phase3-jira.md')
+REFERENCES = ('phase1-evaluation.md', 'phase2-planning.md', 'phase2-plan-review.md',
+              'phase3-subagents.md', 'phase3-jira.md', 'phase4-knowledge-gate.md')
+# phase3-jira.md and phase2-plan-review.md are reached only from another reference,
+# never from the core: the visual plan review is optional (audit H-43).
+CORE_REFERENCES = tuple(name for name in REFERENCES
+                        if name not in ('phase3-jira.md', 'phase2-plan-review.md'))
 REPLACEMENTS = ROOT / 'tests/fixtures/dev-cycle-modular-replacements.json'
 BASELINE = ROOT / 'tests/fixtures/dev-cycle-paragraphs.json'
 
@@ -38,7 +41,10 @@ def test_phase_details_have_a_private_owner_and_lazy_routes():
             assert name in core
     assert 'agent-kits/dev-cycle' in core and 'solo cuando' in core
     assert 'plan-review:prepare:bash' not in core
-    assert 'plan-review:prepare:bash' in (KIT / 'phase2-planning.md').read_text(encoding='utf-8')
+    planning = (KIT / 'phase2-planning.md').read_text(encoding='utf-8')
+    review = (KIT / 'phase2-plan-review.md').read_text(encoding='utf-8')
+    assert 'plan-review:prepare:bash' in review and 'plan-review:prepare:bash' not in planning
+    assert 'phase2-plan-review.md' in planning and 'phase2-plan-review.md' not in core
     assert 'subagentes: true' in core and 'project-integrations.md' in core
     assert 'phase3-jira.md' not in core
 
@@ -62,7 +68,7 @@ def test_no_original_paragraph_is_lost():
 def test_visual_review_recipes_are_byte_identical():
     original = json.loads(BASELINE.read_text(encoding='utf-8'))
     for identity, digest in original['recipes'].items():
-        text = (KIT / 'phase2-planning.md').read_text(encoding='utf-8')
+        text = (KIT / 'phase2-plan-review.md').read_text(encoding='utf-8')
         match = re.search(r'<!-- plan-review:' + identity + r' -->\s*```[^\n]+\n(.*?)\n```', text, re.S)
         assert match, identity
         assert hashlib.sha256(match[1].encode('utf-8')).hexdigest() == digest
@@ -90,6 +96,13 @@ def test_quick_default_path_saves_at_least_6000_estimated_tokens():
     current = estimate(COMMAND.read_text(encoding='utf-8'))
     current += estimate((ROOT / 'skills/quick-implement/SKILL.md').read_text(encoding='utf-8'))
     assert original['quick_default_estimate'] - current >= 6000
+
+
+def test_default_phase2_load_leaves_the_optional_visual_review_out():
+    # H-43: ~15 K characters of optional review recipes were loaded in every full flow.
+    planning = (KIT / 'phase2-planning.md').read_text(encoding='utf-8')
+    assert len(planning) <= 6000
+    assert len((KIT / 'phase2-plan-review.md').read_text(encoding='utf-8')) >= 12000
 
 
 def test_native_adapters_keep_core_and_references_deferred():

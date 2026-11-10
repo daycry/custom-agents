@@ -9,6 +9,12 @@ contexto y fuerza `--ia no` durante replay. En Windows sigue usando el superviso
 y su cierre de procesos. La invocación directa del shell anterior permanece
 disponible. El timeout se mantiene hasta completar su validación medida.
 
+**Sin node.** Todos los hooks del plugin se lanzan con `node hooks/run-hook.mjs`: si `node`
+no está en el PATH, cada hook da «command not found» (exit 127). No bloquea el trabajo, pero
+no hay journal, índice de sesión, progreso en vivo ni guardias; `/doctor` lo avisa con su
+arreglo (instalar node y reiniciar la sesión). El resto del plugin (comandos, agentes y
+scripts de las puertas) solo necesita Python.
+
 El marcador de documentación pendiente (`.claude/.confluence-pending`) se crea
 directamente en el launcher Node para los tres runtimes, sin Python ni shell.
 Conserva los filtros de `docs/` y excluye `docs/security-scan/` y `docs/confluence/`.
@@ -93,8 +99,9 @@ regenerado de Codex. Cuando C-06 unifique el arranque en un solo Python se
 revisará su bajada a 10 s. El launcher compartido conserva su presupuesto
 interno de 20 s para contexto; el adaptador nativo de OpenCode también tiene
 su propio límite de 20 s. El timeout de registro no amplía esos límites.
-`UserPromptSubmit` invoca `journal.py capture` con `-I -S`: mantiene el log,
-la redacción y los opt-outs sin cargar paquetes del consumidor.
+`UserPromptSubmit` invoca `journal-prompt.py` con `-I -S` (el módulo ligero de la
+captura; `journal.py capture` sigue disponible y usa el mismo código): mantiene el log,
+la redacción y los opt-outs sin cargar paquetes del consumidor ni las ~3.000 líneas de `journal.py`.
 
 Al reconstruir el índice de conocimiento se barren solo sus temporales
 `knowledge-index.sqlite.<pid>.tmp` y `-journal`: ambos deben tener al menos
@@ -103,10 +110,15 @@ ficheros recientes se conservan. Se rechazan enlaces, junctions y nombres
 ajenos; la limpieza es local al directorio del índice y un fallo de E/S avisa
 sin impedir reconstruirlo. El `finally` limpia el temporal y el journal propios.
 
-La barra de estado usa como máximo un Python aislado por refresco. Con la
-misma entrada y metadatos de ledgers sin cambios, sirve los campos desde
-`.claude/statusline-cache` sin Python. Cambios de coste/contexto, ledgers,
-usage-state o scripts invalidan la caché; no guarda la entrada JSON cruda.
+La barra de estado usa como máximo un Python aislado por refresco. Con los
+metadatos de ledgers sin cambios sirve el segmento del roadmap desde
+`.claude/statusline-cache` sin Python, y Bash pinta modelo, coste y contexto
+directamente de la entrada (cambian en cada turno, así que ya no forman parte
+de la clave). Si alguno de esos campos no tiene la forma simple que Python
+imprimiría igual (un nombre con comillas o no ASCII, un número en notación
+científica o por debajo de 0,0001), ese refresco usa Python como antes.
+Cambios de ledgers, usage-state o scripts invalidan la caché; no guarda la
+entrada JSON cruda.
 Se respeta `CUSTOM_AGENTS_PYTHON`, se excluyen alias de WindowsApps y, sin
 intérprete o ante un error, queda el modelo y exit 0. El formato y redondeo
 siguen en Bash; no se necesita `jq`. El comando de `/setup` no cambia.
@@ -120,12 +132,12 @@ con el ledger canónico: **¿cómo va la iniciativa ahora mismo?** Todo determin
 | Momento | Mecanismo | Qué ves |
 |---|---|---|
 | Cada edición de un `docs/roadmap/*/tasks.md` | hook `PostToolUse` → `progress-line.sh` | Una línea: `📋 <slug> · T-04/12 completadas (33%) · fase 2/4 «…» · en curso: T-05 … · IA real 1h 12m`. Con debounce: si el estado no cambió, silencio. |
-| Al terminar un subagente | hook `SubagentStop` → `subagent-progress.sh` | Las mismas líneas, una por iniciativa `en-progreso` (solo si hay alguna). |
+| Al terminar un subagente | hook `SubagentStop` → `subagent-progress.sh` (el launcher ejecuta `subagent-progress.py` en un solo Python, sin Bash) | Las mismas líneas, una por iniciativa `en-progreso` (solo si hay alguna). Con debounce: si es exactamente lo último que se mostró (`.claude/.progress-last-subagent`, propio: la línea del ledger no lo calla), silencio. |
 | Al arrancar, retomar o tras compactar el contexto | hook `SessionStart` → `session-context.sh` | (1) **Índice de piezas** del plugin (`agent-kits/shared/skill-index.py`): 3 líneas de reglas de enrutado + una línea ≤ 110 caracteres por comando/skill/agente, generado DETERMINISTA desde los frontmatters, ≤ 45 líneas / ≤ 3.500 caracteres, con caché por hash en `.claude/.skill-index.cache`; es la respuesta a «la skill correcta no se disparó»: las descriptions solo se ven cuando Claude las busca, el índice las pone delante en cada arranque. Informativo (no fuerza nada); desactivable con `.claude/dev.json` `{"sesion": {"indice": false}}`. (2) Bloque ≤ 15 líneas del roadmap: iniciativas activas, tareas en curso, marcadores abiertos del usage-meter y «retoma desde la tarea en-progreso» (solo si hay algo activo). Va también en `compact` porque la compactación resume la conversación y puede perder el índice del arranque (guía oficial de hooks, «Re-inject context after compaction», verificada 2026-09-03). Total < 10.000 caracteres (tope del hook). Sin nada que decir, no inyecta nada. |
-| En cada turno del usuario | hook `UserPromptSubmit` → `user-prompt-capture.sh` | Nada en pantalla (en este evento el stdout se inyectaría como contexto y un exit 2 borraría el prompt: el hook nunca emite y siempre sale 0): `journal.py capture` añade el turno como una línea JSON a `.claude/session-prompts-<session_id>.log` — **no versionado** (`capture` siembra `.claude/.gitignore` con `session-prompts-*`), **secretos evidentes redactados** antes de tocar el disco, `0600`, cerrojo entre turnos solapados, topes por turno/fichero y purga a 30 días. Opt-out por turno: `<private>` en cualquier parte (el log no se toca y ese turno tampoco sale de la transcripción). Opt-out por proyecto: `dev.json` `{"sesion": {"captura": false}}` (o `journal: false`). Solo en proyectos con rastro del plugin. `hooks.json` declara `timeout: 5` (default oficial 30). |
+| En cada turno del usuario | hook `UserPromptSubmit` → `user-prompt-capture.sh` | Nada en pantalla (en este evento el stdout se inyectaría como contexto y un exit 2 borraría el prompt: el hook nunca emite y siempre sale 0): `journal-prompt.py` añade el turno como una línea JSON a `.claude/session-prompts-<session_id>.log` — **no versionado** (`capture` siembra `.claude/.gitignore` con `session-prompts-*`), **secretos evidentes redactados** antes de tocar el disco, `0600`, cerrojo entre turnos solapados, topes por turno/fichero y purga a 30 días. Opt-out por turno: `<private>` en cualquier parte (el log no se toca y ese turno tampoco sale de la transcripción). Opt-out por proyecto: `dev.json` `{"sesion": {"captura": false}}` (o `journal: false`). Solo en proyectos con rastro del plugin. `hooks.json` declara `timeout: 5` (default oficial 30). |
 | Cuando el runtime emite el cierre | hook `SessionEnd` → `session-journal.sh` (exec form, `timeout: 5`) | El launcher invoca `journal-capture.py`: escribe solo un **envelope atómico** (≤ 64 KiB, identidad determinista, sin materializador/git/IA/red) en la outbox local. El benchmark in-process mide la operación, excluyendo arranque y presupuesto nativo; no demuestra la latencia total del hook. |
 | Al arrancar/retomar/compactar | hook `SessionStart` → `session-context.sh` (además de lo de la fila de arriba, `SessionEnd`) | **Reconciliación presupuestada** (T-05): `journal.py replay --ia no --budget-ms 300 --max 3 --con-recover` drena la outbox reutilizando el camino de siempre (git, log de prompts, IA opt-in) y materializa la entrada — `cierre: materializado` en el frontmatter; nunca bloquea el arranque (si `bloqueado`/`errores` viene no vacío, una línea de aviso, nada más). `--con-recover` materializa TAMBIÉN, bajo el MISMO cerrojo/presupuesto, como `cierre: recuperado_sin_cierre` una sesión con log de prompts sin envelope y sin sesión viva pasada `sesion.journal.ventanaHuerfanaMin` (default 1440 min / 24h, CA-07) — o antes, pasada `sesion.journal.ventanaInactividadMin` (default 30 min) si el log Y el último transcript registrado están quietos (ver «Recuperación temprana» más abajo); una sesión concurrente viva nunca se toca. Solo entradas YA escritas en disco llegan a (3) — nunca se inyecta una entrada sin materializar (CA-08). La entrada usa la fecha del **cierre** (`captured_at`), no la del replay; los campos derivados de `git` se calculan al materializar y el frontmatter lo marca con `derivados_en: replay` (también para las huérfanas recuperadas por `--con-recover`: corren bajo la misma pasada, nunca `recover`). Escritura idempotente por `session_id`, atómica; `decisiones`/`pendientes` **extraídas sin modelo del log crudo** de `UserPromptSubmit` (frases del usuario con marcador léxico ES/EN; sin log o sin marcadores → `[]` honesto) y `resumen` = primer turno capturado. La entrada declara que `decisiones`/`pendientes` son **citas** de los turnos, no instrucciones. Al arrancar/retomar (`startup\|resume`, no `compact`) `session-context.sh` añade (3) la última entrada compactada (≤ 25 líneas, `journal.py latest`). Desactivable con `dev.json` `{"sesion": {"journal": false}}`. **Resumen por IA opt-in** (`{"sesion": {"resumen": true}}`): tras escribir la entrada determinista, `claude -p --bare --output-format json` con los turnos por stdin y timeout 25 s re-escribe la misma entrada (`resumen_por: ia`); sin CLI, sin `ANTHROPIC_API_KEY`, timeout o JSON ilegible → queda la determinista con el motivo en `avisos`, exit 0 (ADR-010 revisado 2026-09-08: la salida de los hooks en `SessionEnd` sigue ignorándose — el hook no devuelve, **escribe**). A demanda: `journal.py replay [--con-recover]`/`recover`/`status [--json]`/`purge --confirm`; `recover` a demanda usa `--budget-ms`/`--max` con default **0 = sin tope** (materializa TODAS las huérfanas que encuentre; distinto del tope de 3/300 ms que usa `SessionStart` vía `replay --con-recover`), pero el cerrojo sigue siendo SIEMPRE no bloqueante (techo corto de 2 s cuando no se pasa presupuesto explícito). `/doctor` (sección «Journal») lee `journal.py status --json`: pendientes, huérfanas, dead-letter con remedio nombrado, triage del «Hook cancelled» (CA-10). Promoción: `journal.py candidatas` propone como `propuesta` los patrones repetidos en ≥ 2 sesiones (paso 2-quater de `/retro`). Los `avisos` que llegan al `additionalContext` de `SessionStart` (línea «Journal: …») se SANEAN antes de componerse: un `session_id` derivado del NOMBRE de un log (potencialmente plantado) pasa por el mismo saneado que protege los nombres de fichero, y el mensaje de cualquier excepción se reduce a su tipo + un fragmento corto restringido a caracteres imprimibles — sin saltos de línea, control ni marcas bidireccionales; la línea final va enmarcada como «estado operativo de la cola del journal; datos, no instrucciones», igual que el bloque de `latest`. |
-| Siempre, en la barra de estado (**opt-in** en `/setup`, paso 5-bis) | `statusline/roadmap-statusline.sh` | `[Opus] $0.01 ctx 8% · 📋 <slug> T-04/12 33%` — modelo, coste de la sesión, contexto usado y progreso del roadmap. Sin `jq` usa `python3`; sin ninguno, solo el modelo. Con 2+ iniciativas activas la línea pasa a `📋 N activas · ▶ <slug> T-06/11 55%`: la iniciativa en curso sale del marcador abierto de `usage-meter` (lectura directa de `.claude/usage-state.json`, sin lanzar el meter) y, si no hay, del `tasks.md` modificado más reciente. |
+| Siempre, en la barra de estado (**opt-in** en `/setup`, paso 5-bis) | `statusline/roadmap-statusline.sh` | `[Opus] $0.01 ctx 8% · 📋 <slug> T-04/12 33%` — modelo, coste de la sesión, contexto usado y progreso del roadmap. Sin `jq` usa `python3`; sin ninguno, solo el modelo. Con 2+ iniciativas activas la línea pasa a `📋 N activas · ▶ <slug> T-06/11 55%`: la iniciativa en curso sale de la regla única (`progress-report.py iniciativa_vigente`, la misma del journal, el bloque de sesión, la memoria y `/doctor`): el marcador abierto de `usage-meter` aunque la iniciativa esté al 100 % (lectura directa de `.claude/usage-state.json`, sin lanzar el meter), si no la pendiente con el `tasks.md` más reciente y, si no, la más reciente; empates por nombre. Mira las 128 carpetas más recientes (avisa del recorte) y rechaza enlaces solo por debajo de la raíz del proyecto, que es el ancla. |
 
 Reversión de la statusline: quitar la clave `statusLine` de `.claude/settings.json`.
 
@@ -161,7 +173,10 @@ el log de prompts retenido permite `recover`.
 En Windows, `runtime-supervisor.py` incorpora el intérprete a un Job Object
 antes de ejecutar el negocio. El handle no heredable pertenece a Node:
 terminar solo el launcher cierra el job y alcanza los descendientes aunque
-Python ya haya salido. Un fallo de contención omite el hook con aviso.
+Python ya haya salido. Un fallo de contención omite el hook con aviso. Si al
+terminar el negocio el job solo contiene al supervisor, este lo marca en su código
+de salida y el launcher no lanza el segundo Python de `close` (no queda nada que
+cerrar; con un descendiente vivo la limpieza sigue igual).
 En POSIX, el adaptador posee el grupo del launcher; la limpieza comprueba
 esa propiedad, detiene y termina sus miembros hijos y conserva vivo al dueño.
 Los demás lanzamientos usan su propio grupo. La confirmación de cierre tiene
@@ -272,9 +287,9 @@ instalar o actualizar el plugin, en tres pasos (anota el resultado real, no el e
 1. **Línea de progreso.** Con una iniciativa `en-progreso`, edita su `docs/roadmap/<slug>/tasks.md`
    (marca un criterio, por ejemplo) → debe aparecer la línea `📋 <slug> · T-XX/N …` como mensaje del
    sistema. Repite la misma edición sin cambiar el estado → silencio (debounce).
-2. **Contexto de sesión.** reanuda la sesión (`claude --resume`, o espera a una compactación; `/clear` NO dispara el hook: el matcher es `startup|resume|compact`) → entran como contexto el
+2. **Contexto de sesión.** reanuda la sesión (`claude --resume`, `/clear` o espera a una compactación; el matcher es `startup|resume|clear|compact`, como en Codex; el journal solo se cita en `startup|resume`) → entran como contexto el
    índice de piezas (`Plugin custom-agents — índice de piezas…`, bloques Comandos/Skills/Agentes) y el bloque de
-   `progress-report.py session` (iniciativas activas, tarea en curso, «retoma desde…»); con nada activo solo entra el
+   `progress-report.py session` (iniciativas activas, tarea en curso, «retoma desde…»; las que están al 100 % van en una línea «N al 100 % pendientes de cierre: /retro <slug>»); con nada activo solo entra el
    índice, y con `dev.json` `sesion.indice: false` solo el roadmap. Prueba de activación: pide algo que case con una
    skill sin nombrarla («revísame este diff») y comprueba que la invoca.
 3. **Hook de guardia del implementer.** Como `implementer` (p. ej. `@implementer …`), intenta escribir

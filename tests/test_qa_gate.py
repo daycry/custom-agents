@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Tests de qa-gate.py (veredicto determinista). Ejecuta: python tests/test_qa_gate.py"""
+import codecs
 import json
 import os
 import subprocess
@@ -118,5 +119,90 @@ def main():
     print("test_qa_gate: 13/13 OK")
 
 
+# --- Auditoría 2026-11-09 (H-3, C4): sin falso verde y sin traceback ---
+
+def _run_bytes(raw):
+    with tempfile.TemporaryDirectory() as tmp:
+        rp = os.path.join(tmp, "results.json")
+        with open(rp, "wb") as f:
+            f.write(raw)
+        r = subprocess.run([sys.executable, SCRIPT, rp], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace")
+        return r.returncode, r.stdout, r.stderr
+
+
+def test_casos_historicos():
+    main()
+
+
+def test_saltado_sin_stats_no_cuenta_como_pasado():
+    code, out = run(results([("pendiente", ["skipped"], "skipped")]))
+    data = json.loads(out)
+    assert data["counts"]["passed"] == 0 and data["counts"]["skipped"] == 1, data
+    assert code == 1 and data["verdict"] == "NO-VERDE", data
+
+
+def test_saltado_junto_a_pasado_sigue_verde_y_cuenta_bien():
+    code, out = run(results([("ok", ["passed"], "passed"),
+                             ("pendiente", ["skipped"], "skipped")]))
+    data = json.loads(out)
+    assert data["counts"]["passed"] == 1 and data["counts"]["skipped"] == 1, data
+    assert code == 0, data
+
+
+def test_results_con_bom_se_lee():
+    raw = codecs.BOM_UTF8 + json.dumps(results([("ok", ["passed"], "passed")])).encode()
+    code, out, err = _run_bytes(raw)
+    assert code == 0 and json.loads(out)["verdict"] == "VERDE", (out, err)
+
+
+def test_raiz_lista_es_rojo_con_motivo():
+    code, out, err = _run_bytes(b"[]")
+    assert code == 1 and "Traceback" not in err, err
+    data = json.loads(out)
+    assert data["verdict"] == "NO-VERDE" and "objeto" in data["reason"], data
+
+
+def test_estructura_inesperada_es_rojo_sin_traceback():
+    for raw in (b'{"suites": {"no": "lista"}}', b'{"suites": ["texto"]}',
+                b'{"errors": ["texto plano"]}', b'{"stats": [], "suites": []}'):
+        code, out, err = _run_bytes(raw)
+        assert code == 1 and "Traceback" not in err, (raw, err)
+        assert json.loads(out)["verdict"] == "NO-VERDE", (raw, out)
+
+
 if __name__ == "__main__":
     main()
+
+
+def test_fallo_seguido_de_saltado_no_desaparece():
+    """Revisión intento 1 (gap 2): `[failed, skipped]` (test.skip(testInfo.retry > 0)) no es saltado."""
+    for exp in ("skipped", "passed"):
+        code, out = run(results([("reintento saltado", ["failed", "skipped"], exp)]))
+        data = json.loads(out)
+        assert code == 1 and data["verdict"] == "NO-VERDE", (exp, data)
+        assert data["counts"]["skipped"] == 0, (exp, data)
+
+
+def test_fix2_sin_ningun_passed_no_es_flaky_ni_se_justifica():
+    """Revisión intento 2: `[failed, skipped]` con expectedStatus skipped NO es flaky (nunca pasó);
+    una justificación de flaky no puede volverlo VERDE."""
+    res = results([("ok", ["passed"], "passed"), ("nunca pasa", ["failed", "skipped"], "skipped")])
+    code, out = run(res, justify={"nunca pasa": "timing conocido"})
+    data = json.loads(out)
+    assert code == 1 and data["verdict"] == "NO-VERDE", data
+    assert data["counts"]["flaky"] == 0 and data["counts"]["failed"] == 1, data
+
+
+def test_fix3_flaky_es_el_resultado_esperado_tras_un_fallo():
+    """Revisión intento 3 (B10): con test.fail() (expectedStatus failed), `[timedOut, failed]` es
+    flaky (obtuvo lo esperado al reintentar), no unexpected; `[failed, skipped]` sigue sin serlo."""
+    code, out = run(results([("falla a propósito", ["timedOut", "failed"], "failed")]))
+    data = json.loads(out)
+    assert data["counts"]["flaky"] == 1 and data["counts"]["failed"] == 0, data
+    code, out = run(results([("falla a propósito", ["timedOut", "failed"], "failed")]),
+                    justify={"falla a propósito": "timeout conocido QA-9"})
+    assert code == 0, out
+    code, out = run(results([("nunca pasa", ["failed", "skipped"], "skipped")]),
+                    justify={"nunca pasa": "x"})
+    assert code == 1 and json.loads(out)["counts"]["flaky"] == 0, out

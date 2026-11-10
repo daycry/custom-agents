@@ -29,11 +29,23 @@ def bundled(name):
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     return module
 
-def sibling(name):
+# H-34 (T-15): a sibling module is loaded once per common instance (every request used to reload
+# console_transport.py and the discovery modules). build_panel.py keeps its scrubber in module
+# globals, so each catalog still gets a fresh namespace.
+FRESH_SIBLINGS=frozenset({'build_panel.py'})
+
+def _load_sibling(name):
     spec=importlib.util.spec_from_file_location('console_'+name.replace('-','_'),HERE/name)
     need(spec is not None and spec.loader is not None,'helper_unavailable',503)
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     return module
+
+@lru_cache(maxsize=32)
+def _cached_sibling(name):
+    return _load_sibling(name)
+
+def sibling(name):
+    return _load_sibling(name) if name in FRESH_SIBLINGS else _cached_sibling(name)
 
 def json_load(raw):
     def pairs(items):

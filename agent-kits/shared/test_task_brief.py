@@ -890,7 +890,7 @@ def test_ca08_el_brief_cubre_todos_los_ledgers_con_y_sin_design(tmp_path, monkey
             import re as _re
             criteria = [line for line, fenced in tb._lineas_con_fence(chunk)
                         if not fenced and _re.match(r"^\s*-\s*\[[ xX]\]", line)]
-            assert all(line in out for line in criteria), (origen, tid, "lost criterion")
+            assert all(tb.sin_kit_falso(line, "") in out for line in criteria), (origen, tid, "lost criterion")   # fix3: the token SHAREDKIT arrives quoted
             assert tb.CONTRATO in out
             if len(out) > tb.BRIEF_TOPE_CHARS:
                 minimum = _re.search(r"mínimo obligatorio=(\d+)", err.getvalue())
@@ -1241,18 +1241,20 @@ otra salida histórica
 
 
 def test_brief_budget_auxiliares_comparten_margen_sin_recortar_criterios(inic, monkeypatch):
+    # 2050 (was 2300; f4fix1 gaps 1, 7 and 12 added ~70 characters: quoting, «única línea válida», «sin integraciones»): the brief now opens with the kit line of H-45 (~100 characters with a real
+    # path) that the auxiliary budget cannot trim; this scenario is at the edge of the 10000 cap.
     criterion = "contrato " * 400 + "criterio final."
     text = TASKS_CON_GAPS.replace("- **Descripción**: hacer la cosa A.", "- **Descripción**: hacer la cosa A.\n- **Tipo**: backend\n- **Archivos**: `src/adapter.py`\n- **Verificación**: `pytest -q` → verde")
     text = text.replace("la cosa A funciona", criterion)
     (inic / "tasks.md").write_text(text, encoding="utf-8")
     design = DESIGN.replace("Aísla la integración tras una interfaz; reversible en un sprint.", "Aísla la integración. " * 50)
     (inic / "design.md").write_text(design, encoding="utf-8")
-    monkeypatch.setattr(tb, "_memoria_tecnica", lambda *args: "## Memoria técnica\n" + "M" * 2300)
+    monkeypatch.setattr(tb, "_memoria_tecnica", lambda *args: "## Memoria técnica\n" + "M" * 2050)
     rc, out = _run([str(inic), "T-01", "--sin-lint", "--constitucion", str(inic / "no.md")])
     assert rc == 0 and len(out) <= tb.BRIEF_TOPE_CHARS
     assert criterion in out
     assert "## Persona de dominio" in out
-    assert "M" * 2300 in out
+    assert "M" * 2050 in out
     assert tb.CONTRATO in out
 
 
@@ -1882,3 +1884,28 @@ def test_brief_budget_aviso_mide_el_salto_final(inic, monkeypatch, capsys, rende
         assert f"{rendered_length} caracteres" in err
     else:
         assert "por encima de BRIEF_TOPE_CHARS" not in err
+
+
+
+# ------------------------------------------------- H-38 (auditoría 2026-11-09, T-16): lint en proceso
+
+def test_h38_el_brief_valida_el_ledger_sin_lanzar_ledger_lint(inic, monkeypatch):
+    """H-38: el brief lanzaba `ledger-lint.py` como subproceso (con su arranque de Python) antes de
+    componer; ahora lo valida en proceso con el mismo veredicto."""
+    lanzados = []
+    real = tb.subprocess.run
+    def run(cmd, *a, **k):
+        lanzados.append(" ".join(map(str, cmd)))
+        return real(cmd, *a, **k)
+    monkeypatch.setattr(tb.subprocess, "run", run)
+    rc, out = _run([str(inic), "T-01", "--constitucion", str(inic / "no.md")])
+    assert rc == 0 and "Brief de implementación — T-01" in out
+    assert not any("ledger-lint" in c for c in lanzados), lanzados
+
+
+def test_h38_un_ledger_invalido_se_sigue_rechazando_en_proceso(inic, capsys):
+    t = (inic / "tasks.md").read_text(encoding="utf-8")
+    (inic / "tasks.md").write_text(t.replace("- **Estado**: borrador", "- **Estado**: casi-hecho"), encoding="utf-8")
+    rc, _ = _run([str(inic), "T-01", "--constitucion", str(inic / "no.md")])
+    err = capsys.readouterr().err
+    assert rc == 2 and "ledger inválido" in err and "ledger-lint exit 1" in err and "incoherencias" in err

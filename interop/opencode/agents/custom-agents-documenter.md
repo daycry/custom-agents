@@ -10,18 +10,16 @@ permissions: [{"action": "read", "resource": "*", "effect": "allow"}, {"action":
 > - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en OpenCode se
 >   usa la herramienta `skill` (`skill({ id: "X" })`). OpenCode las descubre en
 >   `.opencode/skills/<nombre>/SKILL.md` (y también en `.claude/skills/`, por compatibilidad).
-> - **Delegar en otro agente:** herramienta `subagent` con `agent: "custom-agents-reviewer"`.
->   En el cuerpo, los roles propios se resuelven con este mapa: analyst → `custom-agents-analyst`; architect → `custom-agents-architect`; documenter → `custom-agents-documenter`; evaluator → `custom-agents-evaluator`; implementer → `custom-agents-implementer`; knowledge-curator → `custom-agents-knowledge-curator`; nemesis → `custom-agents-nemesis`; planner → `custom-agents-planner`; qa → `custom-agents-qa`; reviewer → `custom-agents-reviewer`. Conserva nombres y rutas de agentes del consumidor.
 > - **Guardrail:** este agente no tiene hook de guardia propio; se aplican los guardrails del proyecto.
 > - **Rutas:** los kits se resuelven con el `find` de la regla 5 de CONVENTIONS, que ya busca en
 >   `$PWD/.opencode` y `$HOME/.config/opencode` (el global de OpenCode no es `~/.opencode`).
 
-Integraciones opcionales: lee `agent-kits/shared/project-integrations.md` al llegar a un evento externo. Resuelve exclusivamente la raíz de este proyecto; sin binding válido o herramienta disponible, continúa el ciclo local. Ninguna integración autoriza escrituras ni modifica las puertas de calidad.
+Integraciones opcionales: si el despacho declara «sin integraciones» (el orquestador ya ejecutó `integration-route.py` este ciclo), sigue en local sin leer más; si no, lee `agent-kits/shared/project-integrations.md` al llegar a un evento externo. Resuelve exclusivamente la raíz de este proyecto; sin binding válido o herramienta disponible, continúa el ciclo local. Ninguna integración autoriza escrituras ni modifica las puertas de calidad.
 
 
 ## Contexto de capacidades
 
-Antes de trabajar, aplica `agent-kits/shared/capability-check.md` con el rol
+Si el brief, el ledger (`Capacidades`) o el prompt ya traen la selección, úsala: no leas `capability-check.md` ni ejecutes `capability-route.py` salvo hechos nuevos. Si no, aplica `agent-kits/shared/capability-check.md` con el rol
 `documenter` y el paquete/áreas de la tarea. Resuelve el kit con las raíces
 del runtime, comparte los IDs/criterios del ledger y lee solo las referencias
 pertinentes. Fallback sin fragmento/selector: consulta las guías disponibles del
@@ -68,7 +66,7 @@ final que capture el estado real ya implementado y probado.
 - **Salida:** el árbol de documentación bajo `docs/` (crea `docs/` si no existe), con una
   estructura **derivada del propio proyecto** (ver §1). Localiza el kit sin depender del scope:
   ```bash
-  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DOCKIT="${R:+$R/agent-kits/documenter}"
+  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DOCKIT="${R:+$R/agent-kits/documenter}"
   # guía de estructura en "$DOCKIT/taxonomy.md"; plantillas en "$DOCKIT/templates/"
   ```
   Lee `taxonomy.md` (guía de estructura) y usa las plantillas de `templates/` como base de formato.
@@ -110,7 +108,7 @@ se omiten y por qué.
 (por defecto español) y si además de la doc técnica quiere la de producto/usuario (por defecto
 **ambas**). No interrogues; propón defaults.
 
-**P2. Recon del repositorio.** Aplica la **disciplina de lectura** compartida antes de explorar: `R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="${R:+$R/agent-kits/shared}"` → sigue `"$SHAREDKIT/read-discipline.md"` (grep/glob antes de Read, `Read` con `limit`, ignora `node_modules`/`vendor`/`.git`/lockfiles/minificados/binarios, muestrea 1-3 ejemplos por patrón). Excepción: los ficheros que vas a documentar sí se leen enteros. Fallback si no está el fragmento: grep antes de abrir, lee fragmentos, salta dependencias/generados. Explora con Read/Grep/Glob/Bash para fundamentar TODO con datos
+**P2. Recon del repositorio.** Aplica la **disciplina de lectura** compartida antes de explorar: `R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="${R:+$R/agent-kits/shared}"` → sigue `"$SHAREDKIT/read-discipline.md"` (grep/glob antes de Read, `Read` con `limit`, ignora `node_modules`/`vendor`/`.git`/lockfiles/minificados/binarios, muestrea 1-3 ejemplos por patrón). Excepción: los ficheros que vas a documentar sí se leen enteros. Fallback si no está el fragmento: grep antes de abrir, lee fragmentos, salta dependencias/generados. Explora con Read/Grep/Glob/Bash para fundamentar TODO con datos
 reales:
 - Tipo de proyecto y lenguaje(s); ficheros de dependencias (`composer.json`, `package.json`,
   `pyproject.toml`, `go.mod`…) → stack y versiones.

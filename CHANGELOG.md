@@ -11,6 +11,39 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Fixed — `plugin-audit-remediation` initiative, phase 1: security and data loss (2026-11-09)
+
+- The Jira worklog no longer loses the hour bank: a state file with a BOM is read, an unreadable or mistyped one stops the run without writing, saves are atomic, and future dates, negative or non-finite hours and invalid config numbers are rejected. `usage-meter.py` no longer overwrites an unreadable `usage-state.json`: `start`/`close` exit 3 without writing and measurement degrades to an estimate, and `/doctor` shows ⚠️ with the fix.
+- The QA gate no longer turns green when every test was skipped; a `results.json` with a BOM or an unexpected shape now gets a clear red verdict instead of a traceback.
+- The `npx` installer no longer runs a `claude`/`codex` launcher planted in the current directory, stops a provider instead of rewriting an unreadable JSON file it has to merge, uninstalls the remaining providers when one manifest cannot be verified, accepts a linked HOME or dotfiles while still rejecting links inside the project with a dedicated error, copies the same files from a clone as the npm package, and warns when it writes an absolute path into shareable project configuration. CLIs and hooks are launched with `NoDefaultCurrentDirectoryInExePath=1`, so a `node.bat` planted in the project is never run by an npm shim.
+- Graphiti traffic, which only targets local or private hosts, no longer goes through `HTTP(S)_PROXY` or the system proxy.
+- Implementation is always dispatched to the native `implementer` identity, also in the `lite` profile and with fresh subagents, so its native guardrail applies.
+- The gates fail closed: when the diff cannot be evaluated in `auto` mode the security and performance lenses are enabled, and the implementer guardrail now denies `git reset --hard`, forced `git clean`, deleting remote branches, `git branch -D` forms and `git stash drop|clear` (long options by any prefix), plus git configuration outside a short allowlist (inline `-c`/`--config-env` and `git config` writes only for `user.name`, `user.email`, `core.quotepath`, `commit.gpgsign` (only set to true), `init.defaultBranch`, `color.*`, `advice.*`, so `alias.*`, `include.*`, `core.editor` and the like are denied) and `GIT_*` (including `GIT_CONFIG_*`), `HOME` or `XDG_CONFIG_HOME` variables on commands that run git. It prevents accidents and known forms; it is not a sandbox.
+
+### Fixed — `plugin-audit-remediation` initiative, phase 2: documented features that did not work (2026-11-09)
+
+- Session start quotes the latest journal entry again even with several active initiatives or more than 1 MiB of ledgers, groups the initiatives at 100 % that only await `/retro`, drops opaque status lines and absolute paths from the block, and Claude Code also reinjects context after `/clear`.
+- The `/dev-cycle` quick path can close QA: the light ledger declares the no-UI marker and `qa`/`coverage-check` accept it, the implementer works without `improvement-plan.md`, Lens A requires the RED evidence when TDD is on, and quick-implement finds the method in Codex too.
+- The dashboards list the newest initiatives first and say how many old ones were left out; progress of large ledgers comes from their summary table instead of a false `too_large`; the console can continue or review plans with large ledgers or without `improvement-plan.md`; a plan created while the panel runs gets its page.
+- The session index shows the cycle pieces first (planner, qa, reviewer, tdd, `/setup`, `/work-resume`…) instead of trimming alphabetically, and honours `sesion.indice: false` when `dev.json` has a BOM.
+- Scope check, QA coverage and the Jira export split the ledger like ledger-lint: an example inside a code block or a notes section no longer widens the scope or creates phantom tasks, and the whole Verificación sub-list reaches Jira; ledger-lint ignores a quoted summary and rejects a ledger state outside the vocabulary.
+- "Continue" after the third review attempt is now an executable path: `ledger-write.py review --attempt 4 --new-cycle-ok "<quote>"` opens a new bounded cycle with the user's OK quoted in the header; task commits have a single owner and procedure (implementer P4), which phase 6 only verifies.
+
+### Fixed — `plugin-audit-remediation` initiative, phase 3: process performance (2026-11-10)
+
+- Session start opens each ledger and the meter state once and reads the technical memory once for all its queries: half the time with the same output; `usage-state.json` no longer grows with every transcript (from 4 MB to ~100 KB) without changing any measurement.
+- Hooks start fewer processes on Windows: when a subagent finishes the state is computed in one Python and not repeated if unchanged, each user turn is captured without loading the whole journal, and no hook starts a second Python just to close an empty job.
+- The served panel no longer recomputes progress on every poll nor keeps other routes waiting while it does, and the console only starts the native-session CLIs in the Sessions view, further apart while nothing changes, remembers the installed runtimes and puts a deadline on the review-summary read.
+- The gates run faster with the same results: scope-check checks the disk once per pattern, archiving large ledgers and code-health no longer walk every character, a task brief validates the ledger without starting another Python, and the statusline only starts Python when the roadmap changes.
+
+### Fixed — `plugin-audit-remediation` initiative, phase 4: token consumption (2026-11-10)
+
+- Roles no longer re-read the capability selection or the integrations at every dispatch: the orchestrator resolves them once per cycle and tells each role («sin integraciones» when there are none), and the task brief says so.
+- The full `/dev-cycle` flow and `/doctor` load far less text by default: the visual plan review recipes and the internal `/doctor` notes live in their own reference (shipped with the kit to every runtime) and are read only when needed, and `scope-check` prints its own remedy instead of two prompts repeating it. The quick path still saves at least 6,000 estimated tokens.
+- The session start block and every task brief carry the active kit path, single-quoted so a directory name cannot run anything when the line is pasted into Bash (the roles' resolution recipe respects it and the orchestrators pass it in every dispatch), so a subagent without `CLAUDE_PLUGIN_ROOT` no longer runs the lookup `find`.
+- OpenCode reuses the session context, one slot per session, until what it quotes changes (no per-event or 30-second recomputation, and turn ends or journal rewrites that leave the quoted lines intact no longer recompose it), and only agents with the `Agent` tool receive the instruction to delegate in the Codex and OpenCode exports.
+- Minor fixes: the review docs name Lens D and the global guard of ADR-023; shipped pieces no longer cite memory paths that do not ship; the console cookie is scoped by port, seven more error codes have a message and the chat announces only its new messages, in a live region of its own; `release.py` blocks on a pending `.MANUAL-COPY`; `ledger-lint` warns about completed tasks without `RED:` when `tdd: true`; journal sessions recovered late are no longer attributed to the current initiative; `/doctor` warns when `node` is missing; the statusline cache works with 8.3 short paths.
+
 ## [3.2.3] - 2026-11-09
 
 ### Fixed — plugin root resolution and doctor (2026-11-09)

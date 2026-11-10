@@ -7,6 +7,7 @@ from pathlib import Path
 import stat
 
 MAX_BYTES = 256 * 1024
+MAX_SORTED_NAMES = 4096   # names read before an ordered cut (`newest_first`)
 _WINDOWS_READ = os.name == 'nt'
 
 
@@ -62,14 +63,18 @@ def _paths(root, relative):
     parts = relative.split('/')
     if any(part in ('', '.', '..') for part in parts):
         raise ValueError('invalid_path')
-    root = Path(os.path.abspath(root))
+    # fix3 (B): the project root is the trust anchor, resolved ONCE (a `/tmp` of macOS, a linked
+    # `~/code` or a Windows junction above it is the user's choice); below it, redirects stay refused.
+    root = Path(os.path.realpath(os.path.abspath(root)))
     target = root.joinpath(*parts)
     return root, target
 
 
 def _checked(root, target):
-    """Snapshot every ancestor without following redirects; keep directory identities."""
-    ancestors = list(reversed(target.parent.parents)) + [target.parent]
+    """Snapshot every ancestor from the (resolved) root down without following redirects; keep
+    directory identities. Components above the root are not checked: the root is the anchor."""
+    ancestors = [path for path in list(reversed(target.parent.parents)) + [target.parent]
+                 if path == root or root in path.parents]
     snapshots = []
     for path in ancestors:
         info = os.lstat(path)
@@ -92,7 +97,7 @@ def _unchanged(snapshots):
     return True
 
 
-def read_bytes(root, relative, *, max_bytes=MAX_BYTES, include_digest=False, include_identity=False):
+def read_bytes(root, relative, *, max_bytes=MAX_BYTES, include_digest=False, include_identity=False, prefix=False):
     """Return an explicit status; never echo exception text, write files or follow redirects.
 
     File and parent identity checks run before reading the descriptor; reads are
@@ -101,11 +106,14 @@ def read_bytes(root, relative, *, max_bytes=MAX_BYTES, include_digest=False, inc
     stamps must match, bytes must be identical, and the final generation stable.
     Both reads share max_bytes + 1; `bytes` reports their cumulative consumption.
     These observations do not establish an atomic snapshot across multiple files.
+    With `prefix=True` a larger file is not `too_large`: only its first max_bytes
+    bytes are read, `truncated` says whether more exist and `size` gives its size
+    (a header reader; the caller decides whether a prefix is enough).
     """
     def _result(status, data=None, size=0):
         return {'status': status, 'data': data, 'bytes': size}
 
-    if type(include_digest) is not bool or type(include_identity) is not bool:
+    if type(include_digest) is not bool or type(include_identity) is not bool or type(prefix) is not bool:
         return _result('invalid_options')
     if type(max_bytes) is not int or max_bytes <= 0:
         return _result('invalid_limit')
@@ -129,7 +137,7 @@ def read_bytes(root, relative, *, max_bytes=MAX_BYTES, include_digest=False, inc
         info, snapshots = _checked(root, target)
         if not stat.S_ISREG(info.st_mode):
             return _result('not_regular')
-        if info.st_size > max_bytes:
+        if info.st_size > max_bytes and not prefix:
             return _result('too_large')
         flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0) | getattr(os, 'O_BINARY', 0)
         fd = os.open(target, flags)
@@ -137,21 +145,21 @@ def read_bytes(root, relative, *, max_bytes=MAX_BYTES, include_digest=False, inc
         opened = os.fstat(fd)
         if _identity(opened) != _identity(info) or not _unchanged(snapshots):
             return _result('changed_path')
-        if opened.st_size > max_bytes:
+        if opened.st_size > max_bytes and not prefix:
             return _result('too_large')
         with os.fdopen(fd, 'rb') as handle:
             fd = None
             # A failed read may have consumed part of this allocation; charge it
             # conservatively instead of allowing callers to retry for free.
             read_cost = max_bytes + 1
-            raw = handle.read(max_bytes + 1)
+            raw = handle.read(max_bytes if prefix else max_bytes + 1)
             read_cost = len(raw)
             after = os.fstat(handle.fileno())
             observed_paths = snapshots + [(target, _identity(info))]
             if _identity(after) != _identity(opened) or not _unchanged(observed_paths):
                 return _result('changed_path', size=read_cost)
             if _generation(after) != _generation(opened):
-                if (not _WINDOWS_READ or _content_stamp(after) != _content_stamp(opened)
+                if (prefix or not _WINDOWS_READ or _content_stamp(after) != _content_stamp(opened)
                         or after.st_ctime_ns == opened.st_ctime_ns or 2 * len(raw) > max_bytes):
                     return _result('changed_path', size=read_cost)
                 repeat_start = os.fstat(handle.fileno())
@@ -172,6 +180,9 @@ def read_bytes(root, relative, *, max_bytes=MAX_BYTES, include_digest=False, inc
         if len(raw) > max_bytes:
             return _result('too_large', size=read_cost)
         result = _result('ok', raw, read_cost)
+        if prefix:
+            result['truncated'] = after.st_size > len(raw)
+            result['size'] = after.st_size
         if include_digest:
             result['sha256'] = hashlib.sha256(raw).hexdigest()
         if include_identity:
@@ -189,32 +200,55 @@ def read_bytes(root, relative, *, max_bytes=MAX_BYTES, include_digest=False, inc
             os.close(fd)
 
 
-def read_text(root, relative, *, max_bytes=MAX_BYTES, include_digest=False):
-    """Decode the same bounded, validated bytes without changing their optional digest."""
-    raw = read_bytes(root, relative, max_bytes=max_bytes, include_digest=include_digest)
+def read_text(root, relative, *, max_bytes=MAX_BYTES, include_digest=False, prefix=False):
+    """Decode the same bounded, validated bytes without changing their optional digest.
+
+    A truncated prefix may end inside a UTF-8 sequence: only that incomplete tail
+    (at most three bytes) is dropped; any other invalid byte stays an error."""
+    raw = read_bytes(root, relative, max_bytes=max_bytes, include_digest=include_digest, prefix=prefix)
     if raw['status'] != 'ok':
         return _result(raw['status'], size=raw['bytes'])
-    try:
-        text = raw['data'].decode('utf-8-sig')
-    except UnicodeDecodeError:
+    data = raw['data']
+    text = None
+    for cut in range(4 if raw.get('truncated') else 1):
+        try:
+            text = data[:len(data) - cut].decode('utf-8-sig')
+            break
+        except UnicodeDecodeError:
+            continue
+    if text is None:
         return _result('invalid_encoding', size=raw['bytes'])
     result = _result('ok', text, raw['bytes'])
+    if prefix:
+        result['truncated'] = raw['truncated']
+        result['size'] = raw['size']
     if include_digest:
         result['sha256'] = raw['sha256']
     return result
 
 
-def list_names(root, relative, *, max_entries=128):
+def list_names(root, relative, *, max_entries=128, scan_limit=None, newest_first=False):
     """List at most max_entries names, counting every directory entry.
 
     An incomplete scan is deliberately not a complete sorted inventory: its names
     are the sorted bounded prefix supplied by the filesystem. Identity checks run
     before iteration and after it; this is not an atomic filesystem snapshot.
+    With `scan_limit` (>= max_entries) up to that many names are read, sorted
+    (descending with `newest_first`, for dated folders) and only THEN cut to
+    max_entries, so the cut never depends on the filesystem order (fix1, B2).
+    `newest_first` without `scan_limit` reads up to MAX_SORTED_NAMES names: beyond that
+    many, the sorted prefix is the one the filesystem returned and the result is incomplete
+    (documented cap, fix2).
     """
     def result(status, names=None, complete=False):
         return {'status': status, 'names': [] if names is None else names, 'complete': complete}
 
     if type(max_entries) is not int or max_entries <= 0:
+        return result('invalid_limit')
+    if scan_limit is None:
+        # An explicit order needs the names first: read up to MAX_SORTED_NAMES, then cut.
+        scan_limit = max(max_entries, MAX_SORTED_NAMES) if newest_first is True else max_entries
+    if type(scan_limit) is not int or scan_limit < max_entries or type(newest_first) is not bool:
         return result('invalid_limit')
     try:
         root, target = _paths(root, relative)
@@ -240,14 +274,17 @@ def list_names(root, relative, *, max_entries=128):
                     or _generation(os.lstat(target)) != _generation(info)):
                 return result('changed_path')
             for entry in entries:
-                if len(names) == max_entries:
+                if len(names) == scan_limit:
                     complete = False
                     break
                 names.append(entry.name)
             if (not _unchanged(snapshots)
                     or _generation(os.lstat(target)) != _generation(info)):
                 return result('changed_path')
-        return result('ok' if complete else 'incomplete', sorted(names), complete)
+        names = sorted(names, reverse=newest_first)
+        if len(names) > max_entries:
+            names, complete = names[:max_entries], False
+        return result('ok' if complete else 'incomplete', names, complete)
     except FileNotFoundError:
         return result('not_found')
     except _ReadStatus as exc:

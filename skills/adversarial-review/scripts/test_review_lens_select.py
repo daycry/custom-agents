@@ -851,3 +851,34 @@ def test_revision_excluir_apaga_el_disparo_de_flujo():
     code, data, _err = run(d)
     assert code == 0
     assert _motivos_flujo(data) == [], f"revision.excluir tiene que apagarlo: {data['motivos']}"
+
+
+# --- Auditoría 2026-11-09 (H-8): en `auto`, un error evaluando el diff falla CERRADO ---
+
+def test_error_en_auto_activa_c_y_d_con_aviso_exit_0():
+    d = repo_git()
+    write(d, "src/util.py", "x = 1\n")
+    sh(d, "git", "add", "-A"); sh(d, "git", "commit", "-q", "-m", "x")
+    code, data, err = run(d, "--base", "no-existe-esta-ref")
+    assert code == 0, err
+    assert data["lente_c"] is True and data["lente_d"] is True, data
+    assert any("error" in a for a in data["avisos"]), data["avisos"]
+    assert "error" in err.lower()
+
+
+def test_error_respeta_nunca_explicito():
+    d = repo_git()
+    dev_json(d, json.dumps({"revision": {"lenteSeguridad": "nunca", "lenteRendimiento": "nunca"}}))
+    code, data, _ = run(d, "--base", "no-existe-esta-ref")
+    assert code == 0 and data["lente_c"] is False and data["lente_d"] is False, data
+
+
+def test_fix1_git_roto_no_es_fuera_de_repo_y_falla_cerrado():
+    """Revisión intento 1 (gap 7): un `.git` presente pero inservible es un error, no «sin repo»."""
+    d = tempfile.mkdtemp(prefix="rls-broken-")
+    write(d, ".git", "gitdir: ./no-existe-este-gitdir\n")
+    write(d, "src/util.py", "x = 1\n")
+    code, data, err = run(d)
+    assert code == 0, err
+    assert data["lente_c"] is True and data["lente_d"] is True, data
+    assert any("error" in a for a in data["avisos"]), data["avisos"]

@@ -66,6 +66,7 @@ desktop.ini
 .claude/.progress-last
 .claude/.progress-last.lock
 .claude/.progress-last.*
+.claude/.progress-last-subagent
 # Marcas del hook de guardia del implementer (aviso único sin python3 / guardrails off).
 .claude/.guardrail-nopython
 .claude/.guardrail-off

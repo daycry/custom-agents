@@ -207,7 +207,9 @@ def test_limite_de_lineas_recorta_grupos_proporcionalmente(tmp_path):
     idx = si.construir(si.piezas(str(root)))
     assert idx["n_lineas"] <= si.LIMITE_LINEAS and idx["chars"] <= si.LIMITE_CHARS
     extras = [l for l in idx["lineas"] if l.startswith("… y ")]
-    assert len(extras) == 3 and any("`skills/`" in l for l in extras)
+    # fix1 (A1, revisión fase 2): los agentes ya no se recortan; se resumen comandos fuera del ciclo y skills
+    assert len(extras) == 2 and any("`skills/`" in l for l in extras) and not any("`agents/`" in l for l in extras)
+    assert sum(1 for l in idx["lineas"] if l.startswith("agent-")) == 8
     n_skill_lineas = sum(1 for l in idx["lineas"] if l.startswith("skill-"))
     n_extra_skills = int([l for l in extras if "`skills/`" in l][0].split()[2])
     assert n_skill_lineas + n_extra_skills == 60                 # nada se pierde: visibles + «N más»
@@ -333,3 +335,71 @@ def test_exit_0_siempre_con_root_inexistente_y_cache_no_escribible(tmp_path):
     (tmp_path / "plano").write_text("x", encoding="utf-8")
     rc, out, _ = run(["--root", str(root), "--cache", str(tmp_path / "plano" / "cache")])
     assert rc == 0 and "Comandos:" in out
+
+
+# ------------------------------------------------------------------ H-21 (auditoría 2026-11-09)
+
+def test_h21_indice_del_repo_prioriza_las_piezas_del_ciclo_dentro_del_tope():
+    idx = si.construir(si.piezas(str(REPO)))
+    lineas = idx["lineas"]
+    for nombre in ("/setup", "/work-resume", "tdd", "unit-tests", "planner",
+                   "qa", "reviewer"):
+        assert any(l.split(" ", 1)[0] == nombre or l.startswith(nombre + " — ") for l in lineas), nombre
+    assert idx["chars"] <= si.LIMITE_CHARS and idx["n_lineas"] <= si.LIMITE_LINEAS
+    skills = lineas[lineas.index("Skills:") + 1:lineas.index("Agentes:")]
+    nombres = [l.split(" — ", 1)[0] for l in skills if " — " in l]
+    assert nombres.index("tdd") < nombres.index("adversarial-review") + 3
+    assert "llm-pipeline" not in nombres, "una skill opcional no desplaza a las del ciclo"
+
+
+def test_h21_orden_de_prioridad_y_despues_alfabetico(tmp_path):
+    ps = [("skill", nombre, "Algo concreto.", "", "") for nombre in ("zeta", "tdd", "alfa", "quick-implement")]
+    lineas = si.construir(ps)["lineas"]
+    skills = [l.split(" — ", 1)[0] for l in lineas[lineas.index("Skills:") + 1:]]
+    assert skills == ["quick-implement", "tdd", "alfa", "zeta"]
+
+
+def test_h21_dev_json_con_bom_respeta_indice_false(tmp_path):
+    root = plugin(tmp_path)
+    proj = tmp_path / "proj"
+    (proj / ".claude").mkdir(parents=True)
+    env = {"CLAUDE_PROJECT_DIR": str(proj), "CLAUDE_PLUGIN_ROOT": str(root)}
+    (proj / ".claude" / "dev.json").write_bytes(b"\xef\xbb\xbf" + b'{"sesion": {"indice": false}}')
+    assert run([], env) == (0, "", "")
+
+
+def test_fix1_a1_todos_los_agentes_y_los_comandos_del_ciclo_siempre_visibles():
+    """A1 (revisión fase 2): la cuota fija por grupo dejaba 5 agentes; se resumen las skills opcionales."""
+    idx = si.construir(si.piezas(str(REPO)))
+    lineas = idx["lineas"]
+    agentes = lineas[lineas.index("Agentes:") + 1:]
+    nombres = {l.split(" — ", 1)[0] for l in agentes if " — " in l}
+    esperados = {f[:-3] for f in os.listdir(REPO / "agents") if f.endswith(".md")}
+    assert len(esperados) == 10 and nombres == esperados, (nombres, esperados)
+    for cmd in ("/setup", "/dev-cycle", "/pm-cycle", "/work-resume"):
+        assert any(l.startswith(cmd + " ") or l.startswith(cmd + " —") for l in lineas), cmd
+    assert idx["chars"] <= si.LIMITE_CHARS and idx["n_lineas"] <= si.LIMITE_LINEAS
+
+
+
+def test_fix2_a_m3_rama_proporcional_conserva_agentes_y_comandos_del_ciclo():
+    """A-M3 (revisión fase 2 intento 2): con tantos agentes que la cuota fija no cabe, el reparto
+    proporcional sigue mostrando los 10 agentes del plugin y los comandos clave."""
+    reales = list(si.PRIORIDAD["agent"])
+    ps = [("agent", n, "Rol del plugin.", "", "") for n in reales]
+    ps += [("agent", f"zz-extra-{i:02d}", "Agente extra.", "", "") for i in range(40)]
+    ps += [("command", n, "Comando.", "", "") for n in ("dev-cycle", "pm-cycle", "setup", "work-resume", "zz-otro")]
+    ps += [("skill", f"skill-{i:02d}", "Skill.", "", "") for i in range(30)]
+    idx = si.construir(ps)
+    lineas = idx["lineas"]
+    nombres = {l.split(" — ", 1)[0].split(" ", 1)[0] for l in lineas if " — " in l}
+    assert set(reales) <= nombres, set(reales) - nombres
+    assert {"/dev-cycle", "/pm-cycle", "/setup", "/work-resume"} <= nombres
+    assert idx["n_lineas"] <= si.LIMITE_LINEAS and idx["chars"] <= si.LIMITE_CHARS
+
+
+def test_fix2_a_m4_docstrings_sin_cesion_proporcional_del_ciclo():
+    fuente = (REPO / "agent-kits/shared/skill-index.py").read_text(encoding="utf-8")
+    cupos = fuente[fuente.index("def _cupos"):][:900]
+    assert "cede proporcionalmente" not in cupos
+    assert "agentes" in fuente[:1200] and "PRIORIDAD" in fuente[:1500]

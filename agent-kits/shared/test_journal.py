@@ -918,6 +918,10 @@ def test_standalone_fallback_capture_redacts_before_clip(standalone_fallback_jou
         prompt = "pre " + value + suffix
         redacted = "pre " + module.REDACTADO + suffix
     expected = redacted[:limit].rstrip() + " …[recortado]"
+    if secret_kind == "unterminated-pem":
+        # revisión fase 3 intento 3 (1, CWE-532): un BEGIN sin su END en lo guardado se sustituye,
+        # hasta el final, por el marcador; antes la cabecera y el cuerpo quedaban visibles
+        expected = module.REDACTADO
     path = module.capture(str(proj), {"session_id": "owned-clipped-session", "prompt": prompt})
     assert path is not None
     assert module.capturas(str(proj), "owned-clipped-session") == [expected]
@@ -3204,3 +3208,28 @@ def test_status_cuenta_huerfana_por_transcript_inactivo(tmp_path, monkeypatch):
     t = _transcript(tmp_path, monkeypatch, "sti1", mtime_hace_min=45)
     _log_con_transcript(proj, "sti1", [t], mtime_hace_min=45)
     assert journal.status(str(proj))["huerfanas"] == 1
+
+
+# --- T-21 (deuda de T-07): una sesión recuperada tarde no se atribuye a la iniciativa vigente -------------
+
+def _texto_de_la_bitacora(proj):
+    carpeta = proj / "docs" / "knowledge" / "journal"
+    return "\n".join(p.read_text(encoding="utf-8") for p in sorted(carpeta.glob("*.md")) if p.name != "README.md")
+
+
+def test_t21_recover_huerfana_no_lleva_la_marca_de_iniciativa_vigente(tmp_path):
+    """`recover` redacta la entrada AL RECUPERAR, cuando la iniciativa vigente puede ser otra distinta de la
+    de la sesión: etiquetarla `regla_iniciativa: vigente` la citaría como historial de la equivocada."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "sh-t21", mtime_hace_min=1500)
+    assert journal.recover(str(proj))["recuperadas"] == 1
+    texto = _texto_de_la_bitacora(proj)
+    assert "sh-t21" in texto and "recuperado_sin_cierre" in texto
+    assert "regla_iniciativa" not in texto
+
+
+@pytest.mark.skipif(GIT is None, reason="sin git")
+def test_t21_draft_de_un_cierre_normal_conserva_la_marca(tmp_path):
+    proj, _ = proyecto(tmp_path)
+    assert journal.draft(str(proj), session_id="s-normal", reason="other")["regla_iniciativa"] == "vigente"
+    assert "regla_iniciativa" not in journal.draft(str(proj), session_id="s-late", reason="orphan_recovery")

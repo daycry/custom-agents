@@ -34,9 +34,11 @@ import importlib.util
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 import time
+import types
 
 # Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -63,6 +65,7 @@ def _load_module(name, filename):
 _ll = _load_module("ledger_lint", "ledger-lint.py")
 parse_ledger = _ll.parse_ledger
 norm_estado = _ll.norm_estado
+sin_vallas = _ll.sin_vallas
 
 
 def fmt_horas(horas):
@@ -228,16 +231,358 @@ def iniciativa_en_curso(rs, estado, mtime=os.path.getmtime):
     return max(rs, key=_t)["slug"]
 
 
+# H-28 (T-13): memo COMPARTIDA por todas las instancias de este módulo en el proceso. El arranque lo
+# carga desde session-context, desde el journal y desde la retoma; con una memo por instancia cada
+# una releía los ledgers y el estado del meter. La firma de los ficheros la invalida igual.
+_MEMO = sys.modules.setdefault("_custom_agents_progress_memo", types.ModuleType("_custom_agents_progress_memo"))
+_USAGE_STATE_MEMO = _MEMO.__dict__.setdefault("usage_state", {})
+
+
 def _leer_usage_state(root):
     """`<proyecto>/.claude/usage-state.json` (root = <proyecto>/docs/roadmap), lectura directa:
-    sin lanzar usage-meter. Ausente o corrupto -> {}."""
+    sin lanzar usage-meter. Ausente o corrupto -> {}. Memo por proceso mientras no cambie su
+    firma (mtime, tamaño): el arranque lo consulta varias veces y no lo relee (D1). Tolera BOM, como
+    el propio meter (H-28: los marcadores abiertos salen de esta misma lectura)."""
     proyecto = os.path.dirname(os.path.dirname(os.path.abspath(root)))
+    ruta = os.path.join(proyecto, ".claude", "usage-state.json")
     try:
-        with open(os.path.join(proyecto, ".claude", "usage-state.json"), encoding="utf-8") as f:
+        info = os.stat(ruta)
+        firma = (info.st_mtime_ns, info.st_size)
+    except OSError:
+        return {}
+    memo = _USAGE_STATE_MEMO.get(ruta)
+    if memo is not None and memo[0] == firma:
+        return memo[1]
+    try:
+        with open(ruta, encoding="utf-8-sig") as f:
             data = json.load(f)
     except (OSError, ValueError):
         return {}
-    return data if isinstance(data, dict) else {}
+    data = data if isinstance(data, dict) else {}
+    _USAGE_STATE_MEMO.clear()
+    _USAGE_STATE_MEMO[ruta] = (firma, data)
+    return data
+
+
+_CABECERA_BYTES = 16 * 1024
+
+
+def _celdas(linea):
+    """Celdas de una fila de tabla Markdown, sin regex con cuantificadores que compitan (C1)."""
+    s = linea.strip()
+    if not s.startswith("|"):
+        return None
+    return [c.strip() for c in s.strip("|").split("|")]
+
+
+def resumir_cabecera(path, text):
+    """Progreso de un ledger desde su frontmatter y su tabla «Resumen de progreso» (prefijo acotado).
+
+    Para ledgers que no se leen enteros (> tope): `completadas`/`total` del TOTAL o de la suma de
+    fases, la fase pendiente y `en_progreso` vacío (no se conoce desde la cabecera). Las líneas de
+    dentro de un bloque de código no cuentan. `None` si el prefijo no trae una tabla usable."""
+    lineas = sin_vallas(text.lstrip("\ufeff")).splitlines()
+    frontmatter = {}
+    if lineas and lineas[0].strip() == "---":
+        for ln in lineas[1:]:
+            if ln.strip() == "---":
+                break
+            m = re.match(r"^([A-Za-z_][\w-]*)[ \t]*:(.*)$", ln)
+            if m:
+                frontmatter[m.group(1)] = m.group(2).split("#", 1)[0].strip()
+    inicio = next((i for i, ln in enumerate(lineas) if re.match(r"^##[ \t]+Resumen de progreso", ln)), None)
+    if inicio is None:
+        return None
+    fases, total_fila = [], None
+    for ln in lineas[inicio + 1:]:
+        if ln.startswith("## "):
+            break
+        celdas = _celdas(ln)
+        if not celdas or len(celdas) < 3:
+            continue
+        nombre = celdas[0].strip("*").strip()
+        hechas, total = celdas[1].strip("*").strip(), celdas[2].strip("*").strip()
+        if not (hechas.isdigit() and total.isdigit()):
+            continue
+        fila = (nombre, int(hechas), int(total))
+        if nombre.upper() == "TOTAL":
+            total_fila = fila
+        elif nombre.lower().startswith("fase"):
+            fases.append(fila)
+    if not fases and total_fila is None:
+        return None
+    hechas = total_fila[1] if total_fila else sum(f[1] for f in fases)
+    total = total_fila[2] if total_fila else sum(f[2] for f in fases)
+    if total <= 0 or hechas > total:
+        return None
+    fase = None
+    if fases:
+        i = next((n for n, f in enumerate(fases) if f[1] < f[2]), len(fases) - 1)
+        fase = {"indice": i + 1, "total": len(fases), "nombre": nombre_fase(fases[i][0])}
+    estado = norm_estado(frontmatter["estado"]) if frontmatter.get("estado") else None
+    return {"slug": slug_de(path, frontmatter), "path": path, "estado": estado,
+            "completadas": hechas, "total": total, "pct": round(100 * hechas / total), "fase": fase,
+            "en_curso": None, "en_progreso": [], "ia_real_h": None, "ia_fuente": None, "ia_real_fmt": None}
+
+
+_LEDGER_MAX = 256 * 1024
+_ACTIVA_MAX = 16 * 1024 * 1024   # fix3 (B3): las ACTIVAS (pocas) se leen enteras hasta este tope, como la consola
+_SNAPSHOT_MEMO = _MEMO.__dict__.setdefault("snapshot", {})
+_UNA_LECTURA_MAX = 1024 * 1024   # H-28: hasta este tamaño un ledger se lee entero en UNA apertura
+
+
+def _decodificar(data, truncated):
+    """Mismo descodificado que `local-read.read_text`: en un prefijo cortado solo se descarta la cola
+    incompleta de una secuencia UTF-8 (≤ 3 bytes); cualquier otro byte inválido es un error."""
+    for cut in range(4 if truncated else 1):
+        try:
+            return data[:len(data) - cut].decode("utf-8-sig")
+        except UnicodeDecodeError:
+            continue
+    return None
+
+
+class _LectorUnaVez:
+    """El lector acotado con UNA apertura por ledger y arranque (H-28, T-13).
+
+    `_resumen_acotado` pide 16 KiB, después 256 KiB y, para una activa, el fichero entero; la retoma
+    vuelve a pedir el de la iniciativa en curso. Aquí la primera petición lee el fichero entero si su
+    tamaño (de la firma) no pasa de `_UNA_LECTURA_MAX`, con las mismas comprobaciones de
+    `local-read.read_bytes`, y las siguientes se sirven de esos bytes con el mismo resultado que
+    tendría la lectura (prefijo, `truncated`, `too_large`). Solo si una petición pide más de lo leído
+    se vuelve a abrir. Los bytes de un ledger que no está activo se sueltan al cerrar la instantánea."""
+
+    def __init__(self, reader, tamanos):
+        self._reader = reader
+        self._tamanos = tamanos
+        self._leido = {}
+
+    def soltar(self, conservar):
+        self._leido = {k: v for k, v in self._leido.items() if k in conservar}
+
+    def read_text(self, root, relative, *, max_bytes, prefix=False):
+        previo = self._leido.get(relative)
+        if previo is None or not self._cubre(previo, max_bytes, prefix):
+            tope = max(max_bytes, min(self._tamanos.get(relative) or 0, _UNA_LECTURA_MAX))
+            previo = self._reader.read_bytes(root, relative, max_bytes=tope, prefix=True)
+            self._leido[relative] = previo
+        if previo["status"] != "ok":
+            return {"status": previo["status"], "text": None, "bytes": previo.get("bytes", 0)}
+        data, size = previo["data"], previo["size"]
+        if not prefix:
+            if size > max_bytes:
+                return {"status": "too_large", "text": None, "bytes": 0}   # como el chequeo previo de read_bytes
+            texto = _decodificar(data, False)
+            if texto is None:
+                return {"status": "invalid_encoding", "text": None, "bytes": len(data)}
+            return {"status": "ok", "text": texto, "bytes": len(data)}
+        parte = data[:max_bytes]
+        cortado = size > len(parte)
+        texto = _decodificar(parte, cortado)
+        if texto is None:
+            return {"status": "invalid_encoding", "text": None, "bytes": len(parte)}
+        return {"status": "ok", "text": texto, "bytes": len(parte),
+                "truncated": cortado, "size": size}
+
+    @staticmethod
+    def _cubre(previo, max_bytes, prefix):
+        if previo["status"] != "ok":
+            return True   # el mismo error: no se reintenta en la misma instantánea
+        leidos, size = len(previo["data"]), previo["size"]
+        return leidos >= size or (prefix and leidos >= max_bytes) or (not prefix and size > max_bytes)
+
+
+def _estado_de(text):
+    """Estado del ledger en un prefijo: frontmatter o, si no lo trae, la fila `| **Estado** |` de la
+    tabla de cabecera (plantilla del planner, fix2 B-I1). None si el prefijo no lo trae."""
+    if hasattr(_ll, "estado_ledger"):
+        return _ll.estado_ledger(text)   # H-28: misma regla sin trocear las tareas del prefijo
+    parsed = parse_ledger(text)
+    fm = parsed["frontmatter"].get("estado")
+    return norm_estado(fm) if fm else parsed["estado_tabla"]
+
+
+def _resumen_acotado(reader, root, relative, absoluta, avisos=None):
+    """Resumen de UN ledger con el lector acotado: 16 KiB para saber si está activo y, solo si lo
+    está (o el estado no cabe en ese prefijo), hasta 256 KiB para el resumen exacto (tareas en curso
+    incluidas). Por encima de 256 KiB, la cabecera. None si no se puede leer o no se sabe su estado."""
+    carpeta = os.path.basename(os.path.dirname(absoluta))
+
+    def ilegible(status):
+        # fix3 (B5): un ledger que el lector rechaza no desaparece en silencio
+        if status not in ("not_found", "not_regular") and avisos is not None:
+            avisos.append(f"{carpeta}: tasks.md ilegible ({status})")
+        return None
+    read = reader.read_text(root, relative, max_bytes=_CABECERA_BYTES, prefix=True)
+    if read["status"] != "ok":
+        return ilegible(read["status"])
+    try:
+        if not read.get("truncated"):
+            return resumir(absoluta, text=read["text"])
+        estado = _estado_de(read["text"])
+        if estado not in (None, "en-progreso"):
+            return {"slug": slug_de(absoluta, {}), "path": absoluta, "estado": estado}
+        read = reader.read_text(root, relative, max_bytes=_LEDGER_MAX, prefix=True)
+        if read["status"] != "ok":
+            return ilegible(read["status"])
+        if not read.get("truncated"):
+            return resumir(absoluta, text=read["text"])
+        estado = _estado_de(read["text"])
+        if estado is None:
+            return None
+        if estado == "en-progreso":
+            entero = reader.read_text(root, relative, max_bytes=_ACTIVA_MAX)
+            if entero["status"] == "ok":
+                return resumir(absoluta, text=entero["text"])
+            if entero["status"] != "too_large":
+                return ilegible(entero["status"])
+        r = resumir_cabecera(absoluta, read["text"]) or {
+            "slug": slug_de(absoluta, {}), "path": absoluta, "completadas": 0, "total": None, "pct": 0,
+            "fase": None, "en_curso": None, "en_progreso": [], "ia_real_h": None, "ia_fuente": None,
+            "ia_real_fmt": None}
+        r["estado"] = estado
+        return r
+    except ValueError as e:
+        print(f"⚠️  progress-report: {absoluta}: {e} (saltado)", file=sys.stderr)   # como `activas()`
+        return None
+    except (TypeError, KeyError, OverflowError, RecursionError):
+        return None
+
+
+def instantanea(root):
+    """INSTANTÁNEA única del roadmap (fix2 B-M3 + fix3): `{"activas": [...], "avisos": [...]}`. La
+    usan el escritor del journal, el historial del arranque, el bloque `session`, `active --json`
+    (memoria, statusline, `/doctor`).
+
+    Lector acotado: la raíz del proyecto es el ancla (resuelta una vez); por debajo no se siguen
+    enlaces, y una carpeta enlazada no se mira por dentro ni para la firma (fix3, C1). 16 KiB por
+    ledger para saber su estado (frontmatter o tabla de cabecera), hasta 256 KiB si no aparece y, para
+    las activas, hasta 16 MiB. Mira las 128 carpetas más recientes por nombre; las más antiguas se
+    avisan («Roadmap recortado: …», fix3 B4) y los ledgers ilegibles también (fix3 B5). Memo por
+    proceso mientras no cambie la firma (mtime, tamaño) de ningún ledger."""
+    reader = _load_module("vigente_local_read", "local-read.py")
+    listing = reader.list_names(root, "docs/roadmap", max_entries=4096, newest_first=True)
+    if listing["status"] not in ("ok", "incomplete"):
+        return {"activas": [], "avisos": []}
+    validas = [f for f in listing["names"] if _initiative_name(f)]
+    avisos = []
+    if len(validas) > _RESUME_SCAN or not listing["complete"]:
+        resto = len(validas) - _RESUME_SCAN
+        avisos.append(f"Roadmap recortado: {max(resto, 0)}{'' if listing['complete'] else ' o más'} "
+                      "carpetas más antiguas sin revisar")
+    carpetas = sorted(validas[:_RESUME_SCAN])
+    base = os.path.join(str(root), "docs", "roadmap")
+    firma = []
+    for folder in carpetas:
+        try:
+            dir_info = os.lstat(os.path.join(base, folder))
+            if not reader._redirected(dir_info) and stat.S_ISREG(dir_info.st_mode):
+                continue  # fichero suelto (CALIBRATION.md, README.md): no es una iniciativa
+            if reader._redirected(dir_info) or not stat.S_ISDIR(dir_info.st_mode):
+                firma.append((folder, "redirected", None))
+                continue
+            info = os.lstat(os.path.join(base, folder, "tasks.md"))
+            firma.append((folder, info.st_mtime_ns, info.st_size))
+        except OSError:
+            firma.append((folder, None, None))
+    clave = (os.path.abspath(str(root)), tuple(firma))
+    memo = _SNAPSHOT_MEMO.get(clave[0])
+    if memo is not None and memo[0] == clave[1]:
+        return {"activas": [dict(r) for r in memo[1]], "avisos": list(memo[2])}
+    out = []
+    # H-28: una apertura por ledger; el tamaño de la firma decide cuánto se lee de una vez
+    lector = _LectorUnaVez(reader, {"docs/roadmap/" + f + "/tasks.md": size for f, m, size in firma
+                                    if isinstance(size, int)})
+    for folder, mtime_ns, _size in firma:
+        if mtime_ns == "redirected":
+            avisos.append(f"{folder}: tasks.md ilegible (redirected_path)")
+            continue
+        if mtime_ns is None:
+            continue
+        absoluta = os.path.join(base, folder, "tasks.md")
+        r = _resumen_acotado(lector, root, "docs/roadmap/" + folder + "/tasks.md", absoluta, avisos)
+        if r and r.get("estado") == "en-progreso":
+            out.append(r)
+    activas_rel = {"docs/roadmap/" + os.path.basename(os.path.dirname(r["path"])) + "/tasks.md" for r in out}
+    lector.soltar(activas_rel)   # solo se conservan los bytes de las activas (retoma, título)
+    _SNAPSHOT_MEMO.clear()
+    _SNAPSHOT_MEMO[clave[0]] = (clave[1], out, avisos, lector)
+    return {"activas": [dict(r) for r in out], "avisos": list(avisos)}
+
+
+def _lector_instantanea(root, reader):
+    """El lector de la última instantánea de `root` (bytes de sus activas ya leídos) o `reader`."""
+    memo = _SNAPSHOT_MEMO.get(os.path.abspath(str(root)))
+    return memo[3] if memo is not None and len(memo) > 3 else reader
+
+
+def titulo_ledger(root, path):
+    """Título (`# …`) de un ledger activo de la instantánea, sin volver a abrirlo (H-28). Misma regla
+    que la memoria del arranque: la primera línea que empieza por «# », sin el prefijo «Checklist de
+    Tareas —». None si la instantánea no tiene sus bytes (quien llama lo lee como antes)."""
+    lector = _lector_instantanea(root, None)
+    if lector is None:
+        return None
+    absoluta = path if os.path.isabs(path) else os.path.join(str(root), path)
+    relative = "docs/roadmap/" + os.path.basename(os.path.dirname(absoluta)) + "/tasks.md"
+    previo = lector._leido.get(relative)
+    if not previo or previo["status"] != "ok" or len(previo["data"]) < previo["size"]:
+        return None
+    texto = previo["data"].decode("utf-8", errors="replace")   # como `open(..., errors="replace")`
+    for ln in re.split(r"\r\n|\r|\n", texto):
+        if ln.startswith("# "):
+            return re.sub(r"^#\s*(?:Checklist de Tareas\s*[—:-]\s*)?", "", ln).strip()
+    return ""
+
+
+def activas_acotadas(root):
+    """Iniciativas `en-progreso` de la instantánea única (`instantanea`), en orden de carpeta."""
+    return instantanea(root)["activas"]
+
+
+def _lstat_mtime(path):
+    return os.lstat(path).st_mtime
+
+
+def vigente_entre(rs, estado, mtime=os.path.getmtime):
+    """Regla ÚNICA de «la iniciativa en curso» (escritor y lector del journal, bloque de sesión,
+    memoria y statusline), fix2 B-I2: (a) la del marcador abierto del usage-meter más reciente, aunque
+    esté al 100 % (su retro o su QA); (b) si no hay, la pendiente con el ledger más reciente; (c) si
+    todas están al 100 %, la más reciente. Empates por nombre (determinista)."""
+    if not rs:
+        return None
+    por_slug = {r["slug"]: r for r in rs}
+    abiertos = []
+    if isinstance(estado, dict):
+        for clave, m in estado.items():
+            if isinstance(m, dict) and "ultimoCierre" not in m:
+                slug = _slug_de_clave(clave)
+                if slug in por_slug:
+                    abiertos.append((str(m.get("inicio") or ""), slug))
+    if abiertos:
+        return max(abiertos)[1]
+
+    def _t(r):
+        try:
+            return mtime(r["path"])
+        except OSError:
+            return 0
+    pendientes = [r for r in rs if r.get("total") is None or r["completadas"] < r["total"]] or rs
+    return max(pendientes, key=lambda r: (_t(r), r["slug"]))["slug"]
+
+
+def _proyecto_de(roadmap):
+    absoluto = os.path.abspath(str(roadmap))
+    if os.path.basename(absoluto) == "roadmap" and os.path.basename(os.path.dirname(absoluto)) == "docs":
+        return os.path.dirname(os.path.dirname(absoluto))
+    return None
+
+
+def iniciativa_vigente(root):
+    """Slug de la iniciativa en curso del proyecto `root` (B1: misma función para el escritor del
+    journal y para el historial del arranque). None sin activas."""
+    roadmap = os.path.join(str(root), "docs", "roadmap")
+    return vigente_entre(activas_acotadas(root), _leer_usage_state(roadmap), mtime=_lstat_mtime)
 
 
 def marcadores_huerfanos(root=".", *, in_process=False):
@@ -249,8 +594,10 @@ def marcadores_huerfanos(root=".", *, in_process=False):
     try:
         state = os.path.join(root, ".claude", "usage-state.json")
         if in_process:
-            meter_module = _load_module('progress_usage_meter', 'usage-meter.py')
-            data = meter_module.status(state)
+            # H-28: la MISMA lectura memoizada que la regla de la vigente (antes el `status` del meter
+            # volvía a cargar entero `usage-state.json`). Mismo criterio: marcador sin `ultimoCierre`.
+            estado = _leer_usage_state(os.path.join(root, "docs", "roadmap"))
+            return [k for k, m in estado.items() if isinstance(m, dict) and "ultimoCierre" not in m]
         else:
             res = subprocess.run([sys.executable, meter, "status", "--state", state],
                                  capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, check=False)
@@ -503,6 +850,15 @@ def _resume_ledger(root, initiative, reader):
     return "ok", matches[0][1], [], []
 
 
+def _history_initiative(root):
+    """Slug de la iniciativa en curso entre las activas, para el historial del arranque (H-14).
+
+    Lee los ledgers como `session` (el mismo arranque ya los lee) y desempata con
+    `iniciativa_en_curso`: marcador abierto del meter o el ledger más reciente.
+    Sin activas → None: nunca se cita el historial de una iniciativa no activa."""
+    return iniciativa_vigente(root)
+
+
 def _resume_reviews(root, ledger_path, *, deadline=None):
     """Only the exact ledger-selected initiative; no global or historical fallback."""
     try:
@@ -567,7 +923,22 @@ def resume(root, *, initiative=None, session_id=None, runtime=None, entry=None, 
             initiative = next(iter(names))
             if not _initiative_name(initiative):
                 return finish("invalid_selection", issues=[{"status": "invalid_historical_initiative"}])
-    status, summary, candidates, issues = _resume_ledger(root, initiative, reader)
+    if _history_only and initiative is None and session_id is None and entry is None:
+        # H-28: el historial del arranque es el de la iniciativa vigente. Antes se escaneaban otra vez
+        # los ledgers (presupuesto de 1 MiB) y, con una sola activa, se llegaba a la misma iniciativa.
+        status, summary, candidates, issues = "not_found", None, [], []
+    else:
+        status, summary, candidates, issues = _resume_ledger(root, initiative, reader)
+    if summary is None and _history_only and initiative is None and session_id is None and entry is None:
+        # H-14: the startup history must not depend on the bounded global ledger
+        # selection (1 MiB budget, single active initiative). Take the initiative
+        # in progress among the active ones and quote only its own entries.
+        slug = _history_initiative(root)
+        if slug is None:
+            return finish(status, candidates=candidates, issues=issues)
+        selected_history = journal.select_entries(root, initiative=slug, runtime=runtime, require_rule=True)
+        return finish(selected_history["status"] if selected_history["complete"] else "incomplete",
+                      history=selected_history["entries"], issues=selected_history["issues"])
     if summary is None:
         return finish(status, candidates=candidates, issues=issues,
                       history=selected_history["entries"] if selected_history else None)
@@ -575,8 +946,10 @@ def resume(root, *, initiative=None, session_id=None, runtime=None, entry=None, 
     curation = ({'status': 'unselected', 'references': []} if _history_only
                 else _resume_curation(root, ledger_text))
     reviews = None if _history_only else _resume_reviews(root, summary['path'])
+    # fix2 B-M4: el arranque (`--history-only`) solo atribuye entradas etiquetadas con la regla vigente
     selected_history = selected_history or journal.select_entries(root, initiative=summary["slug"],
-                                                                  session_id=session_id, runtime=runtime, entry=entry)
+                                                                  session_id=session_id, runtime=runtime, entry=entry,
+                                                                  **({"require_rule": True} if _history_only else {}))
     history_status = selected_history["status"]
     issues.extend(selected_history["issues"])
     history_absent = history_status in ("empty", "not_found")
@@ -682,13 +1055,20 @@ def cmd_line(args):
 
 
 def cmd_active(args):
-    rs = activas(args.root)
+    proyecto = _proyecto_de(args.root)
+    # fix2 B-M3: la misma instantánea acotada que el journal y el arranque (un `--root` que no es
+    # `<proyecto>/docs/roadmap` conserva el escaneo histórico)
+    snap = instantanea(proyecto) if proyecto else {"activas": activas(args.root), "avisos": []}
+    rs = snap["activas"]
     if args.json:
         for r in rs:
             r["linea"] = linea(r)
         salida = {"activas": rs}
+        if snap["avisos"]:
+            salida["avisos"] = snap["avisos"]   # fix3 (B4/B5): recorte y ledgers ilegibles
         if len(rs) > 1:   # con una sola activa la salida es idéntica a la de siempre
-            salida["iniciativa_en_curso"] = iniciativa_en_curso(rs, _leer_usage_state(args.root))
+            salida["iniciativa_en_curso"] = vigente_entre(rs, _leer_usage_state(args.root),
+                                                          mtime=_lstat_mtime if proyecto else os.path.getmtime)
         print(json.dumps(salida, ensure_ascii=False))
         return 0
     if not rs:
@@ -700,36 +1080,59 @@ def cmd_active(args):
 
 
 def cmd_session(args):
-    root = os.path.join(args.root, "docs", "roadmap")
-    rs = activas(root)
+    snap = instantanea(args.root)   # fix2 B-M3: misma instantánea acotada que el journal
+    rs = snap["activas"]
     if not rs:
-        print(LINEA_NEUTRA)
+        print("\n".join([LINEA_NEUTRA] + snap["avisos"][:3]))
         return 0
     out = ["Roadmap en progreso (ledger canónico = tasks.md):"]
-    for r in rs:
+    # H-48: las iniciativas al 100 % solo esperan su cierre; se compactan en una línea.
+    cerrables = [r for r in rs if r["total"] and r["completadas"] == r["total"]]
+    pendientes = [r for r in rs if r not in cerrables]
+    for r in pendientes:
         out.append("- " + linea(r))
         for t in r["en_progreso"]:
             out.append(f"  · en-progreso: {t['id']} {t['titulo']}".rstrip())
+    if cerrables:
+        out.append(f"{len(cerrables)} al 100 % pendientes de cierre: "
+                   + ", ".join("/retro " + r["slug"] for r in cerrables))
     huerf = marcadores_huerfanos(args.root, in_process=getattr(args, 'in_process', False))
     if huerf is None:
         out.append("usage-meter: no disponible")
     elif huerf:
         out.append("usage-meter: marcadores abiertos → " + ", ".join(huerf[:5])
                    + (" …" if len(huerf) > 5 else ""))
-    rel = os.path.relpath(rs[0]["path"], args.root) if len(rs) == 1 \
-        else os.path.join("docs", "roadmap", "<…>", "tasks.md")
-    rel = rel.replace("\\", "/")
-    out.append(f"Ledger canónico: {rel} — retoma desde la tarea en-progreso")
-    # Resolve with the bounded reader. The legacy progress scan never supplies
-    # review identities, and multiple active initiatives cannot select a receipt.
-    try:
-        reader = _load_module('session_review_reader', 'local-read.py')
-        status, summary, _, _ = _resume_ledger(args.root, None, reader)
-        review_lines = _review_text_lines(_resume_reviews(args.root, summary['path'],
-            deadline=time.monotonic() + 0.75)) if summary else (
-            ['Revisiones: selección de iniciativa ' + status] if status != 'not_found' else [])
-    except (ImportError, OSError, SyntaxError):
-        review_lines = ['Revisiones: lector no disponible']
+    for aviso in snap["avisos"][:3]:
+        out.append(aviso)
+    # fix3 (A): la MISMA regla que el journal, la memoria y la statusline
+    vigente = vigente_entre(rs, _leer_usage_state(os.path.join(args.root, "docs", "roadmap")), mtime=_lstat_mtime)
+    unica = next(r for r in rs if r["slug"] == vigente)
+    rel = os.path.relpath(unica["path"], args.root).replace("\\", "/")
+    if unica["en_progreso"]:
+        cola = "retoma desde la tarea en-progreso"
+    elif unica.get("total") and unica["completadas"] == unica["total"]:
+        cola = "al 100 %: /retro " + unica["slug"]
+    else:
+        cola = "sin tarea en-progreso"
+    out.append(f"Ledger canónico: {rel} — {cola}")
+    # Resolve with the bounded reader on the exact folder of the single pending
+    # initiative. The legacy progress scan never supplies review identities, and
+    # several pending initiatives cannot select a receipt: that is not news for
+    # the session block, so no opaque status line is added (H-48).
+    review_lines = []
+    if unica:
+        try:
+            reader = _lector_instantanea(args.root, _load_module('session_review_reader', 'local-read.py'))
+            folder = os.path.basename(os.path.dirname(os.path.abspath(unica["path"])))
+            status, summary, _, _ = _resume_ledger(args.root, folder, reader)
+            if status == "too_large":
+                # B5: sin la lectura acotada no hay revisiones que mostrar; se dice y se da el camino.
+                review_lines = ["Revisiones omitidas: ledger > 256 KiB; /work-resume --initiative " + folder]
+            if summary:
+                review_lines = _review_text_lines(_resume_reviews(args.root, summary['path'],
+                                                                  deadline=time.monotonic() + 0.75))
+        except (ImportError, OSError, SyntaxError):
+            review_lines = ['Revisiones: lector no disponible']
     if review_lines:
         # Keep complete IDs. Reserve one line for omissions, rather than cutting
         # a reference in half or silently hiding an open review.
@@ -745,10 +1148,19 @@ def cmd_resume(args):
     result = resume(args.root, initiative=args.initiative, session_id=args.session_id,
                     runtime=args.runtime, entry=args.entry, _history_only=args.history_only)
     if args.history_only:
-        if result["status"] == "ok" and not result["history"]:
+        # H-48: the session block gets history or nothing; a failed selection is
+        # reported by /work-resume, not as an opaque «Journal: <status>» line.
+        omitted = sum(1 for issue in result.get("issues") or [] if issue.get("status") == "legacy_initiative_rule")
+        notice = (f"Journal: {omitted} entrada(s) omitida(s) del arranque por no estar atribuidas a la iniciativa vigente "
+                  "(consulta /work-resume).") if omitted else ""
+        if result["status"] != "ok" or not result["history"]:
+            if notice:
+                print(notice)
             return 0
         journal = _load_module("resume_render_journal", "journal.py")
         print(journal.selected_text({"status": result["status"], "entries": result["history"]}))
+        if notice:
+            print(notice)
     else:
         print(json.dumps(result, ensure_ascii=False) if args.json else resume_text(result))
     return 0

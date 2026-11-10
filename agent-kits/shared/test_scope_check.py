@@ -656,3 +656,55 @@ def test_criterio_prefijo_solo_en_frontera_de_palabra():
     assert mod.criterios_alterados(base, pegado, pl) == [{"tarea": "T-01", "criterio": CRIT.rstrip(".")}]
     sin_tarea = base.split("### T-01")[0]                         # la tarea entera desaparece
     assert {a["tarea"] for a in mod.criterios_alterados(base, sin_tarea, pl)} == {"T-01", "T-02"}
+
+
+# ------------------------------------------------- H-35 (auditoría 2026-11-09, T-16): isdir por patrón
+
+def test_h35_clasificar_consulta_el_disco_una_vez_por_patron(tmp_path, monkeypatch):
+    """H-35: `casa()` hacía `os.path.isdir` por cada par fichero×patrón (1,9 s de 3,2 s en este repo);
+    ahora una vez por patrón y pasada, con el mismo resultado."""
+    mod = _mod()
+    (tmp_path / "src").mkdir()
+    cambiados = [f"src/f{i}.py" for i in range(40)] + ["docs/a.md", "otro.txt"]
+    patrones = [("src", "T-01"), ("docs/*.md", "T-02"), ("tests/test_a.py", "T-03"), ("lib/", "T-04")]
+    llamadas = []
+    real = mod.os.path.isdir
+    monkeypatch.setattr(mod.os.path, "isdir", lambda p: llamadas.append(p) or real(p))
+    en, fuera, excl, sin_tocar, quien = mod.clasificar(cambiados, patrones, f"{INI}/tasks.md", str(tmp_path))
+    assert sorted(en) == sorted(cambiados[:-1]) and fuera == ["otro.txt"]
+    assert sin_tocar == ["lib/ (T-04)", "tests/test_a.py (T-03)"]
+    assert len(llamadas) <= len(patrones), len(llamadas)
+
+
+# --- Audit H-49: the script prints its own remedy; the prose of the roles stays short ---------------
+
+def _avisos_con_glob_desproporcionado():
+    mod = _mod()
+    cambiados = ["src/a.py", "src/b.py", "src/c.py", "src/d.py"]
+    quien = {f: "src/**" for f in cambiados}
+    return mod.avisos_de_exclusion(cambiados, [], quien, ["src/**"])
+
+
+def test_h49_every_warning_prints_its_own_remedy():
+    avisos = _avisos_con_glob_desproporcionado()
+    assert len(avisos) == 2        # lista vacia + anchura del glob
+    for aviso in avisos:
+        texto = aviso.lower()
+        assert "remedio" in texto
+        assert "acota" in texto and "archivos" in texto and "ledger" in texto
+        assert "gap important" in texto
+
+
+def test_h49_roles_do_not_repeat_the_remedy_the_script_prints():
+    from pathlib import Path
+    raiz = Path(SCRIPT).resolve().parents[2]
+    implementer = (raiz / "agents/implementer.md").read_text(encoding="utf-8")
+    revision = (raiz / "skills/adversarial-review/SKILL.md").read_text(encoding="utf-8")
+    for texto in (implementer, revision):
+        assert "un solo disparo" not in texto
+        assert "scope-check" in texto and "gap Important" in texto
+    item = [l for l in implementer.splitlines() if "**Avisos de la puerta de alcance:**" in l][0]
+    assert len(item) <= 700
+    parrafo = [l for l in revision.splitlines() if l.startswith("**Exit 0 con")][0]
+    assert len(parrafo) <= 700
+

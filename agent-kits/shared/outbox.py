@@ -676,6 +676,13 @@ def _reclamar_huerfanos(dir_, ttl_s, claiming_ttl_s=CLAIMING_TTL_S):
     return errores
 
 
+def _mtime_ns(path):
+    try:
+        return os.stat(path).st_mtime_ns
+    except OSError:
+        return 0
+
+
 def reclamar(dir_, processing_ttl_s=PROCESSING_TTL_S, errores=None, claiming_ttl_s=CLAIMING_TTL_S):
     """Serializa el barrido y claim con un cerrojo de SO no bloqueante; sin él, no entrega items."""
     if not os.path.isdir(dir_):
@@ -752,8 +759,9 @@ def _reclamar(dir_, processing_ttl_s=PROCESSING_TTL_S, errores=None, claiming_tt
     proc_dir = os.path.join(dir_, "processing")
     try:
         _guard_path(outbox_dir, directory=True)
-        nombres = sorted(f for f in os.listdir(outbox_dir) if f.endswith(".json") and not f.startswith(".tmp-")
-                          and not f.endswith((".manifest.json", ".causa.json")))
+        nombres = sorted((f for f in os.listdir(outbox_dir) if f.endswith(".json") and not f.startswith(".tmp-")
+                          and not f.endswith((".manifest.json", ".causa.json"))),
+                         key=lambda f: (_mtime_ns(os.path.join(outbox_dir, f)), f))   # cronológico (fix2 gap 6), no por hash
     except OSError:
         return None
     if not nombres:

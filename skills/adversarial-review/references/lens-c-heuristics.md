@@ -21,7 +21,9 @@ es un endpoint público que se invoca desde el cliente: autenticar y autorizar v
 contenido (contienen payloads a propósito); los binarios se saltan. Configurable en
 `.claude/dev.json` → `"revision": {"lenteSeguridad": "auto" | "siempre" | "nunca", "excluir": ["glob", …]}`
 (default `auto`, sin exclusiones; `/setup` paso 5-ter pregunta el modo; `excluir` es ajuste manual).
-El script nunca bloquea: ante error avisa por stderr y devuelve `false`. La lista exacta de patrones
+El script nunca bloquea (exit 0): ante un error evaluando el diff (`--base` inválido, `.git` roto)
+avisa por stderr y, en modo `auto`, devuelve `true` en las Lentes C y D (falla cerrado); fuera de git
+y sin `--files` no hay diff y devuelve `false` con aviso. La lista exacta de patrones
 es el contrato: `CONTENIDO`/`RUTA_RE` en el propio script, con sus tests.
 
 

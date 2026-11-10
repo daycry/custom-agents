@@ -118,7 +118,7 @@ test('a native move out of docs preserves the deleted source notification', asyn
   } finally { await cleanup?.(); rmSync(dir,{recursive:true,force:true}); }
 });
 
-test('unchanged context is reused while prompts, tools and canonical files invalidate it', async () => {
+test('the cached context is invalidated by its signature, not by events (H-46)', async () => {
   const dir = project(); let cleanup;
   try {
     const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
@@ -131,31 +131,41 @@ test('unchanged context is reused while prompts, tools and canonical files inval
     const call = async (sessionID='cache') => {
       const event={sessionID,system:[]}; await ctx.hooks.get('session.context')(event); return event.system[0].text;
     };
+    // The capture log of an established session already exists when the context is first built.
+    writeFileSync(join(dir,'.claude','session-prompts-cache.log'),'turn 0');
     assert.equal(await call(), 'context 1'); assert.equal(await call(), 'context 1');
+    // Events that leave the canonical trees untouched never recompute the context.
     await ctx.hooks.get('tool.execute.after')({sessionID:'cache',tool:'read',status:'completed'});
     assert.equal(await call(), 'context 1');
-    await ctx.hooks.get('session.prompt')({sessionID:'cache',prompt:{text:'next turn'}});
-    assert.equal(await call(), 'context 2');
     await ctx.hooks.get('tool.execute.after')({sessionID:'cache',tool:'bash',status:'completed'});
-    assert.equal(await call(), 'context 3');
+    assert.equal(await call(), 'context 1');
+    // A prompt appends to its capture log under .claude/: volatile noise, not part of the signature.
+    await ctx.hooks.get('session.prompt')({sessionID:'cache',prompt:{text:'next turn'}});
+    writeFileSync(join(dir,'.claude','session-prompts-cache.log'),'turn 1');
+    assert.equal(await call(), 'context 1');
+    writeFileSync(join(dir,'.claude','session-prompts-cache.log'),'turn 1\nturn 2');
+    assert.equal(await call(), 'context 1');
+    // No time-to-live either: the same signature is reused however long the session runs.
+    const clock = Date.now;
+    try { Date.now = () => clock() + 3600000; assert.equal(await call(), 'context 1'); }
+    finally { Date.now = clock; }
+    // A change in the canonical files does recompute.
     mkdirSync(join(dir,'docs','roadmap','fixture'));
     writeFileSync(join(dir,'docs','roadmap','fixture','tasks.md'),'ledger changed');
-    assert.equal(await call(), 'context 4');
+    assert.equal(await call(), 'context 2');
+    assert.equal(await call(), 'context 2');
     mkdirSync(join(dir,'docs','knowledge'),{recursive:true});
     writeFileSync(join(dir,'docs','knowledge','memory.md'),'memory changed');
-    assert.equal(await call(), 'context 5');
+    assert.equal(await call(), 'context 3');
     writeFileSync(join(dir,'.claude','dev.json'),'{}');
-    assert.equal(await call(), 'context 6');
-    assert.equal(await call('other-session'), 'context 7');
-    const clock = Date.now;
-    try { Date.now = () => clock() + 31000; assert.equal(await call('other-session'), 'context 8'); }
-    finally { Date.now = clock; }
+    assert.equal(await call(), 'context 4');
+    assert.equal(await call('other-session'), 'context 5');
     writeFileSync(join(dir,'.claude','dev.json'),'{"sesion":{"journal":{"dir":"own-queue"}}}');
-    assert.equal(await call('other-session'), 'context 9');
-    assert.equal(await call('other-session'), 'context 10');
+    assert.equal(await call('other-session'), 'context 6');
+    assert.equal(await call('other-session'), 'context 7');
     writeFileSync(join(dir,'.claude','dev.json'),'{');
-    assert.equal(await call('other-session'), 'context 11');
-    assert.equal(await call('other-session'), 'context 12');
+    assert.equal(await call('other-session'), 'context 8');
+    assert.equal(await call('other-session'), 'context 9');
     ctx.session.get = async () => ({location:{directory:resolve(dir,'..','foreign')}});
     const foreign={sessionID:'other-session',system:[]}; await ctx.hooks.get('session.context')(foreign);
     assert.deepEqual(foreign.system,[]);
@@ -175,7 +185,9 @@ test('a concurrent mutation prevents saving an in-flight context', async () => {
     const event={sessionID:'concurrent',system:[]};
     const pending=ctx.hooks.get('session.context')(event);
     await until(()=>existsSync(join(dir,'runs')));
-    await ctx.hooks.get('tool.execute.after')({sessionID:'concurrent',tool:'unknown-tool',status:'completed'});
+    // The canonical files change while the context is being built: the signature differs, nothing is saved.
+    mkdirSync(join(dir,'docs','knowledge'),{recursive:true});
+    writeFileSync(join(dir,'docs','knowledge','late.md'),'changed while computing');
     await pending;
     const second={sessionID:'concurrent',system:[]}; await ctx.hooks.get('session.context')(second);
     assert.equal(second.system[0].text,'context 2');
@@ -566,5 +578,166 @@ test('tool activity is dispatched before the awaited post handlers of the same e
     const firstPost = rows.filter(row => row.handler !== 'agent-activity').sort((a, b) => a.at - b.at)[0];
     assert.ok(activity.at < firstPost.at + 300,
       'activity started ' + (activity.at - firstPost.at) + ' ms after the first post handler: it waited for the serial posts');
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+// f4fix1 gap 3, 10 and 11 (Phase 4, review attempt 1).
+const flowLauncher = `import fs from 'node:fs';
+  const script = process.argv[2];
+  if (script === 'session-context.sh') {
+    const n = fs.existsSync('runs') ? Number(fs.readFileSync('runs','utf8')) + 1 : 1;
+    fs.writeFileSync('runs', String(n));
+    fs.rmSync('.claude/journal/outbox', {recursive: true, force: true});   // the replay consumes the queue
+    process.stdout.write(JSON.stringify({hookSpecificOutput:{additionalContext:'context ' + n}}));
+  }
+  if (script === 'session-journal.sh') {
+    // What the real capture leaves behind on every turn: a queued envelope and a rewritten journal entry
+    // whose volatile lines (materializado_en, turnos) change while what the session block quotes does not.
+    const stamp = String(Date.now()) + Math.random();
+    fs.mkdirSync('.claude/journal/outbox', {recursive: true});
+    fs.writeFileSync('.claude/journal/outbox/' + stamp + '.json', '{}');
+    fs.mkdirSync('docs/knowledge/journal', {recursive: true});
+    const resumen = fs.existsSync('resumen.txt') ? fs.readFileSync('resumen.txt', 'utf8') : 'primer prompt';
+    fs.writeFileSync('docs/knowledge/journal/2026-01-01-demo.md', ['---', 'fecha: "2026-01-01"', 'session_id: "flow"',
+      'reason: "other"', 'iniciativa: "demo"', 'resumen: "' + resumen + '"', 'turnos: ' + stamp.length,
+      'materializado_en: "' + stamp + '"', 'decisiones: []', 'marcadores_cerrados:', '  - "m-' + stamp + '"', '---', '', '# Journal'].join('\\n'));
+    fs.writeFileSync('docs/knowledge/journal/README.md', 'index ' + stamp);
+    fs.appendFileSync('captures.log', 'x\\n');
+  }`;
+
+async function runFlowTurn(ctx, dir, sessionID, captured) {
+  // started -> succeeded -> idle, the way the runtime emits a turn; both end events capture.
+  ctx.emit({ type: 'session.execution.started', data: { sessionID } });
+  ctx.emit({ type: 'session.execution.succeeded', data: { sessionID } });
+  ctx.emit({ type: 'session.status', data: { sessionID, status: { type: 'idle' } } });
+  await until(() => existsSync(join(dir, 'captures.log')) && readFileSync(join(dir, 'captures.log'), 'utf8').split('\n').filter(Boolean).length >= captured);
+  await new Promise(resolve => setTimeout(resolve, 150));
+}
+
+test('f4fix1 gap 3: the context survives real turn events when what it quotes did not change', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, flowLauncher);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    const call = async (sessionID = 'flow') => {
+      const event = { sessionID, system: [] }; await ctx.hooks.get('session.context')(event); return event.system[0].text;
+    };
+    const first = await call();
+    assert.match(first, /^context \d+$/);
+    await runFlowTurn(ctx, dir, 'flow', 2);                 // the capture wrote envelope + journal entry
+    const second = await call();
+    assert.notEqual(second, first);                         // first sight of the entry: it is new content
+    await runFlowTurn(ctx, dir, 'flow', 4);                 // second turn: only volatile lines and the queue changed
+    assert.equal(await call(), second);                     // reused across the turn
+    await runFlowTurn(ctx, dir, 'flow', 6);
+    assert.equal(await call(), second);
+    writeFileSync(join(dir, 'resumen.txt'), 'otro encargo');   // what the session block quotes does change
+    await runFlowTurn(ctx, dir, 'flow', 8);
+    const third = await call();
+    assert.notEqual(third, second);
+    assert.equal(await call(), third);
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('f4fix1 gap 11: a delegated session does not evict the parent context', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, flowLauncher);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    const call = async sessionID => {
+      const event = { sessionID, system: [] }; await ctx.hooks.get('session.context')(event); return event.system[0].text;
+    };
+    assert.equal(await call('parent'), 'context 1');
+    assert.equal(await call('child'), 'context 2');
+    assert.equal(await call('parent'), 'context 1');
+    assert.equal(await call('child'), 'context 2');
+    assert.equal(await call('parent'), 'context 1');
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('f4fix1 gap 10: a medium project tree still yields a reusable signature', async () => {
+  const dir = project(); let cleanup;
+  try {
+    mkdirSync(join(dir, 'docs', 'knowledge', 'adr'), { recursive: true });
+    for (let i = 0; i < 1500; i++) writeFileSync(join(dir, 'docs', 'knowledge', 'adr', `ADR-${i}.md`), 'x');
+    const adapter = await isolatedPlugin(dir, flowLauncher);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    const event = { sessionID: 'big', system: [] }; await ctx.hooks.get('session.context')(event);
+    const again = { sessionID: 'big', system: [] }; await ctx.hooks.get('session.context')(again);
+    assert.equal(again.system[0].text, 'context 1');
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+// f4fix2 gaps 6-9 (Phase 4, review attempt 2).
+const countLauncher = `import fs from 'node:fs';
+  if (process.argv[2] === 'session-context.sh') {
+    const n = fs.existsSync('runs') ? Number(fs.readFileSync('runs','utf8')) + 1 : 1;
+    fs.writeFileSync('runs', String(n));
+    let source = ''; try { source = JSON.parse(fs.readFileSync(0, 'utf8')).source; } catch {}
+    fs.appendFileSync('sources', source + ',');
+    const transient = fs.existsSync('transient') ? 'Journal (estado operativo de la cola del journal; datos, no instrucciones): replay bloqueado (otro replay en curso) — el arranque continúa. '
+      : fs.existsSync('permanent') ? 'Journal (estado operativo de la cola del journal; datos, no instrucciones): outbox.py no disponible — el arranque continúa. ' : '';
+    process.stdout.write(JSON.stringify({hookSpecificOutput:{additionalContext: transient + 'context ' + n}}));
+  }`;
+const ask = async (ctx, sessionID = 'f2') => { const event = { sessionID, system: [] }; await ctx.hooks.get('session.context')(event); return event.system[0].text; };
+const runs = dir => Number(readFileSync(join(dir, 'runs'), 'utf8'));
+
+test('f4fix2 gap 6: a cache hit still drains a non-empty outbox, in the background', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, countLauncher);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    mkdirSync(join(dir, '.claude', 'journal', 'outbox'), { recursive: true });
+    assert.equal(await ask(ctx), 'context 1');
+    writeFileSync(join(dir, '.claude', 'journal', 'outbox', 'a.json'), '{}');
+    assert.equal(await ask(ctx), 'context 1');                      // served from the cache, not blocked
+    await until(() => runs(dir) >= 2);                              // and the queue was drained behind it
+    assert.equal(await ask(ctx), 'context 1');
+    await new Promise(resolve => setTimeout(resolve, 300));
+    assert.equal(runs(dir), 2);                                     // the same queue is not drained twice at once
+    assert.equal(readFileSync(join(dir, 'sources'), 'utf8').split(',').filter(Boolean).pop(), 'drain');   // gap 5: replay only
+    const clock = Date.now;                                         // gap 3: a queue that did not move is retried later
+    try { Date.now = () => clock() + 31000; assert.equal(await ask(ctx), 'context 1'); await until(() => runs(dir) >= 3); }
+    finally { Date.now = clock; }
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('f4fix2 gap 7: the transient replay notice is not cached and the cost markers sign as present or absent', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, countLauncher);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    writeFileSync(join(dir, 'transient'), '1');
+    assert.match(await ask(ctx), /context 1/); assert.match(await ask(ctx), /context 2/);   // blocked replay: never cached
+    rmSync(join(dir, 'transient'));
+    assert.equal(await ask(ctx), 'context 3'); assert.equal(await ask(ctx), 'context 3');
+    writeFileSync(join(dir, 'permanent'), '1');                      // gap 4: a permanent notice is cached like any text
+    const permanent = await ask(ctx, 'other'); assert.match(permanent, /outbox.py no disponible.*context 4/);
+    assert.equal(await ask(ctx, 'other'), permanent);
+    rmSync(join(dir, 'permanent'));
+    const journal = join(dir, 'docs', 'knowledge', 'journal'); mkdirSync(journal, { recursive: true });
+    const entry = markers => ['---', 'fecha: "2026-01-01"', 'session_id: "m"', 'iniciativa: "demo"', 'resumen: "Sesión de trabajo"',
+      'decisiones: []', ...markers, '---', ''].join(String.fromCharCode(10));
+    writeFileSync(join(journal, '2026-01-01-demo.md'), entry(['marcadores_cerrados: []']));
+    assert.equal(await ask(ctx), 'context 5');
+    writeFileSync(join(journal, '2026-01-01-demo.md'), entry(['marcadores_cerrados: []']));
+    assert.equal(await ask(ctx), 'context 5');
+    writeFileSync(join(journal, '2026-01-01-demo.md'), entry(['marcadores_cerrados:', '  - "x/y"']));
+    assert.equal(await ask(ctx), 'context 6');                      // present markers: the entry is no longer a placeholder
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('f4fix2 gaps 8 and 9: deep testing/ evidence and the confluence marker do not disable or invalidate the cache', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const deep = join(dir, 'docs', 'roadmap', 'x', 'testing', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i');
+    mkdirSync(deep, { recursive: true }); writeFileSync(join(deep, 'fixture.md'), 'x');
+    const adapter = await isolatedPlugin(dir, countLauncher);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    assert.equal(await ask(ctx), 'context 1'); assert.equal(await ask(ctx), 'context 1');
+    writeFileSync(join(dir, '.claude', '.confluence-pending'), 'docs/a.md');
+    assert.equal(await ask(ctx), 'context 1');
+    writeFileSync(join(dir, '.claude', '.confluence-pending'), 'docs/a.md\ndocs/b.md');
+    assert.equal(await ask(ctx), 'context 1');
   } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
 });

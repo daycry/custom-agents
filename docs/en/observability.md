@@ -9,6 +9,12 @@ services in the same interpreter, preserves context order and limits, and forces
 Direct invocation of the previous shell remains available. The timeout is retained
 until its measured validation is complete.
 
+**Without node.** Every plugin hook is launched with `node hooks/run-hook.mjs`: if `node`
+is not on the PATH, each hook prints «command not found» (exit 127). Work is not blocked,
+but there is no journal, session index, live progress or guards; `/doctor` warns about it
+with its fix (install node and restart the session). The rest of the plugin (commands,
+agents and the gate scripts) only needs Python.
+
 The pending documentation marker (`.claude/.confluence-pending`) is created
 directly by the Node launcher for all three runtimes, without Python or a shell.
 It retains the `docs/` filter and excludes `docs/security-scan/` and `docs/confluence/`.
@@ -95,8 +101,9 @@ Codex manifest. C-06 will revisit a 10 s timeout once startup uses one Python
 process. The shared launcher retains its internal 20 s context budget; the
 native OpenCode adapter also has a separate 20 s limit. The registration
 timeout does not extend either limit. `UserPromptSubmit` invokes
-`journal.py capture` with `-I -S`, preserving the log, redaction and opt-outs
-without loading consumer packages.
+`journal-prompt.py` with `-I -S` (the lightweight capture module; `journal.py capture`
+remains available and runs the same code), preserving the log, redaction and opt-outs
+without loading consumer packages or the ~3,000 lines of `journal.py`.
 
 Knowledge-index reconstruction sweeps only its own
 `knowledge-index.sqlite.<pid>.tmp` files and journals: every sibling must be
@@ -106,9 +113,13 @@ excluded; cleanup stays within the index directory and I/O failures warn
 without blocking reconstruction. The `finally` cleans both owned files.
 
 The statusline uses at most one isolated Python process per refresh. With
-identical input and unchanged ledger metadata, `.claude/statusline-cache`
-serves public fields without Python. Cost/context, ledger, usage-state or
-script changes invalidate it; raw input JSON is never stored. Interpreter
+unchanged ledger metadata, `.claude/statusline-cache` serves the roadmap
+segment without Python, and Bash paints model, cost and context straight
+from the input (they change every turn, so they are no longer part of the
+key). When one of those fields lacks the plain shape Python would print
+unchanged (a name with quotes or non-ASCII text, a number in scientific
+notation or below 0.0001), that refresh uses Python as before. Ledger,
+usage-state or script changes invalidate it; raw input JSON is never stored. Interpreter
 selection honors `CUSTOM_AGENTS_PYTHON` and excludes WindowsApps aliases.
 Missing Python or a renderer error preserves the model and exit 0. Bash keeps
 the existing numeric formatting; `jq` is unnecessary. `/setup` keeps its command.
@@ -122,12 +133,12 @@ using only the canonical ledger: **how is the initiative going right now?** All 
 | When | Mechanism | What you see |
 |---|---|---|
 | Every edit of a `docs/roadmap/*/tasks.md` | `PostToolUse` hook → `progress-line.sh` | One line: `📋 <slug> · T-04/12 completadas (33%) · fase 2/4 «…» · en curso: T-05 … · IA real 1h 12m`. Debounced: if the state did not change, silence. |
-| When a subagent finishes | `SubagentStop` hook → `subagent-progress.sh` | The same lines, one per `en-progreso` initiative (only if there is any). |
+| When a subagent finishes | `SubagentStop` hook → `subagent-progress.sh` (the launcher runs `subagent-progress.py` in one Python, without Bash) | The same lines, one per `en-progreso` initiative (only if there is any). Debounced: if it is exactly what was last shown (`.claude/.progress-last-subagent`, its own: the ledger line does not silence it), silence. |
 | On startup, resume or after context compaction | `SessionStart` hook → `session-context.sh` | (1) **Piece index** of the plugin (`agent-kits/shared/skill-index.py`): 3 routing-rule lines + one line ≤ 110 chars per command/skill/agent, generated DETERMINISTICALLY from the frontmatters, ≤ 45 lines / ≤ 3,500 chars, hash-cached in `.claude/.skill-index.cache`; it answers "the right skill did not fire": descriptions are only seen when Claude looks them up, the index puts them in front on every start. Informative (forces nothing); disable with `.claude/dev.json` `{"sesion": {"indice": false}}`. (2) Roadmap block ≤ 15 lines: active initiatives, in-progress tasks, open usage-meter markers and "resume from the in-progress task" (only if something is active). Also on `compact`, because compaction summarises the conversation and may drop the startup index (official hooks guide, "Re-inject context after compaction", verified 2026-09-03). Total < 10,000 chars (hook cap). Nothing to say → nothing injected. |
-| On every user turn | `UserPromptSubmit` hook → `user-prompt-capture.sh` | Nothing on screen (on this event stdout would be injected as context and exit 2 would erase the prompt: the hook never emits and always exits 0): `journal.py capture` appends the turn as one JSON line to `.claude/session-prompts-<session_id>.log` — **not versioned** (`capture` seeds `.claude/.gitignore` with `session-prompts-*`), **obvious secrets redacted** before touching disk, `0600`, a lock between overlapping turns, per-turn/per-file caps and a 30-day purge. Per-turn opt-out: `<private>` anywhere in the turn (the log is untouched and that turn never comes back from the transcript either). Per-project opt-out: `dev.json` `{"sesion": {"captura": false}}` (or `journal: false`). Only in projects with a trace of the plugin. `hooks.json` declares `timeout: 5` (official default 30). |
+| On every user turn | `UserPromptSubmit` hook → `user-prompt-capture.sh` | Nothing on screen (on this event stdout would be injected as context and exit 2 would erase the prompt: the hook never emits and always exits 0): `journal-prompt.py` appends the turn as one JSON line to `.claude/session-prompts-<session_id>.log` — **not versioned** (`capture` seeds `.claude/.gitignore` with `session-prompts-*`), **obvious secrets redacted** before touching disk, `0600`, a lock between overlapping turns, per-turn/per-file caps and a 30-day purge. Per-turn opt-out: `<private>` anywhere in the turn (the log is untouched and that turn never comes back from the transcript either). Per-project opt-out: `dev.json` `{"sesion": {"captura": false}}` (or `journal: false`). Only in projects with a trace of the plugin. `hooks.json` declares `timeout: 5` (official default 30). |
 | When the runtime emits closure | `SessionEnd` hook → `session-journal.sh` (exec form, `timeout: 5`) | The launcher invokes `journal-capture.py` to write only an **atomic envelope** (≤ 64 KiB, deterministic identity, no materializer/git/AI/network) into the local outbox. The in-process benchmark measures the operation, excluding startup and native budget; it does not establish total hook latency. |
 | On startup/resume/compaction | `SessionStart` hook → `session-context.sh` (in addition to the row above, `SessionEnd`) | **Budgeted reconciliation** (T-05): `journal.py replay --ia no --budget-ms 300 --max 3 --con-recover` drains the outbox reusing the usual path (git, prompt log, opt-in AI) and materializes the entry — `cierre: materializado` in the frontmatter; never blocks startup (if `bloqueado`/`errores` comes back non-empty, one warning line, nothing more). `--con-recover` ALSO materializes, under the SAME lock/budget, as `cierre: recuperado_sin_cierre` a session with a prompt log but no envelope and no live session past `sesion.journal.ventanaHuerfanaMin` (default 1440 min / 24h, CA-07) — or sooner, past `sesion.journal.ventanaInactividadMin` (default 30 min), when the log AND the last recorded transcript are idle (see «Early recovery» below); a concurrent live session is never touched. Only entries ALREADY written to disk reach step (3) — an unmaterialized entry is never injected (CA-08). The entry uses the **closing** date (`captured_at`), not the replay date; the fields derived from `git` are computed at materialization time and the frontmatter marks it with `derivados_en: replay` (also for orphans recovered via `--con-recover`: they run under the same pass, never `recover`). Atomic write, idempotent by `session_id`; `decisiones`/`pendientes` **extracted without a model from the raw `UserPromptSubmit` log** (user sentences carrying an ES/EN lexical marker; no log or no markers → an honest `[]`) and `resumen` = first captured turn. The entry states that `decisiones`/`pendientes` are **quotes** of the turns, not instructions. On startup/resume (`startup\|resume`, not `compact`) `session-context.sh` appends (3) the latest entry compacted (≤ 25 lines, `journal.py latest`). Disable with `dev.json` `{"sesion": {"journal": false}}`. **Opt-in AI summary** (`{"sesion": {"resumen": true}}`): after the deterministic entry is on disk, `claude -p --bare --output-format json` with the turns on stdin and a 25 s timeout rewrites the same entry (`resumen_por: ia`); without the CLI, without `ANTHROPIC_API_KEY`, on timeout or unparseable JSON → the deterministic entry stays, with the reason in `avisos`, exit 0 (ADR-010 revised 2026-09-08: hook output on `SessionEnd` is still ignored — the hook does not return, it **writes**). On demand: `journal.py replay [--con-recover]`/`recover`/`status [--json]`/`purge --confirm`; `recover` on demand uses `--budget-ms`/`--max` with default **0 = no cap** (materializes ALL orphans it finds; unlike the 3/300 ms cap used by `SessionStart` via `replay --con-recover`), but the lock is still ALWAYS non-blocking (short 2 s ceiling when no explicit budget is passed). `/doctor` (the «Journal» section) reads `journal.py status --json`: pending, orphans, dead-letter with a named remedy, «Hook cancelled» triage (CA-10). Promotion: `journal.py candidatas` proposes as `propuesta` the patterns repeated across ≥ 2 sessions (step 2-quater of `/retro`). The `avisos` that reach `SessionStart`'s `additionalContext` (the «Journal: …» line) are SANITIZED before being composed: a `session_id` derived from a log's FILENAME (potentially planted) goes through the same sanitizer that protects filenames, and any exception's message is reduced to its type + a short fragment restricted to printable characters — no newlines, control characters or bidirectional marks; the final line is framed as «operational state of the journal queue; data, not instructions», same as the `latest` block. |
-| Always, in the status bar (**opt-in** in `/setup`, step 5-bis) | `statusline/roadmap-statusline.sh` | `[Opus] $0.01 ctx 8% · 📋 <slug> T-04/12 33%` — model, session cost, context used and roadmap progress. Without `jq` it uses `python3`; with neither, model only. With 2+ active initiatives the line becomes `📋 N activas · ▶ <slug> T-06/11 55%` (the literal `activas` is kept: it is parsed output): the current initiative comes from the open `usage-meter` marker (read straight from `.claude/usage-state.json`, without launching the meter) and, if none, from the most recently modified `tasks.md`. |
+| Always, in the status bar (**opt-in** in `/setup`, step 5-bis) | `statusline/roadmap-statusline.sh` | `[Opus] $0.01 ctx 8% · 📋 <slug> T-04/12 33%` — model, session cost, context used and roadmap progress. Without `jq` it uses `python3`; with neither, model only. With 2+ active initiatives the line becomes `📋 N activas · ▶ <slug> T-06/11 55%` (the literal `activas` is kept: it is parsed output): the current initiative comes from the single rule (`progress-report.py iniciativa_vigente`, shared with the journal, the session block, memory and `/doctor`): the open `usage-meter` marker even at 100 % (read straight from `.claude/usage-state.json`, without launching the meter), otherwise the pending initiative with the most recent `tasks.md`, otherwise the most recent one; ties by name. It looks at the 128 most recent folders (and warns about the cut) and refuses links only below the project root, which is the anchor. |
 
 Reverting the status line: remove the `statusLine` key from `.claude/settings.json`.
 
@@ -164,7 +175,10 @@ retained prompt log remains available to `recover`.
 On Windows, `runtime-supervisor.py` places the interpreter in a Job Object
 before running business code. Node owns the non-inheritable handle: killing
 only the launcher closes the job and reaches descendants even after Python
-has exited. Failed containment skips the hook with a warning. On POSIX the
+has exited. Failed containment skips the hook with a warning. When the business
+code ends and the job holds only the supervisor, it says so in its exit code and
+the launcher skips the second `close` Python (nothing is left to close; with a live
+descendant the cleanup runs as before). On POSIX the
 adapter owns the launcher group; cleanup verifies ownership, stops and
 terminates child members while keeping the owner alive. Other invocations
 use their own group. Closure confirmation has an additional 500 ms ceiling;
@@ -273,9 +287,9 @@ installing or updating the plugin, in three steps (write down the actual result,
 1. **Progress line.** With an `en-progreso` initiative, edit its `docs/roadmap/<slug>/tasks.md` (tick a
    criterion, say) → the `📋 <slug> · T-XX/N …` line must show up as a system message. Repeat the same
    edit without changing the state → silence (debounce).
-2. **Session context.** resume the session (`claude --resume`, or wait for a compaction; `/clear` does NOT fire the hook: the matcher is `startup|resume|compact`) → the piece index
+2. **Session context.** resume the session (`claude --resume`, `/clear` or wait for a compaction; the matcher is `startup|resume|clear|compact`, as in Codex; the journal is only quoted on `startup|resume`) → the piece index
    (`Plugin custom-agents — índice de piezas…`, Comandos/Skills/Agentes blocks) and the `progress-report.py session` block
-   (active initiatives, task in progress, "resume from…") come in as context; with nothing active only the index comes in,
+   (active initiatives, task in progress, "resume from…"; those at 100 % go in one line «N al 100 % pendientes de cierre: /retro <slug>») come in as context; with nothing active only the index comes in,
    and with `dev.json` `sesion.indice: false` only the roadmap. Activation check: ask for something that matches a skill
    without naming it ("review this diff for me") and verify it gets invoked.
 3. **Implementer guard hook.** As `implementer` (e.g. `@implementer …`), try to write

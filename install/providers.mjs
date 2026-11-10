@@ -21,10 +21,9 @@
 //
 // El porqué de cada ruta está en `docs/INTEROP.md`; aquí solo vive la ruta.
 
-import { execFileSync } from "node:child_process"
-import { existsSync, statSync } from "node:fs"
+import { existsSync, statSync, accessSync, constants as fsConstants } from "node:fs"
 import { homedir } from "node:os"
-import { join, resolve } from "node:path"
+import { join, resolve, win32, posix } from "node:path"
 
 // El bundle de Claude Code es el repo entero salvo lo que solo sirve para desarrollarlo.
 export const PAYLOAD_CLAUDE = [
@@ -138,12 +137,35 @@ export function elegirEjecutable(candidatos, plataforma = process.platform) {
   return { ruta: lista[0], ejecutable: false }
 }
 
+/**
+ * Candidatos de `cmd` en el PATH, en orden, recorriéndolo A MANO (auditoría H-4). `where.exe`
+ * busca primero en el directorio ACTUAL: un `claude.cmd` plantado en un repo no confiable se
+ * ejecutaba al instalar o desinstalar desde él. Las entradas vacías o relativas (`.`, `bin`,
+ * `C:bin`) también dependen del cwd y se ignoran, como hace `hooks/run-hook.mjs`.
+ */
+export function buscarEnPath(cmd, { ruta = process.env.PATH ?? process.env.Path ?? "",
+  plataforma = process.platform, pathext = process.env.PATHEXT || PATHEXT_DEFECTO } = {}) {
+  const win = plataforma === "win32"
+  const exts = win ? ["", ...String(pathext).split(";").map((e) => e.trim()).filter(Boolean)] : [""]
+  const out = []
+  for (const entrada of String(ruta).split(win ? ";" : ":")) {
+    const dir = entrada.trim().replace(/^"(.*)"$/, "$1")
+    const absoluta = win ? /^(?:[A-Za-z]:[\\/]|[\\/]{2})/.test(dir) && win32.isAbsolute(dir) : posix.isAbsolute(dir)
+    if (!dir || !absoluta) continue
+    for (const ext of exts) {
+      const candidato = (win ? win32 : posix).join(dir, cmd + ext)
+      try {
+        if (!statSync(candidato).isFile()) continue
+        if (!win) accessSync(candidato, fsConstants.X_OK)
+        out.push(candidato)
+      } catch { /* no existe o no es ejecutable */ }
+    }
+  }
+  return out
+}
+
 function dondeEsta(cmd) {
-  try {
-    const salida = execFileSync(process.platform === "win32" ? "where.exe" : "which", [cmd],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })
-    return salida.split(/\r?\n/)
-  } catch { return [] }
+  return buscarEnPath(cmd)
 }
 
 /**
@@ -247,6 +269,10 @@ function planClaude(o) {
   const ajustes = scope === "user" ? join(cfg, "settings.json") : join(dir, ".claude", "settings.json")
   const enSettings = { [`enabledPlugins.${PLUGIN_ID}`]: true }
   if (scope === "project") enSettings[`extraKnownMarketplaces.${MKT}`] = { source: origen }
+  const avisoAjustes = scope === "project" && origen.source === "directory"
+    ? `guarda la ruta absoluta del marketplace local (${origen.path}) en la config compartida del proyecto: `
+      + "no la subas a git tal cual, o usa `--source owner/repo`"
+    : undefined
 
   const copias = [
     ...paquete.map((p) => ({ type: "copy", from: p, to: join(mkt, p), sharedCacheRoot: mkt })),
@@ -285,7 +311,7 @@ function planClaude(o) {
       // `version` es del fichero, no nuestra: se pone si falta, pero desinstalar no la quita.
       noQuitar: ["version"],
     },
-    { type: "json-set", to: ajustes, set: enSettings },
+    { type: "json-set", to: ajustes, set: enSettings, ...(avisoAjustes ? { aviso: avisoAjustes } : {}) },
   ]
 }
 
@@ -407,7 +433,8 @@ const codex = {
       },
       ...(scope === "project" ? [
         {type:"toml-set",requires:"codex-cache",to:config,tabla:`marketplaces.${MKT}`,clave:"source_type",valor:"local",restaurar:true},
-        {type:"toml-set",requires:"codex-cache",to:config,tabla:`marketplaces.${MKT}`,clave:"source",valor:resolve(dir),restaurar:true},
+        {type:"toml-set",requires:"codex-cache",to:config,tabla:`marketplaces.${MKT}`,clave:"source",valor:resolve(dir),restaurar:true,
+          aviso:`guarda la ruta absoluta del proyecto (${resolve(dir)}) en una config que se puede compartir: no la subas a git tal cual`},
       ] : []),
       { type: "toml-set", requires: "codex-cache", to: config, tabla: `plugins."${PLUGIN_ID}"`, clave: "enabled", valor: true },
       // `[features] hooks` es una preferencia global del usuario: se enciende (los hooks del plugin

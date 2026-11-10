@@ -130,7 +130,19 @@ Solo ejecuta el compositor Python. No usa meter, replay/recover, Git, backends,
 red ni procesos de materialización; no lee transcripciones crudas para rellenar
 huecos. La captura y la recuperación automáticas siguen su propio contrato de hooks.
 En startup/resume, `SessionStart` usa `resume --history-only` para seleccionar
-historial con el mismo resolver de ledger; compact omite esa parte.
+historial con el mismo resolver de ledger; compact omite esa parte. Si ese resolver
+no da una única iniciativa (varias activas o más de 1 MiB de ledgers), cita la
+iniciativa en curso entre las activas y nunca una no activa. Un fallo de selección
+no deja ninguna línea en el bloque de sesión; esta vista sí informa del estado.
+La regla de la iniciativa en curso es una sola para el escritor del journal, el
+historial, el bloque de sesión, la memoria y la statusline: el marcador abierto del
+meter (aunque la iniciativa esté al 100 %), si no la pendiente con el ledger más
+reciente y, si no, la más reciente; empates por nombre. Lee con el lector acotado las
+128 carpetas más recientes del roadmap (una activa más antigua queda fuera) y solo
+atribuye como historial las entradas con `regla_iniciativa: vigente`. Al capturar el cierre solo se guarda en el sobre el
+slug del marcador abierto, si existe y es un nombre simple (sin recorrer el roadmap); `replay` lo usa tal cual y, sin él,
+aplica esta misma regla con un umbral de 24 h para la marca (un sobre antiguo con un slug inválido no va a dead-letter:
+se descarta con aviso). El arranque dice cuántas entradas omite por no estar atribuidas.
 El bloque de progreso y replay siguen separados. Esta vista no convierte el hook
 `SessionStart` entero en una operación de solo lectura.
 

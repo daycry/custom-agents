@@ -3260,3 +3260,71 @@ def test_automatizaciones_en_md_sin_cambiar_veredictos_ni_bloques(tmp_path):
     assert md.index("## Automatizaciones") < md.index("## Resumen")
     assert veredictos_md(md) == [l["estado"] for l in lineas(inf)]
     assert len(inf["bloques"]) == 8
+
+
+def test_fix2_doctor_avisa_de_usage_state_ilegible_con_arreglo(tmp_path):
+    """Revisión intento 2 (B3): /doctor no ignora los avisos de `usage-meter.py status`."""
+    claude = tmp_path / ".claude"
+    claude.mkdir()
+    (claude / "usage-state.json").write_text("{ roto", encoding="utf-8")
+    lineas = doctor._marcadores(ROOT, str(tmp_path))
+    avisos = [l for l in lineas if l["estado"] == doctor.AVISO]
+    assert avisos, lineas
+    assert "usage-state.json" in avisos[0]["detalle"]
+    assert "respáldalo" in avisos[0]["arreglo"] and ".bak" in avisos[0]["arreglo"], avisos[0]
+    assert "bórralo" in avisos[0]["arreglo"], avisos[0]
+
+
+def test_fix3_doctor_distingue_estado_ilegible_de_marcador_corrupto(tmp_path):
+    """Revisión intento 3 (B5): solo el estado ilegible es fatal; un marcador corrupto descartado
+    deja el fichero escribible: se propone respaldar y reparar (nunca borrar) y los huérfanos siguen."""
+    claude = tmp_path / ".claude"
+    claude.mkdir()
+    estado = claude / "usage-state.json"
+    estado.write_text(json.dumps({"roto": 5, "vivo": {"version": 2, "inicio": "2026-11-09T00:00:00Z",
+                                                       "offsets": {}}}), encoding="utf-8")
+    lineas = doctor._marcadores(ROOT, str(tmp_path))
+    corruptos = [l for l in lineas if l["estado"] == doctor.AVISO and "corrupto" in l["detalle"]]
+    assert corruptos and "ilegible" not in corruptos[0]["detalle"], lineas
+    assert "bórralo" not in corruptos[0]["arreglo"] and "repara" in corruptos[0]["arreglo"], corruptos[0]
+    assert any(l["que"] == "marcador huérfano" and "vivo" in l["detalle"] for l in lineas), lineas
+    estado.write_text("{ roto", encoding="utf-8")
+    fatal = [l for l in doctor._marcadores(ROOT, str(tmp_path)) if l["estado"] == doctor.AVISO]
+    assert fatal and "ilegible" in fatal[0]["detalle"] and "respáldalo" in fatal[0]["arreglo"], fatal
+
+
+
+def test_fix3_b5_doctor_avisa_de_un_ledger_ilegible_en_vez_de_decir_ninguna(tmp_path):
+    """Revisión fase 2, intento 3 (B4/B5): `/doctor` lleva los avisos de la instantánea del roadmap."""
+    roto = tmp_path / "docs" / "roadmap" / "2026-10-03-rota" / "tasks.md"
+    roto.parent.mkdir(parents=True)
+    roto.write_bytes(b"---\nestado: en-progreso\n---\n### T-01 \xff\xfe\n")
+    filas = doctor._iniciativas(ROOT, str(tmp_path))
+    assert any(f["estado"] == doctor.AVISO and "invalid_encoding" in f["detalle"] and f["arreglo"] for f in filas), filas
+
+
+# --- T-21 (menores de la auditoría): sin node, cada hook del plugin da «command not found» ---------
+
+def _herramienta(monkeypatch, presentes):
+    real = doctor.shutil.which
+    monkeypatch.setattr(doctor.shutil, "which",
+                        lambda nombre, *a, **k: ("/bin/" + nombre) if nombre in presentes else real(nombre, *a, **k)
+                        if nombre not in ("node", "npm", "jq") else None)
+    return {l["que"]: l for l in doctor._herramientas_opcionales()}
+
+
+def test_t21_sin_node_avisa_de_que_los_hooks_no_arrancan(monkeypatch):
+    filas = _herramienta(monkeypatch, {"npm"})
+    fila = filas["node/npm"]
+    assert fila["estado"] == doctor.AVISO
+    assert "hooks" in fila["detalle"] and "command not found" in fila["detalle"]
+    assert "node" in fila["arreglo"] and "no bloquea" in fila["detalle"] + fila["arreglo"]
+
+
+def test_t21_con_node_y_sin_npm_solo_informa_de_to_pdf(monkeypatch):
+    fila = _herramienta(monkeypatch, {"node"})["node/npm"]
+    assert fila["estado"] == doctor.INFO and "to-pdf" in fila["arreglo"]
+
+
+def test_t21_con_node_y_npm_sigue_ok(monkeypatch):
+    assert _herramienta(monkeypatch, {"node", "npm"})["node/npm"]["estado"] == doctor.OK

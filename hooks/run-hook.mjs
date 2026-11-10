@@ -30,6 +30,7 @@ function childBudgetMs(hook, runtime, env) {
   return Math.max(SESSION_END_CHILD_MS, budget - LAUNCHER_MARGIN_MS);
 }
 // child-budget:end
+const JOB_EMPTY = 1 << 24;   // hooks/runtime-supervisor.py JOB_EMPTY (H-29): the job holds no other process
 
 // activity-optin:start — agent-activity shortcut (panel-redesign T-46, design O5). Without
 // `sesion.actividad === true` in .claude/dev.json no Python process is started. The store checks
@@ -134,7 +135,8 @@ const runtime = process.argv[3] || '--runtime=claude';
 const activity = hook === 'agent-activity';
 const warn = message => { if (!activity) process.stderr.write(`custom-agents hooks: ${message}\n`); };
 const windows = process.platform === 'win32';
-const env = { ...process.env, CLAUDE_PLUGIN_ROOT: root, PYTHONIOENCODING: 'utf-8:replace' };
+// NoDefaultCurrentDirectoryInExePath: hook children never resolve commands from the project cwd (Windows).
+const env = { ...process.env, CLAUDE_PLUGIN_ROOT: root, PYTHONIOENCODING: 'utf-8:replace', NoDefaultCurrentDirectoryInExePath: '1' };
 const guard = hook === 'native-guardrail';
 const guardMessage = 'custom-agents: role guard unavailable; normal permissions continue';
 const guardDiagnostics = new Set(['input-unrecognized', 'role-map-unavailable', 'guardrails-disabled',
@@ -171,9 +173,16 @@ function guardResult(output) {
   } catch { return null; }
 }
 
+// Only absolute PATH entries: empty or relative ones (`.`, `bin`, `C:bin`) resolve against the
+// project cwd, where an untrusted repository could plant an interpreter (review attempt 3, C6).
+function absolutePathEntry(dir) {
+  return windows ? /^(?:[A-Za-z]:[\\/]|[\\/]{2})/.test(dir) : isAbsolute(dir);
+}
+
 function candidates(names) {
-  return (env.PATH || env.Path || '').split(delimiter).filter(Boolean).flatMap(dir =>
-    names.map(name => join(dir.replace(/^"|"$/g, ''), name))).filter(path =>
+  return (env.PATH || env.Path || '').split(delimiter).map(dir => dir.trim().replace(/^"|"$/g, ''))
+    .filter(dir => dir && absolutePathEntry(dir)).flatMap(dir =>
+    names.map(name => join(dir, name))).filter(path =>
       existsSync(path) && (!windows || !/[/\\](WindowsApps|System32)[/\\]/i.test(path)));
 }
 
@@ -313,7 +322,9 @@ async function main() {
   if (!py) { warn('Python unavailable; hook skipped'); if (guard) emitGuard(); return; }
   let command, args;
   // Capture and native guards use contained Python without shell startup.
-  if (guard || activity || hook === 'session-journal.sh' || hook === 'user-prompt-capture.sh' || hook === 'ledger-post.py' || hook === 'session-context.sh') {
+  // T-14: SubagentStop (H-30) and the prompt capture (H-31) also run in one contained Python.
+  if (guard || activity || hook === 'session-journal.sh' || hook === 'user-prompt-capture.sh' || hook === 'ledger-post.py'
+      || hook === 'session-context.sh' || hook === 'subagent-progress.sh') {
     command = py.command;
     args = activity
       ? [...py.args, '-I', '-S', ...(!windows ? ['-X', 'utf8', '-B'] : []), join(root, 'agent-kits', 'shared', 'agent-activity-store.py'),
@@ -322,12 +333,14 @@ async function main() {
       ? [...py.args, '-I', '-S', join(here, 'ledger-post.py')]
       : hook === 'session-context.sh'
       ? [...py.args, '-I', '-S', join(here, 'session-context.py'), runtime]
+      : hook === 'subagent-progress.sh'
+      ? [...py.args, '-I', '-S', join(here, 'subagent-progress.py')]
       : guard
       ? [...py.args, '-I', '-S', join(root, 'agent-kits', 'shared', 'native-guardrail.py'),
         '--runtime', runtime.slice('--runtime='.length), '--output', 'structured']
       : hook === 'session-journal.sh'
       ? [...py.args, '-I', '-S', join(root, 'agent-kits', 'shared', 'journal-capture.py')]
-      : [...py.args, '-I', '-S', join(root, 'agent-kits', 'shared', 'journal.py'), 'capture'];
+      : [...py.args, '-I', '-S', join(root, 'agent-kits', 'shared', 'journal-prompt.py')];
     if (guard) args.push('--project-dir', env.CLAUDE_PROJECT_DIR || process.cwd());
     else if (activity) { /* The activity root is explicit above. */ }
     else if (env.CLAUDE_PROJECT_DIR) args.push('--root', env.CLAUDE_PROJECT_DIR);
@@ -343,7 +356,8 @@ async function main() {
     if (hook === 'session-context.sh') args.push(runtime);
   }
   if (windows) {
-    const mode = guard || activity || ['session-journal.sh', 'user-prompt-capture.sh', 'ledger-post.py', 'session-context.sh'].includes(hook) ? 'python' : 'exec';
+    const mode = guard || activity || ['session-journal.sh', 'user-prompt-capture.sh', 'ledger-post.py', 'session-context.sh',
+      'subagent-progress.sh'].includes(hook) ? 'python' : 'exec';
     args = [...py.args, '-I', '-S', ...(activity ? ['-X', 'utf8', '-B'] : []), join(here, 'runtime-supervisor.py'), 'run', String(process.pid), mode, command, ...args];
     command = py.command;
   }
@@ -427,9 +441,19 @@ async function main() {
     else process.stdin.pipe(child.stdin);
     child.on('error', error => { warn(guard ? 'role guard could not start' : error.message);
       if (guard) emitGuard(); clearTimeout(timer); resolve(); });
-    child.on('exit', () => { clearTimeout(timer); void stop(); });
+    child.on('exit', code => {
+      clearTimeout(timer);
+      // H-29: the supervisor reports (only it can set JOB_EMPTY) that its job holds no other
+      // process; no second Python is needed to close it. Any other exit keeps the cleanup.
+      if (windows && jobHandle && !timedOut && Number.isInteger(code) && code >= JOB_EMPTY && code < JOB_EMPTY + 256) {
+        stopping = stopping || Promise.resolve();
+        return;
+      }
+      void stop();
+    });
     child.on('close', async code => {
       await stopping;
+      if (windows && Number.isInteger(code) && code >= JOB_EMPTY && code < JOB_EMPTY + 256) code -= JOB_EMPTY;
       if (guard) {
         const result = !outputOverflow && !supervisionFailed && (!windows || jobHandle) ? guardResult(output) : null;
         // A complete denial must never become permission to continue because

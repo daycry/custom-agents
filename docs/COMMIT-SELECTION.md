@@ -2,14 +2,16 @@
 
 [English](en/COMMIT-SELECTION.md) · **Español**
 
-El cierre de `/dev-cycle` usa una lista explícita de archivos para cada commit
-lógico. La selección conserva el staging de otros archivos y sigue las puertas
+Cada commit lógico de `/dev-cycle` usa una lista explícita de archivos. Lo hace
+el `implementer`, dueño único de los commits de tarea y de este procedimiento (su
+P4); el cierre (Fase 6) lo verifica y lo reutiliza para los artefactos del
+orquestador. La selección conserva el staging de otros archivos y sigue las puertas
 de alcance, revisión y pruebas del ciclo.
 
 `agent-kits/shared/scope-check.py` es el dueño de la proyección y su revalidación.
 `agent-kits/shared/commit-selection.py` ofrece una CLI de solo lectura: no hace
-staging, commits ni escrituras de objetos. El orquestador ejecuta Git después de
-revisar el resultado.
+staging, commits ni escrituras de objetos. Quien comitea (el `implementer`, o el
+orquestador para sus artefactos) ejecuta Git después de revisar el resultado.
 
 ## Procedimiento
 

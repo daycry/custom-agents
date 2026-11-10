@@ -488,3 +488,42 @@ def test_las_filas_estado_y_fecha_de_la_cabecera_no_tienen_backtracking_cuadrati
     assert parsed["creado"] is None
     ok = ll.parse_ledger("| **Estado** | en-progreso |\n| **Fecha** | 2026-10-01 |\n\n### T-01 — x\n")
     assert ok["creado"] == "2026-10-01" and ok["estado_tabla"] == "en-progreso"
+
+
+# --- T-21 (deuda de T-08): con `tdd: true` una tarea completada trae `RED:` o `TDD n/a` ----------------
+
+def _ledger_tdd(tmp, tdd, cuerpo):
+    carpeta = os.path.join(tmp, "docs", "roadmap", "2026-11-01-demo")
+    os.makedirs(carpeta)
+    os.makedirs(os.path.join(tmp, ".claude"))
+    if tdd is not None:
+        with open(os.path.join(tmp, ".claude", "dev.json"), "w", encoding="utf-8") as f:
+            f.write('{"tdd": %s}' % ("true" if tdd else "false"))
+    ruta = os.path.join(carpeta, "tasks.md")
+    with open(ruta, "w", encoding="utf-8") as f:
+        f.write(doc(t1estado="completado") .replace("- **Estado**: completado\n", "- **Estado**: completado\n" + cuerpo, 1))
+    r = subprocess.run([sys.executable, SCRIPT, ruta], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
+    return r.stdout
+
+
+def test_t21_tdd_true_avisa_de_la_tarea_completada_sin_red_ni_tdd_na():
+    with tempfile.TemporaryDirectory() as tmp:
+        out = _ledger_tdd(tmp, True, "")
+    assert "T-01" in out and "RED:" in out and "TDD n/a" in out, out
+    assert "incoherencias" in out and "0 incoherencias" in out      # es un aviso, nunca un error
+
+
+def test_t21_la_evidencia_del_rojo_o_tdd_na_silencia_el_aviso():
+    for cuerpo in ("\nRED: `pytest` falló con 1 failed · 2026-11-10.\n", "\nRED fix1: `pytest` falló · 2026-11-10.\n",
+                   "\nTDD n/a: solo prosa.\n"):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = _ledger_tdd(tmp, True, cuerpo)
+        assert "sin evidencia" not in out, (cuerpo, out)
+
+
+def test_t21_sin_tdd_true_no_hay_aviso():
+    for tdd in (False, None):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = _ledger_tdd(tmp, tdd, "")
+        assert "sin evidencia" not in out, (tdd, out)

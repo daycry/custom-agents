@@ -138,13 +138,31 @@ def test_native_roles_map_and_exports_use_exact_owned_ids():
 
 def test_delegation_adapts_owned_ids_without_rewriting_source_body():
     body = 'Delegate reviewer. Read agents/reviewer.md and user-reviewer instructions.\n'
-    codex = MOD.codex_agente('architect', 'description: Own\ntools: Read', body)
+    codex = MOD.codex_agente('architect', 'description: Own\ntools: Read, Agent', body)
     assert 'spawn_agent' in codex and 'agent_type' in codex
     assert 'reviewer → `custom-agents-reviewer`' in codex
     assert body in codex
-    opencode = MOD.opencode_agente('architect', 'description: Own\ntools: Read', body)
+    opencode = MOD.opencode_agente('architect', 'description: Own\ntools: Read, Agent', body)
     assert '`subagent`' in opencode and 'agent: "custom-agents-reviewer"' in opencode
     assert body in opencode
+
+
+def test_only_agents_with_the_agent_tool_receive_the_delegation_instruction():
+    """Audit H-47: nine of ten OpenCode agents denied `subagent` and were still told to delegate."""
+    exports = MOD.generar(ROOT)
+    can_delegate = 0
+    for nombre, bloque, _ in MOD.piezas(ROOT, 'agents'):
+        delegates = 'Agent' in MOD.tools_de(bloque)
+        can_delegate += delegates
+        native = 'custom-agents-' + nombre
+        codex = exports[f'interop/codex/agents/{native}.toml']
+        opencode = exports[f'interop/opencode/agents/{native}.md']
+        for runtime, text in (('codex', codex), ('opencode', opencode)):
+            assert ('Delegar en otro agente' in text) is delegates, (runtime, nombre)
+            assert ('se resuelven con este mapa' in text) is delegates, (runtime, nombre)
+        assert ('spawn_agent' in codex) is delegates, nombre
+        assert ('`subagent`' in opencode) is delegates, nombre
+    assert can_delegate >= 1       # nemesis keeps the instruction
 
 
 def test_obsolete_generated_exports_are_removed_without_touching_unowned_files(tmp_path, capsys):

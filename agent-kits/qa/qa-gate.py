@@ -43,12 +43,19 @@ def walk_tests(suite, out):
             final = statuses[-1]
             if "interrupted" in statuses or final == "interrupted":
                 out.append((title, fid, "interrupted"))   # ejecución abortada: NO es verde
+            elif all(s == "skipped" for s in statuses):
+                # TODOS saltados (revisión intento 1): `[failed, skipped]` (test.skip en el
+                # reintento) conserva su fallo y cae en flaky/unexpected más abajo.
+                # ANTES que `expected`: con expectedStatus "skipped" un saltado casaría con
+                # expected y contaría como pasado (falso verde con 0 ejecutados, H-3).
+                out.append((title, fid, "skipped"))
             elif all(s == expected for s in statuses):
                 out.append((title, fid, "expected"))
-            elif final == expected and len(statuses) > 1:
-                out.append((title, fid, "flaky"))          # falló y pasó al reintento
-            elif final == "skipped":
-                out.append((title, fid, "skipped"))
+            elif final == expected and len(statuses) > 1 and expected != "skipped":
+                # Obtuvo el resultado ESPERADO (`expectedStatus`, p. ej. `failed` con test.fail())
+                # al reintentar tras un fallo (revisión intento 3). Un salto no es un resultado:
+                # `[failed, skipped]` nunca obtuvo lo esperado y no se puede justificar (intento 2).
+                out.append((title, fid, "flaky"))
             else:
                 out.append((title, fid, "unexpected"))
     for child in suite.get("suites", []):
@@ -69,14 +76,18 @@ def main():
     if not os.path.isfile(args.results):
         rojo("sin resultados: results.json no existe (la ausencia de evidencia es rojo)")
     try:
-        data = json.load(open(args.results, encoding="utf-8"))
+        with open(args.results, encoding="utf-8-sig") as f:   # -sig: BOM de Windows
+            data = json.load(f)
     except Exception as e:
         rojo(f"results.json malformado: {e}")
+    if not isinstance(data, dict):
+        rojo(f"results.json malformado: la raíz debe ser un objeto JSON, no {type(data).__name__}")
 
     justif = {}
     if args.justify:
         try:
-            justif = json.load(open(args.justify, encoding="utf-8"))
+            with open(args.justify, encoding="utf-8-sig") as f:
+                justif = json.load(f)
         except Exception as e:
             rojo(f"fichero de justificaciones ilegible: {e}")
         if not isinstance(justif, dict):
@@ -85,14 +96,22 @@ def main():
     # Errores top-level del runner (forbidOnly violado, webserver caído...) → rojo.
     run_errors = data.get("errors") or []
     if run_errors:
+        lista = run_errors if isinstance(run_errors, list) else [run_errors]
         rojo("el runner reportó errores de ejecución", {
-            "errors": [str(e.get("message", e))[:200] for e in run_errors[:5]]})
+            "errors": [str(e.get("message", e) if isinstance(e, dict) else e)[:200]
+                       for e in lista[:5]]})
 
     tests = []
-    for suite in data.get("suites", []):
-        walk_tests(suite, tests)
+    try:
+        for suite in data.get("suites", []):
+            walk_tests(suite, tests)
+    except (AttributeError, TypeError) as e:
+        # Estructura que no es la del reporter json: veredicto, nunca traceback.
+        rojo(f"results.json con estructura inesperada en `suites`: {e}")
 
     stats = data.get("stats") or {}
+    if not isinstance(stats, dict):
+        stats = {}
     if {"expected", "unexpected", "flaky"} <= set(stats.keys()):
         counts = {
             "passed": stats.get("expected", 0),

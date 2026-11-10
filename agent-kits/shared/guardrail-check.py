@@ -34,6 +34,20 @@ Reglas (cada una desactivable en `.claude/dev.json` → `"guardrails": {…}`):
                  que son comandos (no pasan por este hook), no el implementer.
   git            Bash: `git commit --no-verify|-n` y overrides explícitos de core.hooksPath en commit → deny;
                  `git push --force|-f|--force-with-lease` → deny; `git branch -D` → deny;
+                 `git reset --hard`, `git clean -f*` (simulación solo con `-n` exacto o `--dry-run`, sin
+                 `--no-dry-run`), `git push --delete|-d|--mirror|--prune` o refspec `:rama`,
+                 `git stash drop|clear`, `git branch -D|-M|-C|-f|--force`, `git update-ref -d|--stdin`
+                 → deny (auditoría 2026-11-09, H-12). Toda opción larga destructiva se reconoce por
+                 CUALQUIER prefijo (`--h`, `--m`, `--force-w`). `git clean` se analiza de verdad (`--`
+                 separa rutas, `-e`/`--exclude` consumen valor, gana el último de `-n`/`--dry-run`).
+                 Configuración por LISTA BLANCA (`_CONFIG_PERMITIDA`): `-c`/`--config-env` y las
+                 escrituras de `git config` solo con user.name, user.email, core.quotepath,
+                 commit.gpgsign, init.defaultBranch, color.*, advice.*; `--file`/`--blob`, secciones y
+                 `--edit` → deny. Variables `GIT_*`, `HOME`, `XDG_CONFIG_HOME` (sin distinguir
+                 mayúsculas; prefijo, `env`, `export`, `set`) solo cuando la orden ejecuta git → deny.
+                 Opciones globales desconocidas → deny. Evita accidentes y formas conocidas; NO es un
+                 sandbox (envoltorios nice/sudo/xargs, scripts propios y configs editadas a mano
+                 quedan fuera: ADR-023, ADR-007);
                  `git checkout|switch main|master` → deny solo si la rama actual es una feature;
                  `rm -rf` sobre `/`, `~`, `.git`, `.` → deny; refspec `+rama` en push = force;
                  se analizan también las cadenas de `sh -c "…"`/`bash -c '…'`.
@@ -300,7 +314,18 @@ def _segmentos(command):
 
 
 _ASSIGNMENT_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)=(.*)\Z", re.DOTALL)
-_GIT_GLOBAL_VALUES = frozenset(("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"))
+# Opciones globales de git 2.4x que toman su valor en el TOKEN SIGUIENTE (revisión intento 2).
+_GIT_GLOBAL_VALUES = frozenset(("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env",
+                                "--super-prefix", "--attr-source", "--list-cmds"))
+# Opciones globales sin valor separado (o con `=` en el mismo token). Cualquier otra opción
+# global se trata de forma conservadora: el guardarraíl no adivina si consume un valor.
+_GIT_GLOBAL_FLAGS = frozenset(("-v", "--version", "-h", "--help", "-p", "--paginate", "-P", "--no-pager",
+                               "--no-replace-objects", "--no-lazy-fetch", "--no-optional-locks",
+                               "--no-advice", "--bare", "--literal-pathspecs", "--glob-pathspecs",
+                               "--noglob-pathspecs", "--icase-pathspecs", "--exec-path", "--html-path",
+                               "--man-path", "--info-path"))
+_GIT_GLOBAL_EQ = ("--git-dir=", "--work-tree=", "--namespace=", "--super-prefix=", "--config-env=",
+                  "--attr-source=", "--list-cmds=", "--exec-path=")
 # Unique value-option prefixes in Git's commit parser; --fi and --t are ambiguous.
 _COMMIT_LONG_VALUES = {
     "--m": "--message", "--fil": "--file", "--reu": "--reuse-message",
@@ -410,30 +435,6 @@ def _es_git(toks, sub):
     return i if i >= 0 and toks[i] == sub else -1
 
 
-def _env_hooks_override(bindings):
-    try:
-        parameters = shlex.split(bindings.get("GIT_CONFIG_PARAMETERS", ""))
-    except ValueError:
-        parameters = []
-    if any(p.split("=", 1)[0].lower() == "core.hookspath" for p in parameters):
-        return True
-    value = bindings.get("GIT_CONFIG_COUNT", "").lstrip(" \t\r\n\v\f")
-    if not re.fullmatch(r"\+?[0-9]+", value):
-        return False
-    value = value.lstrip("+").lstrip("0") or "0"
-    if len(value) > 10:
-        return False  # Invalid Git counters do not execute the commit.
-    count = int(value)
-    if count > 2147483647:
-        return False
-    # Scan supplied keys, never a range controlled by the environment counter.
-    for key, value in bindings.items():
-        match = re.fullmatch(r"GIT_CONFIG_KEY_(0|[1-9][0-9]{0,9})", key)
-        if match and int(match[1]) < count and value.lower() == "core.hookspath":
-            return True
-    return False
-
-
 def _commit_skips_verification(args):
     skips = False
     i = 0
@@ -441,7 +442,7 @@ def _commit_skips_verification(args):
         token = args[i]
         if token == "--":
             break
-        if len(token) >= len("--no-veri") and "--no-verify".startswith(token):
+        if len(token) > 2 and "--no-verify".startswith(token):
             skips = True
         elif (len(token) >= len("--veri") and "--verify".startswith(token)) or (
                 len(token) >= len("--no-no-veri") and "--no-no-verify".startswith(token)):
@@ -525,14 +526,251 @@ def _subcomandos_shell(toks):
     return []
 
 
+def _prefijo(token, *opciones):
+    """¿`token` es `--<p>` (≥ 1 carácter tras `--`) prefijo de alguna opción? Git acepta cualquier
+    prefijo único de una opción larga; si es ambiguo la rechaza, así que denegar de más es seguro."""
+    if not token.startswith("--") or len(token) < 3:
+        return False
+    base = token.split("=", 1)[0]
+    return any(op.startswith(base) for op in opciones)
+
+
+def _cluster(token, letra):
+    """`-abc` (clúster de opciones cortas) que contiene `letra`."""
+    return bool(re.fullmatch(r"-[a-zA-Z0-9]+", token)) and letra in token[1:]
+
+
+# LISTA BLANCA de configuración en línea y de `git config` (revisión intento 3). Todo lo demás
+# se deniega: cualquier otra clave puede ejecutar una orden (core.editor, core.pager,
+# core.sshCommand, diff.external, alias.*), saltar hooks (core.hooksPath), relajar la confianza
+# (safe.directory), cargar otra config (include*) o cambiar qué borra un push (remote.*).
+#   user.name / user.email   identidad del commit; no ejecutan nada
+#   core.quotepath           solo cómo se escriben las rutas en la salida
+#   commit.gpgsign           SOLO con valor verdadero (fix3b): activar la firma; desactivarla se deniega
+#   init.defaultbranch       nombre de la rama inicial de `git init`
+#   color.* / advice.*       presentación y mensajes de ayuda
+_CONFIG_PERMITIDA = frozenset(("user.name", "user.email", "core.quotepath", "commit.gpgsign",
+                               "init.defaultbranch"))
+_CONFIG_PERMITIDA_PREFIJOS = ("color.", "advice.")
+
+
+# Claves de la lista blanca que solo valen con valor VERDADERO (revisión fix3b): desactivar la firma
+# de commits es saltarse una puerta, como `--no-verify`.
+_CONFIG_SOLO_VERDADERO = frozenset(("commit.gpgsign",))
+_VERDADERO = ("true", "yes", "on", "1")
+
+
+def _config_permitida(clave, valor="true"):
+    """¿Clave de la lista blanca y, si exige verdadero, con un valor verdadero conocido?"""
+    clave = clave.lower()
+    if not (clave in _CONFIG_PERMITIDA or clave.startswith(_CONFIG_PERMITIDA_PREFIJOS)):
+        return False
+    if clave in _CONFIG_SOLO_VERDADERO:
+        return valor is not None and valor.strip().lower() in _VERDADERO
+    return True
+
+
+def _env_sensible(nombre):
+    """Variables que cambian qué config, qué repo o qué programas usa git (sin distinguir mayúsculas)."""
+    n = str(nombre).upper()
+    return n.startswith("GIT_") or n in ("HOME", "XDG_CONFIG_HOME")
+
+
+_EXPORTADORES = ("export", "set", "setenv", "typeset", "declare", "local", "readonly")
+
+
+def _globales(toks):
+    """(pares (clave, valor|None) de `-c`/`--config-env`, opción desconocida|None)."""
+    pares, desconocida = [], None
+    i = 1
+    while i < len(toks) and toks[i].startswith("-"):
+        option, config, por_env = toks[i], None, False
+        if option in _GIT_GLOBAL_VALUES:
+            if i + 1 >= len(toks):
+                break
+            if option == "-c":
+                config = toks[i + 1]
+            elif option == "--config-env":
+                config, por_env = toks[i + 1], True
+            i += 2
+        elif option.startswith("-c") and not option.startswith("--"):
+            config = option[2:]
+            i += 1
+        elif option.startswith("--config-env="):
+            config, por_env = option.split("=", 1)[1], True
+            i += 1
+        elif option in _GIT_GLOBAL_FLAGS or option.startswith(_GIT_GLOBAL_EQ):
+            i += 1
+        else:
+            desconocida = option
+            break
+        if config is not None:
+            clave, igual, valor = config.partition("=")
+            # `--config-env=k=VAR`: el valor está en el entorno → desconocido (None).
+            # Sin `=` git lo toma como verdadero, pero aquí «sin valor» es desconocido (None), igual
+            # que `--config-env` (el valor está en el entorno): ninguno cuenta como verdadero.
+            pares.append((clave.lower(), valor if igual and not por_env else None))
+    return pares, desconocida
+
+
+_CONFIG_LARGAS = ("--global", "--system", "--local", "--worktree", "--file", "--blob", "--get", "--get-all",
+                  "--get-regexp", "--get-urlmatch", "--replace-all", "--add", "--unset", "--unset-all",
+                  "--rename-section", "--remove-section", "--list", "--fixed-value", "--type", "--no-type",
+                  "--bool", "--int", "--bool-or-int", "--bool-or-str", "--path", "--expiry-date", "--null",
+                  "--name-only", "--includes", "--no-includes", "--show-origin", "--show-scope",
+                  "--get-color", "--get-colorbool", "--edit", "--default", "--comment", "--value", "--all",
+                  "--regexp", "--url")
+_CONFIG_CON_VALOR = ("--file", "--blob", "--type", "--default", "--comment", "--value", "--url")
+_CONFIG_LECTURA = ("--get", "--get-all", "--get-regexp", "--get-urlmatch", "--list", "--get-color",
+                   "--get-colorbool")
+_CONFIG_ESCRITURA = ("--replace-all", "--add", "--unset", "--unset-all", "--rename-section",
+                     "--remove-section", "--edit")
+
+
+def _resuelve(token, opciones):
+    """Opción larga a la que corresponde `token` (exacta o prefijo único), o None si es ambigua/desconocida."""
+    base = token.split("=", 1)[0]
+    if base in opciones:
+        return base
+    hits = [o for o in opciones if o.startswith(base)]
+    return hits[0] if len(hits) == 1 else None
+
+
+def _razon_git_config(args):
+    """`git config`: lecturas permitidas; escrituras solo de claves de la lista blanca, sin --file/--blob."""
+    sub = args[0] if args and args[0] in ("get", "list", "set", "unset", "rename-section",
+                                           "remove-section", "edit") else None
+    if sub in ("get", "list"):
+        return None
+    if sub in ("rename-section", "remove-section", "edit"):
+        return f"`git config {sub}` bloqueado: reescribe secciones o abre un editor sobre la configuración."
+    resto = args[1:] if sub else args
+    acciones, fichero, posicionales = set(), False, []
+    i = 0
+    while i < len(resto):
+        t = resto[i]
+        if t == "--":
+            posicionales += resto[i + 1:]
+            break
+        if t.startswith("--"):
+            op = _resuelve(t, _CONFIG_LARGAS)
+            if op is None:
+                return f"`git config {t}` bloqueado: opción desconocida o ambigua; escribe la opción completa."
+            if op in _CONFIG_CON_VALOR and "=" not in t:
+                i += 1
+            if op in ("--file", "--blob"):
+                fichero = True
+            if op in _CONFIG_LECTURA or op in _CONFIG_ESCRITURA:
+                acciones.add(op)
+        elif t.startswith("-") and len(t) > 1:
+            for j, ch in enumerate(t[1:], 1):
+                if ch == "f":
+                    fichero = True
+                    if j == len(t) - 1:
+                        i += 1
+                    break
+                if ch == "l":
+                    acciones.add("--list")
+                elif ch == "e":
+                    acciones.add("--edit")
+        else:
+            posicionales.append(t)
+        i += 1
+    escritura = bool(sub) or bool(acciones & set(_CONFIG_ESCRITURA)) or (
+        not acciones and len(posicionales) >= 2)
+    if not escritura:
+        return None
+    if acciones & {"--rename-section", "--remove-section", "--edit"}:
+        return "`git config` que renombra, borra secciones o abre el editor bloqueado."
+    if fichero:
+        return "`git config --file/--blob` de escritura bloqueado: escribe una configuración que el guardarraíl no controla."
+    clave = posicionales[0] if posicionales else ""
+    valor = posicionales[1] if len(posicionales) > 1 and not acciones & {"--unset", "--unset-all"} \
+        and sub != "unset" else None
+    if not _config_permitida(clave, valor if clave.lower() in _CONFIG_SOLO_VERDADERO else "true"):
+        return (f"`git config` que escribe `{clave or '?'}` bloqueado: solo se escriben claves de la lista "
+                "blanca (user.name, user.email, core.quotepath, commit.gpgsign solo a verdadero, init.defaultBranch, color.*, "
+                "advice.*) — si hace falta otra, que la ponga el usuario.")
+    return None
+
+
+def _razon_config(toks, bindings, exportados=()):
+    """Configuración y entorno de git, por LISTA BLANCA (revisión intento 3)."""
+    if not toks or _program_name(toks[0]) != "git":
+        return None
+    nombres = sorted({k for k in (bindings or {}) if _env_sensible(k)} | set(exportados))
+    if nombres:
+        return (f"entorno de git bloqueado ({', '.join(nombres)}): cambia la config, el repo o los programas "
+                "que ejecuta git (editor, ssh, hooks) sin que el guardarraíl lo vea.")
+    pares, desconocida = _globales(toks)
+    if desconocida:
+        return (f"opción global de git no reconocida (`{desconocida}`) bloqueada: el guardarraíl no puede "
+                "saber si consume un valor y desplazaría el subcomando — escribe la orden sin ella.")
+    for clave, valor in pares:
+        if not _config_permitida(clave, valor):
+            return (f"configuración de git en línea bloqueada (`{clave}`): fuera de la lista blanca puede ejecutar "
+                    "órdenes, saltar hooks o cambiar qué se borra.")
+    i = _es_git(toks, "config")
+    if i >= 0:
+        return _razon_git_config(toks[i + 1:])
+    return None
+
+
+def _razon_clean(args):
+    """`git clean`: análisis real de argumentos (revisión intento 3)."""
+    forzado = simulado = False
+    i = 0
+    while i < len(args):
+        t = args[i]
+        if t == "--":
+            break                                   # lo que sigue son rutas
+        if t.startswith("--"):
+            op = _resuelve(t, ("--force", "--no-force", "--dry-run", "--no-dry-run", "--quiet", "--no-quiet",
+                               "--interactive", "--exclude"))
+            if op is None:
+                return f"`git clean {t}` bloqueado: opción desconocida o ambigua."
+            if op == "--exclude" and "=" not in t:
+                i += 1
+            elif op == "--force":
+                forzado = True
+            elif op == "--no-force":
+                forzado = False
+            elif op == "--dry-run":
+                simulado = True
+            elif op == "--no-dry-run":
+                simulado = False
+        elif t.startswith("-") and len(t) > 1:
+            for j, ch in enumerate(t[1:], 1):
+                if ch == "e":                          # consume el resto del clúster o el token siguiente
+                    if j == len(t) - 1:
+                        i += 1
+                    break
+                if ch == "f":
+                    forzado = True
+                elif ch == "n":
+                    simulado = True
+        i += 1
+    if forzado and not simulado:
+        return ("`git clean -f` bloqueado: borra ficheros sin seguimiento sin recuperación — "
+                "borra por nombre solo los ficheros nuevos de tu intento.")
+    return None
+
+
 def check_git(command, branch, _depth=0, _env=None):
     """Razón de deny o None. `branch` = rama actual (None si no hay git).
     Recursivo SOLO sobre lo que una shell ejecutaría (`sh -c "git push --force"`, `bash -c '…'`,
     `eval "…"`); un mensaje de commit con «rm -rf .» dentro es texto y no se analiza."""
     if _depth > 3:
         return None
+    exportados = set()      # variables sensibles exportadas en segmentos anteriores de la MISMA orden
     for toks in _segmentos(command):
         toks, bindings = _literal_invocation(toks, _env)
+        if toks and toks[0] in _EXPORTADORES:
+            exportados |= {t.split("=", 1)[0] for t in toks[1:] if _env_sensible(t.split("=", 1)[0])}
+        elif not toks:
+            exportados |= {k for k in bindings if _env_sensible(k)}   # `GIT_DIR=x; git …`
+        if exportados:
+            bindings = {**bindings, **{k: "" for k in exportados if k not in bindings}}
         # Solo se recurre en el argumento de `sh|bash|zsh|dash -c` y en el de `eval` — NO en tokens
         # arbitrarios (`git commit -m "rm -rf . en el mensaje"` es texto, no un comando; regresión
         # cazada en la revisión, intento 2).
@@ -543,9 +781,12 @@ def check_git(command, branch, _depth=0, _env=None):
         razon = check_ordenes_externas(toks)
         if razon:
             return razon
+        razon = _razon_config(toks, bindings, exportados)
+        if razon:
+            return razon
         i, hooks_override = _git_invocation(toks)
         if i >= 0 and toks[i] == "commit":
-            if hooks_override or _env_hooks_override(bindings):
+            if hooks_override:
                 return ("`git commit` con override de core.hooksPath bloqueado: conserva los hooks "
                         "de verificación del proyecto; un cambio de ruta requiere revisión explícita.")
             if _commit_skips_verification(toks[i + 1:]):
@@ -554,18 +795,38 @@ def check_git(command, branch, _depth=0, _env=None):
         i = _es_git(toks, "push")
         if i >= 0:
             for t in toks[i + 1:]:
-                if t == "--force" or t.startswith("--force-with-lease") or t.startswith("--force=") \
-                        or (re.fullmatch(r"-[a-zA-Z]+", t) and "f" in t) \
+                if _prefijo(t, "--force", "--force-with-lease", "--force-if-includes") or _cluster(t, "f") \
                         or (t.startswith("+") and len(t) > 1):          # refspec `+main` = force
                     return ("`git push` forzado bloqueado: reescribe historia compartida — "
                             "haz push normal; si de verdad hace falta, que lo pida el usuario.")
+                if _prefijo(t, "--delete", "--mirror", "--prune") or _cluster(t, "d") \
+                        or re.fullmatch(r"\+?:[^:]+", t):              # refspec `:rama` = borrar
+                    return ("`git push` que borra ramas remotas bloqueado (`--delete`/`-d`/`:rama`/`--mirror`/"
+                            "`--prune`) — la limpieza de ramas la dirige el ritual de cierre de /dev-cycle (Fase 6).")
+        i = _es_git(toks, "reset")
+        if i >= 0 and any(_prefijo(t, "--hard") for t in toks[i + 1:]):
+            return ("`git reset --hard` bloqueado: descarta cambios sin comitear que pueden no ser "
+                    "tuyos — revierte solo lo de tu intento (`git diff <foto> -- <ficheros> | git apply -R`).")
+        i = _es_git(toks, "clean")
+        if i >= 0:
+            razon = _razon_clean(toks[i + 1:])
+            if razon:
+                return razon
+        i = _es_git(toks, "stash")
+        if i >= 0 and i + 1 < len(toks) and toks[i + 1] in ("drop", "clear"):
+            return (f"`git stash {toks[i + 1]}` bloqueado: elimina stashes sin recuperación sencilla — "
+                    "si sobra, que lo descarte el usuario.")
         i = _es_git(toks, "branch")
         if i >= 0:
             rest = toks[i + 1:]
-            if any(t == "-D" or (re.fullmatch(r"-[a-zA-Z]+", t) and "D" in t) for t in rest) \
-                    or ("--delete" in rest and "--force" in rest):
-                return ("`git branch -D` bloqueado: borra una rama sin comprobar que esté integrada — "
-                        "usa `-d`, o que lo haga el ritual de cierre de /dev-cycle (Fase 6).")
+            fuerza = any(_cluster(t, "f") or _prefijo(t, "--force") for t in rest)
+            if any(_cluster(t, "D") or _cluster(t, "M") or _cluster(t, "C") for t in rest) or fuerza:
+                return ("`git branch -D|-M|-C|-f` bloqueado: borra, mueve, copia o reapunta una rama a la fuerza — "
+                        "usa `-d`/`-m`, o que lo haga el ritual de cierre de /dev-cycle (Fase 6).")
+        i = _es_git(toks, "update-ref")
+        if i >= 0 and any(_cluster(t, "d") or _prefijo(t, "--stdin") for t in toks[i + 1:]):
+            return ("`git update-ref -d|--stdin` bloqueado: borra o reescribe referencias sin las comprobaciones "
+                    "de `git branch` — que lo haga el usuario.")
         for sub in ("checkout", "switch"):
             i = _es_git(toks, sub)
             if i >= 0:

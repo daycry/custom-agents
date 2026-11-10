@@ -25,6 +25,8 @@ class Service:
         self.reads=SNAPSHOTS.Snapshots()
         self.discovery_reads=SNAPSHOTS.Snapshots()
         self.discovery_lock=threading.RLock();self.discovery_peers=set();self.closing=False
+        # H-33/H-34 (T-15): discovery spacing per workspace and a short cache of installed runtimes.
+        self.native_age={};self.native_last={};self.runtime_rows={}
     def workspace(self,ident):
         C.need(ident in self.workspaces,'workspace_not_found',404)
         workspace=self.workspaces[ident];workspace.validate();return workspace
@@ -59,15 +61,22 @@ class Service:
         value=DATA.plan(workspace.root,plan);C.need(value is not None,'plan_not_found',404)
         slug=DATA._carpeta(workspace.root,plan,C.bundled('local-read.py'))
         C.need(type(slug) is str and re.fullmatch('[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9]+(?:-[a-z0-9]+)*',slug),'plan_unavailable',503)
-        C.need(value.get('status') in ('ok','partial') and type(value.get('tareas')) is list,'plan_unavailable',503)
+        # H-19: a ledger above the view limit (`fuera_de_tope`) can still be continued or reviewed: the prompt
+        # names the folder and the session reads it; only a selected task needs the projected task list.
+        C.need(value.get('status') in ('ok','partial') and type(value.get('tareas')) is list
+               or value.get('status')=='fuera_de_tope' and not task,'plan_unavailable',503)
         if task:self.task(ident,plan,task)
         reader=C.bundled('local-read.py');paths=['docs/roadmap/'+slug+'/'+name for name in ('tasks.md','improvement-plan.md')]
         def fingerprints():
+            # H-19: the digest covers ledgers far above the 256 KiB view limit (bounded at 16 MiB), and the
+            # quick path has no improvement-plan.md: its absence is part of the fingerprint, not an error.
             result={}
             for path in paths:
-                row=reader.read_bytes(workspace.root,path,max_bytes=256*1024,include_digest=True)
+                row=reader.read_bytes(workspace.root,path,max_bytes=16*1024*1024,include_digest=True)
+                if row['status']=='not_found' and not path.endswith('/tasks.md'):
+                    result[path]=None;continue
                 C.need(row['status']=='ok','plan_source_unavailable',503)
-                result[path]=hashlib.sha256(row['data']).hexdigest()
+                result[path]=row['sha256']
             return result
         before=fingerprints()
         instructions={'continue':'Continúa la iniciativa siguiendo el workflow dev-cycle de custom-agents.',
@@ -146,8 +155,15 @@ class Service:
                 finally:
                     with owner.discovery_lock:owner.discovery_peers.discard(self)
         return OwnedPeer(*args,**kwargs)
-    def native_sessions(self,ident):
+    NATIVE_MIN_AGE=15;NATIVE_MAX_AGE=120;RUNTIMES_MAX_AGE=30
+    def native_sessions(self,ident,discover=True):
+        """External sessions of the three runtimes (H-33, T-15). Discovery starts their CLIs, so only the
+        Sessions view asks for it; elsewhere (`discover=False`) the last observation is served, or an empty
+        `not_requested` inventory, without starting anything. An unchanged result doubles the wait before the
+        next discovery (15 -> 30 -> 60 -> 120 s); a change resets it to 15 s."""
         workspace=self.workspace(ident)
+        if not discover:
+            return self.discovery_reads.peek((ident,'native'),{'status':'not_requested','complete':False,'sessions':[],'providers':[]})
         def compute():
             workspace.validate();providers=[];rows=[];complete=True
             for runtime in workspace.runtimes:
@@ -164,9 +180,16 @@ class Service:
                     complete=False
                     providers.append({'runtime':runtime,'status':'unsupported','complete':False,'reason':'external_discovery_not_supported'})
             workspace.validate()
-            return {'status':'ok' if complete else 'partial','complete':complete,'sessions':rows,'providers':providers}
+            value={'status':'ok' if complete else 'partial','complete':complete,'sessions':rows,'providers':providers}
+            raw=C.encoded(value)
+            with self.discovery_lock:
+                same=self.native_last.get(ident)==raw;self.native_last[ident]=raw
+                age=self.native_age.get(ident,self.NATIVE_MIN_AGE)
+                self.native_age[ident]=min(age*2,self.NATIVE_MAX_AGE) if same else self.NATIVE_MIN_AGE
+            return value
+        with self.discovery_lock:age=self.native_age.get(ident,self.NATIVE_MIN_AGE)
         return self.discovery_reads.get((ident,'native'),compute,
-            {'status':'calculating','complete':False,'sessions':[],'providers':[]},max_age=15)
+            {'status':'calculating','complete':False,'sessions':[],'providers':[]},max_age=age)
     def integrations(self,ident):
         workspace=self.workspace(ident);route=C.bundled('integration-route.py').route(workspace.root)
         config=C.bundled('local-read.py').read_bytes(workspace.root,'.claude/knowledge-services/taxonomy.json',max_bytes=65536)
@@ -193,7 +216,13 @@ class Service:
         elif config['status']!='not_found':services=[{'status':'invalid_configuration'}]
         return {'integrations':route,'memory_services':services,'source':'project_declarations','execution':'not_run'}
     def runtimes(self,ident):
-        workspace=self.workspace(ident);transport=C.sibling('console_transport.py');rows=[]
+        """Installed runtimes (H-34, T-15): looking up the executables costs ~600 ms; the rows are kept for
+        `RUNTIMES_MAX_AGE` seconds. The session-state error is always current."""
+        workspace=self.workspace(ident);now=time.monotonic()
+        with self.discovery_lock:hit=self.runtime_rows.get(ident)
+        if hit is not None and now-hit[0]<self.RUNTIMES_MAX_AGE:
+            return {'runtimes':[dict(row) for row in hit[1]],'session_state_error':self.sessions.errors.get(ident)}
+        transport=C.sibling('console_transport.py');rows=[]
         for runtime in C.RUNTIMES:
             found=False
             if runtime in workspace.runtimes:
@@ -203,7 +232,8 @@ class Service:
                          'capabilities':{'chat':True,'resume_known':True,'interrupt':True,'approval':True,'desktop_window_control':False,
                                          'external_session_discovery':runtime in ('codex','claude-code','opencode'),'external_session_control':False,'attachments':False},
                          'limits':['Native policies apply','Advanced forms may require the native application']})
-        return {'runtimes':rows,'session_state_error':self.sessions.errors.get(ident)}
+        with self.discovery_lock:self.runtime_rows[ident]=(now,rows)
+        return {'runtimes':[dict(row) for row in rows],'session_state_error':self.sessions.errors.get(ident)}
     def catalog(self,ident):
         workspace=self.workspace(ident)
         def compute():

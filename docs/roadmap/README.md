@@ -6,6 +6,8 @@ Estados: borrador · en-progreso · en-revision · completado · cancelado (spec
 
 | Fecha | Iniciativa | Tiempo | Coste | Artefactos |
 |-------|-----------|--------|-------|-----------|
+| 2026-11-10 | plugin-audit-2: segunda auditoría del plugin (defectos, retirada de Kwipu y Graphiti, tokens, simplificación) | 144,5 h (estimado) | 7.225 € (estimado) | [análisis](2026-11-10-plugin-audit-2/analysis.md) / [plan](2026-11-10-plugin-audit-2/improvement-plan.md) / [tasks](2026-11-10-plugin-audit-2/tasks.md) |
+| 2026-11-09 | plugin-audit-remediation: corrección de la auditoría completa de v3.2.2 | No estimado | No medido | [spec](2026-11-09-plugin-audit-remediation/spec.md) / [plan](2026-11-09-plugin-audit-remediation/improvement-plan.md) / [tasks](2026-11-09-plugin-audit-remediation/tasks.md) |
 | 2026-11-06 | nemesis-remediation: vistas seguras y endurecimiento | No estimado | No medido | [spec](2026-11-06-nemesis-remediation/spec.md) / [plan](2026-11-06-nemesis-remediation/improvement-plan.md) / [tasks](2026-11-06-nemesis-remediation/tasks.md) |
 | 2026-11-06 | external-session-discovery: sesiones externas de los tres runtimes | No estimado | No medido | [spec](2026-11-06-external-session-discovery/spec.md) / [plan](2026-11-06-external-session-discovery/improvement-plan.md) / [tasks](2026-11-06-external-session-discovery/tasks.md) |
 | 2026-11-05 | audit-remediation: correcciones verificadas de R1–R24 | No estimado | No medido | [spec](2026-11-05-audit-remediation/spec.md) / [plan](2026-11-05-audit-remediation/improvement-plan.md) / [tasks](2026-11-05-audit-remediation/tasks.md) |

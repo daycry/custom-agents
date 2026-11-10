@@ -2,13 +2,17 @@
 
 **English** · [Español](../COMMIT-SELECTION.md)
 
-The `/dev-cycle` closeout uses an explicit file list for each logical commit.
+Each logical `/dev-cycle` commit uses an explicit file list. The `implementer`
+makes it: it is the single owner of task commits and of this procedure (its P4);
+the closeout (Phase 6) verifies it and reuses it for the orchestrator's own
+artefacts.
 Selection preserves staged changes in other files and retains the cycle's scope,
 review and test gates.
 
 `agent-kits/shared/scope-check.py` owns projection and revalidation.
 `agent-kits/shared/commit-selection.py` is a read-only CLI: it does not stage,
-commit or write objects. The orchestrator runs Git after reviewing the result.
+commit or write objects. Whoever commits (the `implementer`, or the orchestrator
+for its own artefacts) runs Git after reviewing the result.
 
 ## Procedure
 

@@ -53,6 +53,7 @@ horas IA) sin efectos secundarios — lo reutiliza `progress-report.py` (live-vi
 """
 import argparse
 import datetime
+import json
 import os
 import re
 import sys
@@ -231,22 +232,30 @@ REVISION_HDR_RE = re.compile(REVISION_HDR_PATTERN, re.M)
 # funciones LITERALMENTE como respaldo local - DECLARADO en `agent-kits/shared/copias.json`
 # (bloque `secciones_revision`, ADR-016): hay test que compara las cadenas.
 _HDR_CUALQUIERA_RE = re.compile(r"^##[ \t]+.*$", re.M)
+from bisect import bisect_right as _bisect_right
 
 
 def split_fila_md(ln):
     """Divide una fila de tabla Markdown por `|`, ignorando los `|` dentro de un tramo
     `` `codigo` `` (una celda de gap puede citar una regex con alternancia `a|b|c`; un split
-    ingenuo la trocearia). No es un parser Markdown completo: basta para code spans de una linea."""
-    celdas, actual, en_codigo = [], [], False
-    for ch in ln.strip().strip("|"):
-        if ch == "`":
-            en_codigo = not en_codigo
-            actual.append(ch)
-        elif ch == "|" and not en_codigo:
+    ingenuo la trocearia). No es un parser Markdown completo: basta para code spans de una linea.
+    Trocea por `` ` `` y por `|` en vez de recorrer cada caracter (H-36, T-16): los tramos pares
+    quedan fuera de codigo; una comilla sin pareja deja el resto dentro, como antes."""
+    fila = ln.strip().strip("|")
+    if "`" not in fila:
+        return [c.strip() for c in fila.split("|")]
+    celdas, actual = [], []
+    for n, tramo in enumerate(fila.split("`")):
+        if n:
+            actual.append("`")
+        if n % 2:
+            actual.append(tramo)
+            continue
+        partes = tramo.split("|")
+        actual.append(partes[0])
+        for parte in partes[1:]:
             celdas.append("".join(actual).strip())
-            actual = []
-        else:
-            actual.append(ch)
+            actual = [parte]
     celdas.append("".join(actual).strip())
     return celdas
 
@@ -263,7 +272,8 @@ def secciones_revision(texto):
     for m in REVISION_HDR_RE.finditer(limpio):
         intento = int(m.group(1))
         resumen = (m.group(2) or "").strip()
-        fin = next((p for p in cabeceras if p > m.start()), len(limpio))
+        k = _bisect_right(cabeceras, m.start())   # H-36: siguiente cabecera por bisección
+        fin = cabeceras[k] if k < len(cabeceras) else len(limpio)
         cuerpo = limpio[m.end():fin]
         parrafo = []
         for ln in cuerpo.splitlines():
@@ -489,6 +499,63 @@ def parse_verificacion(lines, i):
     return {"items": items, "ejecutada": ejecutada, "inline": inline}, j
 
 
+_TROCEO_TAREA_RE = re.compile(r"^###\s+(T-\d+)\b")
+_TROCEO_FIN_RE = re.compile(r"^(##\s|###\s+Fase\b)")
+
+
+def bloques_de_tarea(text):
+    """{T-XX: texto del bloque} con las MISMAS fronteras que `parse_ledger`: desde `### T-XX` hasta la
+    siguiente `### T-YY`, `### Fase …` o cabecera `## …`, y con las líneas de dentro de un bloque de
+    código vaciadas (`sin_vallas`). Troceo ÚNICO del ledger (auditoría 2026-11-09, H-22/H-23/H-26):
+    lo usan `scope-check.py`, `coverage-check.py` y `jira-flow.py` en lugar de su propio `re.split`.
+    Una tarea repetida conserva su primer bloque, como el resto de campos."""
+    # --8<-- bloques_de_tarea (cuerpo) — REPLICADO LITERAL en agent-kits/shared/ledger-lint.py,
+    # agent-kits/qa/coverage-check.py y skills/jira-sync/scripts/jira-flow.py (respaldos sin el kit;
+    # declarado en agent-kits/shared/copias.json, revisión fase 2 intento 1, B6).
+    out, actual, lineas = {}, None, []
+    for ln in sin_vallas(text.lstrip("\ufeff")).splitlines():
+        m = _TROCEO_TAREA_RE.match(ln)
+        if m or _TROCEO_FIN_RE.match(ln):
+            if actual is not None and actual not in out:
+                out[actual] = "\n".join(lineas)
+            actual, lineas = (m.group(1), [ln]) if m else (None, [])
+            continue
+        if actual is not None:
+            lineas.append(ln)
+    if actual is not None and actual not in out:
+        out[actual] = "\n".join(lineas)
+    return out
+    # --8<-- fin bloques_de_tarea (cuerpo)
+
+
+def _frontmatter_de(lines):
+    """Claves planas `clave: valor` del bloque YAML inicial (líneas ya sin vallas)."""
+    frontmatter = {}
+    if lines and lines[0].strip() == "---":
+        for ln in lines[1:]:
+            if ln.strip() == "---":
+                break
+            m = re.match(r"^([A-Za-z_][\w-]*)\s*:\s*(.*)$", ln)
+            if m:
+                val = m.group(2).split("#", 1)[0].strip()
+                frontmatter[m.group(1)] = val
+    return frontmatter
+
+
+def _estado_tabla_de(text):
+    m = re.search(r"^\|\s*\*\*Estado\*\*\s*\|[ \t]*([^|\s][^|]*)\|", text, re.M)
+    return norm_estado(m.group(1)) if m else None
+
+
+def estado_ledger(text):
+    """Estado del ledger con la MISMA regla que `parse_ledger` (frontmatter `estado:` o, si falta, la
+    fila `| **Estado** |`), sin trocear las tareas: lo usan las lecturas de cabecera del arranque
+    (H-28, T-13), que solo necesitan saber si la iniciativa está activa."""
+    text = text.lstrip("﻿")
+    fm = _frontmatter_de(sin_vallas(text).splitlines()).get("estado")
+    return norm_estado(fm) if fm else _estado_tabla_de(text)
+
+
 def parse_ledger(text):
     """Parser ESTRUCTURAL del ledger (sin efectos secundarios, importable).
 
@@ -523,17 +590,8 @@ def parse_ledger(text):
     lines = sin_vallas(text).splitlines()
 
     # ---- frontmatter (claves planas) y tabla de cabecera ----
-    frontmatter = {}
-    if lines and lines[0].strip() == "---":
-        for ln in lines[1:]:
-            if ln.strip() == "---":
-                break
-            m = re.match(r"^([A-Za-z_][\w-]*)\s*:\s*(.*)$", ln)
-            if m:
-                val = m.group(2).split("#", 1)[0].strip()
-                frontmatter[m.group(1)] = val
-    m = re.search(r"^\|\s*\*\*Estado\*\*\s*\|[ \t]*([^|\s][^|]*)\|", text, re.M)
-    estado_tabla = norm_estado(m.group(1)) if m else None
+    frontmatter = _frontmatter_de(lines)
+    estado_tabla = _estado_tabla_de(text)
     # Fecha de creación del ledger: `creado:` del frontmatter o la fila `| **Fecha** | AAAA-MM-DD |` de la
     # tabla de cabecera (la usa `lint()` para que `Cerrada` no sea anterior). Solo si es una fecha bien formada.
     m = re.search(r"^\|\s*\*\*Fecha\*\*\s*\|[ \t]*([^|\s][^|]*)\|", text, re.M)
@@ -727,6 +785,33 @@ def _parse_horas(campo):
     return est, real
 
 
+# Formas reales de la evidencia: `RED:`, `RED fix1:`, `RED (fix2):`, `**RED**:`, con o sin viñeta (`- RED:`).
+_RED_RE = re.compile(r"^[ \t]*(?:[-*+][ \t]+)?(?:\*\*)?(?:RED(?:\*\*)?(?![ \t]+(?:no|sin|ni|nunca|a[uú]n|todav[ií]a)\b)(?:[ \t]+[\w-]+){0,6}(?:[ \t]*\([^)\n]*\))?"
+                     r"(?:\*\*)?[ \t]*:|TDD[ \t]+n/a\b)", re.M)
+
+
+def _tdd_activo(path):
+    """¿El `.claude/dev.json` del proyecto de este ledger declara `tdd: true`? Se busca subiendo desde
+    la carpeta del ledger (hasta 6 niveles); sin fichero, ilegible o sin la clave → False."""
+    try:
+        carpeta = os.path.dirname(os.path.abspath(path))
+    except (TypeError, ValueError):
+        return False
+    for _ in range(6):
+        candidato = os.path.join(carpeta, ".claude", "dev.json")
+        if os.path.isfile(candidato):
+            try:
+                with open(candidato, encoding="utf-8-sig") as fh:
+                    return json.load(fh).get("tdd") is True
+            except (OSError, ValueError, AttributeError):
+                return False
+        padre = os.path.dirname(carpeta)
+        if padre == carpeta:
+            break
+        carpeta = padre
+    return False
+
+
 def lint(path, *, text=None, parsed=None):
     """Validate a ledger; a composing caller may supply matching text and its shared parse."""
     errors, warnings = [], []
@@ -763,6 +848,14 @@ def lint(path, *, text=None, parsed=None):
 
     if not all_tasks:
         warnings.append("no se han detectado tareas `### T-XX` (¿formato distinto?)")
+
+    # El `estado` del LEDGER (frontmatter o fila `| **Estado** |`) usa el mismo vocabulario que las
+    # tareas: un valor fuera de él no lo reconoce ningún consumidor (auditoría 2026-11-09).
+    fm_estado = parsed["frontmatter"].get("estado")
+    estado_ledger = norm_estado(fm_estado) if fm_estado else parsed["estado_tabla"]
+    if estado_ledger and estado_ledger not in ESTADOS:
+        errors.append(f"estado del ledger inválido «{estado_ledger}» "
+                      f"(vocabulario: {' · '.join(sorted(ESTADOS))})")
 
     for t in all_tasks:
         if t["estado"] is None:
@@ -866,9 +959,10 @@ def lint(path, *, text=None, parsed=None):
                 f"intento N: <resumen>` (`##` exacto, sin paréntesis tras N)")
 
     # ---- tabla de resumen (completadas/total por fase) ----
+    # Un resumen citado dentro de un bloque de código no es el del ledger (auditoría 2026-11-09).
     resumen_rows = re.findall(
         r"^\|\s*\*{0,2}\s*(Fase\s+(?:\d+|única|unica)\b[^|*]*)\*{0,2}\s*\|\s*\*{0,2}(\d+)\*{0,2}\*?\s*\|\s*\*{0,2}(\d+)\*{0,2}\s*\|",
-        text, re.M | re.I)
+        sin_vallas(text), re.M | re.I)
     if not resumen_rows:
         warnings.append("sin tabla «Resumen de progreso» reconocible (legacy)")
     else:
@@ -887,6 +981,16 @@ def lint(path, *, text=None, parsed=None):
                 errors.append(
                     f"resumen descuadrado en «{nombre.strip()}»: tabla dice "
                     f"{comp}/{total}, las tareas dicen {rdone}/{rtotal}")
+
+    # ---- TDD (deuda de T-08): con `tdd: true` una tarea completada trae la evidencia del rojo ----
+    # Hoy solo lo comprobaba la Lente A (criterio 5b); aquí es un AVISO mecánico, nunca un error.
+    if path and any(t["estado"] == "completado" for t in all_tasks) and _tdd_activo(path):
+        bloques = bloques_de_tarea(text)
+        for t in all_tasks:
+            if t["estado"] == "completado" and not _RED_RE.search(bloques.get(t["id"], "")):
+                warnings.append(f"{t['id']}: completado sin evidencia `RED:` ni `TDD n/a` (dev.json "
+                                f"`tdd: true`): añade la línea `RED: <test> falló con <error> · <fecha>` "
+                                f"o `TDD n/a: <motivo>` en la tarea")
     return errors, warnings
 
 

@@ -221,6 +221,36 @@ def _contar_lineas_log(root, session_id):
     depende de este número (ver `_hash_log_prompts`), porque no es monótono cuando el log rota."""
     return _log_snapshot(root, session_id)[1]
 
+_SLUG_FECHA_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-")
+_INICIATIVA_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$")
+_USAGE_STATE_MAX = 256 * 1024
+
+
+def _marcador_abierto_al_capturar(root):
+    """Slug de la iniciativa del marcador ABIERTO más reciente del usage-meter, o None. Es el paso (a) de la regla
+    única (`progress-report.vigente_entre`) y lo único que se decide al cerrar: sin recorrer `docs/roadmap` ni abrir
+    ledgers (la regla completa corre en `replay`, fuera del teardown). Un slug que no casa con `_INICIATIVA_RE`
+    (tilde, espacio…) no se guarda: `replay` aplica entonces la regla única."""
+    try:
+        path = os.path.join(root, ".claude", "usage-state.json")
+        if os.stat(path).st_size > _USAGE_STATE_MAX:
+            return None
+        with open(path, encoding="utf-8-sig") as fh:
+            estado = json.load(fh)
+        abiertos = []
+        for clave, marca in (estado.items() if isinstance(estado, dict) else []):
+            if isinstance(marca, dict) and "ultimoCierre" not in marca:
+                partes = [x for x in str(clave).replace("\\", "/").split("/") if x]
+                if partes[:2] == ["docs", "roadmap"]:
+                    partes = partes[2:]
+                if len(partes) >= 2:
+                    abiertos.append((str(marca.get("inicio") or ""), _SLUG_FECHA_RE.sub("", partes[0])))
+        slug = max(abiertos)[1] if abiertos else None
+        return slug if slug and _INICIATIVA_RE.match(slug) else None
+    except (OSError, ValueError, AttributeError, TypeError):
+        return None
+
+
 def _capture_end(root, payload):
     """Lo que corre en el teardown de SessionEnd (CA-01 de la spec): escribe un envelope atómico en
     la outbox y NADA MÁS — no abre `transcript_path` (referencia no confiable), no ejecuta git, no
@@ -253,6 +283,9 @@ def _capture_end(root, payload):
         "plugin_version": _plugin_version(),
         "sequence": sequence,
     }
+    iniciativa = _marcador_abierto_al_capturar(root)
+    if iniciativa:
+        envelope["iniciativa"] = iniciativa
     dir_ = _journal_queue_dir(root)
     _asegurar_gitignore_local(dir_)         # gap 9: nunca se cuela en `git status` del consumidor
     return ob.escribir(dir_, envelope["event_id"], envelope)

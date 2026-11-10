@@ -2,7 +2,7 @@
 // Read native local plugin state. No config edits, credentials, source paths or raw errors in output.
 import {execFileSync,spawn} from 'node:child_process'
 import {statSync} from 'node:fs'
-import {delimiter, join, resolve} from 'node:path'
+import {delimiter, isAbsolute, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
 export const CODEX_PLUGIN_ID = 'custom-agents@daycry'
@@ -31,7 +31,12 @@ export function terminateProcessTree(pid) {
 function executable(env) {
   const extensions=process.platform==='win32'
     ? (env.PATHEXT || '.COM;.EXE;.BAT;.CMD').split(';').filter(e=>/^\.(com|exe|bat|cmd)$/i.test(e)) : ['']
-  for(const dir of String(env.PATH || env.Path || '').split(delimiter).filter(Boolean)) {
+  // Only absolute PATH entries: empty or relative ones (`.`, `bin`, `C:bin`) depend on the
+  // current directory, where an untrusted repository could plant a launcher.
+  const absolute=dir=>process.platform==='win32' ? /^(?:[A-Za-z]:[\\/]|[\\/]{2})/.test(dir) : isAbsolute(dir)
+  for(const raw of String(env.PATH || env.Path || '').split(delimiter)) {
+    const dir=raw.trim().replace(/^"(.*)"$/,'$1')
+    if(!dir || !absolute(dir))continue
     for(const ext of extensions) {
       const candidate=join(dir,`codex${ext.toLowerCase()}`)
       try {if(statSync(candidate).isFile()) return candidate} catch {/* next candidate */}
@@ -48,8 +53,10 @@ export function runCodexQuery(args, {cwd,timeout=CODEX_QUERY_TIMEOUT_MS,env=proc
   if(JSON.stringify(args)!==JSON.stringify(QUERY_ARGS)) throw new Error('unsupported native query arguments')
   const limit=Number.isFinite(timeout) && timeout>0 ? Math.min(timeout,CODEX_QUERY_TIMEOUT_MS) : CODEX_QUERY_TIMEOUT_MS
   try {
+    // NoDefaultCurrentDirectoryInExePath: the worker and the npm shim it starts never resolve
+    // `node` (or any command) from the project directory, where it could be planted.
     return execFileSync(process.execPath,[HELPER,'--query-worker',String(Date.now()+limit)],
-      {cwd,env,timeout:limit+4000,killSignal:'SIGKILL',encoding:'utf8',stdio:['ignore','pipe','pipe'],maxBuffer:4*1024*1024})
+      {cwd,env:{...env,NoDefaultCurrentDirectoryInExePath:'1'},timeout:limit+4000,killSignal:'SIGKILL',encoding:'utf8',stdio:['ignore','pipe','pipe'],maxBuffer:4*1024*1024})
   } catch(error) {
     if(error.status===124) error.code='ETIMEDOUT'
     throw error

@@ -2,7 +2,7 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,existsSync,rmSync,chmodSync,copyFileSync,symlinkSync} from 'node:fs'
 import {tmpdir} from 'node:os'
-import {join,resolve,delimiter} from 'node:path'
+import {join,resolve,delimiter,dirname,isAbsolute} from 'node:path'
 import {execFileSync,spawn} from 'node:child_process'
 import {fileURLToPath} from 'node:url'
 import {queryCodexPlugin,runCodexQuery,terminateProcessTree} from '../agent-kits/shared/codex-plugin-state.mjs'
@@ -150,4 +150,62 @@ test('Codex state: missing CLI, failure, malformed and unsupported JSON remain u
   for(const payload of ['not JSON','{}','[]','{"installed":[],"available":{}}']) assert.equal(queryCodexPlugin({runner:()=>payload}).state,'unknown')
   assert.deepEqual(queryCodexPlugin({runner:()=>{const e=new Error('private raw failure');e.code='ENOENT';throw e}}),{state:'unknown',enabled:null,version:null,reason:'cli-unavailable'})
   assert.equal(queryCodexPlugin({runner:()=>{throw new Error('private raw failure')}}).reason,'cli-failed')
+})
+
+// Revisión intento 1 (gap 10): el resolvedor de `codex` ignora entradas vacías o relativas del
+// PATH (`.`, `bin`): un `codex.cmd` plantado en el directorio actual no se ejecuta.
+test('relative PATH entries never resolve a codex planted in the current directory',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'ca-codex-planted-')),previous=process.cwd()
+  const win=process.platform==='win32',marker=join(dir,'executed.txt')
+  const system=win ? join(process.env.SystemRoot || 'C:\\Windows','System32') : '/usr/bin:/bin'
+  try {
+    const exe=join(dir,win?'codex.cmd':'codex')
+    writeFileSync(exe,win?`@echo off\r\necho x> "${marker}"\r\n`:`#!/bin/sh\necho x > "${marker}"\n`)
+    if(!win)chmodSync(exe,0o755)
+    process.chdir(dir)
+    for(const PATH of ['.'+delimiter+system,''+delimiter+system,'rel'+delimiter+system]) {
+      assert.throws(()=>runCodexQuery(['--version'],{cwd:dir,env:{...process.env,PATH,Path:PATH},timeout:2000}),
+        error=>error.code==='ENOENT',PATH)
+    }
+    assert.equal(existsSync(marker),false,'the planted launcher must not run')
+  } finally {process.chdir(previous);rmSync(dir,{recursive:true,force:true})}
+})
+
+// Revisión intento 2 (C8): la consulta nativa lanza el shim con NoDefaultCurrentDirectoryInExePath=1,
+// así un `node.bat` plantado en el proyecto (cwd) no sustituye al `node` real del shim de npm.
+test('native query children never resolve node from the project directory',()=>{
+  const owned=fixture()
+  try {
+    const marker=join(owned.root,'planted.txt')
+    owned.create(`console.log(JSON.stringify({ndcd:process.env.NoDefaultCurrentDirectoryInExePath||null}))`)
+    const raw=runCodexQuery(['plugin','list','--marketplace','daycry','--available','--json'],{cwd:owned.root,env:owned.env})
+    assert.equal(JSON.parse(raw).ndcd,'1')
+    if(process.platform==='win32') {
+      writeFileSync(join(owned.root,'node.bat'),`@echo off\r\necho planted> "${marker}"\r\n`)
+      writeFileSync(join(owned.bin,'codex.cmd'),`@echo off\r\nnode "${join(owned.root,'native-owned.mjs')}" %*\r\n`)
+      const env={...owned.env,PATH:[owned.bin,dirname(process.execPath),join(process.env.SystemRoot,'System32')].join(delimiter)}
+      const out=runCodexQuery(['plugin','list','--marketplace','daycry','--available','--json'],{cwd:owned.root,env})
+      assert.equal(JSON.parse(out).ndcd,'1')
+      assert.equal(existsSync(marker),false,'the planted node.bat must not run')
+    }
+  } finally {owned.close()}
+})
+
+test('run-hook launches hook children with NoDefaultCurrentDirectoryInExePath set',()=>{
+  const source=readFileSync(fileURLToPath(new URL('../hooks/run-hook.mjs',import.meta.url)),'utf8')
+  assert.match(source,/NoDefaultCurrentDirectoryInExePath:\s*'1'/)
+})
+
+// Revisión intento 3 (C6): `candidates()` de run-hook descarta entradas vacías o relativas del PATH.
+test('run-hook candidates ignore relative PATH entries',()=>{
+  const source=readFileSync(fileURLToPath(new URL('../hooks/run-hook.mjs',import.meta.url)),'utf8')
+  const helper=source.match(/function absolutePathEntry\([\s\S]*?\n}\n/)
+  const fn=source.match(/function candidates\(names\) \{[\s\S]*?\n}\n/)
+  assert.ok(helper && fn,'candidates() must use absolutePathEntry()')
+  const make=new Function('env','windows','existsSync','join','delimiter','isAbsolute',
+    `${helper[0]}\n${fn[0]}\nreturn candidates`)
+  const win=process.platform==='win32',abs=win?'C:\\py':'/py'
+  const PATH=['.','',' rel ','bin',abs].join(delimiter)
+  const found=make({PATH},win,()=>true,join,delimiter,isAbsolute)(['python3'])
+  assert.deepEqual(found,[join(abs,'python3')])
 })

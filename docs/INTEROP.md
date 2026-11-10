@@ -386,11 +386,17 @@ workspace se descartan. Los hooks informativos degradan con aviso y continúan.
 
 Los avisos de escritura usan los targets normalizados del resultado nativo y
 los orígenes de su diff, para conservar la eliminación del documento al moverlo.
-El contexto se reutiliza durante continuaciones de lectura, en una caché efímera
-de una sola sesión y máximo 30 segundos. Prompts, herramientas completadas que
-pueden modificar estado y cierres invalidan la entrada; antes de reutilizar se
-contrastan metadatos de configuración, logs/cola, roadmap y memoria. Enlaces,
-errores, árboles fuera del límite o una cola personalizada desactivan la caché.
+El contexto se reutiliza en una caché efímera, una ranura por sesión (una sesión
+delegada no desaloja la del padre), que se invalida por su firma, no por eventos
+ni por tiempo: mientras los metadatos de configuración, roadmap y memoria no
+cambien, no se recompone, aunque pasen prompts, herramientas o cierres de turno
+(`session.execution.*`, `session.idle`). Lo volátil no entra en la firma: el log
+de captura de prompts, el índice del journal, los sobres que la captura deja en
+la cola (se reproducen en la siguiente recomposición) y, de cada entrada del
+journal, lo que el bloque no cita (marcas de reescritura, número de turnos,
+marcadores de coste); sí entra lo que cita. La firma se lee en paralelo con un
+tope de 1 s. Enlaces, errores, árboles fuera del límite o una cola
+personalizada desactivan la caché.
 El servicio compartido sigue componiendo el contexto. Cleanup aborta la
 suscripción, termina los procesos propios y espera su cierre.
 
@@ -443,7 +449,7 @@ intérprete concreto. El payload viaja por stdin, nunca como código de shell.
 
 SessionEnd llama al escritor canónico `journal-capture.py` con Python aislado (`-I -S`);
 la guardia previa también usa Python aislado sin Bash. UserPromptSubmit llama
-a `journal.py capture`, sin Bash. Los demás hooks
+a `journal-prompt.py` (captura ligera), sin Bash; SubagentStop, a `subagent-progress.py`, también sin Bash. Los demás hooks
 usan Bash con un adaptador `python3` al intérprete seleccionado. Si falta una herramienta,
 se avisa por stderr y se continúa con exit 0. Las guardias de implementer y architect conservan su alcance por agente.
 

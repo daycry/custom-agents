@@ -20,6 +20,7 @@ flowchart LR
 - **Regenera lo generado antes de cerrar la tarea** (arista E2 de [`CONTRACTS.md`](CONTRACTS.md)): si tocó `commands/`, `agents/` o `hooks/`, ejecuta `python3 scripts/export-interop.py` y pega la evidencia de `python3 scripts/export-interop.py --check` (exit 0) en el ledger. La Lente A corre ese mismo `--check` por su cuenta, así que llegar a la revisión con `interop/` desincronizado es un gap seguro. Y actualiza en la MISMA tarea las piezas que **describen** lo tocado (arista E3), que el `planner` ya dejó en `Archivos`.
 - **Mide cada tarea** con `usage-meter.py` (tokens reales → horas-IA `(medido)` en el ledger, que son las que se imputan a Jira).
 - Mantiene **`tasks.md` como ledger canónico**: marca cada tarea (checkbox + estado) y actualiza el resumen a medida que avanza. Al marcarla `completado` escribe además el campo opcional **`- **Cerrada**: AAAA-MM-DD`** (la fecha de cierre, mismo patrón que `Changelog`): lo lee el burndown de la página Plan del panel (`agent-kits/shared/ledger-view.py`) y `ledger-lint` valida solo su formato y que no sea anterior a la creación del ledger.
+- Es el **dueño único de los commits** de tarea (`T-XX: …`) y de su procedimiento de selección exacta con `commit-selection.py` (P4 del prompt; [selección de commits](../COMMIT-SELECTION.md)). La Fase 6 de `/dev-cycle` solo lo verifica y lo reutiliza para los artefactos del orquestador.
 - Hace **handoff a `qa`** al terminar. La documentación (`documenter`) va después, solo si `qa` queda en verde.
 
 ## Ledger y perfil de ejecución
@@ -30,8 +31,9 @@ El writer valida el ledger, conserva campos ajenos y publica tras bloqueo y
 comprobación de versión. Un conflicto exige releer; no sobrescribas su evidencia.
 El fallback manual de una instalación normal parcial conserva `ledger-lint.py`.
 
-`execution-profile.py` resuelve los flags efectivos. Lite implementa en el hilo
-actual, sin paralelismo ni subagentes de implementación. Consume el brief completo
+`execution-profile.py` resuelve los flags efectivos. En lite, cada tarea se
+despacha en secuencia, sin paralelismo, a esta identidad nativa (`implementer`), para
+que su guardia aplique: nunca al hilo principal ni a un subagente genérico. Consume el brief completo
 que genera `task-brief.py`: techo6000, exit2 y stdout vacío si falta el writer o
 el contexto obligatorio no cabe. Diseño aprobado no verificable impide ese
 despacho. No recortes criterios, verificación, diseño, persona ni gates para entrar
@@ -65,7 +67,7 @@ Las reglas del implementer deniegan con una razón y cómo proceder:
 |---|---|
 | `alcance` | Write/Edit/MultiEdit/NotebookEdit sobre `docs/roadmap/**` que no sea `tasks.md` (incl. `testing/`, de qa) y sobre `docs/security-scan/**`; rutas case-insensitive (`Docs/Roadmap/…` también). `docs/knowledge/**` sigue permitido por la política de rutas histórica; ello no autoriza nuevas escrituras de memoria fuera del servicio compartido ni prueba confinamiento nativo de esa vía. En la raíz de `docs/roadmap/` solo se permite `README.md` (índice de iniciativas, que el cierre de cada iniciativa actualiza); `CALIBRATION.md`, `DRIFT.md` y `BACKLOG.md` quedan bloqueados **por diseño**: los escriben `/retro`, `/spec-drift` y `/pm-backlog`, que son comandos y no pasan por este hook. |
 | `ramaPrincipal` | Escrituras fuera del ledger con HEAD en `main`/`master` («trabaja en `feature/<slug>`»). Sin git → no aplica. |
-| `git` | `git push --force|-f|--force-with-lease`, refspec `+rama`, `git branch -D`, `git checkout|switch main|master` desde una rama de trabajo y `rm -rf` de `/`, `~`, `.git` o `.`. También `git commit` con verificación desactivada (`--no-verify`/`-n`) o un override explícito de `core.hooksPath`. Órdenes con efecto fuera del repo: `npm|pnpm|yarn publish`, `docker|podman system|volume prune`, `kubectl delete` (salvo `--dry-run`) y `DROP TABLE|DATABASE|SCHEMA` pasado a un cliente SQL; análisis literal (no ve SQL desde fichero ni por tubería). |
+| `git` | `git push --force|-f|--force-with-lease`, refspec `+rama`, `git branch -D`, `git branch -D|-M|-C|-f` y `--force` (también con `-d`), `git update-ref -d|--stdin`, `git reset --hard`, `git clean -f*` sin simulación (analizado de verdad: lo que sigue a `--` son rutas, `-e`/`--exclude` consumen su valor y gana el último de `-n`/`--dry-run` frente a `--no-dry-run`; `-fn` es simulación, `-fen` no), `git push --delete|-d|--mirror|--prune` o refspec `:rama`, `git stash drop|clear` — toda opción larga destructiva por CUALQUIER prefijo (`--h`, `--m`, `--force-w`), como la acepta git. Configuración por LISTA BLANCA: `-c`/`--config-env` solo con `user.name`, `user.email`, `core.quotepath`, `commit.gpgsign` (solo a verdadero), `init.defaultBranch`, `color.*` o `advice.*` (`core.editor`, `core.pager`, `core.sshCommand`, `core.hooksPath`, `alias.*`, `include*`, `remote.*`… se deniegan); `git config` escribe solo esas claves (lecturas permitidas; `--file`/`--blob`, `--rename-section`, `--remove-section` y `--edit` se deniegan); variables `GIT_*`, `HOME` y `XDG_CONFIG_HOME` (sin distinguir mayúsculas; en prefijo, `env`, `export` o `set`) cuando la orden ejecuta git; y cualquier opción global de git no reconocida, `git checkout|switch main|master` desde una rama de trabajo y `rm -rf` de `/`, `~`, `.git` o `.`. También `git commit` con verificación desactivada (`--no-verify`/`-n`) o un override explícito de `core.hooksPath`. Órdenes con efecto fuera del repo: `npm|pnpm|yarn publish`, `docker|podman system|volume prune`, `kubectl delete` (salvo `--dry-run`) y `DROP TABLE|DATABASE|SCHEMA` pasado a un cliente SQL; análisis literal (no ve SQL desde fichero ni por tubería). |
 
 La regla `git` también protege al `architect`. El parser consume valores de
 opciones de commit, incluidos prefijos largos unívocos, y respeta `--` antes
@@ -82,9 +84,18 @@ soportados y valores pegados, como `exec -cl` y `env -C.`.
 El parser reconoce asignaciones literales y estos wrappers: `env -i` o
 `--ignore-environment`; `-u NAME`, `-uNAME` o `--unset=NAME`; `-C DIR` o
 `--chdir=DIR`; `command -p`; `exec -a NAME`, `-c` o `-l`. Analiza opciones
-Git `-c` y `--config-env`, `GIT_CONFIG_COUNT` con sus claves y
-`GIT_CONFIG_PARAMETERS`. La comparación del nombre base del ejecutable ignora
+Git `-c` y `--config-env` contra una LISTA BLANCA (`user.name`, `user.email`,
+`core.quotepath`, `commit.gpgsign` (solo a verdadero), `init.defaultBranch`, `color.*`, `advice.*`;
+cualquier otra clave se deniega), clasifica `git config` en lectura o escritura
+(solo escribe claves de la lista blanca, sin `--file`/`--blob`, sin renombrar ni
+borrar secciones) y deniega las variables `GIT_*`, `HOME` y `XDG_CONFIG_HOME`
+cuando la orden ejecuta git (en el mismo segmento o exportadas antes). La comparación del nombre base del ejecutable ignora
 mayúsculas y contempla nombres Windows con `.exe`.
+
+El guardarraíl evita accidentes y las formas conocidas de saltarse estas reglas;
+no es un sandbox. Quedan fuera los envoltorios (`nice`, `sudo`, `xargs`,
+`find -exec`), los scripts que escriba el propio agente y los ficheros de
+configuración editados a mano (ADR-023, ADR-007).
 
 Conserva la recursión existente de shell `-c` y `eval`, hasta profundidad 3.
 No expande variables, resuelve aliases, abre scripts ni inspecciona

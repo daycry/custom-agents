@@ -184,12 +184,7 @@ GIT_TIMEOUT = 5
 LISTAS = ("decisiones", "pendientes", "ficheros_tocados", "tareas_cambiadas", "marcadores_cerrados")
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
-# --- log crudo del turno del usuario (hook UserPromptSubmit → `capture`; memory-retrieval T-11) ---
-PRIVATE_TAG = "<private>"          # en cualquier parte del turno, sin distinguir mayúsculas → el log NO se toca
-CAPTURA_MAX_CHARS = 4000           # tope por turno (un turno gigantesco no llena el disco)
-LOG_MAX_BYTES = 256 * 1024         # tope por fichero: al superarlo se conservan los ÚLTIMOS turnos (½ del tope)
-LOG_RETENCION_DIAS = 30            # purga de `session-prompts-*.log` más viejos (mtime) al capturar
-LOG_GITIGNORE = "session-prompts-*"       # log y su `.lock`; se siembra en `.claude/.gitignore` del consumidor (revisión F4, Lente C gap 2)
+# --- log crudo del turno del usuario: constantes y escritor en `journal-prompt.py` (H-31, T-14) ---
 _MSG_SEGURO_RE = re.compile(r"[^\w .:/\-]")   # gap 90 de la revisión tramo 2 (seguridad): caracteres
 # permitidos en un mensaje de excepción saneado para `avisos` — todo lo demás (saltos de línea,
 # control, marcas bidireccionales, comillas) se descarta, no se sustituye por un separador que
@@ -623,45 +618,42 @@ for _capture_name in (
     globals()[_capture_name] = getattr(_capture_mod, _capture_name)
 
 
-def _transcripts_permitidos_root():
-    """Directorio bajo el que Claude Code guarda las transcripciones reales: `$CLAUDE_CONFIG_DIR/projects`
-    si la variable está definida, si no `~/.claude/projects` (gap 38 de la revisión intento 2: el
-    basename-match por sí solo no bastaba)."""
-    base = os.environ.get("CLAUDE_CONFIG_DIR")
-    if base:
-        return os.path.join(base, "projects")
-    return os.path.join(os.path.expanduser("~"), ".claude", "projects")
+# ------------------------------------------------------------------ captura del turno (UserPromptSubmit)
+# H-31 (T-14): fuente única en `journal-prompt.py` (módulo ligero que ejecuta el hook); aquí se
+# reexporta para replay, recover y los tests que ya los usaban.
+_prompt_mod = _load_module("journal_prompt", "journal-prompt.py")
+if _prompt_mod is None:
+    if __name__ == "__main__":
+        print("journal: journal-prompt.py unavailable; reinstall the complete bundle", file=sys.stderr)
+        sys.exit(0)
+    raise ImportError("journal-prompt.py unavailable: prompt capture is required")
+for _prompt_name in ('PRIVATE_TAG', 'CAPTURA_MAX_CHARS', 'LOG_MAX_BYTES', 'LOG_RETENCION_DIAS', 'LOG_GITIGNORE',
+                     '_transcripts_permitidos_root', '_transcript_seguro', '_asegurar_gitignore', '_bloquear',
+                     '_desbloquear', '_cerrojo', '_abrir_log', '_rotar', '_purgar_logs', 'capture'):
+    globals()[_prompt_name] = getattr(_prompt_mod, _prompt_name)
 
 
-def _transcript_seguro(path, session_id):
-    """`transcript_path` solo se usa si es ruta absoluta, NO es un symlink, existe, termina en
-    `.jsonl`, su `basename` es `<session_id>.jsonl` (así nombra Claude Code las transcripciones) Y
-    cae (tras resolver symlinks) bajo el directorio de transcripciones permitido — gap 15/38 de la
-    revisión (C2/K-1 · CWE-59/73/22/200): el basename-match por sí solo compara dos campos del
-    MISMO envelope no confiable (un atacante controla ambos) y `os.path.isfile` sigue symlinks, así
-    que un envelope plantado podía hacer que `replay` leyera (y volcara en un fichero versionado)
-    el transcript de OTRO proyecto con solo nombrar el symlink como `<session_id>.jsonl`."""
-    if not path or not session_id or not os.path.isabs(path) or not path.endswith(".jsonl"):
-        return None
-    if os.path.basename(path) != f"{session_id}.jsonl":
-        return None
-    try:
-        if os.path.islink(path):        # gap 38: un symlink con el nombre correcto no debe colarse
-            return None
-    except OSError:
-        return None
-    permitido = _transcripts_permitidos_root()
-    try:
-        real, real_permitido = os.path.realpath(path), os.path.realpath(permitido)
-        if os.path.commonpath([real, real_permitido]) != real_permitido:
-            return None
-    except (OSError, ValueError):
-        return None
-    return path if os.path.isfile(path) else None
+
+
 
 
 _REASON_RE = re.compile(r"^[a-z_]{1,40}$")
 _CAPTURED_AT_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+
+
+_INICIATIVA_ENVELOPE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$")
+
+
+def _slug_capturado(env, resumen):
+    """Slug de la iniciativa que el envelope guardó al capturar (marcador abierto), o None. Un valor inválido (envelope
+    antiguo o manipulado) NO manda la sesión a dead-letter: se descarta con aviso y manda la regla única."""
+    ini = env.get("iniciativa")
+    if ini is None:
+        return None
+    if isinstance(ini, str) and _INICIATIVA_ENVELOPE_RE.match(ini):
+        return ini
+    resumen["avisos"].append("envelope con `iniciativa` inválida: se descarta y se aplica la regla única de iniciativa")
+    return None
 
 
 def _validar_envelope(payload):
@@ -854,7 +846,8 @@ def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=F
                 transcript = _transcript_seguro(env.get("transcript_path") or None, sid)
                 p, _e = escribir_sesion(root, sid, reason=env.get("reason"), transcript=transcript,
                                         fuente="hook", captured_at=env.get("captured_at"),
-                                        ia=ia_efectiva, git_timeout=git_timeout)
+                                        ia=ia_efectiva, git_timeout=git_timeout,
+                                        iniciativa_capturada=_slug_capturado(env, resumen))
                 if p is None:
                     causa2 = "sin rastro del plugin al materializar (docs/roadmap, docs/knowledge o .claude/dev.json)"
                     try:
@@ -1372,47 +1365,10 @@ def render_status(st):
 
 # ------------------------------------------------------------------ log crudo (capture / capturas)
 
-def _asegurar_gitignore(dirpath):
-    path = os.path.join(dirpath, '.gitignore')
-    def add_rule(raw):
-        actual = raw.decode('utf8', errors='replace')
-        if LOG_GITIGNORE in actual.splitlines():return raw
-        suffix = ('\n' if actual and not actual.endswith('\n') else '')
-        suffix += '# custom-agents: raw session log, never commit\n' + LOG_GITIGNORE + '\n'
-        return raw + suffix.encode('utf8')
-    JIO.update(path, add_rule)
 
 
-def _bloquear(fd):
-    """Cerrojo exclusivo sobre el fd: `fcntl.flock` (POSIX) o `msvcrt.locking` no bloqueante en bucle corto
-    (Windows). False si no se consigue: entonces se escribe sin cerrojo (degradación, no bloqueo)."""
-    try:
-        if os.name == "nt":
-            import msvcrt
-            for _ in range(150):                                # ≤ 3 s; el hook tiene 5
-                try:
-                    msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
-                    return True
-                except OSError:
-                    time.sleep(0.02)
-            return False
-        import fcntl
-        fcntl.flock(fd, fcntl.LOCK_EX)
-        return True
-    except (OSError, ImportError):
-        return False
 
 
-def _desbloquear(fd):
-    try:
-        if os.name == "nt":
-            import msvcrt
-            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
-        else:
-            import fcntl
-            fcntl.flock(fd, fcntl.LOCK_UN)
-    except (OSError, ImportError):
-        pass
 
 
 def _bloquear_sin_esperar(fd):
@@ -1469,34 +1425,8 @@ def _cerrojo_presupuestado(path, deadline_ms=None):
                 os.close(fd)
 
 
-@contextlib.contextmanager
-def _cerrojo(path):
-    """Serializa los `capture` de una misma sesión (dos turnos encolados solapan sus hooks; el append sin cerrojo
-    y la rotación leer-reescribir perdían un turno en silencio — Lente B gap 5) con `<log>.lock`. Nunca lanza."""
-    fd = None
-    try:
-        lockpath = path + '.lock'
-        JIO.directory(os.path.dirname(os.path.abspath(lockpath)))
-        if os.path.lexists(lockpath):JIO.IO.file(lockpath)
-        fd = os.open(lockpath, os.O_RDWR | os.O_CREAT | getattr(os, 'O_NOFOLLOW', 0), 0o600)
-        info = os.fstat(fd)
-        JIO.need(info.st_nlink == 1 and JIO.IO.file(lockpath)[:2] == (info.st_dev, info.st_ino), 'unsafe_journal_lock')
-        _bloquear(fd)
-    except OSError:
-        pass
-    try:
-        yield
-    finally:
-        if fd is not None:
-            _desbloquear(fd)
-            try:
-                os.close(fd)
-            except OSError:
-                pass
 
 
-def _abrir_log(path):
-    return JIO.append(path)
 
 
 
@@ -1516,77 +1446,10 @@ def _msg_seguro(ex):
 
 
 
-def _rotar(path):
-    """Rotate only a guarded regular snapshot; preserve concurrent modifications."""
-    try:
-        JIO.IO.dirs(os.path.dirname(os.path.abspath(path)))
-        if JIO.IO.file(path)[2] <= LOG_MAX_BYTES:return
-        tail, identity = JIO.tail(path, LOG_MAX_BYTES // 2)
-        newline = tail.find(b'\n')
-        if newline == -1:return
-        JIO.IO.write(path, tail[newline+1:], time.monotonic()+5, expected=identity,
-                     mode=__import__('stat').S_IMODE(os.stat(path).st_mode))
-    except (OSError, ValueError):
-        pass
 
 
-def _purgar_logs(dirpath, excepto=None, ahora=None):
-    ahora = ahora or time.time()
-    try:
-        if not JIO.directory(dirpath):return
-        nombres = os.listdir(dirpath)
-    except (OSError, ValueError):
-        return
-    for fn in nombres:
-        if not (fn.startswith(LOG_PREFIX) and fn.endswith((".log", ".lock"))):
-            continue
-        p = os.path.join(dirpath, fn)
-        if excepto and os.path.abspath(p) in (os.path.abspath(excepto), os.path.abspath(excepto) + ".lock"):
-            continue
-        try:
-            JIO.IO.dirs(os.path.dirname(os.path.abspath(p)))
-            JIO.IO.file(p)
-            if ahora - os.stat(p).st_mtime > LOG_RETENCION_DIAS * 86400:
-                os.remove(p)
-        except (OSError, ValueError):
-            pass
 
 
-def capture(root, payload):
-    """Añade el turno del payload de UserPromptSubmit al log crudo de su sesión. Devuelve la ruta
-    escrita o None si no se escribió (payload inválido, `<private>`, sin rastro del plugin, opt-out).
-    Nunca lanza más allá de errores de disco que el CLI traga en silencio."""
-    if not isinstance(payload, dict):
-        return None
-    sid, prompt = payload.get("session_id"), payload.get("prompt")
-    if not isinstance(sid, str) or not sid.strip() or not isinstance(prompt, str) or not prompt.strip():
-        return None
-    if PRIVATE_TAG in prompt.lower():
-        return None                                     # opt-out por turno: ni se crea, ni mtime, ni tamaño
-    if not proyecto_con_plugin(root):
-        return None
-    ses = _dev_sesion(root)
-    if not _journal_activo(root) or ses.get("captura") is False:
-        return None
-    texto = redactar(prompt.strip())
-    if len(texto) > CAPTURA_MAX_CHARS:
-        texto = texto[:CAPTURA_MAX_CHARS].rstrip() + " …[recortado]"
-    d = os.path.join(root, LOG_DIR_REL)
-    JIO.directory(d, create=True)
-    _asegurar_gitignore(d)
-    path = log_path(root, sid)
-    rec = {"ts": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "prompt": texto}
-    # Señal de inactividad para `recover` (huérfanas de Windows antes de 24 h): la ruta del transcript
-    # SOLO si pasa `_transcript_seguro`. Vive en este log local no versionado; nunca llega a la entrada.
-    tp = payload.get("transcript_path")
-    if isinstance(tp, str) and len(tp) <= ENVELOPE_STR_MAX and _transcript_seguro(tp, sid):
-        rec["transcript"] = tp
-    with _cerrojo(path):
-        with _abrir_log(path) as fh:
-            fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
-        _rotar(path)
-    _purgar_logs(d, excepto=path)
-    return path
 
 
 def capturas(root, session_id):
@@ -1739,6 +1602,8 @@ def tareas_cambiadas(root, avisos, timeout=GIT_TIMEOUT):
 # ------------------------------------------------------------------ roadmap / meter / transcripción
 
 def iniciativa_activa(root):
+    """La MISMA regla que el lector del historial (`progress-report.iniciativa_vigente`, B1): la
+    iniciativa en curso entre las activas pendientes, no la primera por orden alfabético."""
     pr = _load_module("progress_report", "progress-report.py")
     roadmap = os.path.join(root, "docs", "roadmap")
     if pr is None or not os.path.isdir(roadmap):
@@ -1747,10 +1612,9 @@ def iniciativa_activa(root):
         import contextlib
         import io
         with contextlib.redirect_stderr(io.StringIO()):
-            rs = pr.activas(roadmap)
+            return pr.iniciativa_vigente(root)
     except Exception:  # noqa: BLE001
         return None
-    return rs[0]["slug"] if rs else None
 
 
 def marcadores_cerrados(root, fecha):
@@ -1853,7 +1717,23 @@ def _fecha_local_de_captured_at(captured_at):
         return hoy()
 
 
-def draft(root, session_id=None, transcript=None, reason=None, enrich=None, captured_at=None, git_timeout=GIT_TIMEOUT):
+_CIERRE_TARDIO_S = 24 * 3600   # SOLO para envelopes antiguos sin `iniciativa` (fijada al capturar): pasado un día la vigente al materializar rara vez es la suya
+
+
+def _cierre_tardio(captured_at):
+    """¿`captured_at` (UTC) es de hace más de `_CIERRE_TARDIO_S`? Un `replay` desde la cola puede correr
+    días después del cierre y redacta con la iniciativa vigente AL REPETIR (gap 9 del intento 1 de la
+    fase 4, mismo caso que `orphan_recovery`): sin la marca no se cita como historial de ninguna."""
+    if not captured_at:
+        return False
+    try:
+        return time.time() - calendar.timegm(time.strptime(str(captured_at), "%Y-%m-%dT%H:%M:%SZ")) > _CIERRE_TARDIO_S
+    except (ValueError, TypeError, OverflowError):
+        return False
+
+
+def draft(root, session_id=None, transcript=None, reason=None, enrich=None, captured_at=None, git_timeout=GIT_TIMEOUT,
+          iniciativa_capturada=None):
     """`captured_at` (ISO `AAAA-MM-DDTHH:MM:SSZ`, del envelope de `capture-end`): si se da, la
     entrada usa la FECHA DEL CIERRE EN HORA LOCAL (nombre de fichero y frontmatter, gap 44), no la
     de hoy — `replay` puede correr días después (gap 8 de la revisión). `git_timeout` acota `_git`
@@ -1861,7 +1741,7 @@ def draft(root, session_id=None, transcript=None, reason=None, enrich=None, capt
     corto)."""
     avisos = []
     fecha = _fecha_local_de_captured_at(captured_at) if captured_at else hoy()
-    iniciativa = iniciativa_activa(root) or "n/a"
+    iniciativa = iniciativa_capturada or iniciativa_activa(root) or "n/a"
     enr = cargar_enrich(enrich, avisos)
     turnos = capturas(root, session_id)
     if enr.get("resumen"):
@@ -1884,6 +1764,13 @@ def draft(root, session_id=None, transcript=None, reason=None, enrich=None, capt
         "session_id": session_id or "manual",
         "reason": reason or "manual",
         "iniciativa": iniciativa,
+        # fix2 B-M4: la etiqueta sale de la regla única (`iniciativa_vigente`); solo estas entradas
+        # se citan como historial de una iniciativa al arrancar.
+        # T-21 (deuda de T-07): una sesión recuperada tarde (`orphan_recovery`) se redacta con la
+        # iniciativa vigente AL RECUPERAR, que puede no ser la suya: sin la marca no se cita como
+        # historial de ninguna iniciativa (sigue en la bitácora, atribuible solo por identidad).
+        **({"regla_iniciativa": "vigente"} if iniciativa != "n/a" and reason != "orphan_recovery"
+           and (iniciativa_capturada or not _cierre_tardio(captured_at)) else {}),
         "resumen": str(resumen),
         "resumen_por": resumen_por,
         "turnos": len(turnos),
@@ -1923,6 +1810,8 @@ def render(e, fuente):
           f"resumen: {_yaml_str(e['resumen'])}", f"fuente: {_yaml_str(fuente)}",
           f"cierre: {_yaml_str(e.get('cierre') or 'materializado')}",   # materializado · recuperado_sin_cierre (T-05)
           f"resumen_por: {_yaml_str(e.get('resumen_por') or 'determinista')}", f"turnos: {_entero(e.get('turnos'))}"]
+    if e.get("regla_iniciativa"):
+        fm.append(f"regla_iniciativa: {_yaml_str(e['regla_iniciativa'])}")
     if e.get("materializado_en"):
         fm.append(f"materializado_en: {_yaml_str(e['materializado_en'])}")
     if e.get("derivados_en"):
@@ -2314,7 +2203,7 @@ def _public_entry(entry, name):
 
 
 def select_entries(root, *, initiative=None, session_id=None, runtime=None, entry=None,
-                   max_entries=128, max_total_bytes=1024 * 1024):
+                   max_entries=128, max_total_bytes=1024 * 1024, require_rule=False):
     """Exact, bounded read-only selection; an incomplete scan never certifies absence.
 
     Recency is date then filename, a deterministic tie-break rather than a claim
@@ -2370,6 +2259,10 @@ def select_entries(root, *, initiative=None, session_id=None, runtime=None, entr
             continue
         if any(value is not None and parsed.get(key) != value
                for key, value in (('iniciativa', initiative), ('session_id', session_id), ('runtime', runtime))):
+            continue
+        if require_rule and parsed.get('regla_iniciativa') != 'vigente':
+            # fix2 B-M4: etiquetada con la regla vieja (primera activa alfabética): no se atribuye
+            result['issues'].append({'entry': public_text(name, 180), 'status': 'legacy_initiative_rule'})
             continue
         # A generated placeholder is still available through explicit identity.
         placeholder = (parsed.get('resumen', '').strip() in ('', 'Sesión sobre ' + str(parsed.get('iniciativa', '')), 'Sesión de trabajo')
@@ -2529,7 +2422,8 @@ def resumen_ia(turnos, borrador, runner=None, which=None, environ=None):
 
 
 def escribir_sesion(root, session_id, reason=None, transcript=None, fuente="hook", enrich=None, ia="auto",
-                    runner=None, which=None, environ=None, entrada=None, captured_at=None, git_timeout=GIT_TIMEOUT):
+                    runner=None, which=None, environ=None, entrada=None, captured_at=None, git_timeout=GIT_TIMEOUT,
+                    iniciativa_capturada=None):
     """Lo que hace el hook SessionEnd (vía `replay`, session-end-durable-capture T-04): entrada
     DETERMINISTA primero (ya está en disco aunque lo que sigue muera por timeout) y, si toca IA
     (`on`, o `auto` + dev.json `sesion.resumen: true`; `off` la desactiva siempre — `replay` bajo
@@ -2538,7 +2432,8 @@ def escribir_sesion(root, session_id, reason=None, transcript=None, fuente="hook
     `entrada` (opcional): una entrada ya construida (`write --draft`) en vez de recalcular el borrador.
     `captured_at`/`git_timeout`: ver `draft`. Devuelve (ruta | None, entrada)."""
     e = entrada if entrada is not None else draft(root, session_id, transcript, reason, enrich,
-                                                   captured_at=captured_at, git_timeout=git_timeout)
+                                                   captured_at=captured_at, git_timeout=git_timeout,
+                                                   iniciativa_capturada=iniciativa_capturada)
     e.setdefault("materializado_en", _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
     e.setdefault("derivados_en", "replay" if fuente == "hook" else fuente)
     manual = set(e.get("manual") or [])

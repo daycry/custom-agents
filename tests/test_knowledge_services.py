@@ -1397,7 +1397,8 @@ def test_f3fix1_gap108_router_default_esta_declarada_como_reservada():
 
 def test_f3fix1_gap112_doctor_md_cualifica_la_iniciativa_del_criterio():
     """#112: en la spec de `graphiti-memory`, CA-14 es OTRO criterio."""
-    doctor_md = _texto("commands", "doctor.md")
+    # The notes moved out of the command into docs/ (audit H-44).
+    doctor_md = _texto("agent-kits", "shared", "doctor-reference.md")
     assert "CA-14 de knowledge-services" in doctor_md
     for linea in doctor_md.splitlines():
         if "CA-14" in linea:

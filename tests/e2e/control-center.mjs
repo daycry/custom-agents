@@ -59,7 +59,7 @@ test('external project sessions: metadata, honest status and workspace isolation
    await page.setRequestInterception(true)
    page.on('request',request=>{
     const path=new URL(request.url()).pathname;requests.push(path)
-    if(path.endsWith('/native-sessions')){
+    if(path.endsWith('/native-sessions')||path.endsWith('/native-sessions/cached')){
      const portal=path.includes('/portal/')
      request.respond({status:200,contentType:'application/json',body:JSON.stringify({status:'partial',complete:false,
       sessions:portal?[{id:'native-fixture',runtime:'codex',title:'Sesión externa <img src=x onerror="window.__nativeXss=1">',

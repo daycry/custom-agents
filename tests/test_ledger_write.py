@@ -364,3 +364,68 @@ def test_state_preserves_an_unrelated_phases_summary_bytes(tmp_path):
     result = call(path, "state", "--task", "T-01", "--state", "completado")
     assert result.returncode == 0, result.stdout
     assert row in path.read_text(encoding="utf-8")
+
+
+# ------------------------------------------------- H-24 (auditoría 2026-11-09): «seguir» = ciclo nuevo
+
+def _three_attempts(path):
+    path.write_text(BASE, encoding="utf-8")
+    for attempt in (1, 2, 3):
+        assert call(path, "review", "--attempt", str(attempt), "--tasks", "T-01,T-02",
+                    "--summary", "Fixture").returncode == 0
+
+
+def test_h24_seguir_abre_un_ciclo_nuevo_solo_con_el_ok_del_usuario(tmp_path):
+    path = tmp_path / "tasks.md"
+    _three_attempts(path)
+    before = path.read_bytes()
+    sin_ok = call(path, "review", "--attempt", "4", "--tasks", "T-01,T-02", "--summary", "Fixture")
+    assert sin_ok.returncode == 1 and json.loads(sin_ok.stdout)["status"] == "new_cycle_ok_required"
+    assert path.read_bytes() == before
+    ok = call(path, "review", "--attempt", "4", "--tasks", "T-01,T-02", "--summary", "Fixture",
+              "--new-cycle-ok", "seguir con un ciclo acotado")
+    assert ok.returncode == 0, ok.stdout + ok.stderr
+    text = path.read_text(encoding="utf-8")
+    header = next(line for line in text.splitlines() if "intento 4" in line)
+    assert header.startswith("## Revisión de dos lentes — intento 4: Fixture")
+    assert "ciclo 2" in header and "«seguir con un ciclo acotado»" in header and header.endswith("(T-01, T-02)")
+    assert lint(text, path)[0] == []
+
+
+def test_h24_dentro_del_ciclo_nuevo_no_se_repite_el_ok_y_al_sexto_vuelve_a_parar(tmp_path):
+    path = tmp_path / "tasks.md"
+    _three_attempts(path)
+    assert call(path, "review", "--attempt", "4", "--tasks", "T-01,T-02", "--summary", "Fixture",
+                "--new-cycle-ok", "seguir").returncode == 0
+    for attempt in (5, 6):
+        assert call(path, "review", "--attempt", str(attempt), "--tasks", "T-01,T-02",
+                    "--summary", "Fixture").returncode == 0
+    assert json.loads(call(path, "review", "--attempt", "7", "--tasks", "T-01,T-02",
+                           "--summary", "Fixture").stdout)["status"] == "new_cycle_ok_required"
+    misplaced = call(path, "review", "--attempt", "2", "--tasks", "T-01", "--summary", "X", "--new-cycle-ok", "si")
+    assert misplaced.returncode != 0
+
+
+def test_h24_el_ok_es_una_cita_de_una_linea_sin_secretos(tmp_path):
+    path = tmp_path / "tasks.md"
+    _three_attempts(path)
+    for bad in ("", "dos\nlineas", "x" * 300):
+        result = call(path, "review", "--attempt", "4", "--tasks", "T-01,T-02", "--summary", "Fixture",
+                      "--new-cycle-ok", bad)
+        assert result.returncode != 0, bad
+
+
+def test_fix1_b3_un_t_nn_dentro_de_la_cita_no_atribuye_el_intento_a_otra_tarea(tmp_path):
+    """B3 (revisión fase 2): `ids_de_tarea` contaba cualquier `T-NN` de la cita del OK."""
+    path = tmp_path / "tasks.md"
+    _three_attempts(path)
+    ok = call(path, "review", "--attempt", "4", "--tasks", "T-01,T-02", "--summary", "Fixture",
+              "--new-cycle-ok", "seguir, y que T-07 espere")
+    assert ok.returncode == 0, ok.stdout + ok.stderr
+    spec = importlib.util.spec_from_file_location("fix1_b3_lint", ROOT / "agent-kits/shared/ledger-lint.py")
+    lint_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lint_mod)
+    text = path.read_text(encoding="utf-8")
+    seccion = lint_mod.secciones_revision(text)[-1]
+    assert lint_mod.menciones(seccion) == {"T-01", "T-02"}, lint_mod.menciones(seccion)
+    assert "T\u201107 espere" in text and lint_mod.ultimo_intento_para(lint_mod.secciones_revision(text), {"T-07"}) is None

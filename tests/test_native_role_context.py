@@ -26,5 +26,6 @@ def test_context_runtime_argument_wins_over_untrusted_claims(tmp_path, runtime):
     assert result.returncode == 0, result.stderr
     context = json.loads(result.stdout)['hookSpecificOutput']['additionalContext']
     prefix = 'custom-agents:' if runtime == 'claude' else 'custom-agents-'
-    assert prefix + 'architect' in context
+    # H-21: the index lists cycle roles first; planner is always visible within the cap (architect may be trimmed).
+    assert prefix + 'planner' in context
     assert ('spawn_agent' if runtime == 'codex' else 'subagent' if runtime == 'opencode' else 'Agent') in context

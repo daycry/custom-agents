@@ -207,7 +207,10 @@ def test_prepare_selected_task_includes_local_notes_and_requires_fresh_sources(s
     assert request(server,base+'/prepare','POST',{'action':'approve','task':'T-01'},cookie)[0]==400
     folder=server.workspaces['one'].root/'docs/roadmap/2026-10-31-pilot'
     (folder/'improvement-plan.md').unlink()
-    assert request(server,base+'/prepare','POST',{'action':'continue','task':None},cookie)[0]==503
+    # H-19: a quick-path initiative has no improvement-plan.md; its ledger is the source that must exist.
+    assert request(server,base+'/prepare','POST',{'action':'continue','task':None},cookie)[0]==200
+    (folder/'tasks.md').unlink()
+    assert request(server,base+'/prepare','POST',{'action':'continue','task':None},cookie)[0] in (404,503)
 
 def test_native_session_routes_use_the_registered_project_and_single_use_controls(server):
     import time
@@ -241,3 +244,17 @@ def test_native_session_routes_use_the_registered_project_and_single_use_control
     assert request(server,path+'/disconnect','POST',{},cookie)[0]==200;settled('disconnected')
     assert request(server,path+'/resume','POST',{},cookie)[0]==200;settled('idle')
     assert request(server,path.replace('/one/','/two/'),cookie=cookie)[0]==404
+
+
+def test_t21_cookie_is_scoped_by_port_so_two_consoles_do_not_overwrite_each_other(server):
+    """Cookies are per host, not per port: two consoles on 127.0.0.1 shared `ca_console` and logging in
+    to one logged the other out (audit, minors)."""
+    status, headers, _ = request(server, '/api/bootstrap', 'POST', {'token': server.token})
+    assert status == 200
+    name, _, value = headers['Set-Cookie'].split(';')[0].partition('=')
+    port = server.server_address[1]
+    assert name == f'ca_console_{port}'
+    assert request(server, '/api/workspaces', cookie=f'{name}={value}')[0] == 200
+    # the pre-scoping name, or another console's port, is not this console's cookie
+    assert request(server, '/api/workspaces', cookie=f'ca_console={value}')[0] == 401
+    assert request(server, '/api/workspaces', cookie=f'ca_console_{port + 1}={value}')[0] == 401

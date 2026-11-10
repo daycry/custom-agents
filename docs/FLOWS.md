@@ -331,7 +331,7 @@ flowchart TD
     J --> KG{"¿hay candidatos en<br/>pending o needs_changes?"}
     KG -->|sí| KC["knowledge-curator<br/>juicio + gate solo lectura<br/>servicio apply · SHA original"]
     KG -.->|"no: omisión honesta<br/>(una línea, sin fallo)"| CP
-    KC --> CP["Fase 6: selección literal por tarea<br/>commit-selection.py preview<br/>selección · patch · staging ajeno"]
+    KC --> CP["Fase 6: verifica la selección literal por tarea<br/>(commits del implementer, P4: commit-selection.py)<br/>selección · patch · staging ajeno"]
     CP --> CV{"validate por stdin<br/>snapshot vigente · exit 0?"}
     CV -->|sí| GC["Git nativo commit --only<br/>lista UTF-8/NUL revisada<br/>verificar árbol y staging ajeno"]
     CV -.->|no| CH["commit pendiente<br/>motivo visible · nuevo preview"]
@@ -540,15 +540,15 @@ flowchart TD
 flowchart LR
     L[("docs/roadmap/*/tasks.md<br/>ledger canónico")] -->|Write/Edit| H1["hook PostToolUse<br/>progress-line.sh"]
     H1 -->|"systemMessage (con debounce)"| U(["👀 usuario<br/>📋 slug · T-04/12 (33%) · fase 2/4 · en curso T-05"])
-    SA["subagente termina"] --> H2["hook SubagentStop<br/>subagent-progress.sh"]
-    H2 -->|"systemMessage: iniciativas activas"| U
+    SA["subagente termina"] --> H2["hook SubagentStop<br/>subagent-progress.sh → subagent-progress.py (un Python)"]
+    H2 -->|"systemMessage: iniciativas activas (con debounce propio)"| U
     OC["OpenCode V2: session.context"] --> H3
     OCP["OpenCode V2: session.prompt"] --> H5
     OCI["OpenCode V2: session.execution<br/>succeeded · failed · interrupted"] --> H4
     SS["sesión: startup · resume · compact"] --> H3["hook SessionStart<br/>session-context.sh"]
     H3 -->|"additionalContext: índice de piezas (≤ 45 líneas, caché por hash)<br/>+ retoma ≤ 15 líneas (tarea en-progreso)<br/>+ journal ≤ 25 líneas (solo startup · resume)"| C(["🧠 contexto de sesión"])
     UP["turno del usuario"] --> H5["hook UserPromptSubmit<br/>user-prompt-capture.sh (timeout 5)"]
-    H5 -->|"journal.py capture (sin stdout, exit 0; opt-out private; secretos redactados)"| LOG[(".claude/session-prompts-sid.log<br/>no versionado · 0600 · purga 30 d<br/>= checkpoint de la sesión")]
+    H5 -->|"journal-prompt.py, captura ligera (sin stdout, exit 0; opt-out private; secretos redactados)"| LOG[(".claude/session-prompts-sid.log<br/>no versionado · 0600 · purga 30 d<br/>= checkpoint de la sesión")]
     SE["Claude: cierre / clear<br/>Codex: cierre del hilo principal"] --> H4["captura compartida<br/>Claude: registro 5 s · Codex: registro 3 s<br/>OpenCode: adapter 20 s"]
     H4 -->|"journal-capture.py<br/>(envelope atómico ≤ 64 KiB, sin materializador/git/IA/red)"| OB[(".claude/journal/outbox/<br/>event_id.json")]
     OB -->|"journal.py replay --budget-ms 300 --max 3<br/>(claim → materializa con git/log/IA opt-in → done/dead-letter)"| H3
@@ -621,9 +621,18 @@ explícita; cambiar su ruta no siempre implica desactivar hooks.
 La gramática reconoce asignaciones literales y wrappers `env -i` o
 `--ignore-environment`; `-u NAME`, `-uNAME` o `--unset=NAME`; `-C DIR` o
 `--chdir=DIR`; `command -p`; `exec -a NAME`, `-c` o `-l`. Analiza opciones
-Git `-c` y `--config-env`, `GIT_CONFIG_COUNT` con sus claves y
-`GIT_CONFIG_PARAMETERS`. Compara el nombre base del ejecutable sin distinguir
+Git `-c` y `--config-env` contra una LISTA BLANCA (`user.name`, `user.email`,
+`core.quotepath`, `commit.gpgsign` (solo a verdadero), `init.defaultBranch`, `color.*`, `advice.*`;
+cualquier otra clave se deniega), clasifica `git config` en lectura o escritura
+(solo escribe claves de la lista blanca, sin `--file`/`--blob`, sin renombrar ni
+borrar secciones) y deniega las variables `GIT_*`, `HOME` y `XDG_CONFIG_HOME`
+cuando la orden ejecuta git (en el mismo segmento o exportadas antes). Compara el nombre base del ejecutable sin distinguir
 mayúsculas, incluidos nombres Windows con `.exe`.
+
+El guardarraíl evita accidentes y las formas conocidas de saltarse estas reglas;
+no es un sandbox. Quedan fuera los envoltorios (`nice`, `sudo`, `xargs`,
+`find -exec`), los scripts que escriba el propio agente y los ficheros de
+configuración editados a mano (ADR-023, ADR-007).
 
 Cada orden conserva su propia decisión, también entre líneas. Comillas,
 comentarios y continuaciones escapadas mantienen la separación entre flags
@@ -844,14 +853,15 @@ ni concede permisos. Cada categoría decide sus destinos con el routing existent
 
 El perfil efectivo se resuelve antes de despachar. Lite carga el núcleo y solo
 las referencias cuyas condiciones siguen activas; omite el detalle de subagentes
-de implementación. Cada revisor mantiene un contexto fresco propio.
+de implementación. Cada tarea se despacha en secuencia al `implementer` nativo, cuya
+guardia no aplica al hilo principal. Cada revisor mantiene un contexto fresco propio.
 
 ```mermaid
 flowchart LR
   Config[dev.json perfil lite] --> Resolver[execution-profile.py]
   Resolver --> Brief[Brief completo hasta 6000]
   Resolver --> Writer[Writer obligatorio]
-  Brief --> Implementar[Implementación en hilo actual]
+  Brief --> Implementar[implementer nativo en secuencia]
   Implementar --> A[Revisor A fresco]
   A --> B[Revisor B fresco y lentes condicionales secuenciales]
   B --> QA[qa-gate y cobertura]

@@ -24,12 +24,12 @@ dependencies:
     - evaluator
 ---
 
-Integraciones opcionales: lee `agent-kits/shared/project-integrations.md` al llegar a un evento externo. Resuelve exclusivamente la raíz de este proyecto; sin binding válido o herramienta disponible, continúa el ciclo local. Ninguna integración autoriza escrituras ni modifica las puertas de calidad.
+Integraciones opcionales: si el despacho declara «sin integraciones» (el orquestador ya ejecutó `integration-route.py` este ciclo), sigue en local sin leer más; si no, lee `agent-kits/shared/project-integrations.md` al llegar a un evento externo. Resuelve exclusivamente la raíz de este proyecto; sin binding válido o herramienta disponible, continúa el ciclo local. Ninguna integración autoriza escrituras ni modifica las puertas de calidad.
 
 
 ## Contexto de capacidades
 
-Antes de trabajar, aplica `agent-kits/shared/capability-check.md` con el rol
+Si el brief, el ledger (`Capacidades`) o el prompt ya traen la selección, úsala: no leas `capability-check.md` ni ejecutes `capability-route.py` salvo hechos nuevos. Si no, aplica `agent-kits/shared/capability-check.md` con el rol
 `analyst` y el paquete/áreas de la tarea. Resuelve el kit con las raíces
 del runtime, comparte los IDs/criterios del ledger y lee solo las referencias
 pertinentes. Fallback sin fragmento/selector: consulta las guías disponibles del
@@ -54,7 +54,7 @@ La salida es **una sola cosa**: `docs/roadmap/<fecha>-<slug>/spec.md`, usando la
 `spec.md` del kit del evaluator** (así toda la cadena spec→evaluación→plan encaja sin fricción):
 
 ```bash
-R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; EVALKIT="${R:+$R/agent-kits/evaluator}"
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; EVALKIT="${R:+$R/agent-kits/evaluator}"
 # plantilla en "$EVALKIT/templates/spec.md"
 ```
 
@@ -105,7 +105,7 @@ madura, léela y pregunta solo por lo que falte.
 - **Mide el coste de generación** (iniciativa coste-generacion). Al EMPEZAR la spec:
 
   ```bash
-  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="${R:+$R/agent-kits/shared}"
+  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="${R:+$R/agent-kits/shared}"
   python3 "$SHAREDKIT/usage-meter.py" start --artefacto "docs/roadmap/<fecha>-<slug>/spec.md"
   ```
 

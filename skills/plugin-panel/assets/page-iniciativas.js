@@ -72,7 +72,11 @@
     if (d.status === 'not_found') { return 'No se encontró el roadmap del proyecto (docs/roadmap). Sin datos.'; }
     var fecha = ' Lectura obtenida: ' + d.observed_at + '.';
     if (d.status === 'partial' || !d.complete) {
-      return 'Lectura parcial: se muestran las iniciativas leídas; lo omitido no acredita ausencia.' + fecha;
+      var recorte = d.recorte && d.recorte.omitidas > 0
+        ? ' Se muestran las ' + d.recorte.mostradas + ' más recientes; ' + d.recorte.omitidas
+          + ' más antiguas quedan fuera del tope.'
+        : '';
+      return 'Lectura parcial: se muestran las iniciativas leídas; lo omitido no acredita ausencia.' + recorte + fecha;
     }
     if (!d.iniciativas.length) { return 'El roadmap no tiene iniciativas.' + fecha; }
     return 'Cartera derivada de docs/roadmap.' + fecha;

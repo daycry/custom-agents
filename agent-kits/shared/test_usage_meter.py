@@ -782,10 +782,10 @@ def test_calibration_ignora_tablas_posteriores_y_fuera_de_rango(entorno, tmp_pat
 
 
 def test_state_corrupto_degrada_sin_crashear(entorno):
-    """State con formas inesperadas → exit 0 y degradación con aviso (contrato 'nunca bloquea')."""
+    """Marcador corrupto dentro de un objeto → exit 0 y degradación con aviso (contrato 'nunca bloquea')."""
     _, tdir, state = entorno
     _write(tdir / "sesion.jsonl", [_rec("m1", inp=10)])
-    for corrupto in ('{"a.md": 5}', '["x"]', "{esto no es json"):
+    for corrupto in ('{"a.md": 5}',):
         state.write_text(corrupto, encoding="utf-8")
         rc, res = _run(None, ["close", "--artefacto", "a.md", "--state", str(state),
                               "--transcript-dir", str(tdir)])
@@ -796,6 +796,33 @@ def test_state_corrupto_degrada_sin_crashear(entorno):
         rc, _ = _run(None, ["start", "--artefacto", "b.md", "--state", str(state),
                             "--transcript-dir", str(tdir)])
         assert rc == 0
+
+
+def test_fix1_state_ilegible_no_se_sobrescribe(entorno):
+    """Revisión intento 1 (gap 3): ilegible o raíz no objeto ≠ vacío. start/close no escriben y
+    salen con exit 3 (la medición degrada: el ciclo sigue con estimación); status solo avisa."""
+    _, tdir, state = entorno
+    _write(tdir / "sesion.jsonl", [_rec("m1", inp=10)])
+    for corrupto in ('["x"]', "{esto no es json", '{"spec": {"inicio": "2026'):
+        state.write_text(corrupto, encoding="utf-8")
+        for argv in (["start", "--artefacto", "b.md"], ["close", "--artefacto", "a.md"]):
+            rc, res = _run(None, argv + ["--state", str(state), "--transcript-dir", str(tdir)])
+            assert rc == 3, (corrupto, argv, rc, res)
+            assert res["ok"] is False and "ilegible" in res["error"], res
+            assert state.read_text(encoding="utf-8") == corrupto, "el estado ilegible se sobrescribió"
+        rc, res = _run(None, ["status", "--state", str(state)])
+        assert rc == 0 and res["marcadores"] == [] and res.get("avisos"), res
+
+
+def test_fix1_state_con_bom_conserva_marcadores(entorno):
+    _, tdir, state = entorno
+    _write(tdir / "sesion.jsonl", [_rec("m1", inp=10)])
+    previo = {"spec": {"version": 2, "inicio": "2026-11-09T00:00:00Z", "offsets": {}}}
+    state.write_bytes(b"\xef\xbb\xbf" + json.dumps(previo).encode("utf-8"))
+    rc, _ = _run(None, ["start", "--artefacto", "plan", "--state", str(state),
+                        "--transcript-dir", str(tdir)])
+    assert rc == 0
+    assert sorted(json.loads(state.read_text(encoding="utf-8-sig"))) == ["plan", "spec"]
 
 
 def test_marcador_sin_offsets_degrada_con_aviso(entorno):
@@ -1174,3 +1201,242 @@ def test_procedencia_cobertura_parcial_con_usage_no_numerico(entorno):
     malo["message"]["usage"]["input_tokens"] = "muchos"
     res = _start_close(tdir, state, antes=[], despues=[_rec("m1", inp=10, out=5), json.dumps(malo)])
     assert res["fuente"] == "medido" and res["tokens_cobertura"] == "parcial"
+
+
+def test_fix3_status_marca_solo_el_estado_ilegible_como_fatal(entorno):
+    """Revisión intento 3 (B5): `status` distingue ilegible (start/close salen con 3) de marcador corrupto."""
+    _, _tdir, state = entorno
+    state.write_text("{ roto", encoding="utf-8")
+    rc, res = _run(None, ["status", "--state", str(state)])
+    assert rc == 0 and res.get("estado_ilegible") is True, res
+    state.write_text(json.dumps({"roto": 5}), encoding="utf-8")
+    rc, res = _run(None, ["status", "--state", str(state)])
+    assert rc == 0 and not res.get("estado_ilegible") and res.get("avisos"), res
+
+
+
+# ------------------------------------------- H-40 (auditoría 2026-11-09, T-13): state acotado
+
+def _envejecer(path, horas=3):
+    """mtime `horas` atrás: un transcript que no se ha tocado desde antes de la ventana."""
+    import os
+    import time
+    viejo = time.time() - horas * 3600
+    os.utime(path, (viejo, viejo))
+
+
+def _rec_viejo(msg_id, inp, horas=3):
+    """Registro escrito `horas` atrás (timestamp coherente con el mtime envejecido)."""
+    rec = json.loads(_rec(msg_id, inp=inp))
+    rec["timestamp"] = (datetime.now(timezone.utc) - timedelta(hours=horas)).isoformat()
+    return json.dumps(rec)
+
+
+def _cerrar(tdir, state, artefacto="a.md"):
+    return _run(None, ["close", "--artefacto", artefacto, "--state", str(state),
+                       "--transcript-dir", str(tdir)])[1]
+
+
+def test_h40_close_poda_los_offsets_de_transcripts_sin_cambios(entorno):
+    """H-40: un marcador cerrado no guarda el tamaño de cada transcript antiguo (crecía sin límite:
+    3,9 MB con ~120 marcadores); solo los ficheros tocados en la ventana, y re-cerrar mide igual."""
+    _, tdir, state = entorno
+    for n in range(40):
+        _write(tdir / f"vieja-{n:02d}.jsonl", [_rec_viejo(f"v{n}", inp=999)])
+        _envejecer(tdir / f"vieja-{n:02d}.jsonl")
+    res = _start_close(tdir, state, antes=[_rec("m1", inp=7)], despues=[_rec("m2", inp=100, out=10)])
+    marcador = json.loads(state.read_text(encoding="utf-8"))["a.md"]
+    assert marcador["offsets"] == {"sesion.jsonl": marcador["offsets"]["sesion.jsonl"]}
+    assert marcador.get("offsets_podados") is True
+    # re-close: misma ventana; un transcript antiguo que se reanuda cuenta solo lo nuevo
+    with open(tdir / "vieja-00.jsonl", "a", encoding="utf-8") as f:
+        f.write(_rec("reanudada", inp=5) + "\n")
+    res2 = _cerrar(tdir, state)
+    assert res["tokens_reales"]["entrada"] == 100
+    assert res2["tokens_reales"]["entrada"] == 105 and res2["tokens_reales"]["respuestas"] == 2
+    assert res2["revision_medicion"] == 2 and res2["ventana_id"] == res["ventana_id"]
+
+
+def test_h40_migracion_poda_los_marcadores_cerrados_existentes_sin_perder_la_medicion(entorno):
+    """H-40: los marcadores ya cerrados con todos sus offsets se podan al siguiente start/close;
+    los abiertos no se tocan y los campos de medición se conservan."""
+    _, tdir, state = entorno
+    for n in range(30):
+        _write(tdir / f"vieja-{n:02d}.jsonl", [_rec_viejo(f"v{n}", inp=999)])
+        _envejecer(tdir / f"vieja-{n:02d}.jsonl")
+    _write(tdir / "sesion.jsonl", [])
+    rc, _ = _run(None, ["start", "--artefacto", "cerrado.md", "--state", str(state), "--transcript-dir", str(tdir)])
+    rc, _ = _run(None, ["start", "--artefacto", "abierto.md", "--state", str(state), "--transcript-dir", str(tdir)])
+    with open(tdir / "sesion.jsonl", "a", encoding="utf-8") as f:
+        f.write(_rec("m1", inp=40) + "\n")
+    data = json.loads(state.read_text(encoding="utf-8"))
+    data["cerrado.md"].update({"ultimoCierre": um._now_iso(), "ventana_id": "win-" + "a" * 32,
+                               "revision_medicion": 3, "fuente_id": "src-x"})   # cierre de una versión anterior
+    legacy = dict(data["cerrado.md"])
+    state.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")   # como lo guarda el meter
+    antes = state.stat().st_size
+    rc, _ = _run(None, ["start", "--artefacto", "otro.md", "--state", str(state), "--transcript-dir", str(tdir)])
+    assert rc == 0
+    data = json.loads(state.read_text(encoding="utf-8"))
+    cerrado = data["cerrado.md"]
+    assert set(cerrado["offsets"]) == {"sesion.jsonl"} and cerrado["offsets_podados"] is True
+    assert {k: v for k, v in cerrado.items() if k not in ("offsets", "offsets_podados")} == \
+        {k: v for k, v in legacy.items() if k != "offsets"}
+    assert len(data["abierto.md"]["offsets"]) == 31 and "offsets_podados" not in data["abierto.md"]
+    # la ventana del migrado se sigue midiendo igual
+    assert _cerrar(tdir, state, "cerrado.md")["tokens_reales"]["entrada"] == 40
+    assert _cerrar(tdir, state, "abierto.md")["tokens_reales"]["entrada"] == 40
+    assert state.stat().st_size < antes
+
+
+# ------------------------------------- revisión intento 1 (fase 3): B1 y D2 de la poda (T-13)
+
+def test_fix1_b1_un_timestamp_anidado_no_es_la_fecha_del_registro(entorno):
+    """B1: una línea JSON válida sin `timestamp` en la raíz (p. ej. `file-history-snapshot` con
+    `snapshot.timestamp` de 20 minutos antes) no da fecha: se conserva el offset y re-cerrar mide
+    lo mismo que con todos los offsets."""
+    _, tdir, state = entorno
+    hace_20 = (datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat()
+    previo = tdir / "sesion.jsonl"
+    _write(previo, [_rec("dentro-de-la-tolerancia", inp=50),
+                    json.dumps({"type": "file-history-snapshot", "snapshot": {"timestamp": hace_20}})])
+    assert um._ts_previo(previo, previo.stat().st_size) is None
+    rc, _ = _run(None, ["start", "--artefacto", "a.md", "--state", str(state), "--transcript-dir", str(tdir)])
+    with open(previo, "a", encoding="utf-8") as f:
+        f.write(_rec("ventana", inp=7) + "\n")
+    res = _cerrar(tdir, state)
+    marcador = json.loads(state.read_text(encoding="utf-8"))["a.md"]
+    assert "sesion.jsonl" in marcador["offsets"]
+    assert res["tokens_reales"]["entrada"] == 7
+    assert _cerrar(tdir, state)["tokens_reales"]["entrada"] == 7
+
+
+def test_fix1_d2_la_migracion_abre_un_transcript_cada_vez_y_reintenta_tras_un_error(entorno, monkeypatch):
+    """D2: la migración dejaba abiertos todos los transcripts a la vez y, con un error de E/S
+    (EMFILE), marcaba el marcador como podado y nunca lo reintentaba."""
+    import builtins
+    import errno
+    _, tdir, state = entorno
+    for n in range(6):
+        _write(tdir / f"t{n}.jsonl", [_rec(f"r{n}", inp=1)])
+    estado = {f"m{k}.md": {"version": 2, "inicio": um._now_iso(), "ultimoCierre": um._now_iso(),
+                           "transcriptDir": str(tdir), "offsets": {f"t{n}.jsonl": (tdir / f"t{n}.jsonl").stat().st_size
+                                                                    for n in range(6)}}
+              for k in range(3)}
+    abiertos, maximo = set(), [0]
+    real_open = builtins.open
+    class Contado:
+        def __init__(self, fh, clave): self.fh, self.clave = fh, clave
+        def __enter__(self): return self
+        def __exit__(self, *a): self.close()
+        def __getattr__(self, n): return getattr(self.fh, n)
+        def close(self):
+            abiertos.discard(self.clave); self.fh.close()
+    def contar(path, mode="r", *a, **k):
+        fh = real_open(path, mode, *a, **k)
+        if str(path).endswith(".jsonl") and "b" in mode:
+            abiertos.add(id(fh)); maximo[0] = max(maximo[0], len(abiertos))
+            return Contado(fh, id(fh))
+        return fh
+    monkeypatch.setattr(builtins, "open", contar)
+    um._migrar_cerrados(estado)
+    monkeypatch.setattr(builtins, "open", real_open)
+    assert maximo[0] <= 1, maximo[0]
+    assert all(m["offsets_podados"] for m in estado.values())
+    # con EMFILE en la lectura de cola: ni se poda ni se marca, para reintentar
+    estado2 = {"m.md": {"version": 2, "inicio": um._now_iso(), "ultimoCierre": um._now_iso(),
+                        "transcriptDir": str(tdir), "offsets": {"t0.jsonl": (tdir / "t0.jsonl").stat().st_size}}}
+    def emfile(path, mode="r", *a, **k):
+        if str(path).endswith(".jsonl"):
+            raise OSError(errno.EMFILE, "Too many open files")
+        return real_open(path, mode, *a, **k)
+    monkeypatch.setattr(builtins, "open", emfile)
+    um._migrar_cerrados(estado2)
+    monkeypatch.setattr(builtins, "open", real_open)
+    assert "offsets_podados" not in estado2["m.md"] and "t0.jsonl" in estado2["m.md"]["offsets"]
+
+
+# ------------------------------------- revisión intento 2 (fase 3): B1 con líneas largas y D (T-13)
+
+import pytest as _pytest
+
+
+@_pytest.mark.parametrize("relleno_kib", [7.5, 30, 105])
+def test_fix2_b1_una_linea_larga_sin_fecha_en_la_raiz_no_da_la_anidada(entorno, relleno_kib):
+    """B1 (intento 2): si la cola de 4 KiB solo trae un trozo de la línea, la regex cogía el
+    `snapshot.timestamp` anidado sin probar la cola de 64 KiB. Una línea que no se puede leer entera
+    da None (se conserva el offset); nunca una regex sobre texto que puede ser anidado."""
+    _, tdir, _ = entorno
+    hace_20 = (datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat()
+    f = tdir / "sesion.jsonl"
+    linea = json.dumps({"type": "file-history-snapshot", "relleno": "x" * int(relleno_kib * 1024),
+                        "snapshot": {"timestamp": hace_20}})
+    _write(f, [_rec("antes", inp=1), linea])
+    assert um._ts_previo(f, f.stat().st_size) is None
+
+
+def test_fix2_b1_una_linea_larga_con_fecha_en_la_raiz_si_la_da(entorno):
+    _, tdir, _ = entorno
+    ts = (datetime.now(timezone.utc) - timedelta(hours=2)).replace(microsecond=0)
+    f = tdir / "sesion.jsonl"
+    _write(f, [json.dumps({"type": "assistant", "relleno": "y" * 30000, "timestamp": ts.isoformat()})])
+    assert um._ts_previo(f, f.stat().st_size) == ts
+
+
+def test_fix2_d_un_transcript_ilegible_no_se_reintenta_hasta_que_cambia(entorno, monkeypatch):
+    """D (intento 2): un transcript que existe pero no se abre (EACCES, un directorio) hacía repetir
+    la poda en cada start/close sin límite. Solo se reintenta si cambia su mtime."""
+    import os as _os
+    _, tdir, _ = entorno
+    roto = tdir / "roto.jsonl"
+    roto.mkdir()                                   # existe, no se puede abrir como fichero
+    estado = {"m.md": {"version": 2, "inicio": um._now_iso(), "ultimoCierre": um._now_iso(),
+                       "transcriptDir": str(tdir), "offsets": {"roto.jsonl": 10}}}
+    um._migrar_cerrados(estado)
+    assert "offsets_podados" not in estado["m.md"]
+    llamadas = []
+    real = um._candidatos_de_poda
+    monkeypatch.setattr(um, "_candidatos_de_poda", lambda *a, **k: llamadas.append(1) or real(*a, **k))
+    um._migrar_cerrados(estado)
+    assert llamadas == [], "sin cambios en el fichero ilegible no se vuelve a intentar"
+    futuro = _os.stat(roto).st_mtime + 100
+    _os.utime(roto, (futuro, futuro))
+    um._migrar_cerrados(estado)
+    assert llamadas == [1]
+
+
+# ------------------------------------- revisión intento 3 (fase 3): 5 (T-13)
+
+def _marcador_viejo(tdir, nombre="t.jsonl"):
+    return {"version": 2, "inicio": um._now_iso(), "ultimoCierre": um._now_iso(),
+            "transcriptDir": str(tdir), "offsets": {nombre: 10}}
+
+
+def test_fix3_5_un_transcript_que_desaparece_tras_el_error_se_poda(entorno):
+    """5: si el `stat` fallaba tras el error de lectura quedaba `poda_fallida=[clave, None]` y el
+    fichero, que ya no existe, no se podaba nunca. Un fichero que no existe se descarta, como siempre."""
+    _, tdir, _ = entorno
+    f = tdir / "t.jsonl"
+    _write(f, [_rec("a", inp=1)])
+    m = _marcador_viejo(tdir)
+    def desaparece(ruta, offset):
+        ruta.unlink()
+        raise OSError("se fue")
+    assert um._podar_offsets(m, str(tdir), desaparece) is True
+    assert m["offsets_podados"] is True and m["offsets"] == {} and "poda_fallida" not in m
+
+
+def test_fix3_5_un_error_pasajero_en_un_transcript_viejo_tiene_tope(entorno):
+    """5: un error pasajero (EMFILE, un bloqueo de Windows) en un transcript que ya no cambia dejaba el
+    marcador sin podar para siempre. Al tercer intento se poda conservando ese offset."""
+    import errno
+    _, tdir, _ = entorno
+    _write(tdir / "t.jsonl", [_rec("a", inp=1)])
+    m = _marcador_viejo(tdir)
+    def emfile(ruta, offset):
+        raise OSError(errno.EMFILE, "Too many open files")
+    assert um._podar_offsets(m, str(tdir), emfile) is False
+    assert um._podar_offsets(m, str(tdir), emfile) is False
+    assert um._podar_offsets(m, str(tdir), emfile) is True
+    assert m["offsets_podados"] is True and m["offsets"] == {"t.jsonl": 10}
+    assert "poda_fallida" not in m and "poda_intentos" not in m

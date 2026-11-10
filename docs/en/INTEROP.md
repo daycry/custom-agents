@@ -380,10 +380,16 @@ Informational hooks warn on failure and continue.
 
 Write notifications use normalized targets and original paths from the native
 diff, so moving a document preserves its deletion notification. Read-only
-continuations reuse context in an ephemeral cache for one session, for at most
-30 seconds. Prompts, completed tools that may change state, and execution ends
-invalidate it; reuse first compares configuration, logs/queue, roadmap and memory
-metadata. Links, errors, oversized trees or a custom queue disable caching. The
+continuations reuse context in an ephemeral cache with one slot per session (a
+delegated session does not evict its parent's), invalidated by its signature, not
+by events or time: while the configuration, roadmap and memory metadata do not
+change it is not recomposed, whatever prompts, tools or turn ends
+(`session.execution.*`, `session.idle`) happen. Volatile data is not part of the
+signature: the prompt capture log, the journal index, the envelopes the capture
+leaves in the queue (replayed at the next recomposition) and, for each journal
+entry, whatever the block does not quote (rewrite stamps, turn count, cost
+markers); what it quotes is. The signature is read in parallel under a 1 s
+bound. Links, errors, oversized trees or a custom queue disable caching. The
 shared service still composes context. Cleanup aborts the subscription, terminates
 owned processes and waits for them to close.
 
@@ -435,7 +441,7 @@ Payloads travel through stdin and are never interpreted as shell code.
 
 SessionEnd invokes canonical `journal-capture.py` with isolated Python (`-I -S`);
 the before-tool guard also uses isolated Python without Bash. UserPromptSubmit
-invokes `journal.py capture`, without Bash. Other hooks run through
+invokes `journal-prompt.py` (lightweight capture), without Bash; SubagentStop invokes `subagent-progress.py`, also without Bash. Other hooks run through
 Bash with a `python3` adapter for the selected interpreter. Missing tools produce a stderr warning
 and exit 0. The implementer and architect guards remain scoped to their agents.
 

@@ -14,8 +14,7 @@ description: >
 
 Revisión ADVERSARIAL de un diff con lentes de contexto fresco en paralelo — A (conformidad con spec/plan/constitución, ✓/✗ por criterio), B (defectos de corrección), C (seguridad, CONDICIONAL) y D (rendimiento, CONDICIONAL — ambas por `review-lens-select.py` sobre ficheros/líneas sensibles o costosas) — con fusión, graduación Critical/Important/Minor, bucle acotado a 3 intentos, rebate con evidencia y traza en el ledger («Revisión de dos lentes — intento N»). Fuente única del método que usan /dev-cycle (Fase 3) y quick-implement; también a demanda sobre una rama o rango sin ledger. NO sustituye a `qa` (E2E + qa-gate) ni a `nemesis` (auditoría de seguridad completa), y NO revisa estilo ni propone refactors.
 
-
-Patrón que más críticos reales ha cazado en este repo (`docs/knowledge/lessons/LES-010-*`): revisores
+Patrón que más críticos reales ha cazado en este repo (la lección LES-010 del registro de desarrollo de este plugin, que no se distribuye): revisores
 de **contexto fresco** que NO han visto implementar, cada uno con una lente, sobre el **diff**. Fuente
 única del método: `/dev-cycle` y `quick-implement` la invocan y conservan solo lo suyo (intentos, horas).
 
@@ -53,9 +52,7 @@ locales). Sin git → revisa los ficheros que el usuario indique y dilo (la puer
 
 `python3 "$SHAREDKIT/scope-check.py" "docs/roadmap/<fecha>-<slug>"` — **exit 0 obligatorio** para lanzar las lentes. Compara los ficheros cambiados (comiteados + sin comitear) con los campos `Archivos` de TODAS las tareas del ledger (`tasks.md` propio y `docs/knowledge/**` siempre en alcance). **Exit 1** → los ficheros fuera de alcance vuelven al `implementer` como **gap Important** ANTES de lanzar las lentes: o revierte el cambio, o justifica que es necesario — entonces se añade al campo `Archivos` de su tarea con una nota y se relanza el check. Exit 1 también si un criterio de aceptación aprobado se reescribió o se borró frente al ledger de la base (`criterios_alterados` del `--json`): gap Important, rebatible con evidencia si el cambio lo hizo `planner` o el usuario. **Exit 2** (sin base clara: ni `main` ni `master`) → pásale `--base <ref>`. Sin git → salta la puerta con aviso (la Lente A conserva su comprobación (2) como red).
 
-**Exit 0 con ⚠️ no es exit 0 a secas**: los avisos salen por **stderr**, y en la clave `avisos` si repites el comando con `--json` (`… "docs/roadmap/<fecha>-<slug>" --json`). El ⚠️ tiene **un solo disparo, con dos formas**: un glob de `alcance.excluir` (`.claude/dev.json`) que esconde **el grueso del diff relevante** —la mitad o más de los ficheros que el default NO excluye, y al menos tres—, ya sea dejándote la lista «fuera de alcance» vacía o comiéndoselo con un único glob. Por debajo de ese volumen NO hay ⚠️: la exclusión que solo quita ruido previsto no es un gap (si avisara en cada pasada verde sería un Important imposible de cerrar). **Léelo y trátalo como gap Important** en la fusión: o el glob se acota, o esos ficheros se declaran en el `Archivos` de su tarea, o el ledger dice por qué la exclusión es deliberada. Y mira **lo excluido** con ojos de lente: está en el diff y no en `Archivos`, que es justo donde se esconde lo que las demás puertas no ven.
-
-**Y la línea ℹ️, siempre**: por debajo del umbral el ⚠️ calla, pero `scope-check` publica igual —stderr y clave `info`/`excluidos_usuario` del `--json`— **qué ficheros esconden los globs de usuario y con qué patrón**. No es un gap automático: es la comprobación de que lo excluido es lo que se quería excluir. Si ahí aparece código de producción sin declarar, ESO sí es gap.
+**Exit 0 con ⚠️ no es exit 0 a secas**: los avisos salen por **stderr** (y en la clave `avisos` con `--json`) y traen su propio remedio. Trátalos como gap Important en la fusión, y mira **lo excluido** (línea ℹ️, siempre publicada, también en `info`/`excluidos_usuario`) con ojos de lente: está en el diff y no en `Archivos`, que es donde se esconde lo que las demás puertas no ven. Código de producción ahí, sin declarar, sí es gap.
 
 ### 1. ¿Aplican las Lentes C (seguridad) y D (rendimiento)? (determinista, un solo script)
 
@@ -70,7 +67,7 @@ de líneas añadidas: C = `eval(`, `shell=True`, `innerHTML`, SQL concatenado, c
 bloqueante, `readFileSync`, N+1/`await`/regex-compile/concat **dentro de un bucle** (proximidad, no
 parser). Config por separado en `.claude/dev.json`: `revision.lenteSeguridad`/`lenteRendimiento`
 (`auto`|`siempre`|`nunca`) y `revision.excluir` (compartido, solo RUTA). Nunca bloquea (error →
-aviso + ambas `false`). Contrato = constantes del script (`RUTA_RE`/`CONTENIDO`/`RUTA_RE_D`/
+aviso + ambas `true` en `auto`). Contrato = constantes del script (`RUTA_RE`/`CONTENIDO`/`RUTA_RE_D`/
 `CONTENIDO_D_INDEPENDIENTE`/`PATRONES_TRAS_BUCLE_D`), con tests; detalle en
 `references/lens-c-heuristics.md`/`lens-d-heuristics.md` si un motivo sorprende.
 ### 2. Despachar lentes → agente `reviewer` (solo lectura, contexto fresco)
@@ -119,7 +116,8 @@ Si quedan gaps Critical/Important: las tareas afectadas vuelven a `en-progreso`,
 corrige (ese tiempo es **implementación**, medido con clave `"<slug>/T-XX-fix<N>"`) y se
 **relanza la revisión sobre el nuevo diff** con contador explícito ("revisión, intento 2 de 3").
 **Máximo 3 intentos**; al 3.º con gaps, PARA y devuelve la decisión al orquestador/usuario (seguir /
-re-planificar / aceptar como deuda). Los subagentes son de un solo uso, así que la memoria del
+re-planificar / aceptar como deuda). «Seguir» abre un ciclo nuevo de hasta 3 intentos con el OK del
+usuario citado en la cabecera (`ledger-write.py review --attempt 4 --new-cycle-ok "<cita>"`). Los subagentes son de un solo uso, así que la memoria del
 revisor se consigue **por traspaso**: al lanzar las lentes del intento N+1, pásales la **tabla
 completa de veredictos y gaps del intento N — incluidos los `descartado (rebatido)` con su
 evidencia** — con la instrucción "esto ya lo juzgaste así; re-evalúa SOLO lo corregido; no reabras
@@ -165,7 +163,7 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Aplican a cada lente 
 
 - `scripts/review-lens-select.py` — decide si aplican las Lentes C y D (ruta+contenido de las líneas
   añadidas; `dev.json` `revision.lenteSeguridad`/`lenteRendimiento`); determinista, con tests junto
-  al script, **exit 0 siempre** (error → ambas `false`).
+  al script, **exit 0 siempre** (error → ambas `true` en `auto`).
 - Reutiliza sin duplicar, de `agent-kits/shared/`: `scope-check.py` (puerta), `ledger-lint.py`,
   `personas/`, `knowledge-write.md`, `review-report.template.md`, `output-discipline.md`,
   `model-tier.py` (tier del `reviewer`) y `docs-style.md` (Lente A en prosa).

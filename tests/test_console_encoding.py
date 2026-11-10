@@ -317,6 +317,8 @@ SIN_SIMBOLOS_EN_LA_SALIDA = {
         "sin `__main__`: reglas puras compartidas, no imprimen al arrancar",
     "agent-kits/shared/journal-capture.py":
         "valid SessionEnd payloads persist an envelope without emitting context; limit warnings are ASCII",
+    "agent-kits/shared/journal-prompt.py":
+        "UserPromptSubmit (T-14): persists the turn and never prints (its stdout would become context)",
     "agent-kits/nemesis/tools/pick_asset.py":
         "su veredicto es una URL (ASCII) o un exit 2 mudo; entra en SCRIPTS por leer el JSON de stdin",
     # session-end-durable-capture T-01/T-02: módulos SIN `__main__` (los consume `journal.py` por
@@ -375,6 +377,14 @@ PIEZAS = versionados(ROOT) or []
 # rel -> lista de modos. Cada modo: (etiqueta, args(taller) -> lista, exits permitidos, stdin|None).
 # `--help` no sirve como modo salvo que imprima no-ASCII: lo que se prueba es la RUTA REAL de impresión.
 # Los exits permitidos son los VEREDICTOS legítimos del script; un traceback se caza aparte (stderr).
+def _sin_debounce(w, carpeta):
+    """SubagentStop no repite el último estado mostrado: cada arranque del modo parte sin `.progress-last`."""
+    marca = os.path.join(w, carpeta, '.claude', '.progress-last-subagent')
+    if os.path.exists(marca):
+        os.remove(marca)
+    return ['--root', os.path.join(w, carpeta)]
+
+
 def _modos():
     L = "docs/roadmap/2026-09-03-windows-console/tasks.md"      # este mismo ledger
     INI = "docs/roadmap/2026-09-03-windows-console"
@@ -407,6 +417,12 @@ def _modos():
         'hooks/session-context.py':
             [('contexto UTF-8', lambda w: ['--root', os.path.join(w, 'session-context')], (0,),
               '{"source":"startup","session_id":"console-context"}')],
+        'hooks/subagent-progress.py':
+            [('estado de las activas UTF-8', lambda w: _sin_debounce(w, 'subagent-progress'), (0,),
+              '{"hook_event_name":"SubagentStop","agent_type":"implementer"}')],
+        'agent-kits/shared/journal-prompt.py':
+            [('captura UTF-8 sin salida', lambda w: ['--root', os.path.join(w, 'native-capture')], (0,),
+              '{"session_id":"consola-🐍","prompt":"Revisión 🐛 del turno"}')],
         'hooks/ledger-post.py':
             [('ledger UTF-8', lambda w: ['--root', os.path.join(w, 'ledger-post')], (0,),
               json.dumps({'tool_name': 'Edit', 'tool_input': {
@@ -655,6 +671,10 @@ def taller(tmp_path_factory):
     ledger = w / 'ledger-post' / 'docs/roadmap/2026-09-03-windows-console/tasks.md'
     ledger.parent.mkdir(parents=True)
     ledger.write_text('# Ledger de revisión\n\n## T-01 — Comprobación\n\n- **Estado**: borrador\n', encoding='utf-8')
+    activa = w / 'subagent-progress' / 'docs/roadmap/2026-09-03-windows-console/tasks.md'
+    activa.parent.mkdir(parents=True)
+    activa.write_text('---\nestado: en-progreso\n---\n# Consola\n\n## Fase 1 — Núcleo\n\n'
+                      '### T-01 — Comprobación\n\n- **Estado**: en-progreso\n', encoding='utf-8')
     (w / "src").mkdir()
     (w / "native-capture" / "docs" / "roadmap").mkdir(parents=True)
     (w / "src" / "a.py").write_text("def f():\n    return 1\n" * 3, encoding="utf-8")

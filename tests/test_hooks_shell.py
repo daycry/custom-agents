@@ -465,7 +465,8 @@ def _owned_history(proj, name, initiative, summary):
     path = proj / 'docs' / 'knowledge' / 'journal' / name
     path.parent.mkdir(parents=True, exist_ok=True)
     data = {'fecha': '2026-10-09', 'session_id': name, 'iniciativa': initiative,
-            'resumen': summary, 'fuente': 'manual', 'cierre': 'materializado'}
+            'resumen': summary, 'fuente': 'manual', 'cierre': 'materializado',
+            'regla_iniciativa': 'vigente'}   # fix2 B-M4: como las escribe el escritor real
     path.write_text('---\n' + '\n'.join(k + ': ' + json.dumps(v) for k, v in data.items())
                     + '\n---\n', encoding='utf8')
 
@@ -480,16 +481,24 @@ def test_session_context_history_uses_current_initiative_not_latest_global(tmp_p
     assert 'UNRELATED HISTORY MUST NOT APPEAR' not in context
 
 
-def test_session_context_ambiguous_initiative_does_not_inject_arbitrary_history(tmp_path):
+def test_h14_session_context_two_active_inject_only_the_initiative_in_progress(tmp_path):
+    # H-14 (auditoría 2026-11-09): con dos activas el arranque ya no se queda en «Journal:
+    # ambiguous»; cita la iniciativa en curso y nunca el historial de una no activa.
     proj, led = proyecto(tmp_path)
     second = proj / 'docs/roadmap/2026-10-09-other/tasks.md'
     second.parent.mkdir(parents=True)
     second.write_bytes(led.read_bytes())
-    _owned_history(proj, 'history.md', 'demo', 'ARBITRARY HISTORY MUST NOT APPEAR')
+    (proj / '.claude/usage-state.json').write_text(
+        json.dumps({'demo/T-01': {'inicio': '2026-01-03T00:00:00Z'}}), encoding='utf-8')
+    _owned_history(proj, 'history.md', 'demo', 'History of the active initiative')
+    _owned_history(proj, 'other.md', 'other', 'HISTORY OF THE INITIATIVE NOT IN PROGRESS')
+    _owned_history(proj, 'foreign.md', 'ajena', 'NON-ACTIVE HISTORY MUST NOT APPEAR')
     rc, out, _ = hook('session-context.sh', {'hook_event_name': 'SessionStart', 'source': 'startup'}, env_de(proj, tmp_path))
     context = un_json(out)['hookSpecificOutput']['additionalContext']
-    assert rc == 0 and 'ARBITRARY HISTORY MUST NOT APPEAR' not in context
-    assert 'Journal: ambiguous' in context
+    assert rc == 0 and 'History of the active initiative' in context
+    assert 'NON-ACTIVE HISTORY MUST NOT APPEAR' not in context
+    assert 'HISTORY OF THE INITIATIVE NOT IN PROGRESS' not in context
+    assert 'Journal: ambiguous' not in context
 
 
 # --------------------------------------------------------- reconciliación presupuestada (T-05) ----
@@ -987,10 +996,14 @@ def test_session_context_tres_activas_lo_dice_en_la_cabecera_y_nombra_la_que_que
     _knowledge(proj, n_extra=1)
     _segunda_activa(proj, led, "2026-01-02-demo-b")
     _segunda_activa(proj, led, "2026-01-03-demo-c")
+    # H-48: la iniciativa en curso (aquí, el ledger modificado más recientemente: demo-c) se consulta
+    # primero; la que queda fuera es la siguiente por orden de carpeta.
+    for n, carpeta in enumerate(("2026-01-01-demo", "2026-01-02-demo-b", "2026-01-03-demo-c")):
+        os.utime(proj / "docs/roadmap" / carpeta / "tasks.md", (1_700_000_000 + n, 1_700_000_000 + n))
     rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path))
     assert rc == 0
     bloque = _bloque_memoria(_ctx(out))
-    assert "3 iniciativas activas, consultadas las 2 primeras; fuera: demo-c" in bloque, bloque
+    assert "3 iniciativas activas, consultadas las 2 primeras; fuera: demo-b" in bloque, bloque
     assert _total_cabecera(bloque) == 2 and bloque.count("- ADR-") == 2
     assert len(bloque) <= 1200
 

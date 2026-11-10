@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Tests de worklog.py (tope diario + banco por issue). Ejecuta: python tests/test_worklog.py"""
+import codecs
 import json
 import os
 import subprocess
@@ -123,6 +124,244 @@ def main():
         assert len(t["reviewAttempts"]) == 2 and t["worklogRevision"] == 0.9, t
 
     print("OK: worklog.py — 13 casos en verde.")
+
+
+# --- Auditoría 2026-11-09 (H-1, H-2): sin pérdida de datos ni entradas imposibles ---
+
+def _prep(tmp, state_bytes=None):
+    json.dump({"horasJornada": 8, "ratioSupervision": 0.25},
+              open(os.path.join(tmp, "rates.json"), "w"))
+    json.dump({"alCubrirJornada": "banco"}, open(os.path.join(tmp, "jira.json"), "w"))
+    sp = os.path.join(tmp, "jira-state.json")
+    if state_bytes is not None:
+        with open(sp, "wb") as f:
+            f.write(state_bytes)
+    return sp
+
+
+def _raw(tmp, *extra):
+    cmd = [sys.executable, SCRIPT, *extra,
+           "--state", os.path.join(tmp, "jira-state.json"),
+           "--rates", os.path.join(tmp, "rates.json"),
+           "--jira", os.path.join(tmp, "jira.json")]
+    return subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+
+
+def test_casos_historicos():
+    main()
+
+
+def test_estado_con_bom_se_lee_y_conserva():
+    estado = {"imputadoPorDia": {"2026-07-17": 5},
+              "bancoHoras": [{"task": "T-09", "issueKey": "K-9", "horas": 2.0,
+                              "origen": "2026-07-16"}],
+              "tasks": {"T-09": {"issueKey": "K-9", "worklog": 5}}}
+    with tempfile.TemporaryDirectory() as tmp:
+        sp = _prep(tmp, codecs.BOM_UTF8 + json.dumps(estado).encode("utf-8"))
+        s = run(tmp, "status")
+        assert s["bancoPendiente"] == 2.0 and s["imputadoPorDia"] == {"2026-07-17": 5}, s
+        run(tmp, "plan", "--task", "T-10", "--issue", "K-10", "--ia-real", "1",
+            "--sup-real", "0", "--fecha", "2026-07-17", "--apply")
+        st = json.load(open(sp, encoding="utf-8-sig"))
+        assert st["imputadoPorDia"]["2026-07-17"] == 6, st
+        assert st["bancoHoras"][0]["task"] == "T-09" and "T-09" in st["tasks"], st
+
+
+def test_estado_corrupto_exit2_sin_escribir():
+    corrupto = b'{"imputadoPorDia": {"2026-07-17": 5}, "bancoHoras": ['
+    with tempfile.TemporaryDirectory() as tmp:
+        sp = _prep(tmp, corrupto)
+        for args in (("plan", "--task", "T-01", "--issue", "K-1", "--ia-real", "1",
+                      "--fecha", "2026-07-17", "--apply"),
+                     ("drain", "--fecha", "2026-07-18", "--apply"),
+                     ("status",)):
+            r = _raw(tmp, *args)
+            assert r.returncode == 2, (args, r.returncode, r.stdout, r.stderr)
+            assert "error" in json.loads(r.stdout), r.stdout
+            assert open(sp, "rb").read() == corrupto, "el estado ilegible se sobrescribió"
+
+
+def test_estado_raiz_no_objeto_exit2():
+    with tempfile.TemporaryDirectory() as tmp:
+        sp = _prep(tmp, b"[]")
+        r = _raw(tmp, "plan", "--task", "T-01", "--issue", "K-1", "--ia-real", "1",
+                 "--fecha", "2026-07-17", "--apply")
+        assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
+        assert open(sp, "rb").read() == b"[]"
+
+
+def test_estado_ausente_sigue_siendo_vacio():
+    with tempfile.TemporaryDirectory() as tmp:
+        sp = _prep(tmp)
+        o = run(tmp, "plan", "--task", "T-01", "--issue", "K-1", "--ia-real", "1",
+                "--sup-real", "0", "--fecha", "2026-07-17", "--apply")
+        assert o["aplicado"] and os.path.exists(sp), o
+
+
+def test_escritura_atomica_con_os_replace(monkeypatch):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("worklog_mod", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    llamadas = []
+    real = os.replace
+
+    def espia(src, dst):
+        llamadas.append((str(src), str(dst)))
+        return real(src, dst)
+
+    monkeypatch.setattr(mod.os, "replace", espia)
+    with tempfile.TemporaryDirectory() as tmp:
+        destino = os.path.join(tmp, "jira-state.json")
+        mod.save_json(destino, {"a": 1})
+        assert llamadas and llamadas[0][1] == destino, llamadas
+        assert llamadas[0][0] != destino and os.path.dirname(llamadas[0][0]) == tmp
+        assert json.load(open(destino, encoding="utf-8")) == {"a": 1}
+        assert os.listdir(tmp) == ["jira-state.json"], os.listdir(tmp)
+
+
+def test_fecha_futura_exit2():
+    import datetime
+    manana = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    with tempfile.TemporaryDirectory() as tmp:
+        sp = _prep(tmp)
+        for args in (("plan", "--task", "T-01", "--issue", "K-1", "--ia-real", "1",
+                      "--fecha", manana, "--apply"),
+                     ("drain", "--fecha", manana, "--apply")):
+            r = _raw(tmp, *args)
+            assert r.returncode == 2, (args, r.returncode, r.stdout, r.stderr)
+            assert "error" in json.loads(r.stdout), r.stdout
+        assert not os.path.exists(sp)
+        r = _raw(tmp, "plan", "--task", "T-01", "--issue", "K-1", "--ia-real", "1",
+                 "--fecha", "2026-13-40")
+        assert r.returncode == 2, (r.returncode, r.stdout)
+
+
+def test_horas_negativas_exit2():
+    with tempfile.TemporaryDirectory() as tmp:
+        sp = _prep(tmp)
+        for flag in ("--ia-real", "--ia-est", "--sup-real", "--sup-est",
+                     "--human-real", "--human-est"):
+            r = _raw(tmp, "plan", "--task", "T-01", "--issue", "K-1", flag, "-1",
+                     "--fecha", "2026-07-17", "--apply")
+            assert r.returncode == 2, (flag, r.returncode, r.stdout, r.stderr)
+            assert "error" in json.loads(r.stdout), r.stdout
+        assert not os.path.exists(sp)
+
+
+# --- Revisión de dos lentes, intento 1 (gap 8) ---
+
+def test_fix1_horas_no_finitas_exit2():
+    with tempfile.TemporaryDirectory() as tmp:
+        sp = _prep(tmp)
+        for valor in ("nan", "inf", "-inf", "Infinity"):
+            r = _raw(tmp, "plan", "--task", "T-01", "--issue", "K-1", f"--ia-real={valor}",
+                     "--fecha", "2026-07-17", "--apply")
+            assert r.returncode == 2, (valor, r.returncode, r.stdout, r.stderr)
+            assert "error" in json.loads(r.stdout), r.stdout
+        assert not os.path.exists(sp)
+
+
+def test_fix1_campos_de_tipo_equivocado_exit2_sin_traceback():
+    casos = [{"imputadoPorDia": None}, {"imputadoPorDia": []}, {"bancoHoras": {}},
+             {"bancoHoras": [{"task": "T-1", "issueKey": "K"}]}, {"bancoHoras": ["x"]},
+             {"tasks": []}, {"imputadoPorDia": {"2026-07-18": "mucho"}}]
+    for estado in casos:
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = json.dumps(estado).encode("utf-8")
+            sp = _prep(tmp, raw)
+            for args in (("plan", "--task", "T-01", "--issue", "K-1", "--ia-real", "1",
+                          "--fecha", "2026-07-18", "--apply"),
+                         ("drain", "--fecha", "2026-07-18", "--apply"), ("status",)):
+                r = _raw(tmp, *args)
+                assert r.returncode == 2 and "Traceback" not in r.stderr, (estado, args, r.stderr)
+                assert "error" in json.loads(r.stdout), r.stdout
+                assert open(sp, "rb").read() == raw
+
+
+def test_fix1_replace_con_permission_error_reintenta_y_sale_limpio(monkeypatch):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("worklog_mod_fix1", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    llamadas = []
+    real = os.replace
+
+    def bloqueado_dos_veces(src, dst):
+        llamadas.append(dst)
+        if len(llamadas) <= 2:
+            raise PermissionError(13, "acceso denegado")
+        return real(src, dst)
+
+    monkeypatch.setattr(mod.os, "replace", bloqueado_dos_veces)
+    monkeypatch.setattr(mod.time, "sleep", lambda _s: None)
+    with tempfile.TemporaryDirectory() as tmp:
+        destino = os.path.join(tmp, "jira-state.json")
+        mod.save_json(destino, {"a": 1})
+        assert len(llamadas) == 3 and json.load(open(destino)) == {"a": 1}
+
+    def siempre_bloqueado(src, dst):
+        raise PermissionError(13, "acceso denegado")
+
+    monkeypatch.setattr(mod.os, "replace", siempre_bloqueado)
+    with tempfile.TemporaryDirectory() as tmp:
+        destino = os.path.join(tmp, "jira-state.json")
+        try:
+            mod.save_json(destino, {"a": 1})
+        except mod.EntradaInvalida as e:
+            assert "jira-state.json" in str(e)
+        else:
+            raise AssertionError("un replace bloqueado debe acabar en EntradaInvalida (exit 2)")
+        assert os.listdir(tmp) == [], os.listdir(tmp)
+
+
+# --- Revisión de dos lentes, intento 2 (B4, A2) ---
+
+def test_fix2_campos_internos_de_tasks_invalidos_exit2():
+    for tarea in ({"worklog": "mucho"}, {"worklog": -1}, {"worklogImpl": None},
+                  {"worklogRevision": float("nan") if False else "nan"},
+                  {"reviewAttempts": {}}, {"reviewAttempts": [{"intento": 1, "horas": -2}]},
+                  {"reviewAttempts": ["x"]}):
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = json.dumps({"tasks": {"T-01": tarea}}).encode("utf-8")
+            sp = _prep(tmp, raw)
+            r = _raw(tmp, "plan", "--task", "T-01", "--issue", "K-1", "--ia-real", "1",
+                     "--sup-real", "0", "--fecha", "2026-07-18", "--apply")
+            assert r.returncode == 2 and "Traceback" not in r.stderr, (tarea, r.stderr)
+            assert "error" in json.loads(r.stdout), r.stdout
+            assert open(sp, "rb").read() == raw
+
+
+def test_fix2_numeros_de_config_invalidos_exit2():
+    casos = [("rates.json", {"horasJornada": 8, "ratioSupervision": "x"}),
+             ("rates.json", {"horasJornada": 8, "ratioSupervision": -0.5}),
+             ("rates.json", {"horasJornada": 0}), ("jira.json", {"horasJornada": -8}),
+             ("jira.json", {"horasJornada": "ocho"}), ("rates.json", {"horasJornada": [8]})]
+    for nombre, contenido in casos:
+        with tempfile.TemporaryDirectory() as tmp:
+            sp = _prep(tmp)
+            with open(os.path.join(tmp, nombre), "w", encoding="utf-8") as f:
+                f.write(json.dumps(contenido))
+            r = _raw(tmp, "plan", "--task", "T-01", "--issue", "K-1", "--ia-real", "1",
+                     "--fecha", "2026-07-18", "--apply")
+            assert r.returncode == 2 and "Traceback" not in r.stderr, (nombre, contenido, r.stderr)
+            assert "error" in json.loads(r.stdout), r.stdout
+            assert not os.path.exists(sp)
+    with tempfile.TemporaryDirectory() as tmp:      # Infinity no es JSON estándar pero Python lo lee
+        sp = _prep(tmp)
+        with open(os.path.join(tmp, "rates.json"), "w", encoding="utf-8") as f:
+            f.write('{"horasJornada": Infinity}')
+        r = _raw(tmp, "plan", "--task", "T-01", "--issue", "K-1", "--ia-real", "1",
+                 "--fecha", "2026-07-18", "--apply")
+        assert r.returncode == 2 and not os.path.exists(sp), r.stdout
+
+
+def test_fix2_contracts_describe_exit_real_de_usage_meter():
+    """Revisión intento 2 (A2): CONTRACTS.md ya no promete exit 0 siempre en usage-meter."""
+    texto = open(os.path.join(ROOT, "docs", "agents", "CONTRACTS.md"), encoding="utf-8").read()
+    fila = next(l for l in texto.splitlines() if l.startswith("| E7 "))
+    assert "`0` siempre" not in fila, fila
+    assert "`3`" in fila and "ilegible" in fila, fila
 
 
 if __name__ == "__main__":

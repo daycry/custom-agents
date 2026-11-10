@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import hashlib
 import hmac
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
 import importlib.util
 import json
 import math
@@ -10,6 +11,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import stat
 import sys
 import threading
 import time
@@ -18,7 +20,9 @@ HERE = Path(__file__).resolve().parent
 MAX_SCAN = 128
 MAX_FILE_BYTES = 256 * 1024
 MAX_READ_BYTES = 1024 * 1024
+HEAD_BYTES = 16 * 1024   # H-18: cabecera + "Resumen de progreso" de un ledger que no cabe en el presupuesto
 MAX_INITIATIVES = 64
+MAX_WALK = 1024   # initiative folders walked per progress request (fix3)
 MAX_RESPONSE_BYTES = 65536
 MAX_REQUEST_BYTES = 4096
 BODY_TIMEOUT = 3
@@ -137,7 +141,8 @@ def review_initiatives(project):
     read) or collide in id16 (both leave) are out. Never loads the review owner."""
     try:
         reader = _load_shared('local-read.py')
-        listing = reader.list_names(project, 'docs/roadmap', max_entries=MAX_SCAN)
+        # fix2 (A-I1): the MAX_SCAN newest folders by name, not the first ones the file system returns
+        listing = reader.list_names(project, 'docs/roadmap', max_entries=MAX_SCAN, newest_first=True)
         if listing['status'] not in ('ok', 'incomplete'):
             return {}
         found, collided = {}, set()
@@ -415,6 +420,35 @@ def _scrub_memoria(datos, scrub):
     return datos
 
 
+def _progress_firma(project):
+    """Cheap signature of what `progress_snapshot` reads (H-32, T-15): the roadmap listing and, per initiative
+    folder (newest first, up to `MAX_WALK`), the `lstat` of its `tasks.md`. Links are not followed. `None` when
+    the roadmap cannot be listed: then nothing is trusted from the cache."""
+    roadmap = os.path.join(str(project), 'docs', 'roadmap')
+    try:
+        names = sorted((entry.name for entry in os.scandir(roadmap) if _INITIATIVE_FOLDER.fullmatch(entry.name)),
+                       reverse=True)
+    except OSError:
+        return None
+    try:
+        redirected = _load_shared('local-read.py')._redirected
+    except (OSError, ValueError, ImportError, AttributeError, SyntaxError):
+        return None
+    firma = [len(names)]
+    for name in names[:MAX_WALK]:
+        folder = os.path.join(roadmap, name)
+        try:
+            info = os.lstat(folder)
+            if redirected(info) or not stat.S_ISDIR(info.st_mode):
+                firma.append((name, 'redirected'))   # a linked folder is not looked into (CWE-59)
+                continue
+            info = os.lstat(os.path.join(folder, 'tasks.md'))
+            firma.append((name, info.st_mtime_ns, info.st_size, info.st_ino))
+        except OSError:
+            firma.append((name, None))
+    return tuple(firma)
+
+
 def progress_snapshot(project, scrub=None):
     """Bounded public ledger projection, independent of network and live-agent state.
 
@@ -444,33 +478,55 @@ def progress_snapshot(project, scrub=None):
             issue('text_budget')
         return value[:limit]
 
-    listing = reader.list_names(project, 'docs/roadmap', max_entries=MAX_SCAN)
+    listing = reader.list_names(project, 'docs/roadmap', max_entries=4096, newest_first=True)  # fix1 (B2)
     if listing['status'] not in ('ok', 'incomplete'):
         issue(listing['status']); result['status'] = 'not_found' if listing['status'] == 'not_found' else 'unavailable'
         return result
     if not listing['complete']:
         issue('incomplete_scan')
     remaining = MAX_READ_BYTES
-    for folder in listing['names']:
-        if remaining <= 0:
-            issue('scan_budget'); break
+    head_remaining = MAX_SCAN * HEAD_BYTES
+    # H-17/H-18: from the newest to the oldest folder (they start with their date), so every
+    # budget cuts the OLDEST ledgers. A ledger that does not fit in the remaining budget (or
+    # exceeds MAX_FILE_BYTES) is summarised from its header and "Resumen de progreso" table,
+    # read as a bounded prefix: never a false `too_large` because the budget ran out.
+    # fix3: initiative-shaped names only, newest first; walk at most MAX_WALK of them (stopping at
+    # MAX_INITIATIVES rows), so newer folders without a ledger cannot hide the older ledgers.
+    names = [name for name in sorted(listing['names'], reverse=True) if _INITIATIVE_FOLDER.fullmatch(name)]
+    if len(names) > MAX_WALK:
+        issue('scan_budget')
+    for folder in names[:MAX_WALK]:
         directory = reader.list_names(project, 'docs/roadmap/' + folder, max_entries=1)
         if directory['status'] in ('not_found', 'not_regular'):
             continue  # Roadmap indexes are files, not initiative directories.
         if directory['status'] not in ('ok', 'incomplete'):
             issue(directory['status']); continue
         relative = 'docs/roadmap/' + folder + '/tasks.md'
-        read = reader.read_text(project, relative, max_bytes=min(MAX_FILE_BYTES, remaining))
-        remaining -= read['bytes']
+        full = remaining > HEAD_BYTES
+        limit = min(MAX_FILE_BYTES, remaining) if full else HEAD_BYTES
+        if not full and head_remaining < limit:
+            issue('scan_budget'); break
+        read = reader.read_text(project, relative, max_bytes=limit, prefix=True)
+        if full:
+            remaining -= read['bytes']
+        else:
+            head_remaining -= read['bytes']
         if read['status'] == 'not_found':
             continue
         if read['status'] != 'ok':
             issue(read['status']); continue
+        truncated = read.get('truncated', False)
+        source = 'resumen' if truncated else 'ledger'
         try:
-            summary = progress.resumir(relative, text=read['text'])
-            parsed = progress.parse_ledger(read['text'])
+            if truncated:
+                summary, parsed = _header_summary(relative, read['text'], progress), {'tareas': []}
+            else:
+                summary = progress.resumir(relative, text=read['text'])
+                parsed = progress.parse_ledger(read['text'])
         except (ValueError, TypeError, KeyError, OverflowError, RecursionError):
             issue('malformed'); continue
+        if summary is None:
+            issue('too_large'); continue   # truly unreadable as a whole AND without a summary table
         if len(result['initiatives']) == MAX_INITIATIVES:
             issue('row_budget'); break
         state = summary['estado'] if summary['estado'] in STATES else 'unknown'
@@ -487,7 +543,8 @@ def progress_snapshot(project, scrub=None):
                'total': summary['total'], 'completadas': summary['completadas'], 'pct': summary['pct'],
                'fase': {'indice': phase['indice'], 'total': phase['total'], 'nombre': clean(phase['nombre'])} if phase else None,
                'en_progreso': [{'id': clean(task['id'], 20), 'titulo': clean(task['titulo'])} for task in active[:8]],
-               'source_sha256': hashlib.sha256(read['text'].encode('utf8')).hexdigest()}
+               'source_sha256': hashlib.sha256(read['text'].encode('utf8')).hexdigest(),
+               'fuente': source}
         result['initiatives'].append(row)
     if not result['complete']:
         result['status'] = 'partial'
@@ -495,6 +552,20 @@ def progress_snapshot(project, scrub=None):
     while len(_encoded(result)) > MAX_RESPONSE_BYTES and result['initiatives']:
         result['initiatives'].pop(); issue('output_budget'); result['status'] = 'partial'
     return result
+
+
+def _header_summary(relative, text, progress):
+    """Progress of a large ledger from its frontmatter and "Resumen de progreso" table only (H-18).
+
+    Delegates to `progress-report.resumir_cabecera` (fix1, C1/B6): one header parser, cell split by
+    `|` with no competing regex quantifiers (a row of thousands of spaces is linear, not cubic).
+    `en_progreso` is unknown from a header, so it stays empty. `None` without a usable table."""
+    summary = progress.resumir_cabecera(relative, text)
+    if summary is None:
+        return None
+    summary['estado'] = summary['estado'] or 'unknown'
+    summary['slug'] = progress.slug_de(relative, {})
+    return summary
 
 
 ACTIVITY_REASONS = frozenset(('disabled', 'invalid_config', 'state_missing',
@@ -641,9 +712,30 @@ def _trim_timeline(body):
     return True
 
 
-class PanelServer(HTTPServer):
-    """Serial handlers bound concurrency; a stalled socket expires in three seconds."""
+class PanelServer(ThreadingMixIn, HTTPServer):
+    """Bounded threads (review attempt 1 of phase 3, A4): at most `MAX_WORKERS` requests at once, so a
+    slow read (a large plan, activity) no longer holds the others; the accept loop waits for a free
+    worker. POSTs and the review routes keep running one at a time under `escritura`: their owners
+    write state. Caches are guarded by their own locks (progress, portfolio, memory) or are plain dict
+    updates. A stalled socket expires in three seconds."""
     request_queue_size = 8
+    daemon_threads = True
+    block_on_close = False
+    MAX_WORKERS = 4
+
+    def process_request(self, request, client_address):
+        self._workers.acquire()
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._workers.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._workers.release()
 
     def get_request(self):
         socket, address = super().get_request()
@@ -654,21 +746,61 @@ class PanelServer(HTTPServer):
         # No request targets, capability or project paths enter access/error logs.
         pass
 
+    def plan_page(self, route):
+        """`plan-<id16>.html`: the page rendered at startup or, for a plan created afterwards, rendered once from the
+        same template when its id resolves to a current roadmap folder with a plan (H-20). `None` -> 404."""
+        page = self.plan_pages.get(route)
+        if page is not None or not PLAN_PAGE.fullmatch(route) or len(self.plan_pages) >= 2 * MAX_INITIATIVES:
+            return page
+        ident = route[len('plan-'):-len('.html')]
+        if plan_page_path(self.project, ident) is None:
+            return None
+        # Review attempt 2 of phase 3 (7): with bounded threads two new plans may arrive at once; the
+        # read-modify-write of `plan_ids` (and the page cache) runs under one lock so no id is lost.
+        with self._planes_lock:
+            page = self.plan_pages.get(route)
+            if page is None:
+                page = self.render_plan_page(ident)
+                self.plan_pages[route] = page
+            self.plan_ids = self.plan_ids | {ident}   # its `api/plan-<id16>` now answers too
+        return page
+
     def snapshot(self):
+        """`api/progress` (H-32, T-15). Every 2 s of polling the ledgers' signature is checked (one `lstat`
+        per folder); unchanged, the same version is served (for up to `CACHE_MAX_AGE`, which keeps
+        `observed_at` honest). A change is recomputed on ONE background thread while the previous version
+        keeps being served, like the portfolio: a slow projection never holds this or another request. Only
+        the very first version is computed in the request. `tiene_plan` is applied when serving: the plan
+        inventory can grow after the projection."""
         now = time.monotonic()
-        if self._snapshot is None or now - self._snapshot_at >= 2:
-            try:
-                snapshot = progress_snapshot(self.project, scrub=self.scrub)
-                for fila in snapshot['initiatives']:   # `plan-<id16>.html` exists only for initiatives with a plan
-                    fila['tiene_plan'] = fila['id'] in self.plan_ids
-                self._snapshot = _encoded(snapshot)
-            except (OSError, ValueError, TypeError, KeyError, RecursionError):
-                self._snapshot = _encoded({'version': 1, 'source': 'canonical_ledger',
+        with self._snapshot_lock:
+            if self._snapshot is None or now - self._snapshot_at >= 2:
+                firma = _progress_firma(self.project)
+                self._snapshot_at = now
+                if self._snapshot is None:
+                    self._snapshot, self._snapshot_firma, self._snapshot_built = self._progress(), firma, now
+                elif firma is None or firma != self._snapshot_firma or now - self._snapshot_built >= CACHE_MAX_AGE:
+                    if self._snapshot_hilo is None or not self._snapshot_hilo.is_alive():
+                        self._snapshot_hilo = threading.Thread(target=self._recalcular_progreso, args=(firma,), daemon=True)
+                        self._snapshot_hilo.start()
+            datos = self._snapshot
+        datos = dict(datos, initiatives=[dict(fila, tiene_plan=fila.get('id') in self.plan_ids)
+                                         for fila in datos['initiatives']])
+        return _encoded(datos)
+
+    def _progress(self):
+        try:
+            return progress_snapshot(self.project, scrub=self.scrub)
+        except (OSError, ValueError, TypeError, KeyError, RecursionError):
+            return {'version': 1, 'source': 'canonical_ledger',
                     'observed_at': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
                     'status': 'unavailable', 'complete': False, 'initiatives': [],
-                    'issues': [{'status': 'read_failed'}]})
-            self._snapshot_at = now
-        return self._snapshot
+                    'issues': [{'status': 'read_failed'}]}
+
+    def _recalcular_progreso(self, firma):
+        datos = self._progress()
+        with self._snapshot_lock:
+            self._snapshot, self._snapshot_firma, self._snapshot_built = datos, firma, time.monotonic()
 
     def cartera(self):
         """Roadmap portfolio for Inicio and Iniciativas. No HTTP request computes it: the first one is computed at
@@ -1165,8 +1297,10 @@ class PanelHandler(BaseHTTPRequestHandler):
             route = 'index.html'
         if route is None:
             self._reply(404)
-        elif route in self.server.pages or (PLAN_PAGE.fullmatch(route) and route in self.server.plan_pages):
-            self._reply(200, self.server.pages.get(route) or self.server.plan_pages[route], 'text/html; charset=utf-8')
+        elif route in self.server.pages:
+            self._reply(200, self.server.pages[route], 'text/html; charset=utf-8')
+        elif PLAN_PAGE.fullmatch(route) and self.server.plan_page(route) is not None:
+            self._reply(200, self.server.plan_page(route), 'text/html; charset=utf-8')
         elif route in self.server.assets:
             self._reply(200, self.server.assets[route][0], self.server.assets[route][1])
         elif route == 'api/progress':
@@ -1192,15 +1326,19 @@ class PanelHandler(BaseHTTPRequestHandler):
             else:
                 self._reply(200, body, 'application/json; charset=utf-8')
         elif self.server.review_scope is not None and route == 'api/review-summary':
-            self._reply(200, self.server.review_summary(), 'application/json; charset=utf-8')
+            with self.server.escritura:
+                body = self.server.review_summary()
+            self._reply(200, body, 'application/json; charset=utf-8')
         elif self.server.review_scope is not None and (current := REVIEW_CURRENT_API.fullmatch(route)) is not None:
-            body = self.server.review_current(current[1])
+            with self.server.escritura:
+                body = self.server.review_current(current[1])
             if body is None:
                 self._reply(404)
             else:
                 self._reply(200, body, 'application/json; charset=utf-8')
         elif (review := self._review_route(route, ('view', 'status'))) is not None:
-            code, body = self.server.review(review[1], review[0], None, deadline)
+            with self.server.escritura:
+                code, body = self.server.review(review[1], review[0], None, deadline)
             self._reply(code, body, 'application/json; charset=utf-8')
         else:
             self._reply(404)
@@ -1208,6 +1346,10 @@ class PanelHandler(BaseHTTPRequestHandler):
     do_HEAD = do_GET
 
     def do_POST(self):
+        with self.server.escritura:   # writers stay serialized (A4)
+            self._do_post()
+
+    def _do_post(self):
         deadline = time.monotonic() + BODY_TIMEOUT
         if not self._allowed(body=True): return
         route = self._route()
@@ -1275,6 +1417,22 @@ class PanelHandler(BaseHTTPRequestHandler):
     do_OPTIONS = _reject_method
 
 
+def plan_page_path(project, ident):
+    """Roadmap folder of the plan `ident` (id16) when it resolves NOW to a folder with `improvement-plan.md` (the
+    same rule as `tiene_plan`), else `None`. Only ids listed by the bounded reader resolve: never a path."""
+    if not isinstance(ident, str) or not re.fullmatch(r'[a-f0-9]{16}', ident):
+        return None
+    try:
+        reader = _load_shared('local-read.py')
+        folder = _load_data()._carpeta(project, ident, reader)
+        if folder is None:
+            return None
+        found = reader.read_bytes(project, 'docs/roadmap/' + folder + '/improvement-plan.md', max_bytes=1)
+    except Exception:  # noqa: BLE001 - a missing helper is a 404, never a page with a guessed plan
+        return None
+    return folder if found['status'] in ('ok', 'too_large') else None
+
+
 def plan_inventory(project, scrub=None):
     """Iniciativas con plan, `[{'id', 'slug', 'titulo'}]` ya saneadas con el saneador unico: de ellas salen las
     paginas `plan-<id16>.html`, el indice de `plan.html` y los ids que acepta `api/plan-<id16>`. Sin roadmap
@@ -1337,6 +1495,12 @@ def create_server(project, inventory, *, port=0, review_selection=None, review_s
         server.capability = secrets.token_urlsafe(32)
         server.access_prefix = '/' + server.capability + '/'
         server._snapshot = None; server._snapshot_at = 0
+        server._snapshot_firma = None; server._snapshot_built = 0   # H-32: signature-cached, background recompute
+        server._snapshot_lock = threading.Lock(); server._snapshot_hilo = None
+        server._workers = threading.BoundedSemaphore(PanelServer.MAX_WORKERS)
+        server.escritura = threading.RLock()
+        server._planes_lock = threading.Lock()
+        server.snapshot_inicial = False
         server._cartera = None; server._cartera_at = 0; server._cartera_built = 0; server._cartera_firma = None
         server._cartera_lock = threading.Lock(); server._cartera_hilo = None
         server._plans = {}
@@ -1359,6 +1523,11 @@ def create_server(project, inventory, *, port=0, review_selection=None, review_s
         except Exception:
             planes = []   # no portfolio yet: the first `api/cartera` answers `calculando` and starts the background thread
         server.plan_ids = {plan['id'] for plan in planes}
+        # A4: the first progress version is computed here, like the portfolio: no request waits for it.
+        server._snapshot_at = server._snapshot_built = time.monotonic()
+        server._snapshot_firma = _progress_firma(project)
+        server._snapshot = server._progress()
+        server.snapshot_inicial = True
         reviewable = set(review_initiatives(project)) if review_scope is not None else set()  # plans the panel can review
         bodies = builder.cuerpos_paginas(inventory, live=True, review_enabled=review_selection is not None,
                                          review_id=review_id, actividad='assets/panel-activity.js' in files,
@@ -1371,13 +1540,16 @@ def create_server(project, inventory, *, port=0, review_selection=None, review_s
                         for slug, archivo, _ in pages.PAGES}
         # plan-<id16>.html: una pagina por iniciativa con plan, del inventario leido al arrancar (su contenido llega
         # por `api/plan-<id16>`, asi que servirlas no toca disco). Sin los JS vivos del indice (progreso, revision).
-        server.plan_pages = {f"plan-{plan['id']}.html": pages.render_page(
-            'plan', modo='servido', generado=generated, chart_ok=chart_ok, nonce=nonce, plan_id=plan['id'],
-            datos=pages.datos_de_pagina('plan', inventory, modo='servido', plan_id=plan['id']),
-            scripts_omitidos=hidden,
-            cuerpo=builder.cuerpo_plan_iniciativa(
-                'activa' if review_scope is not None and plan['id'] in reviewable else 'inactiva', plan['id'])).encode('utf8')
-            for plan in planes}
+        def render_plan_page(plan_id):
+            # One template for the startup inventory and for plans created later (H-20).
+            return pages.render_page(
+                'plan', modo='servido', generado=generated, chart_ok=chart_ok, nonce=nonce, plan_id=plan_id,
+                datos=pages.datos_de_pagina('plan', inventory, modo='servido', plan_id=plan_id),
+                scripts_omitidos=hidden,
+                cuerpo=builder.cuerpo_plan_iniciativa(
+                    'activa' if review_scope is not None and plan_id in reviewable else 'inactiva', plan_id)).encode('utf8')
+        server.render_plan_page = render_plan_page
+        server.plan_pages = {f"plan-{plan['id']}.html": render_plan_page(plan['id']) for plan in planes}
         server.assets = {rel: (content, ASSET_TYPES.get(Path(rel).suffix, 'application/octet-stream'))
                          for rel, content in files.items()}
     except BaseException:

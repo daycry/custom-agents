@@ -21,7 +21,7 @@
 //   · DEGRADA, NO BLOQUEA — un proveedor que falla no impide instalar los demás; el exit code
 //     lo refleja al final.
 
-import {manifestContext,signManifest,readManifest,regularPath} from './manifest-auth.mjs'
+import {manifestContext,signManifest,readManifest,regularPath,setTrustAnchors} from './manifest-auth.mjs'
 import {
   readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, statSync, rmSync, readdirSync, rmdirSync,
   renameSync, chmodSync, realpathSync, lstatSync, unlinkSync, mkdtempSync, symlinkSync, openSync, closeSync,
@@ -31,12 +31,13 @@ import { dirname, join, resolve, relative, sep, isAbsolute } from "node:path"
 import { fileURLToPath } from "node:url"
 import { createInterface, emitKeypressEvents } from "node:readline"
 import { execFileSync } from "node:child_process"
-import { tmpdir } from "node:os"
+import { tmpdir, homedir } from "node:os"
 import { queryCodexPlugin } from "../agent-kits/shared/codex-plugin-state.mjs"
 import {validateDelivery,planProfileCopies,resolveSelection,verifyProfileTarget} from './modules.mjs'
 import {
   PROVIDERS, IDS, getProvider, buildPlan, MANIFEST, MANIFEST_PLUGIN, MANIFIESTOS,
   enPath, rutaDe, estadoCli, manifiestoDe, sitiosManifiesto, PRECEDENCIA_SETTINGS, codexHome, MKT, PLUGIN, PLUGIN_ID,
+  claudeConfigDir, GLOBAL_DIR,
 } from "./providers.mjs"
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
@@ -1169,6 +1170,17 @@ export function ponerToml(texto, tabla, clave, valor, opciones = {}) {
   return nuevo
 }
 
+// La MISMA exclusión que el paquete npm (`package.json` → `files`: carpetas `__pycache__` y
+// `.pytest_cache`, ficheros `*.pyc` y `test_*.py`). Sin ella, instalar desde un clon copiaba los
+// tests y las cachés de pytest que el paquete publicado nunca lleva (auditoría H-13).
+// `rel` admite `/` o `\` como separador.
+export function excluidoDelPaquete(rel) {
+  const partes = String(rel).split(/[\\/]+/).filter(Boolean)
+  const nombre = partes[partes.length - 1] || ""
+  if (partes.some((p) => p === "__pycache__" || p === ".pytest_cache")) return true
+  return nombre.endsWith(".pyc") || /^test_.*\.py$/.test(nombre)
+}
+
 /** Lista los ficheros que un paso `copy` va a producir (para el manifiesto y el dry-run). */
 function ficherosDe(from, to) {
   const abs = join(ROOT, from)
@@ -1177,7 +1189,8 @@ function ficherosDe(from, to) {
   const out = []
   const walk = (a, b) => {
     for (const e of readdirSync(a, { withFileTypes: true }).sort((x, y) => x.name.localeCompare(y.name))) {
-      if (e.name === "__pycache__" || e.name.endsWith(".pyc")) continue
+      // Un directorio se excluye por su nombre (`__pycache__`, `.pytest_cache`); un fichero, por el suyo.
+      if (e.isDirectory() ? excluidoDelPaquete(join(e.name, "_")) : excluidoDelPaquete(e.name)) continue
       const na = join(a, e.name), nb = join(b, e.name)
       if (e.isDirectory()) walk(na, nb)
       else out.push(nb)
@@ -1293,20 +1306,29 @@ function matarArbol(pid) {
 function correr(cmd, args, cwd, env = process.env) {
   if (TIMEOUT.aviso && !avisadoTimeout) { avisadoTimeout = true; say(`  ${WARN} ${dim(TIMEOUT.aviso)}`) }
   const opciones = {
-    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], cwd, env,
+    // NoDefaultCurrentDirectoryInExePath (revisión intento 2): un shim `.cmd` de npm llama a `node`
+    // pelado y cmd.exe lo buscaría PRIMERO en el cwd (el proyecto, quizá no confiable).
+    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], cwd, env: { ...env, NoDefaultCurrentDirectoryInExePath: "1" },
     // Sin timeout, una CLI que se queda pensando (o pidiendo algo por stdin) cuelga el `npx`
     // para siempre y sin una línea en pantalla. 120 s de sobra; `CUSTOM_AGENTS_EXEC_TIMEOUT_MS`
     // para quien tenga una máquina lenta o quiera apretarlo en CI.
     timeout: TIMEOUT_EXEC,
   }
   const real = rutaDe(cmd)
+  if (!real) {
+    // Revisión intento 1: sin ruta REAL no se lanza el nombre pelado (el sistema lo buscaría en
+    // el directorio actual, que es justo lo que `buscarEnPath` evita).
+    const err = new Error(`\`${cmd}\` no está en el PATH (solo cuentan sus entradas absolutas) o no se puede ejecutar desde Node`)
+    err.code = "ENOENT"
+    throw err
+  }
   try {
     if (process.platform === "win32" && real && /\.(cmd|bat)$/i.test(real)) {
       const linea = [real, ...args].map(argCmd).join(" ")
       return execFileSync(process.env.COMSPEC || "cmd.exe", ["/d", "/s", "/c", `"${linea}"`],
         { ...opciones, windowsVerbatimArguments: true })
     }
-    return execFileSync(real || cmd, args, opciones)
+    return execFileSync(real, args, opciones)
   } catch (e) {
     if (expiro(e)) {
       matarArbol(e.pid)
@@ -1993,7 +2015,10 @@ function ejecutar(provider, opts, selectedModels) {
       if (opts.dryRun) escritos.push(...destinos.filter(path=>!ownedFiles.get(path)?.shared))   // en disco ya se apuntaron antes de copiar
       n += destinos.length
     } else if (paso.type === "merge") {
-      const actual = leerJson(paso.to)
+      // Lectura ESTRICTA (auditoría H-9), como `json-set`: `leerJson` devolvía null ante un JSON
+      // ilegible y `cambia = !actual` reescribía el fichero ENTERO del usuario con solo lo nuestro.
+      const leidoMerge = leerJsonEstricto(paso.to)
+      const actual = leidoMerge.existe ? leidoMerge.valor : null
       // `onlyIfMissing`: subárboles que NO se fusionan si el usuario ya tiene esa clave. Sirve
       // para lo que no se puede fusionar sin cambiar la semántica de su configuración.
       const aFusionar = { ...paso.merge }
@@ -2142,6 +2167,7 @@ function ejecutar(provider, opts, selectedModels) {
       // lo hacen cargar el plugin. Se apuntan en el manifiesto para poder quitarlas (y solo ellas).
       // Lectura ESTRICTA: un JSON ilegible es un error, no una excusa para empezar de cero.
       const { existe, bom, valor: actual } = leerJsonEstricto(paso.to)
+      if (paso.aviso) avisos.push(`${rel(paso.to)}: ${paso.aviso}`)
       const vol = paso.volatiles || []
       const scopedEntries={}
       if(paso.scopedPlugin) {
@@ -2192,6 +2218,7 @@ function ejecutar(provider, opts, selectedModels) {
       })
       n += cambia ? 1 : 0
     } else if (paso.type === "toml-set") {
+      if (paso.aviso) avisos.push(`${rel(paso.to)}: ${paso.aviso}`)
       const previo = existsSync(paso.to) ? readFileSync(paso.to, "utf8") : ""
       if (paso.nativeBefore) {
         const prefix=normalizarTabla(paso.tabla)
@@ -2463,15 +2490,27 @@ function deshacerInstalacion(p, dest, file, man, opts) {
 
 function cmdUninstall(opts) {
   const ids = opts.providers.length ? opts.providers : IDS
-  let tocados = 0
+  let tocados = 0, fallos = 0
   for (const id of ids) {
     const p = getProvider(id)
     if (!p) continue
-    for (const { dest, file, man } of manifiestosVivos(p, opts.scope, opts.dir,true)) {
-      tocados++
-      deshacerInstalacion(p, dest, file, man, opts)
+    // Aislado por proveedor Y por manifiesto (auditoría H-10, revisión intento 1): un manifiesto
+    // no verificable no deja sin desinstalar a los demás proveedores ni al otro modo (plugin/copy)
+    // del mismo; el exit code lo refleja al final.
+    for (const { dest, file } of sitiosManifiesto(p, opts.scope, opts.dir)) {
+      try {
+        const path = join(dest, file)
+        const man = readManifest(path, manifestContext(p.id, opts.scope, opts.dir, path))
+        if (!man) continue
+        tocados++
+        deshacerInstalacion(p, dest, file, man, opts)
+      } catch (e) {
+        fallos++
+        console.error(`  ${ERR} ${p.label} (${file}): ${e?.message || e}`)
+      }
     }
   }
+  if (fallos) { say(""); return 1 }
   if (!tocados) {
     console.error(`${ERR} no encuentro ningún manifiesto de instalación (${MANIFIESTOS.join(" / ")}).\n` +
                   `   ¿Instalaste con otro --scope o --dir?`)
@@ -2941,6 +2980,11 @@ async function main() {
   if(['install','uninstall','remove','status'].includes(opts.cmd) && !['project','user'].includes(opts.scope)) {
     console.error('--scope must be project or user');return 2
   }
+  // Anclas de confianza (auditoría H-11): HOME, las raíces de config de cada runtime (a menudo
+  // dotfiles enlazados), el paquete y el --dir elegido. Por encima de ellas un enlace es la
+  // disposición del usuario; por debajo, lo que crea o borra el instalador, nunca.
+  setTrustAnchors([homedir(), claudeConfigDir(), codexHome(), GLOBAL_DIR.opencode,
+    join(homedir(), ".agents"), join(homedir(), ".config"), ROOT, opts.dir])
   switch (opts.cmd) {
     case "help": ayuda(); return 0
     case "version": console.log(VERSION); return 0
@@ -2958,9 +3002,9 @@ async function main() {
 // Importado por los tests → no ejecuta nada. Ejecutado como CLI → corre.
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
   main().then((code) => process.exit(code)).catch((e) => {
-    console.error(`${ERR} ${e?.code==='UNVERIFIED_MANIFEST' ? e.message : e?.stack || e}`)
+    console.error(`${ERR} ${e?.code==='UNVERIFIED_MANIFEST' || e?.code==='LINKED_PATH' ? e.message : e?.stack || e}`)
     process.exit(1)
   })
 }
 
-export { parseArgs, ficherosDe, ejecutar, main, banner, multiselect }
+export { parseArgs, ficherosDe, ejecutar, main, banner, multiselect, correr }
