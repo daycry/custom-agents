@@ -19,8 +19,8 @@ changelog: Fixed
 | Fase 1 | 6 | 6 | 100.0% |
 | Fase 2 | 6 | 6 | 100.0% |
 | Fase 3 | 4 | 4 | 100.0% |
-| Fase 4 | 1 | 5 | 20.0% |
-| **TOTAL** | **17** | **21** | **81.0%** |
+| Fase 4 | 2 | 5 | 40.0% |
+| **TOTAL** | **18** | **21** | **85.7%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -550,13 +550,20 @@ GREEN: `tests/test_once_per_cycle_context.py` 18 passed; `test_dev_cycle_split.p
 
 ### T-18 — Lo opcional fuera de la carga por defecto
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: H-43, H-44 y H-49. Revisión visual del plan en su propia referencia; notas de `/doctor` en `docs/`; scope-check imprime su propio remedio.
-- **Archivos**: `agent-kits/dev-cycle/references/phase2-planning.md`, `agent-kits/dev-cycle/references/phase2-plan-review.md`, `commands/doctor.md`, `docs/reference/doctor.md`, `agents/implementer.md`, `skills/adversarial-review/SKILL.md`, `agent-kits/shared/scope-check.py`, `interop/**`, tests de split y de plan-review.
+- **Archivos**: `agent-kits/dev-cycle/references/phase2-planning.md`, `agent-kits/dev-cycle/references/phase2-plan-review.md`, `commands/dev-cycle.md` (la ruta a la referencia de la fase 2), `commands/doctor.md`, `docs/reference/doctor.md`, `docs/en/reference/doctor.md` (espejo EN), `agents/implementer.md`, `skills/adversarial-review/SKILL.md`, `agent-kits/shared/scope-check.py`, `interop/**`, tests de split y de plan-review (`tests/test_dev_cycle_split.py`, `tests/test_plan_review_caller.py`, `tests/installer.test.mjs`, `tests/test_knowledge_services.py`, `agent-kits/shared/test_scope_check.py`, `tests/test_doctor_notes_in_docs.py` nuevo) (añadidos por el implementer).
+- **Tiempo IA (ejec.)**: real 0,16h (medido)
 - **Verificación**: `context-footprint.py` antes y después; tests de split y de recetas de plan-review pasan.
+- **Changelog**: El flujo completo de `/dev-cycle` y `/doctor` cargan mucho menos texto por defecto: la revisión visual del plan y las notas internas de `/doctor` viven en su propia referencia y solo se leen si hacen falta, y scope-check imprime su remedio.
+- **Cerrada**: 2026-11-10
 
 **Criterios de aceptación**
-- [ ] El flujo completo y `/doctor` cargan menos texto por defecto con los mismos contratos.
+- [x] El flujo completo y `/doctor` cargan menos texto por defecto con los mismos contratos.
+
+RED: `tests/test_dev_cycle_split.py` + `tests/test_doctor_notes_in_docs.py` + `agent-kits/shared/test_scope_check.py -k h49` fallaron con 4 + 2 + 2 failed: `phase2-plan-review.md` no existe y `phase2-planning.md` carga 18.136 caracteres (tope 6.000) con las recetas de revisión visual dentro; `commands/doctor.md` mide 16.626 caracteres (tope 8.000) sin puntero a `docs/reference/doctor.md` ni espejo EN; los avisos ⚠️ de scope-check no traen remedio y el DoD del implementer y la §0 de la revisión repiten su explicación (> 700 caracteres) · 2026-11-10.
+
+GREEN: `test_dev_cycle_split.py` 11 passed (las recetas Bash/PowerShell siguen byte a byte idénticas en su nueva referencia; la ruta a ella solo se nombra desde `phase2-planning.md`), `test_plan_review_caller.py` 13 + 13 skipped (sin `pwsh`: igual que antes), `test_review_jira_owner.py` 12, `test_plugin_root_resolution.py` 16, `test_doctor_notes_in_docs.py` 2, `test_knowledge_services.py -k gap112` 1 (lee ahora `docs/reference/doctor.md`), `test_scope_check.py` 34 (incluye los 2 de H-49); `export-interop.py --check` 92 al día; lint 0 errores (16 avisos, los mismos); evals 0 errores. Medida de tamaño (caracteres, no consumo observado; el borrador de `testing/tokens.md` está en el scratchpad de la sesión): `phase2-planning.md` 18.136 → 3.034 (−15.102 ≈ −3.775 tokens por flujo completo, la revisión visual pasa a 15.536 y se lee solo si se pide), `commands/doctor.md` 16.626 → 5.491 (−11.135 ≈ −2.784 tokens por `/doctor`), `agents/implementer.md` −1.060 (≈ −265) y `adversarial-review/SKILL.md` −916 (≈ −229) por la explicación duplicada de los avisos. Ahorro de la vía rápida 6.146 (≥ 6.000). No se registra reemplazo para el párrafo de la fase 2 de `dev-cycle.md` porque no estaba en la línea base de párrafos (la prueba exige que lo registrado esté en ella) · 2026-11-10.
 
 ### T-19 — Ruta del kit resuelta una vez
 

@@ -451,6 +451,11 @@ def clasificar(cambiados, patrones, tasks_rel, root, excluir=(), excluir_usuario
     return en, fuera, excl, sin_tocar, quien
 
 
+REMEDIO_AVISO = ("Remedio: acota el glob, declara esos ficheros en el campo `Archivos` de su tarea o deja "
+                 "escrito en el ledger por qué la exclusión es deliberada; la revisión lo trata como "
+                 "gap Important.")
+
+
 def avisos_de_exclusion(cambiados, fuera, quien, excluir_usuario):
     """Avisos cuando la exclusión DE USUARIO (la de `dev.json`, no el default) está apagando la
     puerta en vez de quitarle ruido. Nunca cambia el exit code: informa.
@@ -488,15 +493,15 @@ def avisos_de_exclusion(cambiados, fuera, quien, excluir_usuario):
             f"{len(por_usuario)} de los {n_rel} fichero(s) cambiados relevantes (sin contar los que "
             f"excluye el default) saldrían fuera y los esconde un glob de usuario "
             f"({', '.join(por_usuario[:5])}{'…' if len(por_usuario) > 5 else ''}). "
-            f"La puerta pasa, pero pasa porque la has apagado: revisa que la exclusión sea "
-            f"deliberada y no un `**` de más.")
+            f"La puerta pasa, pero pasa porque la has apagado, quizá por un `**` de más. "
+            f"{REMEDIO_AVISO}")
     for g in excluir_usuario:
         n = sum(1 for f, gg in quien.items() if gg == g)
         if desproporcionado(n):
             avisos.append(
                 f"el glob de usuario «{g}» excluye {n} de los {n_rel} ficheros cambiados relevantes "
                 f"({n * 100 // n_rel} %): una exclusión de esa anchura convierte la puerta "
-                f"en decorativa — acótala o declara esos ficheros en el campo `Archivos` de su tarea.")
+                f"en decorativa. {REMEDIO_AVISO}")
     return avisos
 
 

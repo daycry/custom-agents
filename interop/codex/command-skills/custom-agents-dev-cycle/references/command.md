@@ -136,8 +136,8 @@ a esta fase, antes de invocar evaluator. Conserva su puerta go/no-go.
 ## Fase 2 — Planificar (solo en flujo completo: `architect` opcional → `planner`)
 
 Solo cuando corresponda planificar o atender una revisión del plan, lee
-`"$DEVKIT/references/phase2-planning.md"`. Contiene diseño, plan, las recetas
-Bash/PowerShell de revisión visual, consumo y feedback, y los bindings de integración del proyecto.
+`"$DEVKIT/references/phase2-planning.md"`. Contiene diseño, plan y los bindings de
+integración del proyecto; la revisión visual del plan va aparte y ella indica cuándo cargarla.
 Omítela en vía rápida o al retomar Fase 3 si no hay una revisión del plan que atender.
 La autorización conversacional suficiente conserva su alcance y evita otro OK.
 
