@@ -215,3 +215,46 @@ def test_fix1_a6_flows_describen_los_hooks_reales():
         texto = (ROOT / rel).read_text(encoding='utf-8')
         assert 'journal-prompt.py' in texto and 'subagent-progress.py' in texto, rel
         assert '"journal.py capture (' not in texto, rel
+
+
+# ------------------------------------------------- revisión intento 2 (fase 3): T-14
+
+def test_fix2_5_el_ultimo_estado_de_subagent_stop_no_se_versiona():
+    """5: `.claude/.progress-last-subagent` no casaba con `.claude/.progress-last.*` (exige un punto)."""
+    r = subprocess.run(['git', 'check-ignore', '-q', '.claude/.progress-last-subagent'], cwd=ROOT)
+    assert r.returncode == 0
+
+
+def test_fix2_6_un_prompt_de_varios_mib_lleno_de_secretos_se_captura_rapido_y_redactado(tmp_path):
+    """6: la captura redactaba el prompt ENTERO antes de recortarlo a 4.000 caracteres (2 MiB → 8,4 s;
+    más de ~5 MiB superaba el `timeout: 5` del hook). Ahora redacta una ventana algo mayor que lo que
+    guarda; ningún secreto queda visible, tampoco el que cruza el corte."""
+    import importlib.util
+    import time
+    project, _ = _project(tmp_path)
+    spec = importlib.util.spec_from_file_location('fix2_journal_prompt', ROOT / 'agent-kits/shared/journal-prompt.py')
+    jp = importlib.util.module_from_spec(spec); spec.loader.exec_module(jp)
+    redactados = []
+    real = jp.redactar
+    jp.redactar = lambda texto: redactados.append(len(texto)) or real(texto)
+    secreto = 'ghp_' + 'A1b2' * 10
+    trozo = f'password=hunter2xyz {secreto} '
+    prompt = trozo * (6 * 1024 * 1024 // len(trozo))
+    payload = json.dumps({'session_id': 'secretos', 'prompt': prompt}).encode()
+    inicio = time.monotonic()
+    jp.capture(str(project), json.loads(payload))
+    assert max(redactados) <= jp.CAPTURA_MAX_CHARS + 64 * 1024, max(redactados)   # una ventana, no el prompt entero
+    assert time.monotonic() - inicio < 4.5, time.monotonic() - inicio
+    result = _captura_directa(project, payload)
+    assert result.returncode == 0
+    texto = (project / '.claude/session-prompts-secretos.log').read_text(encoding='utf-8')
+    registro = json.loads(texto.splitlines()[-1])
+    assert 'hunter2' not in texto and 'A1b2A1b2' not in texto and 'ghp_A' not in texto
+    assert registro['prompt'].endswith('[recortado]') and len(registro['prompt']) <= 4000 + 20
+
+
+def test_fix2_9_observability_nombra_la_captura_real():
+    for rel in ('docs/observability.md', 'docs/en/observability.md'):
+        fila = next(l for l in (ROOT / rel).read_text(encoding='utf-8').splitlines() if 'UserPromptSubmit` hook' in l
+                    or 'hook `UserPromptSubmit`' in l)
+        assert 'journal-prompt.py' in fila and 'journal.py capture`' not in fila, rel

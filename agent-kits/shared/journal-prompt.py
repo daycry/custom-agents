@@ -64,6 +64,8 @@ PRIVATE_TAG = "<private>"          # en cualquier parte del turno, sin distingui
 CAPTURA_MAX_CHARS = 4000           # tope por turno (un turno gigantesco no llena el disco)
 LOG_MAX_BYTES = 256 * 1024         # tope por fichero: al superarlo se conservan los ÚLTIMOS turnos (½ del tope)
 LOG_RETENCION_DIAS = 30            # purga de `session-prompts-*.log` más viejos (mtime) al capturar
+PAYLOAD_MAX_BYTES = 32 * 1024 * 1024   # 32 MiB: un turno mayor no es texto de una persona
+REDACCION_MARGEN = 16 * 1024    # más que cualquier secreto de una pieza (una clave PEM RSA 4096 ronda 3,3 KiB)
 LOG_GITIGNORE = "session-prompts-*"       # log y su `.lock`; se siembra en `.claude/.gitignore` del consumidor (revisión F4, Lente C gap 2)
 
 
@@ -229,8 +231,15 @@ def capture(root, payload):
     ses = _dev_sesion(root)
     if not _journal_activo(root) or ses.get("captura") is False:
         return None
-    texto = redactar(prompt.strip())
-    if len(texto) > CAPTURA_MAX_CHARS:
+    # Revisión fase 3 intento 2 (6): se redacta una VENTANA algo mayor que lo que se guarda, no el turno
+    # entero (2 MiB costaban segundos y un turno de varios MiB superaba el `timeout: 5` del hook). Con
+    # REDACCION_MARGEN caracteres de más, un secreto que cruza el corte de CAPTURA_MAX_CHARS queda
+    # entero dentro de la ventana y se redacta antes de cortar; `<private>` ya se miró en el texto
+    # completo.
+    bruto = prompt.strip()
+    ventana = bruto[:CAPTURA_MAX_CHARS + REDACCION_MARGEN]
+    texto = redactar(ventana)
+    if len(bruto) > len(ventana) or len(texto) > CAPTURA_MAX_CHARS:
         texto = texto[:CAPTURA_MAX_CHARS].rstrip() + " …[recortado]"
     d = os.path.join(root, LOG_DIR_REL)
     JIO.directory(d, create=True)
@@ -258,9 +267,13 @@ def main(argv=None):
         args = parser.parse_args(argv)
         if _politica is None or JIO is None:
             return 0
-        # Como `journal.py capture`: todo el payload, UTF-8 con reemplazo; `capture` recorta el turno a
-        # CAPTURA_MAX_CHARS (revisión intento 1, B4: un tope de bytes descartaba el turno entero).
-        payload = json.loads(sys.stdin.buffer.read().decode("utf-8", "replace"))
+        # Como `journal.py capture`: el payload entero, UTF-8 con reemplazo; `capture` recorta el turno a
+        # CAPTURA_MAX_CHARS (revisión intento 1, B4). Tope de lectura PAYLOAD_MAX_BYTES (intento 2): por
+        # encima no se captura (un JSON cortado no se puede leer) y el hook no se cuelga.
+        raw = sys.stdin.buffer.read(PAYLOAD_MAX_BYTES + 1)
+        if len(raw) > PAYLOAD_MAX_BYTES:
+            return 0
+        payload = json.loads(raw.decode("utf-8", "replace"))
         root = args.root or os.environ.get("CLAUDE_PROJECT_DIR") or (payload.get("cwd") if isinstance(payload, dict) else None) or "."
         if os.path.isdir(str(root)):
             capture(str(root), payload)
