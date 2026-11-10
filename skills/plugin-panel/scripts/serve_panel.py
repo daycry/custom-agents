@@ -755,9 +755,14 @@ class PanelServer(ThreadingMixIn, HTTPServer):
         ident = route[len('plan-'):-len('.html')]
         if plan_page_path(self.project, ident) is None:
             return None
-        page = self.render_plan_page(ident)
-        self.plan_pages[route] = page
-        self.plan_ids = self.plan_ids | {ident}   # its `api/plan-<id16>` now answers too
+        # Review attempt 2 of phase 3 (7): with bounded threads two new plans may arrive at once; the
+        # read-modify-write of `plan_ids` (and the page cache) runs under one lock so no id is lost.
+        with self._planes_lock:
+            page = self.plan_pages.get(route)
+            if page is None:
+                page = self.render_plan_page(ident)
+                self.plan_pages[route] = page
+            self.plan_ids = self.plan_ids | {ident}   # its `api/plan-<id16>` now answers too
         return page
 
     def snapshot(self):
@@ -1494,6 +1499,7 @@ def create_server(project, inventory, *, port=0, review_selection=None, review_s
         server._snapshot_lock = threading.Lock(); server._snapshot_hilo = None
         server._workers = threading.BoundedSemaphore(PanelServer.MAX_WORKERS)
         server.escritura = threading.RLock()
+        server._planes_lock = threading.Lock()
         server.snapshot_inicial = False
         server._cartera = None; server._cartera_at = 0; server._cartera_built = 0; server._cartera_firma = None
         server._cartera_lock = threading.Lock(); server._cartera_hilo = None

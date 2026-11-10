@@ -257,3 +257,37 @@ def test_fix1_a4_una_ruta_lenta_no_bloquea_la_portada(service, tmp_path, monkeyp
         assert server.snapshot_inicial is True
     finally:
         _parar(server, thread)
+
+
+# ------------------------------------------------- revisión intento 2 (fase 3): T-15
+
+def test_fix2_7_dos_planes_nuevos_a_la_vez_conservan_su_id(service, tmp_path, monkeypatch):
+    """7: con los hilos de A4, `plan_page` actualizaba `plan_ids` sin cerrojo: con dos planes nuevos a
+    la vez uno perdía su id y `api/plan-<id>` daba 404 hasta reiniciar."""
+    ledger(tmp_path)
+    server, thread = _servidor(service, tmp_path)
+    try:
+        class Lento(frozenset):
+            def __or__(self, otro):
+                time.sleep(.2)
+                return Lento(frozenset.__or__(self, otro))
+        server.plan_ids = Lento(server.plan_ids)
+        monkeypatch.setattr(service, 'plan_page_path', lambda project, ident: 'carpeta')
+        monkeypatch.setattr(server, 'render_plan_page', lambda ident: 'pagina ' + ident)
+        ids = ['a' * 16, 'b' * 16]
+        hilos = [threading.Thread(target=server.plan_page, args=(f'plan-{i}.html',)) for i in ids]
+        for h in hilos:
+            h.start()
+        for h in hilos:
+            h.join(timeout=5)
+        assert set(ids) <= set(server.plan_ids), server.plan_ids
+    finally:
+        _parar(server, thread)
+
+
+def test_fix2_4_la_deuda_del_e2e_de_la_consola_queda_en_t21():
+    """4: la deuda A5 (e2e de `control-center.mjs`) se vigila como las demás deudas de T-21."""
+    ledger = ' '.join((ROOT / 'docs/roadmap/2026-11-09-plugin-audit-remediation/tasks.md').read_text(encoding='utf-8').split())
+    t21 = ledger[ledger.index('### T-21'):]
+    t21 = t21[:t21.index('## Revisión de dos lentes')] if '## Revisión de dos lentes' in t21 else t21
+    assert 'tests/e2e/control-center.mjs' in t21 and 'puppeteer' in t21
