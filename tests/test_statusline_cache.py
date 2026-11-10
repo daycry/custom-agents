@@ -76,9 +76,9 @@ def test_h39_bash_pinta_lo_mismo_que_python_y_reutiliza_la_cache(tmp_path, paylo
     assert fria[0] == 0 and fria[2] == '' and launches(count) == 1
     caliente = hook('statusline', payload, env)      # con caché: Bash si el input es simple
     assert caliente == fria
-    assert launches(count) == (1 if rapido else 2)
+    assert launches(count) == 1   # identical input hits the cache by either path (fix1, D1)
     otro = hook('statusline', {**payload, 'session_id': 'otro-turno'}, env)
-    assert otro == fria and launches(count) == (1 if rapido else 3)
+    assert otro == fria and launches(count) == (1 if rapido else 2)
 
 
 def test_statusline_skips_windowsapps_interpreter(tmp_path):
@@ -180,3 +180,32 @@ def test_statusline_cache_io_failure_keeps_output_and_removes_own_temporary(tmp_
     assert renderer.main(['--root', str(tmp_path), '--cache-key', 'a' * 64]) == 0
     assert capsys.readouterr().out == 'Opus\n0.42\n8\n\n'
     assert not list((tmp_path / '.claude').glob('statusline-cache*'))
+
+
+# ------------------------------------------------- revisión intento 1 (fase 3): D1 + B2 (T-16)
+
+@pytest.mark.parametrize('payload,rapido', [
+    ({'model': {'display_name': 'Opus'}, 'cost': {'total_cost_usd': 0.42},
+      'context_window': {'used_percentage': 8},
+      'rate_limits': {'five_hour': {'used_percentage': 77}, 'seven_day': {'used_percentage': 12}}}, True),
+    ({'model': {'display_name': 'Opus'}, 'rate_limits': {'five_hour': {'used_percentage': 77}}}, True),
+    ({'model': {'display_name': 'Opus'}, 'context_window': {'used_percentage': None}}, True),
+    ({'model': {'display_name': 'Opus'}, 'agent': {'model': {'display_name': 'Otro'}}}, False),
+    ({'context_window': {'used_percentage': 8, 'current_usage': {'input_tokens': 3}}}, False),
+])
+def test_fix1_d1_b2_cada_campo_se_lee_en_su_grupo_y_la_entrada_identica_acierta(tmp_path, payload, rapido):
+    """D1: una clave repetida (`rate_limits.*.used_percentage`) o `null` lanzaba Python en cada
+    refresco, también con la entrada idéntica. B2: la clave en otro objeto pintaba `ctx 77%`. Bash lee
+    cada campo dentro de su grupo y, si no puede, Python con la entrada en la clave (como en b2621b0)."""
+    proj, _ = proyecto(tmp_path)
+    env, count = counted_env(proj, tmp_path)
+    renderer = _renderer()
+    campos = renderer.render(payload, proj, None).split('\n')[:3]
+    fria = hook('statusline', payload, env)
+    assert fria[0] == 0 and fria[2] == '' and launches(count) == 1
+    assert ('ctx 77%' in fria[1]) is False
+    if campos[0]:
+        assert fria[1].startswith('[' + campos[0] + ']')
+    assert hook('statusline', payload, env) == fria and launches(count) == 1, 'identical input must hit the cache'
+    otro = hook('statusline', {**payload, 'session_id': 'otro-turno'}, env)
+    assert otro == fria and launches(count) == (1 if rapido else 2)
