@@ -9,7 +9,7 @@ import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-KIT = ROOT / 'agent-kits/shared'
+KIT = Path(os.environ.get('F4FIX3_KIT_DIR') or ROOT / 'agent-kits/shared')   # the override only serves to show the RED on an older kit
 NOW = time.time()
 
 
@@ -135,23 +135,33 @@ def test_f4fix3_2_an_old_envelope_with_an_invalid_slug_is_not_dead_lettered(tmp_
     assert any('iniciativa' in str(a) for a in replay['avisos']), replay
 
 
-def test_f4fix3_2_capture_cost_is_flat_with_zero_and_five_hundred_initiatives(tmp_path):
-    def p95(count):
+def test_f4fix3_2_capture_does_no_per_initiative_work_with_one_or_five_hundred_initiatives(tmp_path, monkeypatch):
+    """The real property, without a clock: the teardown never lists or opens anything under docs/roadmap, whatever
+    the number of initiatives, and both sides really write an envelope (a project without plugin trace would return early)."""
+    import builtins
+    touched = []
+    real_scandir, real_open = os.scandir, builtins.open
+    def watch(path):
+        text = str(path).replace(chr(92), '/')
+        if 'docs/roadmap' in text:
+            touched.append(text)
+    def scandir(path='.'):
+        watch(path)
+        return real_scandir(path)
+    def opener(file, *args, **kwargs):
+        watch(file)
+        return real_open(file, *args, **kwargs)
+    for count in (1, 500):
         project = tmp_path / f'n{count}'
         project.mkdir()
         for i in range(count):
             _ledger(project, f'2026-01-01-i{i}', 'en-progreso', mtime=NOW - i)
         (project / '.claude').mkdir()
-        payload = json.dumps({'hook_event_name': 'SessionEnd', 'session_id': 's', 'reason': 'other', 'cwd': str(project)})
         jc = _load(f'f4fix3_jc{count}', 'journal-capture.py')
-        samples = []
-        for i in range(25):
-            for stale in (project / '.claude' / 'journal' / 'outbox').glob('*.json'):
-                stale.unlink()
-            start = time.perf_counter()
-            jc.capture_end(str(project), json.loads(payload.replace('"s"', f'"s{i}"')))
-            samples.append((time.perf_counter() - start) * 1000)
-        samples.sort()
-        return samples[int(len(samples) * 0.95) - 1]
-    few, many = p95(0), p95(500)
-    assert many < few + 25, (few, many)        # no per-initiative work at the teardown
+        touched.clear()
+        with monkeypatch.context() as patch:
+            patch.setattr(os, 'scandir', scandir)
+            patch.setattr(builtins, 'open', opener)
+            written = jc.capture_end(str(project), {'hook_event_name': 'SessionEnd', 'session_id': 's', 'reason': 'other', 'cwd': str(project)})
+        assert written is not None and list((project / '.claude' / 'journal' / 'outbox').glob('*.json')), count
+        assert touched == [], (count, touched[:3])

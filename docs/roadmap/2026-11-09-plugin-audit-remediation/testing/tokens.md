@@ -6,25 +6,25 @@
 
 - **Qué se mide:** TAMAÑO de lo que se carga, en caracteres UTF-8 con saltos LF, con `agent-kits/shared/context-footprint.py --project <árbol> --file …` (la herramienta que nombra la Verificación de T-17 y T-18). Tokens estimados = caracteres / 4, sin tokenizer.
 - **Qué NO se mide:** consumo observado ni facturado. Reducir caracteres no acredita ahorro de tokens hasta medirlo con `usage-meter.py` sobre el mismo objetivo y modelo; no se ha hecho en esta fase.
-- **Antes:** `cb6fb40` (el último commit de la fase 3, padre de T-17), extraído con `git -c core.autocrlf=false archive`. **Después:** el HEAD de la fase 4 tras el fix2 (`b5829b9`), extraído igual. Los dos árboles en LF.
+- **Antes:** `cb6fb40` (el último commit de la fase 3, padre de T-17), extraído con `git -c core.autocrlf=false archive`. **Después:** el HEAD de la fase 4 tras el fix3 (`f1397e6`), extraído igual. Los dos árboles en LF.
 - Máquina: Windows 11, Python 3.13.
 
 ## Tamaño por pieza (caracteres, `context-footprint.py`)
 
 | Pieza | Antes | Después | Delta | Tarea |
 |---|---|---|---|---|
-| `agents/analyst.md` | 11.635 | 12.071 | +436 | T-17/T-19 |
-| `agents/architect.md` | 15.790 | 16.084 | +294 | T-17/T-19 |
-| `agents/documenter.md` | 18.032 | 18.468 | +436 | T-17/T-19 |
-| `agents/evaluator.md` (tope CA-22: 15.513 bytes LF; HEAD 15.429) | 14.921 | 15.130 | +209 | T-17/T-19 |
-| `agents/implementer.md` | 29.396 | 28.842 | −554 | T-17/T-18/T-19 |
-| `agents/knowledge-curator.md` | 12.920 | 13.214 | +294 | T-17/T-19 |
-| `agents/nemesis.md` | 15.449 | 15.813 | +364 | T-17/T-19 |
-| `agents/planner.md` | 21.420 | 21.856 | +436 | T-17/T-19 |
-| `agents/qa.md` | 19.271 | 19.777 | +506 | T-17/T-19 |
+| `agents/analyst.md` | 11.635 | 12.143 | +508 | T-17/T-19 |
+| `agents/architect.md` | 15.790 | 16.156 | +366 | T-17/T-19 |
+| `agents/documenter.md` | 18.032 | 18.540 | +508 | T-17/T-19 |
+| `agents/evaluator.md` (tope CA-22: 15.513 bytes LF; HEAD 15.465) | 14.921 | 15.166 | +245 | T-17/T-19 |
+| `agents/implementer.md` | 29.396 | 28.950 | −446 | T-17/T-18/T-19 |
+| `agents/knowledge-curator.md` | 12.920 | 13.286 | +366 | T-17/T-19 |
+| `agents/nemesis.md` | 15.449 | 15.921 | +472 | T-17/T-19 |
+| `agents/planner.md` | 21.420 | 21.928 | +508 | T-17/T-19 |
+| `agents/qa.md` | 19.271 | 19.885 | +614 | T-17/T-19 |
 | `agents/reviewer.md` | 8.495 | 8.649 | +154 | T-17 |
 | `agent-kits/shared/project-integrations.md` | 5.199 | 5.306 | +107 | T-17 |
-| `agent-kits/shared/capability-check.md` | 5.491 | 5.561 | +70 | T-19 fix1/fix2 |
+| `agent-kits/shared/capability-check.md` | 5.491 | 5.597 | +106 | T-19 fix1/fix2 |
 | `commands/dev-cycle.md` | 28.708 | 29.019 | +311 | T-17/T-19 |
 | `commands/pm-cycle.md` | 10.402 | 10.529 | +127 | T-19 fix1 |
 | `skills/quick-implement/SKILL.md` | 6.922 | 7.038 | +116 | T-21/T-19 |
@@ -33,7 +33,7 @@
 | `commands/doctor.md` | 16.626 | 5.700 | −10.926 | T-18 |
 | `agent-kits/shared/doctor-reference.md` (no se carga; viaja con el kit) | 0 | 12.129 | +12.129 | T-18 fix1 |
 | `skills/adversarial-review/SKILL.md` | 18.972 | 18.104 | −868 | T-18 |
-| Interop OpenCode, agente `implementer` | 29.702 | 28.554 | −1.148 | T-17/T-18 |
+| Interop OpenCode, agente `implementer` | 29.702 | 28.662 | −1.040 | T-17/T-18 |
 
 Correcciones respecto a la versión anterior de este fichero: `commands/doctor.md` mide 5.700 (no 5.491; 5.491 es `capability-check.md` en `cb6fb40`); el `evaluator` se mide en LF (antes se midió en CRLF); la base es `cb6fb40` (antes se nombraba `514409e~`, que es el commit de T-20, no el inicio de la fase); las bases de planner y evaluator eran 7 caracteres menores.
 
@@ -41,7 +41,7 @@ Correcciones respecto a la versión anterior de este fichero: `commands/doctor.m
 
 | Tarea | Se omite | Caracteres | ≈ tokens |
 |---|---|---|---|
-| T-17 | `capability-check.md` si el brief/ledger ya trae la selección | 5.561 | 1.390 |
+| T-17 | `capability-check.md` si el brief/ledger ya trae la selección | 5.597 | 1.399 |
 | T-17 | `project-integrations.md` con «sin integraciones» | 5.306 | 1.327 |
 | T-18 | revisión visual del plan en cada flujo completo | 15.102 | 3.776 |
 | T-18 | notas de `/doctor` en cada invocación | 10.926 | 2.732 |
