@@ -466,6 +466,10 @@ RED fix3: `tests/test_hook_processes.py -k fix3` falló con 3 failed: con cinco 
 
 GREEN fix3: `pytest tests/test_hook_processes.py` → `18 passed` (1, CWE-532: la ventana se amplía, duplicándose, hasta que lo redactado llegue a 4.000 + 16 KiB caracteres, se agote el texto o se alcance `REDACCION_TOPE` = 1 MiB; en ese último caso se descartan los últimos 16 KiB redactados; en los tres casos lo guardado es igual a redactar el turno entero y cortar a 4.000; 10: `test_fix2_6` mide ahora los caracteres que pasan por `redactar` en vez de un tope de tiempo; 7: `test_fix3_7_un_turno_de_31_mib_se_captura_recortado` fija el tope de 32 MiB —TDD n/a: test de guarda escrito sobre el comportamiento ya correcto—). Por encima del tope el turno se omite sin dejar rastro: el contrato de UserPromptSubmit prohíbe stdout y stderr (el stdout es contexto y el exit 2 borra el prompt), y sin leer el JSON no hay `session_id` ni log de la sesión donde escribir; queda justificado, no se añade la línea. `test_journal.py -k "capture or captura or rotar or private or recort"` 44 + 3 skipped. Tiempo: 0,03h (medido, `plugin-audit-remediation/T-14-fix3`) · 2026-11-10.
 
+RED fix3 (verificación del orquestador): `tests/test_hook_processes.py::test_fix3_1_pem_largo_sin_end_en_la_ventana_no_deja_ver_el_begin` falló con 1 failed: con `"x " * 1500` y un PEM de ~40 KB de base64 el END queda fuera de la ventana, `redactar` no encoge el texto y lo guardado muestra `-----BEGIN PRIVATE KEY-----` y ~1.000 caracteres del cuerpo · 2026-11-10.
+
+GREEN fix3 (verificación del orquestador): `pytest tests/test_hook_processes.py` → `19 passed`: un BEGIN sin su END en lo guardado se sustituye, desde ahí hasta el final, por el marcador de redacción (`_sin_pem_abierto`); `test_journal.py` completo pasa, con `test_standalone_fallback_capture_redacts_before_clip[unterminated-pem]` esperando ahora el marcador en vez de la cabecera visible (contrato nuevo, más estricto). El arnés `orq_fix3.py` reimplementa el bucle de la ventana y por eso sigue dando «BEGIN visible»; el código real lo cubre el test · 2026-11-10.
+
 ### T-15 — Panel y consola sin bloqueos
 
 - **Estado**: completado
@@ -759,7 +763,7 @@ Lentes: A + B + D. Al tercer intento con gaps, el orquestador decide un ciclo fi
 
 | # | Grado | Gap | Tarea | Corrección | Evidencia |
 |---|---|---|---|---|---|
-| 1 | Important | CWE-532: la ventana de redacción encoge al redactar y un secreto cortado en su borde (6.º PEM, `Bearer`, `password=`) acababa en los 4.000 guardados | T-14 | corregido | ventana que crece hasta 4.000 + 16 KiB redactados (tope 1 MiB); igual que redactar todo y cortar; `test_fix3_1_*` (e84f498) |
+| 1 | Important | CWE-532: la ventana de redacción encoge al redactar y un secreto cortado en su borde (6.º PEM, `Bearer`, `password=`) acababa en los 4.000 guardados | T-14 | corregido | ventana que crece hasta 4.000 + 16 KiB redactados (tope 1 MiB); igual que redactar todo y cortar; `test_fix3_1_*` (e84f498). Verificación del orquestador: PEM de más de ~17 KB sin END → corregido (un BEGIN sin cerrar en lo guardado pasa a marcador; `test_fix3_1_pem_largo_sin_end_*`) |
 | 2 | Minor | Escáner de la barra de estado cuadrático (25 KB → 13,5 s por refresco, también con caché caliente) | T-16 | corregido | tope de 8 KB, una pasada para los tres grupos, una cadena = un token; `test_fix3_2_*` (a89afdf) |
 | 3 | Minor | `NUMBER` admitía 27 dígitos: `0.50000000000000001` daba `ctx 1%` en Bash y `ctx 0%` en Python | T-16 | corregido | cerca del redondeo con más de 15 dígitos, o más de 17, pinta Python; `test_fix3_3_*` (a89afdf) |
 | 4 | Minor | Con JSON inválido Bash pintaba campos y Python no | T-16 | corregido | coma final, texto tras el objeto y escapes inválidos caen a Python; `test_fix3_4_*` (a89afdf) |

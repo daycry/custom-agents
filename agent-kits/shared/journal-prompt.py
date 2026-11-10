@@ -14,6 +14,7 @@ import datetime as _dt
 import importlib.util
 import json
 import os
+import re
 import sys
 import time
 
@@ -50,6 +51,21 @@ try:
 except AttributeError:   # paquete incompleto: sin la política de la sesión no se captura nada
     _politica = None
 _redact = _load_module('journal_prompt_redact', 'redact.py')
+
+
+_PEM_INICIO_RE = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")
+_PEM_FIN_RE = re.compile(r"-----END [A-Z ]*PRIVATE KEY-----")
+
+
+def _sin_pem_abierto(texto):
+    """Intento 3 (1, verificación del orquestador): `redactar` deja intacto un BEGIN sin su END, y un
+    PEM de más de ~17 KB tiene el END fuera de la ventana. Desde un BEGIN sin cerrar hasta el final se
+    sustituye por el marcador de redacción: en lo guardado nunca queda la cabecera ni el cuerpo."""
+    for inicio in _PEM_INICIO_RE.finditer(texto):
+        if _PEM_FIN_RE.search(texto, inicio.end()) is None:
+            marca = getattr(_redact, "REDACTADO", "[secreto redactado]") if _redact is not None else "[secreto redactado]"
+            return texto[:inicio.start()] + marca
+    return texto
 
 
 def redactar(texto):
@@ -253,6 +269,7 @@ def capture(root, payload):
             texto = texto[:max(0, len(texto) - REDACCION_MARGEN)]
             break
         largo = min(largo * 2, REDACCION_TOPE)
+    texto = _sin_pem_abierto(texto)
     if len(bruto) > len(ventana) or len(texto) > CAPTURA_MAX_CHARS:
         texto = texto[:CAPTURA_MAX_CHARS].rstrip() + " …[recortado]"
     d = os.path.join(root, LOG_DIR_REL)

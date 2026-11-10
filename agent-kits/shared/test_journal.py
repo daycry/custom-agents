@@ -918,6 +918,10 @@ def test_standalone_fallback_capture_redacts_before_clip(standalone_fallback_jou
         prompt = "pre " + value + suffix
         redacted = "pre " + module.REDACTADO + suffix
     expected = redacted[:limit].rstrip() + " …[recortado]"
+    if secret_kind == "unterminated-pem":
+        # revisión fase 3 intento 3 (1, CWE-532): un BEGIN sin su END en lo guardado se sustituye,
+        # hasta el final, por el marcador; antes la cabecera y el cuerpo quedaban visibles
+        expected = module.REDACTADO
     path = module.capture(str(proj), {"session_id": "owned-clipped-session", "prompt": prompt})
     assert path is not None
     assert module.capturas(str(proj), "owned-clipped-session") == [expected]

@@ -318,3 +318,18 @@ def test_fix3_7_un_turno_de_31_mib_se_captura_recortado(tmp_path):
     assert (result.returncode, result.stdout, result.stderr) == (0, b'', b'')
     registro = json.loads((project / '.claude/session-prompts-enorme.log').read_text(encoding='utf-8').splitlines()[-1])
     assert registro['prompt'].startswith('decidimos y') and registro['prompt'].endswith('[recortado]')
+
+
+def test_fix3_1_pem_largo_sin_end_en_la_ventana_no_deja_ver_el_begin(tmp_path):
+    """1 (verificación del orquestador): un PEM de más de ~17 KB cuyo END queda fuera de la ventana no
+    encoge al redactar; lo guardado mostraba `-----BEGIN PRIVATE KEY-----` y ~1.000 caracteres del
+    cuerpo. Un BEGIN sin su END en lo guardado se sustituye, hasta el final, por el marcador."""
+    import base64
+    jp = _jp()
+    project, _ = _project(tmp_path)
+    cuerpo = base64.b64encode(bytes(range(256)) * 118).decode()
+    cuerpo = '\n'.join(cuerpo[i:i + 64] for i in range(0, len(cuerpo), 64))
+    prompt = 'x ' * 1500 + '-----BEGIN PRIVATE KEY-----\n' + cuerpo + '\n-----END PRIVATE KEY-----' + ' fin'
+    guardado = _capturado(project, jp, 'pem-largo', prompt)
+    assert 'BEGIN PRIVATE KEY' not in guardado and cuerpo[:40] not in guardado and cuerpo[100:140] not in guardado
+    assert guardado.startswith('x x x') and jp.redactar('-----BEGIN PRIVATE KEY-----\nA\n-----END PRIVATE KEY-----') in guardado
