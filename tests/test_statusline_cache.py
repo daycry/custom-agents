@@ -63,7 +63,7 @@ def test_statusline_cache_invalidates_input_and_ledger_mtime(tmp_path):
     ({'model': {'display_name': 'Quote " in name'}, 'cost': {'total_cost_usd': 2}}, False),
     ({'cost': {'total_cost_usd': 0.00001}, 'context_window': {'used_percentage': 0.00002}}, False),
     ({'cost': {'total_cost_usd': 1e-7}, 'model': {'display_name': None}}, False),
-    ({'model': {'display_name': 'A', 'other': {'display_name': 'B'}}}, False),
+    ({'model': {'display_name': 'A', 'other': {'display_name': 'B'}}}, True),   # fix2: la anidada no cuenta
     ({'cost': {'total_cost_usd': '0.42'}}, False),
 ])
 def test_h39_bash_pinta_lo_mismo_que_python_y_reutiliza_la_cache(tmp_path, payload, rapido):
@@ -190,8 +190,8 @@ def test_statusline_cache_io_failure_keeps_output_and_removes_own_temporary(tmp_
       'rate_limits': {'five_hour': {'used_percentage': 77}, 'seven_day': {'used_percentage': 12}}}, True),
     ({'model': {'display_name': 'Opus'}, 'rate_limits': {'five_hour': {'used_percentage': 77}}}, True),
     ({'model': {'display_name': 'Opus'}, 'context_window': {'used_percentage': None}}, True),
-    ({'model': {'display_name': 'Opus'}, 'agent': {'model': {'display_name': 'Otro'}}}, False),
-    ({'context_window': {'used_percentage': 8, 'current_usage': {'input_tokens': 3}}}, False),
+    ({'model': {'display_name': 'Opus'}, 'agent': {'model': {'display_name': 'Otro'}}}, True),   # fix2: solo el primer nivel
+    ({'context_window': {'used_percentage': 8, 'current_usage': {'input_tokens': 3}}}, True),   # fix2: grupos anidados
 ])
 def test_fix1_d1_b2_cada_campo_se_lee_en_su_grupo_y_la_entrada_identica_acierta(tmp_path, payload, rapido):
     """D1: una clave repetida (`rate_limits.*.used_percentage`) o `null` lanzaba Python en cada
@@ -209,3 +209,55 @@ def test_fix1_d1_b2_cada_campo_se_lee_en_su_grupo_y_la_entrada_identica_acierta(
     assert hook('statusline', payload, env) == fria and launches(count) == 1, 'identical input must hit the cache'
     otro = hook('statusline', {**payload, 'session_id': 'otro-turno'}, env)
     assert otro == fria and launches(count) == (1 if rapido else 2)
+
+
+# ------------------------------------------------- revisión intento 2 (fase 3): D y B3 (T-16)
+
+def _payload_real(coste, current_usage=True):
+    """La forma real de Claude Code: `context_window.current_usage` es un objeto anidado (o null)."""
+    return {'session_id': 's1', 'transcript_path': '/tmp/s1.jsonl', 'cwd': '/tmp/proyecto',
+            'model': {'id': 'claude-opus-4-1', 'display_name': 'Opus'},
+            'workspace': {'current_dir': '/tmp/proyecto', 'project_dir': '/tmp/proyecto'},
+            'version': '2.0.0', 'output_style': {'name': 'default'},
+            'cost': {'total_cost_usd': coste, 'total_duration_ms': 45000, 'total_api_duration_ms': 2300,
+                     'total_lines_added': 156, 'total_lines_removed': 23},
+            'context_window': {'total_input_tokens': 1000, 'total_output_tokens': 200, 'context_window_size': 200000,
+                               'current_usage': ({'input_tokens': 8500, 'output_tokens': 1200,
+                                                  'cache_creation_input_tokens': 5000, 'cache_read_input_tokens': 2000}
+                                                 if current_usage else None),
+                               'used_percentage': 8, 'remaining_percentage': 92},
+            'exceeds_200k_tokens': False}
+
+
+@pytest.mark.parametrize('current_usage', [True, False])
+def test_fix2_d_el_payload_real_con_current_usage_usa_el_atajo(tmp_path, current_usage):
+    """D (intento 2): la regex de grupo plano exigía un grupo plano y el payload real trae
+    `context_window.current_usage` anidado: tras la primera respuesta, 7 refrescos con el coste
+    cambiando lanzaban 7 Pythons. El escáner admite objetos anidados: 1 Python."""
+    proj, _ = proyecto(tmp_path)
+    env, count = counted_env(proj, tmp_path)
+    renderer = _renderer()
+    for n in range(7):
+        payload = _payload_real(0.4 + n / 100, current_usage)
+        model, cost, ctx = renderer.render(payload, proj, None).split('\n')[:3]
+        salida = hook('statusline', payload, env)
+        assert salida[0] == 0 and salida[1].startswith(f'[{model}] ') and f'ctx {ctx}%' in salida[1]
+    assert launches(count) == 1
+
+
+@pytest.mark.parametrize('crudo', [
+    '{"model":{"id":"a}","display_name":"X"}}',
+    '{"cwd":"C:/a}b","agent":{"model":{"display_name":"Otro"}}}',
+    '{"cwd":"C:/a{b","model":{"display_name":"Y"},"cost":{"note":"}{","total_cost_usd":0.5}}',
+    '{"model":{"display_name":"Z","x":"\\"}"},"context_window":{"used_percentage":9}}',
+])
+def test_fix2_b3_llaves_dentro_de_cadenas_dan_lo_mismo_que_python(tmp_path, crudo):
+    """B3 (intento 2): una llave dentro de una cadena JSON descuadraba el recuento y Bash pintaba algo
+    distinto de Python. El escáner salta las cadenas, con sus escapes."""
+    proj, _ = proyecto(tmp_path)
+    env, count = counted_env(proj, tmp_path)
+    fria = hook('statusline', crudo, env)
+    (proj / '.claude' / 'statusline-cache').unlink()
+    python = hook('statusline', crudo, env)          # sin caché: Python pinta todo
+    caliente = hook('statusline', crudo, env)        # con caché: Bash si decide
+    assert fria == python == caliente

@@ -31,30 +31,76 @@ fallback() {
 [ -f "$RENDER" ] || { fallback; exit 0; }
 
 # H-39 (T-16): model, cost and context straight from the input, in Bash, when each field has the
-# plain shape whose text Python would print unchanged. Each field is read INSIDE its group, as Python
-# does (`model.display_name`, `cost.total_cost_usd`, `context_window.used_percentage`; review attempt 1,
-# B2: `rate_limits.*.used_percentage` is not the context). The group must appear once, at the top level,
-# as a flat object; the key once inside it, with a printable ASCII string, a positional number >= 1e-4 or
-# null. Anything else keeps Python for that refresh, with the input in the cache key as before (D1).
+# plain shape whose text Python would print unchanged. Each field is read INSIDE its top-level group,
+# as Python does (`model.display_name`, `cost.total_cost_usd`, `context_window.used_percentage`): a small
+# JSON scanner walks the members of one object, skips strings (with their escapes) when it counts braces
+# and admits nested objects inside a group (review attempts 1 and 2: `rate_limits.*`, `current_usage`,
+# braces inside strings). A duplicate or escaped key, an unterminated string or anything it cannot
+# follow means "cannot decide": that refresh keeps Python, with the input in the cache key (D1).
+json_member() {   # $1 JSON object text, $2 key: MEMBER = raw value; 0 found, 2 absent, 1 cannot decide
+  local s="$1" want="\"$2\"" depth=1 state=key cur="" cap=0 val="" got=0 chunk sp seg LC_ALL=C
+  local re_open='^[[:space:]]*\{' re_tok='^([^]"{},:[]*)(.?)' re_str='^([^"\]*)(\\.|")'
+  MEMBER=""
+  [[ "$s" =~ $re_open ]] || return 1
+  s="${s:${#BASH_REMATCH[0]}}"
+  while :; do
+    [[ "$s" =~ $re_tok ]] || return 1
+    chunk="${BASH_REMATCH[1]}"; sp="${BASH_REMATCH[2]}"
+    s="${s:${#BASH_REMATCH[0]}}"
+    [ "$cap" = 1 ] && val+="$chunk"
+    case "$sp" in
+      '') return 1 ;;
+      '"')
+        seg='"'
+        while :; do
+          [[ "$s" =~ $re_str ]] || return 1
+          seg+="${BASH_REMATCH[0]}"
+          s="${s:${#BASH_REMATCH[0]}}"
+          [ "${BASH_REMATCH[2]}" = '"' ] && break
+        done
+        if [ "$depth" = 1 ] && [ "$state" = key ]; then
+          case "$seg" in *\\*) return 1 ;; esac
+          cur="$seg" state=colon
+        elif [ "$cap" = 1 ]; then
+          val+="$seg"
+        fi ;;
+      ':')
+        if [ "$depth" = 1 ] && [ "$state" = colon ]; then
+          state=value
+          if [ "$cur" = "$want" ]; then
+            [ "$got" = 1 ] && return 1
+            got=1 cap=1 val=""
+          fi
+        elif [ "$cap" = 1 ]; then
+          val+=':'
+        fi ;;
+      ',')
+        if [ "$depth" = 1 ]; then cap=0 state=key; elif [ "$cap" = 1 ]; then val+=','; fi ;;
+      '{'|'[')
+        depth=$((depth + 1)); [ "$cap" = 1 ] && val+="$sp" ;;
+      '}'|']')
+        depth=$((depth - 1))
+        if [ "$depth" = 0 ]; then break; fi
+        [ "$cap" = 1 ] && val+="$sp" ;;
+    esac
+  done
+  [ "$got" = 1 ] || return 2
+  [[ "$val" =~ ^[[:space:]]*(.*[^[:space:]])[[:space:]]*$ ]] && val="${BASH_REMATCH[1]}"
+  MEMBER="$val"
+  return 0
+}
 input_field() {   # $1 group, $2 key, $3 value regex; sets FIELD; returns 1 when Bash cannot decide
-  local group="\"$1\"" key="\"$2\"" rest prefix braces opened obj re LC_ALL=C
+  local group re LC_ALL=C
   FIELD=""
-  case "$INPUT" in *"$group"*) ;; *) return 0 ;; esac        # no group: Python prints nothing either
-  rest="${INPUT#*"$group"}"
-  case "$rest" in *"$group"*) return 1 ;; esac
-  prefix="${INPUT%%"$group"*}"
-  braces="${prefix//[^\{\}]/}"
-  opened="${braces//\}/}"
-  [ "${#opened}" -eq $(( ${#braces} - ${#opened} + 1 )) ] || return 1   # top level only
-  re='^[[:space:]]*:[[:space:]]*\{([^{}]*)\}'
-  [[ "$rest" =~ $re ]] || return 1                               # null, nested or not an object
-  obj="${BASH_REMATCH[1]}"
-  case "$obj" in *"$key"*) ;; *) return 0 ;; esac              # no key in its group: empty
-  rest="${obj#*"$key"}"
-  case "$rest" in *"$key"*) return 1 ;; esac
-  re="^[[:space:]]*:[[:space:]]*(null|$3)[[:space:]]*(,|\$)"
-  [[ "$rest" =~ $re ]] || return 1
-  FIELD="${BASH_REMATCH[1]}"
+  json_member "$INPUT" "$1"
+  case $? in 2) return 0 ;; 1) return 1 ;; esac             # no group: Python prints nothing either
+  group="$MEMBER"
+  case "$group" in '{'*) ;; *) return 0 ;; esac            # null or not an object: Python prints nothing
+  json_member "$group" "$2"
+  case $? in 2) return 0 ;; 1) return 1 ;; esac
+  re="^(null|$3)\$"
+  [[ "$MEMBER" =~ $re ]] || return 1
+  FIELD="$MEMBER"
   [ "$FIELD" = null ] && FIELD=""
   [[ "$FIELD" =~ ^[\ -~]*$ ]] || return 1   # printable ASCII only: Python would print it unchanged
 }
