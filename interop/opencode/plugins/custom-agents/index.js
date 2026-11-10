@@ -105,6 +105,7 @@ export default {
     // unsafe or oversized trees disable reuse. The signature is the ONLY invalidation: an event never
     // clears the cache, because what it could change is already in the signature (H-46, gap 3).
     const VOLATILE_KEYS = ['materializado_en', 'derivados_en', 'turnos', 'log_hasta', 'reason', 'resumen_por'];
+    // `marcadores_cerrados` is not quoted, but whether it is empty decides if an entry is a placeholder: only that signs.
     const VOLATILE_LISTS = ['marcadores_cerrados'];
     // The injected part of a journal entry: its front matter minus what the block never quotes
     // (rewrite timestamps, the turn count, the cost markers). The body is not injected either.
@@ -114,13 +115,17 @@ export default {
       const end = lines.indexOf('---', 1);
       if (end < 0) return null;
       const kept = [];
-      let skipping = false;
+      let skipping = null, items = 0;
+      const closeList = () => { if (skipping) kept.push(skipping + ':#' + (items > 0)); skipping = null; items = 0; };
       for (const line of lines.slice(1, end)) {
-        if (/^\s/.test(line) && skipping) continue;
-        skipping = VOLATILE_LISTS.some(key => line.startsWith(key + ':'));
-        if (skipping || VOLATILE_KEYS.some(key => line.startsWith(key + ':'))) continue;
+        if (/^\s/.test(line) && skipping) { items++; continue; }
+        closeList();
+        const list = VOLATILE_LISTS.find(key => line.startsWith(key + ':'));
+        if (list) { skipping = list; items = line.includes('[]') ? 0 : (line.slice(list.length + 1).trim() ? 1 : 0); continue; }
+        if (VOLATILE_KEYS.some(key => line.startsWith(key + ':'))) continue;
         kept.push(line);
       }
+      closeList();
       return createHash('sha1').update(kept.join('\n')).digest('hex');
     }
     async function signature(cwd) {
@@ -128,9 +133,10 @@ export default {
       let count = 0;
       const journalDir = normalized(join(cwd, 'docs', 'knowledge', 'journal'));
       const queueDir = normalized(join(cwd, '.claude', 'journal'));
+      const rootRoadmap = normalized(join(cwd, 'docs', 'roadmap'));
       // Rows are returned, never pushed, so siblings can be read concurrently and still sign in name order.
       async function visit(path, depth = 0, top = false) {
-        if (++count > 4096 || depth > 8 || Date.now() > deadline) throw new Error('cache bound');
+        if (++count > 4096 || depth > 12 || Date.now() > deadline) throw new Error('cache bound');
         let info;
         try { info = await lstat(path); }
         catch (error) { if (error.code === 'ENOENT') return [[path, 'missing']]; throw error; }
@@ -142,8 +148,9 @@ export default {
             if (digest) return [[path, 'entry', digest]];
           }
         }
-        // A directory's own mtime moves with every atomic rewrite of an entry inside the journal.
-        const rows = [[path, ...(normalized(path) === journalDir ? ['journal'] : [info.dev, info.ino, info.size, info.mtimeMs, info.ctimeMs])]];
+        // A directory signs by name only: its own mtime moves with every file created or rewritten inside it, and the
+        // children already sign themselves (a new capture log or marker must not invalidate the cache).
+        const rows = [[path, ...(info.isDirectory() ? ['dir'] : [info.dev, info.ino, info.size, info.mtimeMs, info.ctimeMs])]];
         if (!info.isDirectory()) return rows;
         const names = await readdir(path, { withFileTypes: true });
         if (names.length > 4096) throw new Error('cache bound');
@@ -151,6 +158,10 @@ export default {
         const wanted = names.filter(entry => {
           // The per-prompt capture log is volatile and never feeds the session context (H-46).
           if (top && /^session-prompts-.*\.log$/.test(entry.name)) return false;
+          // Neither the Confluence pending marker (truncated on every edit under docs/) nor the QA evidence
+          // under an initiative's testing/ folder feeds the block (fix2 gaps 8 and 9).
+          if (top && entry.name === '.confluence-pending') return false;
+          if (entry.name === 'testing' && entry.isDirectory() && normalized(dirname(path)) === rootRoadmap) return false;
           // Envelopes queued by the capture are replayed at the next recompute; only dead letters feed the notice.
           if (normalized(path) === queueDir && ['outbox', 'processing', 'done'].includes(entry.name)) return false;
           return !top || !entry.isDirectory() || entry.name === 'journal';
@@ -181,6 +192,21 @@ export default {
         return JSON.stringify(rows);
       } catch { return null; }
     }
+
+    // A cache hit must not leave the capture queue to pile up: the envelopes are replayed (oldest first) by a
+    // background run of the context service, once per distinct queue state, without delaying the answer.
+    let drained = '';
+    async function drainQueue(cwd, sessionID) {
+      try {
+        const names = (await readdir(join(cwd, '.claude', 'journal', 'outbox'))).filter(name => name.endsWith('.json')).sort().join('|');
+        if (!names || names === drained) return;
+        drained = names;
+        const task = run(bindings.context.handlers[0], { hook_event_name: 'SessionStart', source: 'resume', session_id: sessionID, cwd }).then(() => {});
+        inflight.add(task); void task.finally(() => inflight.delete(task));
+      } catch { /* No queue, nothing to drain. */ }
+    }
+    // The operational notice of a blocked or failing replay describes a moment, not the project: never cached.
+    const TRANSIENT_NOTICE = 'Journal (estado operativo de la cola del journal';
 
     // Session APIs may expose other locations. Never reuse the instance root without checking.
     async function project(sessionID) {
@@ -281,7 +307,7 @@ export default {
         const revision = generation, before = await signature(cwd);
         let text;
         const hit = cache.get(event.sessionID);
-        if (before && hit?.signature === before) text = hit.text;
+        if (before && hit?.signature === before) { text = hit.text; void drainQueue(cwd, event.sessionID); }
         else {
           const output = await run(bindings.context.handlers[0], {
             hook_event_name: 'SessionStart', source: 'resume', session_id: event.sessionID, cwd,
@@ -290,7 +316,7 @@ export default {
           if (typeof text === 'string' && text) {
             text = text.slice(0, 10000);
             const after = before ? await signature(cwd) : null;
-            if (before && revision === generation && before === after && !controller.signal.aborted) {
+            if (before && revision === generation && before === after && !controller.signal.aborted && !text.includes(TRANSIENT_NOTICE)) {
               cache.delete(event.sessionID);
               if (cache.size >= CACHE_SESSIONS) cache.delete(cache.keys().next().value);
               cache.set(event.sessionID, { text, signature: before });

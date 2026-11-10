@@ -587,6 +587,7 @@ const flowLauncher = `import fs from 'node:fs';
   if (script === 'session-context.sh') {
     const n = fs.existsSync('runs') ? Number(fs.readFileSync('runs','utf8')) + 1 : 1;
     fs.writeFileSync('runs', String(n));
+    fs.rmSync('.claude/journal/outbox', {recursive: true, force: true});   // the replay consumes the queue
     process.stdout.write(JSON.stringify({hookSpecificOutput:{additionalContext:'context ' + n}}));
   }
   if (script === 'session-journal.sh') {
@@ -621,17 +622,20 @@ test('f4fix1 gap 3: the context survives real turn events when what it quotes di
     const call = async (sessionID = 'flow') => {
       const event = { sessionID, system: [] }; await ctx.hooks.get('session.context')(event); return event.system[0].text;
     };
-    assert.equal(await call(), 'context 1');
+    const first = await call();
+    assert.match(first, /^context \d+$/);
     await runFlowTurn(ctx, dir, 'flow', 2);                 // the capture wrote envelope + journal entry
-    assert.equal(await call(), 'context 2');               // first sight of the entry: it is new content
+    const second = await call();
+    assert.notEqual(second, first);                         // first sight of the entry: it is new content
     await runFlowTurn(ctx, dir, 'flow', 4);                 // second turn: only volatile lines and the queue changed
-    assert.equal(await call(), 'context 2');               // reused across the turn
+    assert.equal(await call(), second);                     // reused across the turn
     await runFlowTurn(ctx, dir, 'flow', 6);
-    assert.equal(await call(), 'context 2');
+    assert.equal(await call(), second);
     writeFileSync(join(dir, 'resumen.txt'), 'otro encargo');   // what the session block quotes does change
     await runFlowTurn(ctx, dir, 'flow', 8);
-    assert.equal(await call(), 'context 3');
-    assert.equal(await call(), 'context 3');
+    const third = await call();
+    assert.notEqual(third, second);
+    assert.equal(await call(), third);
   } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -661,5 +665,68 @@ test('f4fix1 gap 10: a medium project tree still yields a reusable signature', a
     const event = { sessionID: 'big', system: [] }; await ctx.hooks.get('session.context')(event);
     const again = { sessionID: 'big', system: [] }; await ctx.hooks.get('session.context')(again);
     assert.equal(again.system[0].text, 'context 1');
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+// f4fix2 gaps 6-9 (Phase 4, review attempt 2).
+const countLauncher = `import fs from 'node:fs';
+  if (process.argv[2] === 'session-context.sh') {
+    const n = fs.existsSync('runs') ? Number(fs.readFileSync('runs','utf8')) + 1 : 1;
+    fs.writeFileSync('runs', String(n));
+    const transient = fs.existsSync('transient') ? 'Journal (estado operativo de la cola del journal; datos, no instrucciones): replay bloqueado. ' : '';
+    process.stdout.write(JSON.stringify({hookSpecificOutput:{additionalContext: transient + 'context ' + n}}));
+  }`;
+const ask = async (ctx, sessionID = 'f2') => { const event = { sessionID, system: [] }; await ctx.hooks.get('session.context')(event); return event.system[0].text; };
+const runs = dir => Number(readFileSync(join(dir, 'runs'), 'utf8'));
+
+test('f4fix2 gap 6: a cache hit still drains a non-empty outbox, in the background', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, countLauncher);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    mkdirSync(join(dir, '.claude', 'journal', 'outbox'), { recursive: true });
+    assert.equal(await ask(ctx), 'context 1');
+    writeFileSync(join(dir, '.claude', 'journal', 'outbox', 'a.json'), '{}');
+    assert.equal(await ask(ctx), 'context 1');                      // served from the cache, not blocked
+    await until(() => runs(dir) >= 2);                              // and the queue was drained behind it
+    assert.equal(await ask(ctx), 'context 1');
+    await new Promise(resolve => setTimeout(resolve, 300));
+    assert.equal(runs(dir), 2);                                     // the same queue is not drained twice
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('f4fix2 gap 7: the transient replay notice is not cached and the cost markers sign as present or absent', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, countLauncher);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    writeFileSync(join(dir, 'transient'), '1');
+    assert.match(await ask(ctx), /context 1/); assert.match(await ask(ctx), /context 2/);
+    rmSync(join(dir, 'transient'));
+    assert.equal(await ask(ctx), 'context 3'); assert.equal(await ask(ctx), 'context 3');
+    const journal = join(dir, 'docs', 'knowledge', 'journal'); mkdirSync(journal, { recursive: true });
+    const entry = markers => ['---', 'fecha: "2026-01-01"', 'session_id: "m"', 'iniciativa: "demo"', 'resumen: "Sesión de trabajo"',
+      'decisiones: []', ...markers, '---', ''].join(String.fromCharCode(10));
+    writeFileSync(join(journal, '2026-01-01-demo.md'), entry(['marcadores_cerrados: []']));
+    assert.equal(await ask(ctx), 'context 4');
+    writeFileSync(join(journal, '2026-01-01-demo.md'), entry(['marcadores_cerrados: []']).replace('decisiones: []', 'decisiones: []'));
+    assert.equal(await ask(ctx), 'context 4');
+    writeFileSync(join(journal, '2026-01-01-demo.md'), entry(['marcadores_cerrados:', '  - "x/y"']));
+    assert.equal(await ask(ctx), 'context 5');                      // present markers: the entry is no longer a placeholder
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('f4fix2 gaps 8 and 9: deep testing/ evidence and the confluence marker do not disable or invalidate the cache', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const deep = join(dir, 'docs', 'roadmap', 'x', 'testing', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i');
+    mkdirSync(deep, { recursive: true }); writeFileSync(join(deep, 'fixture.md'), 'x');
+    const adapter = await isolatedPlugin(dir, countLauncher);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    assert.equal(await ask(ctx), 'context 1'); assert.equal(await ask(ctx), 'context 1');
+    writeFileSync(join(dir, '.claude', '.confluence-pending'), 'docs/a.md');
+    assert.equal(await ask(ctx), 'context 1');
+    writeFileSync(join(dir, '.claude', '.confluence-pending'), 'docs/a.md\ndocs/b.md');
+    assert.equal(await ask(ctx), 'context 1');
   } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
 });
