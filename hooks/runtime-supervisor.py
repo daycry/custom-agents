@@ -231,7 +231,7 @@ def job_is_empty():
 
 def with_empty_job(code):
     # Only a code inside the mark's range (JOB_EMPTY..JOB_EMPTY+255) is normalised to 1, so no business
-    # code can imitate it; any other code (0xC0000005, negative…) is kept for diagnosis. The mark is
+    # code can imitate it; any other code (0xC0000005, negative...) is kept for diagnosis. The mark is
     # added only to 0..255 and only after checking the job (review attempt 1, B5).
     if not isinstance(code, int) or isinstance(code, bool):
         code = 1
