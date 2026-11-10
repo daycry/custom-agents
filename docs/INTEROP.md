@@ -386,12 +386,17 @@ workspace se descartan. Los hooks informativos degradan con aviso y continúan.
 
 Los avisos de escritura usan los targets normalizados del resultado nativo y
 los orígenes de su diff, para conservar la eliminación del documento al moverlo.
-El contexto se reutiliza en una caché efímera de una sola sesión que se invalida
-por su firma, no por eventos ni por tiempo: mientras los metadatos de
-configuración, cola, roadmap y memoria no cambien, no se recompone, aunque pasen
-prompts o herramientas (el log de captura de prompts, volátil, no entra en la
-firma). Los cierres de ejecución sí la invalidan. Enlaces, errores, árboles fuera
-del límite o una cola personalizada desactivan la caché.
+El contexto se reutiliza en una caché efímera, una ranura por sesión (una sesión
+delegada no desaloja la del padre), que se invalida por su firma, no por eventos
+ni por tiempo: mientras los metadatos de configuración, roadmap y memoria no
+cambien, no se recompone, aunque pasen prompts, herramientas o cierres de turno
+(`session.execution.*`, `session.idle`). Lo volátil no entra en la firma: el log
+de captura de prompts, el índice del journal, los sobres que la captura deja en
+la cola (se reproducen en la siguiente recomposición) y, de cada entrada del
+journal, lo que el bloque no cita (marcas de reescritura, número de turnos,
+marcadores de coste); sí entra lo que cita. La firma se lee en paralelo con un
+tope de 1 s. Enlaces, errores, árboles fuera del límite o una cola
+personalizada desactivan la caché.
 El servicio compartido sigue componiendo el contexto. Cleanup aborta la
 suscripción, termina los procesos propios y espera su cierre.
 

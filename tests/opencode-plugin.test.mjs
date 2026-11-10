@@ -580,3 +580,86 @@ test('tool activity is dispatched before the awaited post handlers of the same e
       'activity started ' + (activity.at - firstPost.at) + ' ms after the first post handler: it waited for the serial posts');
   } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
 });
+
+// f4fix1 gap 3, 10 and 11 (Phase 4, review attempt 1).
+const flowLauncher = `import fs from 'node:fs';
+  const script = process.argv[2];
+  if (script === 'session-context.sh') {
+    const n = fs.existsSync('runs') ? Number(fs.readFileSync('runs','utf8')) + 1 : 1;
+    fs.writeFileSync('runs', String(n));
+    process.stdout.write(JSON.stringify({hookSpecificOutput:{additionalContext:'context ' + n}}));
+  }
+  if (script === 'session-journal.sh') {
+    // What the real capture leaves behind on every turn: a queued envelope and a rewritten journal entry
+    // whose volatile lines (materializado_en, turnos) change while what the session block quotes does not.
+    const stamp = String(Date.now()) + Math.random();
+    fs.mkdirSync('.claude/journal/outbox', {recursive: true});
+    fs.writeFileSync('.claude/journal/outbox/' + stamp + '.json', '{}');
+    fs.mkdirSync('docs/knowledge/journal', {recursive: true});
+    const resumen = fs.existsSync('resumen.txt') ? fs.readFileSync('resumen.txt', 'utf8') : 'primer prompt';
+    fs.writeFileSync('docs/knowledge/journal/2026-01-01-demo.md', ['---', 'fecha: "2026-01-01"', 'session_id: "flow"',
+      'reason: "other"', 'iniciativa: "demo"', 'resumen: "' + resumen + '"', 'turnos: ' + stamp.length,
+      'materializado_en: "' + stamp + '"', 'decisiones: []', 'marcadores_cerrados:', '  - "m-' + stamp + '"', '---', '', '# Journal'].join('\\n'));
+    fs.writeFileSync('docs/knowledge/journal/README.md', 'index ' + stamp);
+    fs.appendFileSync('captures.log', 'x\\n');
+  }`;
+
+async function runFlowTurn(ctx, dir, sessionID, captured) {
+  // started -> succeeded -> idle, the way the runtime emits a turn; both end events capture.
+  ctx.emit({ type: 'session.execution.started', data: { sessionID } });
+  ctx.emit({ type: 'session.execution.succeeded', data: { sessionID } });
+  ctx.emit({ type: 'session.status', data: { sessionID, status: { type: 'idle' } } });
+  await until(() => existsSync(join(dir, 'captures.log')) && readFileSync(join(dir, 'captures.log'), 'utf8').split('\n').filter(Boolean).length >= captured);
+  await new Promise(resolve => setTimeout(resolve, 150));
+}
+
+test('f4fix1 gap 3: the context survives real turn events when what it quotes did not change', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, flowLauncher);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    const call = async (sessionID = 'flow') => {
+      const event = { sessionID, system: [] }; await ctx.hooks.get('session.context')(event); return event.system[0].text;
+    };
+    assert.equal(await call(), 'context 1');
+    await runFlowTurn(ctx, dir, 'flow', 2);                 // the capture wrote envelope + journal entry
+    assert.equal(await call(), 'context 2');               // first sight of the entry: it is new content
+    await runFlowTurn(ctx, dir, 'flow', 4);                 // second turn: only volatile lines and the queue changed
+    assert.equal(await call(), 'context 2');               // reused across the turn
+    await runFlowTurn(ctx, dir, 'flow', 6);
+    assert.equal(await call(), 'context 2');
+    writeFileSync(join(dir, 'resumen.txt'), 'otro encargo');   // what the session block quotes does change
+    await runFlowTurn(ctx, dir, 'flow', 8);
+    assert.equal(await call(), 'context 3');
+    assert.equal(await call(), 'context 3');
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('f4fix1 gap 11: a delegated session does not evict the parent context', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, flowLauncher);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    const call = async sessionID => {
+      const event = { sessionID, system: [] }; await ctx.hooks.get('session.context')(event); return event.system[0].text;
+    };
+    assert.equal(await call('parent'), 'context 1');
+    assert.equal(await call('child'), 'context 2');
+    assert.equal(await call('parent'), 'context 1');
+    assert.equal(await call('child'), 'context 2');
+    assert.equal(await call('parent'), 'context 1');
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('f4fix1 gap 10: a medium project tree still yields a reusable signature', async () => {
+  const dir = project(); let cleanup;
+  try {
+    mkdirSync(join(dir, 'docs', 'knowledge', 'adr'), { recursive: true });
+    for (let i = 0; i < 1500; i++) writeFileSync(join(dir, 'docs', 'knowledge', 'adr', `ADR-${i}.md`), 'x');
+    const adapter = await isolatedPlugin(dir, flowLauncher);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    const event = { sessionID: 'big', system: [] }; await ctx.hooks.get('session.context')(event);
+    const again = { sessionID: 'big', system: [] }; await ctx.hooks.get('session.context')(again);
+    assert.equal(again.system[0].text, 'context 1');
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
