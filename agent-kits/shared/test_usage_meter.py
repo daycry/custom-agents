@@ -1287,3 +1287,70 @@ def test_h40_migracion_poda_los_marcadores_cerrados_existentes_sin_perder_la_med
     assert _cerrar(tdir, state, "cerrado.md")["tokens_reales"]["entrada"] == 40
     assert _cerrar(tdir, state, "abierto.md")["tokens_reales"]["entrada"] == 40
     assert state.stat().st_size < antes
+
+
+# ------------------------------------- revisión intento 1 (fase 3): B1 y D2 de la poda (T-13)
+
+def test_fix1_b1_un_timestamp_anidado_no_es_la_fecha_del_registro(entorno):
+    """B1: una línea JSON válida sin `timestamp` en la raíz (p. ej. `file-history-snapshot` con
+    `snapshot.timestamp` de 20 minutos antes) no da fecha: se conserva el offset y re-cerrar mide
+    lo mismo que con todos los offsets."""
+    _, tdir, state = entorno
+    hace_20 = (datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat()
+    previo = tdir / "sesion.jsonl"
+    _write(previo, [_rec("dentro-de-la-tolerancia", inp=50),
+                    json.dumps({"type": "file-history-snapshot", "snapshot": {"timestamp": hace_20}})])
+    assert um._ts_previo(previo, previo.stat().st_size) is None
+    rc, _ = _run(None, ["start", "--artefacto", "a.md", "--state", str(state), "--transcript-dir", str(tdir)])
+    with open(previo, "a", encoding="utf-8") as f:
+        f.write(_rec("ventana", inp=7) + "\n")
+    res = _cerrar(tdir, state)
+    marcador = json.loads(state.read_text(encoding="utf-8"))["a.md"]
+    assert "sesion.jsonl" in marcador["offsets"]
+    assert res["tokens_reales"]["entrada"] == 7
+    assert _cerrar(tdir, state)["tokens_reales"]["entrada"] == 7
+
+
+def test_fix1_d2_la_migracion_abre_un_transcript_cada_vez_y_reintenta_tras_un_error(entorno, monkeypatch):
+    """D2: la migración dejaba abiertos todos los transcripts a la vez y, con un error de E/S
+    (EMFILE), marcaba el marcador como podado y nunca lo reintentaba."""
+    import builtins
+    import errno
+    _, tdir, state = entorno
+    for n in range(6):
+        _write(tdir / f"t{n}.jsonl", [_rec(f"r{n}", inp=1)])
+    estado = {f"m{k}.md": {"version": 2, "inicio": um._now_iso(), "ultimoCierre": um._now_iso(),
+                           "transcriptDir": str(tdir), "offsets": {f"t{n}.jsonl": (tdir / f"t{n}.jsonl").stat().st_size
+                                                                    for n in range(6)}}
+              for k in range(3)}
+    abiertos, maximo = set(), [0]
+    real_open = builtins.open
+    class Contado:
+        def __init__(self, fh, clave): self.fh, self.clave = fh, clave
+        def __enter__(self): return self
+        def __exit__(self, *a): self.close()
+        def __getattr__(self, n): return getattr(self.fh, n)
+        def close(self):
+            abiertos.discard(self.clave); self.fh.close()
+    def contar(path, mode="r", *a, **k):
+        fh = real_open(path, mode, *a, **k)
+        if str(path).endswith(".jsonl") and "b" in mode:
+            abiertos.add(id(fh)); maximo[0] = max(maximo[0], len(abiertos))
+            return Contado(fh, id(fh))
+        return fh
+    monkeypatch.setattr(builtins, "open", contar)
+    um._migrar_cerrados(estado)
+    monkeypatch.setattr(builtins, "open", real_open)
+    assert maximo[0] <= 1, maximo[0]
+    assert all(m["offsets_podados"] for m in estado.values())
+    # con EMFILE en la lectura de cola: ni se poda ni se marca, para reintentar
+    estado2 = {"m.md": {"version": 2, "inicio": um._now_iso(), "ultimoCierre": um._now_iso(),
+                        "transcriptDir": str(tdir), "offsets": {"t0.jsonl": (tdir / "t0.jsonl").stat().st_size}}}
+    def emfile(path, mode="r", *a, **k):
+        if str(path).endswith(".jsonl"):
+            raise OSError(errno.EMFILE, "Too many open files")
+        return real_open(path, mode, *a, **k)
+    monkeypatch.setattr(builtins, "open", emfile)
+    um._migrar_cerrados(estado2)
+    monkeypatch.setattr(builtins, "open", real_open)
+    assert "offsets_podados" not in estado2["m.md"] and "t0.jsonl" in estado2["m.md"]["offsets"]
