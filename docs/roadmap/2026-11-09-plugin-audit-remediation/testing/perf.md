@@ -128,3 +128,12 @@ Mismo método que arriba; solo cambian estas cifras.
 | Procesos por UserPromptSubmit / SessionEnd con un Python normal | 5 / 5 | 3 / 3 | A3 |
 | Paso del lint en `task-brief.py`, aislado (mediana de 5) | 0,410 s (subproceso) | 0,014 s (en proceso) | A1: el brief completo sigue en ~1,1 s porque lo domina la consulta de memoria (`knowledge-find.py`, subproceso) |
 | Barra de estado, 7 turnos con el coste cambiando | 7 Pythons | 1 Python (0,76 s por refresco, máquina cargada) | D1/B2: cada campo dentro de su grupo; misma salida (`3dfebc8547c6`) |
+
+## Revisión de dos lentes, intento 2: medidas nuevas (2026-11-10)
+
+Mismo método; solo cambian estas cifras.
+
+| Medida | Intento 1 | Intento 2 | Nota |
+|---|---|---|---|
+| Migración única de `usage-state.json` (copia del repo) | 1,23 s | 0,71 s | solo la línea entera decide (colas de 4 y 64 KiB, sin regex); los mismos 537 offsets y los mismos tokens al re-cerrar T-07 y T-12. Una cola de 1 MiB no cambiaba ningún offset y la subía a 15 s: descartada |
+| Barra de estado con el payload real de Claude Code (`context_window.current_usage` anidado), 7 turnos con el coste cambiando | 7 Pythons, 1,22 s por refresco | 1 Python, 0,59 s por refresco | escáner de miembros JSON; misma salida (`3dfebc8547c6`). La cifra «7 → 1» del intento 1 se midió sin `current_usage` |
