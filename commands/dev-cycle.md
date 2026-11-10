@@ -65,12 +65,12 @@ las decisiones aprobadas y las rutas de artefactos vigentes; evita copiar el
 historial o informes enteros. Reutiliza navegación verificada entre fases y deja
 visibles las incógnitas. Cada rol conserva su análisis, permisos y gates propios.
 
-Antes de despachar roles, aplica `agent-kits/shared/capability-check.md` sobre
-el paquete y áreas del objetivo. Comparte selección/procedencia con los roles;
-planner registra los IDs y escenarios por tarea. Implementer, reviewer y qa
-usan los mismos criterios técnicos. Repite selección solo ante hechos nuevos.
-Sin selector, avisa y sigue con guías disponibles; conserva las puertas del ciclo.
-Este paso no inicia servicios ni genera piezas de proyecto.
+Una vez por ciclo, antes de despachar, aplica `agent-kits/shared/capability-check.md`
+sobre el paquete y áreas del objetivo y ejecuta `integration-route.py`. Pasa a cada
+despacho la selección con su procedencia y el resultado («sin integraciones» si no hay
+ninguna) para que no lo relean; planner registra los IDs y escenarios por tarea.
+Repite solo ante hechos nuevos. Sin selector, avisa y sigue con guías disponibles;
+conserva las puertas del ciclo. No inicia servicios ni genera piezas de proyecto.
 
 ## Perfil efectivo antes de despachar
 

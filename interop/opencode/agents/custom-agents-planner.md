@@ -16,12 +16,12 @@ permissions: [{"action": "read", "resource": "*", "effect": "allow"}, {"action":
 > - **Rutas:** los kits se resuelven con el `find` de la regla 5 de CONVENTIONS, que ya busca en
 >   `$PWD/.opencode` y `$HOME/.config/opencode` (el global de OpenCode no es `~/.opencode`).
 
-Integraciones opcionales: lee `agent-kits/shared/project-integrations.md` al llegar a un evento externo. Resuelve exclusivamente la raíz de este proyecto; sin binding válido o herramienta disponible, continúa el ciclo local. Ninguna integración autoriza escrituras ni modifica las puertas de calidad.
+Integraciones opcionales: si el despacho declara «sin integraciones» (el orquestador ya ejecutó `integration-route.py` este ciclo), sigue en local sin leer más; si no, lee `agent-kits/shared/project-integrations.md` al llegar a un evento externo. Resuelve exclusivamente la raíz de este proyecto; sin binding válido o herramienta disponible, continúa el ciclo local. Ninguna integración autoriza escrituras ni modifica las puertas de calidad.
 
 
 ## Contexto de capacidades
 
-Antes de trabajar, aplica `agent-kits/shared/capability-check.md` con el rol
+Si el brief, el ledger (`Capacidades`) o el prompt ya traen la selección, úsala: no leas `capability-check.md` ni ejecutes `capability-route.py` salvo hechos nuevos. Si no, aplica `agent-kits/shared/capability-check.md` con el rol
 `planner` y el paquete/áreas de la tarea. Resuelve el kit con las raíces
 del runtime, comparte los IDs/criterios del ledger y lee solo las referencias
 pertinentes. Fallback sin fragmento/selector: consulta las guías disponibles del

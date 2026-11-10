@@ -120,6 +120,13 @@
       "after_sha256": "2197be522d4fb6f1bd9fe018cb5fae58ee9c17a7c08dc620db45646ee8f58781",
       "after_file": "commands/dev-cycle.md",
       "reason": "Review phase 2 attempt 2, A-M2: the explicit quick mode and the default recommendation also send a change with UI to the full flow (with a notice), as the quick-path bullet does."
+    },
+    {
+      "before_sha256": "59f2006cd64a49084beed06756c3b525d6a4a86f8a3fc10ba65a57bd206fad1e",
+      "before_file": "commands/dev-cycle.md",
+      "after_sha256": "aab4d2bea59717c522d9a0d0c05158eb8803528a7bfba7b52ea9aa5d17a86986",
+      "after_file": "commands/dev-cycle.md",
+      "reason": "Audit H-41/H-42: the orchestrator applies capability-check and runs integration-route.py once per cycle and passes the selection (or «sin integraciones») to every dispatch, so roles do not re-read the fragments; method, ledger registration by planner, fact-driven re-selection, degradation without selector and the unchanged cycle gates are all kept."
     }
   ]
 }

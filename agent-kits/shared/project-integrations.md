@@ -2,6 +2,7 @@
 
 Lee este fragmento al llegar a una operación externa. El trabajo local no depende de
 tener una integración: `tasks.md`, sus gates y `docs/` conservan su autoridad.
+Si tu despacho declara «sin integraciones», el orquestador ya ejecutó el router este ciclo: no lo repitas.
 
 ## Resolver, comprobar y actuar
 

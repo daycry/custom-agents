@@ -19,8 +19,8 @@ changelog: Fixed
 | Fase 1 | 6 | 6 | 100.0% |
 | Fase 2 | 6 | 6 | 100.0% |
 | Fase 3 | 4 | 4 | 100.0% |
-| Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **16** | **21** | **76.2%** |
+| Fase 4 | 1 | 5 | 20.0% |
+| **TOTAL** | **17** | **21** | **81.0%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -529,17 +529,24 @@ GREEN fix3: `pytest tests/test_statusline_cache.py` → `45 passed` antes del te
 
 ## Fase 4 — Consumo de tokens
 
-**Estado**: borrador
+**Estado**: en-progreso
 
 ### T-17 — Capacidades e integraciones una vez por ciclo
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: H-41 y H-42. Si el ledger, el brief o el prompt ya traen las capacidades o «sin integraciones», el rol no lo recalcula.
-- **Archivos**: `agents/*.md`, `agent-kits/shared/capability-check.md`, `agent-kits/shared/project-integrations.md`, `commands/dev-cycle.md`, `interop/**`, `tests/fixtures/dev-cycle-modular-replacements.json`.
+- **Archivos**: `agents/*.md`, `agent-kits/shared/capability-check.md`, `agent-kits/shared/project-integrations.md`, `commands/dev-cycle.md`, `interop/**`, `tests/fixtures/dev-cycle-modular-replacements.json`, `agent-kits/shared/task-brief.py` (el brief dice que no se relea el fragmento), `tests/test_once_per_cycle_context.py` (test nuevo) (añadidos por el implementer).
+- **Tiempo IA (ejec.)**: real 0,06h (medido)
 - **Verificación**: tamaño de carga por despacho antes y después (`context-footprint.py`); interop al día.
+- **Changelog**: Los roles ya no releen la selección de capacidades ni las integraciones en cada despacho: el orquestador las resuelve una vez por ciclo y el brief lo indica.
+- **Cerrada**: 2026-11-10
 
 **Criterios de aceptación**
-- [ ] Un despacho con capacidades en el brief no lee `capability-check.md`.
+- [x] Un despacho con capacidades en el brief no lee `capability-check.md`.
+
+RED: `tests/test_once_per_cycle_context.py` falló con 18 failed: ninguno de los 10 agentes dice que una selección ya presente impide leer `capability-check.md`/ejecutar `capability-route.py`, los 6 agentes con eventos externos no admiten «sin integraciones», `dev-cycle.md` no resuelve las dos cosas «una vez por ciclo» y el brief no lo dice · 2026-11-10.
+
+GREEN: `tests/test_once_per_cycle_context.py` 18 passed; `test_dev_cycle_split.py` 10 passed (el párrafo de `dev-cycle.md` se registra con su motivo en `dev-cycle-modular-replacements.json`; ahorro de la vía rápida 6158 → 6146 ≥ 6000); `test_task_brief.py` 94, `test_knowledge_prompt_split.py` 5, `test_token_estimates.py` 13, `test_token_efficiency_distribution.py` 2, `test_source_snapshot.py` 33 + 1 skipped, `test_context_footprint.py` 15, `tests/test_export_interop.py` 50; `agents/evaluator.md` 15.499 bytes (≤ 15.513, CA-22: se compactaron dos frases de estilo del propio evaluator para compensar); `export-interop.py --check` 92 al día; lint 0 errores; evals 0 errores. Medida de tamaño (caracteres, no consumo observado; ver el borrador de `testing/tokens.md` en el scratchpad de la sesión): cada agente +139…+296 caracteres, `project-integrations.md` +107, `dev-cycle.md` +48; lo que se evita por despacho que ya trae la selección es `capability-check.md` (5.637 bytes ≈ 1.400 tokens) y su ejecución de `capability-route.py`, y con «sin integraciones» `project-integrations.md` (5.306 ≈ 1.300 tokens) y `integration-route.py`; en un bucle de revisión de 12 despachos ≈ 16.900 tokens de lectura evitados frente a ≈ 900 añadidos · 2026-11-10.
 
 ### T-18 — Lo opcional fuera de la carga por defecto
 

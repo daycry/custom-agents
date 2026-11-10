@@ -1212,7 +1212,7 @@ def _seccion_capacidades(chunk):
         if not chosen:
             return []
         return ["## Capacidades de la tarea", "",
-                "Comparte estos criterios con reviewer y qa; lee solo el mapa y referencias pertinentes.",
+                "Comparte estos criterios con reviewer y qa; no leas `capability-check.md` ni ejecutes `capability-route.py`; lee solo el mapa y referencias pertinentes.",
                 *[f"- `{name}` → `skills/{name}/SKILL.md`" for name in chosen], ""]
     except (OSError, ValueError, UnicodeError, RecursionError):
         print("⚠️ capacidades: selector/registro no disponible; sigue con el contrato de la tarea.", file=sys.stderr)
