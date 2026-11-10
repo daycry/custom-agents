@@ -74,7 +74,7 @@ def test_the_brief_carries_the_kit_and_a_subagent_needs_no_find(tmp_path):
         pytest.skip('bash unavailable')
     env = {k: v for k, v in os.environ.items() if k != 'CLAUDE_PLUGIN_ROOT'}
     proc = subprocess.run([bash, '-c', f'SHAREDKIT="{match[1]}"; [ -f "$SHAREDKIT/ledger-lint.py" ] && echo resolved'],
-                          cwd=tmp_path, capture_output=True, text=True, env=env, timeout=60)
+                          cwd=tmp_path, capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=60)
     assert proc.stdout.strip() == 'resolved', proc.stderr
 
 
