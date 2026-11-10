@@ -36,7 +36,7 @@ def kit_line(path):
 def neutralise_kit_text(text):
     """Consumer text (progress titles, journal citations) is DATA: a line there that looks like the kit line
     must not be mistaken for it (CWE-829). Only the line this hook generates is a kit."""
-    text = re.sub(r"SHAREDKIT\s*=", "SHAREDKIT (cita)=", text)
+    text = re.sub(r"SHAREDKIT\s*=(?=\s*(?:'|\"(?:/|[A-Za-z]:)))", "SHAREDKIT (cita)=", text)
     return re.sub(r"(?m)^(\s*)Kit activo:", r"\1Kit activo (cita):", text)
 
 

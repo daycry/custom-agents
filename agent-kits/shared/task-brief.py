@@ -1076,7 +1076,9 @@ def sin_kit_falso(texto, real):
         if real and linea == real:
             out.append(linea)
             continue
-        linea = re.sub(r"SHAREDKIT\s*=", "SHAREDKIT (cita)=", linea)
+        # Only the SHAPE of a kit line (an absolute or single-quoted value); a recipe such as
+        # `SHAREDKIT="${R:+$R/agent-kits/shared}"` quoted in a criterion is left byte for byte.
+        linea = re.sub(r"SHAREDKIT\s*=(?=\s*(?:'|\"(?:/|[A-Za-z]:)))", "SHAREDKIT (cita)=", linea)
         out.append(re.sub(r"^(\s*)Kit:", r"\1Kit (cita):", linea))
     return "\n".join(out)
 
