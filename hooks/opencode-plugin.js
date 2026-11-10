@@ -36,7 +36,6 @@ const hookCatalog = JSON.parse(`{
 // custom-agents hook-catalog:end
 const bindings = Object.fromEntries(hookCatalog.bindings.map(binding => [binding.id, binding]));
 const writing = new Set(bindings.post.tools);
-const readOnly = new Set(['read', 'glob', 'grep', 'list', 'ls', 'webfetch', 'websearch']);
 // Only what the store's summary whitelist reads crosses to the activity child (agent-activity-store.py
 // `_raw_summary`); file contents, outputs and the rest of the arguments stay here.
 const summaryKeys = ['command', 'cmd', 'paths', 'files', 'file_path', 'notebook_path', 'filePath', 'path',
@@ -115,6 +114,8 @@ export default {
         if (names.length > 4096) throw new Error('cache bound');
         names.sort((a, b) => a.name.localeCompare(b.name));
         for (const entry of names) {
+          // The per-prompt capture log is volatile and never feeds the session context (H-46).
+          if (top && /^session-prompts-.*\.log$/.test(entry.name)) continue;
           if (!top || !entry.isDirectory() || entry.name === 'journal') await visit(join(path, entry.name), depth + 1);
         }
       }
@@ -223,7 +224,8 @@ export default {
       try {
         if (typeof event?.prompt?.text !== 'string') return;
         const cwd = await project(event.sessionID);
-        if (cwd) { invalidate(); await run(bindings.prompt.handlers[0], {
+        // No invalidation by event: the context is reused until its signature changes (H-46).
+        if (cwd) { await run(bindings.prompt.handlers[0], {
           hook_event_name: 'UserPromptSubmit', session_id: event.sessionID, prompt: event.prompt.text, cwd,
         }); }
       } catch { warn(); }
@@ -236,7 +238,7 @@ export default {
         if (!cwd) return;
         const revision = generation, before = await signature(cwd);
         let text;
-        if (before && cached?.sessionID === event.sessionID && cached.signature === before && Date.now() < cached.until) text = cached.text;
+        if (before && cached?.sessionID === event.sessionID && cached.signature === before) text = cached.text;
         else {
           const output = await run(bindings.context.handlers[0], {
             hook_event_name: 'SessionStart', source: 'resume', session_id: event.sessionID, cwd,
@@ -246,7 +248,7 @@ export default {
             text = text.slice(0, 10000);
             const after = before ? await signature(cwd) : null;
             if (before && revision === generation && before === after && !controller.signal.aborted)
-              cached = { sessionID: event.sessionID, text, signature: before, until: Date.now() + 30000 };
+              cached = { sessionID: event.sessionID, text, signature: before };
           }
         }
         if (typeof text === 'string' && text && !controller.signal.aborted) event.system.push({ type: 'text', text });
@@ -275,7 +277,6 @@ export default {
         if (event?.status !== 'completed') return;
         const cwd = await project(event.sessionID);
         if (!cwd) return;
-        if (!readOnly.has(event.tool)) invalidate();
         if (!writing.has(event.tool)) return;
         const input = event.input;
         const native = event.result?.output;

@@ -118,7 +118,7 @@ test('a native move out of docs preserves the deleted source notification', asyn
   } finally { await cleanup?.(); rmSync(dir,{recursive:true,force:true}); }
 });
 
-test('unchanged context is reused while prompts, tools and canonical files invalidate it', async () => {
+test('the cached context is invalidated by its signature, not by events (H-46)', async () => {
   const dir = project(); let cleanup;
   try {
     const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
@@ -131,31 +131,41 @@ test('unchanged context is reused while prompts, tools and canonical files inval
     const call = async (sessionID='cache') => {
       const event={sessionID,system:[]}; await ctx.hooks.get('session.context')(event); return event.system[0].text;
     };
+    // The capture log of an established session already exists when the context is first built.
+    writeFileSync(join(dir,'.claude','session-prompts-cache.log'),'turn 0');
     assert.equal(await call(), 'context 1'); assert.equal(await call(), 'context 1');
+    // Events that leave the canonical trees untouched never recompute the context.
     await ctx.hooks.get('tool.execute.after')({sessionID:'cache',tool:'read',status:'completed'});
     assert.equal(await call(), 'context 1');
-    await ctx.hooks.get('session.prompt')({sessionID:'cache',prompt:{text:'next turn'}});
-    assert.equal(await call(), 'context 2');
     await ctx.hooks.get('tool.execute.after')({sessionID:'cache',tool:'bash',status:'completed'});
-    assert.equal(await call(), 'context 3');
+    assert.equal(await call(), 'context 1');
+    // A prompt appends to its capture log under .claude/: volatile noise, not part of the signature.
+    await ctx.hooks.get('session.prompt')({sessionID:'cache',prompt:{text:'next turn'}});
+    writeFileSync(join(dir,'.claude','session-prompts-cache.log'),'turn 1');
+    assert.equal(await call(), 'context 1');
+    writeFileSync(join(dir,'.claude','session-prompts-cache.log'),'turn 1\nturn 2');
+    assert.equal(await call(), 'context 1');
+    // No time-to-live either: the same signature is reused however long the session runs.
+    const clock = Date.now;
+    try { Date.now = () => clock() + 3600000; assert.equal(await call(), 'context 1'); }
+    finally { Date.now = clock; }
+    // A change in the canonical files does recompute.
     mkdirSync(join(dir,'docs','roadmap','fixture'));
     writeFileSync(join(dir,'docs','roadmap','fixture','tasks.md'),'ledger changed');
-    assert.equal(await call(), 'context 4');
+    assert.equal(await call(), 'context 2');
+    assert.equal(await call(), 'context 2');
     mkdirSync(join(dir,'docs','knowledge'),{recursive:true});
     writeFileSync(join(dir,'docs','knowledge','memory.md'),'memory changed');
-    assert.equal(await call(), 'context 5');
+    assert.equal(await call(), 'context 3');
     writeFileSync(join(dir,'.claude','dev.json'),'{}');
-    assert.equal(await call(), 'context 6');
-    assert.equal(await call('other-session'), 'context 7');
-    const clock = Date.now;
-    try { Date.now = () => clock() + 31000; assert.equal(await call('other-session'), 'context 8'); }
-    finally { Date.now = clock; }
+    assert.equal(await call(), 'context 4');
+    assert.equal(await call('other-session'), 'context 5');
     writeFileSync(join(dir,'.claude','dev.json'),'{"sesion":{"journal":{"dir":"own-queue"}}}');
-    assert.equal(await call('other-session'), 'context 9');
-    assert.equal(await call('other-session'), 'context 10');
+    assert.equal(await call('other-session'), 'context 6');
+    assert.equal(await call('other-session'), 'context 7');
     writeFileSync(join(dir,'.claude','dev.json'),'{');
-    assert.equal(await call('other-session'), 'context 11');
-    assert.equal(await call('other-session'), 'context 12');
+    assert.equal(await call('other-session'), 'context 8');
+    assert.equal(await call('other-session'), 'context 9');
     ctx.session.get = async () => ({location:{directory:resolve(dir,'..','foreign')}});
     const foreign={sessionID:'other-session',system:[]}; await ctx.hooks.get('session.context')(foreign);
     assert.deepEqual(foreign.system,[]);
@@ -175,7 +185,9 @@ test('a concurrent mutation prevents saving an in-flight context', async () => {
     const event={sessionID:'concurrent',system:[]};
     const pending=ctx.hooks.get('session.context')(event);
     await until(()=>existsSync(join(dir,'runs')));
-    await ctx.hooks.get('tool.execute.after')({sessionID:'concurrent',tool:'unknown-tool',status:'completed'});
+    // The canonical files change while the context is being built: the signature differs, nothing is saved.
+    mkdirSync(join(dir,'docs','knowledge'),{recursive:true});
+    writeFileSync(join(dir,'docs','knowledge','late.md'),'changed while computing');
     await pending;
     const second={sessionID:'concurrent',system:[]}; await ctx.hooks.get('session.context')(second);
     assert.equal(second.system[0].text,'context 2');

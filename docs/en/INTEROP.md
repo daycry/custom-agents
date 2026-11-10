@@ -380,10 +380,11 @@ Informational hooks warn on failure and continue.
 
 Write notifications use normalized targets and original paths from the native
 diff, so moving a document preserves its deletion notification. Read-only
-continuations reuse context in an ephemeral cache for one session, for at most
-30 seconds. Prompts, completed tools that may change state, and execution ends
-invalidate it; reuse first compares configuration, logs/queue, roadmap and memory
-metadata. Links, errors, oversized trees or a custom queue disable caching. The
+continuations reuse context in an ephemeral one-session cache that is invalidated
+by its signature, not by events or time: while the configuration, queue, roadmap
+and memory metadata do not change it is not recomposed, whatever prompts or tools
+run (the volatile prompt capture log is not part of the signature). Execution
+ends do invalidate it. Links, errors, oversized trees or a custom queue disable caching. The
 shared service still composes context. Cleanup aborts the subscription, terminates
 owned processes and waits for them to close.
 

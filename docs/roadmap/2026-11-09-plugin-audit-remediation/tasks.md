@@ -19,8 +19,8 @@ changelog: Fixed
 | Fase 1 | 6 | 6 | 100.0% |
 | Fase 2 | 6 | 6 | 100.0% |
 | Fase 3 | 4 | 4 | 100.0% |
-| Fase 4 | 3 | 5 | 60.0% |
-| **TOTAL** | **19** | **21** | **90.5%** |
+| Fase 4 | 4 | 5 | 80.0% |
+| **TOTAL** | **20** | **21** | **95.2%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -584,14 +584,21 @@ GREEN: `tests/test_kit_path_injection.py` 3 passed (el bloque de sesión lleva U
 
 ### T-20 — OpenCode e interop sin contexto repetido
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: H-46 y H-47. La caché de contexto de OpenCode se invalida por firma; la línea de delegación solo en agentes que delegan.
-- **Archivos**: `hooks/opencode-plugin.js`, `scripts/export-interop.py`, `interop/**`, `tests/test_export_interop.py`, tests del adaptador de OpenCode.
+- **Archivos**: `hooks/opencode-plugin.js`, `scripts/export-interop.py`, `interop/**`, `tests/test_export_interop.py`, tests del adaptador de OpenCode (`tests/opencode-plugin.test.mjs`), `docs/INTEROP.md`, `docs/en/INTEROP.md` (E3: qué cubre la caché de contexto de OpenCode) (añadidos por el implementer).
+- **Tiempo IA (ejec.)**: real 0,11h (medido)
 - **Verificación**: tests del adaptador y de interop pasan; `--check` al día.
+- **Changelog**: En OpenCode y Codex el contexto de sesión no se recompone mientras no cambie lo que lo alimenta, y solo los agentes que pueden delegar reciben la instrucción de delegar.
+- **Cerrada**: 2026-11-10
 
 **Criterios de aceptación**
-- [ ] Sin reinyección mientras la firma no cambie.
-- [ ] Ningún agente sin `Agent` recibe la instrucción de delegar.
+- [x] Sin reinyección mientras la firma no cambie.
+- [x] Ningún agente sin `Agent` recibe la instrucción de delegar.
+
+RED: `tests/opencode-plugin.test.mjs` (el test de la caché reescrito por firma) + `tests/test_export_interop.py -k delegation` fallaron con 1 + 1 failed: tras un `bash` completado que no toca los árboles canónicos el adaptador recomponía el contexto (`context 2` en vez de `context 1`) por la invalidación por evento y por el TTL de 30 s; y los 9 agentes sin `Agent` en `tools` (en OpenCode con `subagent: deny`) recibían el bloque «Delegar en otro agente» con el mapa de roles, en Codex y en OpenCode · 2026-11-10.
+
+GREEN: `node --test tests/opencode-plugin.test.mjs` 26 pass (read, bash, prompt con su log de captura y +1 h de reloj dejan el contexto en `context 1`; un cambio en roadmap, memoria o `dev.json` lo recompone; un cambio durante el cálculo impide guardarlo), `hook-runtime.test.mjs` 25, `hook-guard-prefilter.test.mjs` 23, `native-guard-adapter.test.mjs` 3; `tests/test_export_interop.py` 51 passed (el test nuevo exige el bloque de delegación solo con `Agent` en `tools`: nemesis lo conserva), `test_console_opencode.py` 8, `test_native_prefilter_parity.py` 16, `test_codex_command_transport.py` 22 + 1 skipped; `export-interop.py --check` 92 al día, lint 0 errores, evals 0 errores. Medida de tamaño (caracteres): el bloque de delegación sale de 9 agentes por runtime, −6.264 bytes en los 10 `.toml` de Codex y −5.526 en los 10 `.md` de OpenCode (≈ 690 bytes ≈ 170 tokens por despacho de un agente sin `Agent`). Medida de recomputación (recuento, no tiempo): en la prueba antigua el prompt y el `bash` completado recomputaban el contexto (`context 2`, `context 3`) y el reloj a +31 s también (`context 8`); en la nueva, con los ficheros sin cambiar, los tres dejan `context 1`. Decisiones: la firma deja fuera `session-prompts-*.log` (volátil y nunca alimenta el contexto de sesión), se quita el TTL de 30 s porque la firma ya cubre todo lo que alimenta el contexto, y la invalidación por eventos solo queda en el flujo de cierres de ejecución, donde se escribe en la memoria · 2026-11-10.
 
 ### T-21 — Documentación alineada y menores
 
