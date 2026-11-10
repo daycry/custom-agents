@@ -1354,3 +1354,52 @@ def test_fix1_d2_la_migracion_abre_un_transcript_cada_vez_y_reintenta_tras_un_er
     um._migrar_cerrados(estado2)
     monkeypatch.setattr(builtins, "open", real_open)
     assert "offsets_podados" not in estado2["m.md"] and "t0.jsonl" in estado2["m.md"]["offsets"]
+
+
+# ------------------------------------- revisión intento 2 (fase 3): B1 con líneas largas y D (T-13)
+
+import pytest as _pytest
+
+
+@_pytest.mark.parametrize("relleno_kib", [7.5, 30, 105])
+def test_fix2_b1_una_linea_larga_sin_fecha_en_la_raiz_no_da_la_anidada(entorno, relleno_kib):
+    """B1 (intento 2): si la cola de 4 KiB solo trae un trozo de la línea, la regex cogía el
+    `snapshot.timestamp` anidado sin probar la cola de 64 KiB. Una línea que no se puede leer entera
+    da None (se conserva el offset); nunca una regex sobre texto que puede ser anidado."""
+    _, tdir, _ = entorno
+    hace_20 = (datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat()
+    f = tdir / "sesion.jsonl"
+    linea = json.dumps({"type": "file-history-snapshot", "relleno": "x" * int(relleno_kib * 1024),
+                        "snapshot": {"timestamp": hace_20}})
+    _write(f, [_rec("antes", inp=1), linea])
+    assert um._ts_previo(f, f.stat().st_size) is None
+
+
+def test_fix2_b1_una_linea_larga_con_fecha_en_la_raiz_si_la_da(entorno):
+    _, tdir, _ = entorno
+    ts = (datetime.now(timezone.utc) - timedelta(hours=2)).replace(microsecond=0)
+    f = tdir / "sesion.jsonl"
+    _write(f, [json.dumps({"type": "assistant", "relleno": "y" * 30000, "timestamp": ts.isoformat()})])
+    assert um._ts_previo(f, f.stat().st_size) == ts
+
+
+def test_fix2_d_un_transcript_ilegible_no_se_reintenta_hasta_que_cambia(entorno, monkeypatch):
+    """D (intento 2): un transcript que existe pero no se abre (EACCES, un directorio) hacía repetir
+    la poda en cada start/close sin límite. Solo se reintenta si cambia su mtime."""
+    import os as _os
+    _, tdir, _ = entorno
+    roto = tdir / "roto.jsonl"
+    roto.mkdir()                                   # existe, no se puede abrir como fichero
+    estado = {"m.md": {"version": 2, "inicio": um._now_iso(), "ultimoCierre": um._now_iso(),
+                       "transcriptDir": str(tdir), "offsets": {"roto.jsonl": 10}}}
+    um._migrar_cerrados(estado)
+    assert "offsets_podados" not in estado["m.md"]
+    llamadas = []
+    real = um._candidatos_de_poda
+    monkeypatch.setattr(um, "_candidatos_de_poda", lambda *a, **k: llamadas.append(1) or real(*a, **k))
+    um._migrar_cerrados(estado)
+    assert llamadas == [], "sin cambios en el fichero ilegible no se vuelve a intentar"
+    futuro = _os.stat(roto).st_mtime + 100
+    _os.utime(roto, (futuro, futuro))
+    um._migrar_cerrados(estado)
+    assert llamadas == [1]

@@ -291,33 +291,30 @@ def _ventana_descarta(ts_dt, inicio_dt):
         return False, True
 
 
-_TS_RE = re.compile(rb'"timestamp"\s*:\s*"([^"]{10,40})"')
-_COLAS_BYTES = (4 * 1024, 64 * 1024)
+_COLAS_BYTES = (4 * 1024, 64 * 1024)   # una línea mayor no se lee: se conserva su offset
 
 
 def _ts_de_cola(cola, desde):
-    """(timestamp | None, decidido) del último registro de `cola`. Una línea JSON válida decide por su
-    `timestamp` de la RAÍZ (sin él, None: un `timestamp` anidado, como el de `file-history-snapshot`,
-    no es la fecha del registro; revisión intento 1, B1). Solo una línea cortada o ilegible recurre
-    al último `"timestamp"` del texto."""
+    """(timestamp | None, decidido) del último registro de `cola`. Solo decide con la línea ENTERA
+    (hay un salto de línea antes o la cola empieza en el byte 0): por su `timestamp` de la RAÍZ, o None
+    si no lo tiene o no es JSON (un `timestamp` anidado, como el de `file-history-snapshot`, no es la
+    fecha del registro; revisión intento 1 y 2, B1). Con un trozo de línea no decide: quien llama
+    prueba una cola mayor y, si ni así cabe, conserva el offset."""
     lineas = cola.rstrip(b"\n").split(b"\n")
-    if len(lineas) > 1 or desde == 0:
-        try:
-            rec = json.loads(lineas[-1])
-        except ValueError:
-            pass
-        else:
-            ts = rec.get("timestamp") if isinstance(rec, dict) else None
-            return (_parse_iso(ts) if isinstance(ts, str) and ts else None), True
-    encontrados = _TS_RE.findall(lineas[-1])
-    if encontrados:
-        return _parse_iso(encontrados[-1].decode("ascii", "replace")), True
-    return None, desde == 0
+    if len(lineas) == 1 and desde > 0:
+        return None, False
+    try:
+        rec = json.loads(lineas[-1])
+    except ValueError:
+        return None, True
+    ts = rec.get("timestamp") if isinstance(rec, dict) else None
+    return (_parse_iso(ts) if isinstance(ts, str) and ts else None), True
 
 
 def _ts_previo(path, offset, fh=None):
     """Timestamp del ÚLTIMO registro antes de `offset` (los transcripts se escriben en orden: es el
-    más reciente de lo que había en el `start`). Lee una cola de 4 KiB y, si no basta, de 64 KiB.
+    más reciente de lo que había en el `start`). Lee una cola de 4 KiB y, si no basta, de 64 KiB (en la copia del repo, una cola de
+    1 MiB no cambiaba ningún offset y costaba 15 s de migración).
     None si no se puede saber (quien llama conserva entonces el offset). Un error de E/S se PROPAGA
     (OSError): quien poda no debe dar por podado un marcador que no pudo leer (D2)."""
     for tam in _COLAS_BYTES:
@@ -383,16 +380,44 @@ def _podar_offsets(marcador, tdir, ts_previo=None, plan=None):
         return False
     corte_dt, pendientes = plan
     leer = ts_previo or _ts_previo
-    conservar = {}
-    try:
-        for clave, ruta, offset in pendientes:
+    conservar, fallidos = {}, []
+    for clave, ruta, offset in pendientes:
+        try:
             previo = leer(ruta, offset)
-            if previo is None or previo >= corte_dt:
-                conservar[clave] = offset
-    except (OSError, ValueError, OverflowError):
+        except (OSError, ValueError, OverflowError):
+            try:
+                fallidos.append([clave, ruta.stat().st_mtime])
+            except OSError:
+                fallidos.append([clave, None])
+            continue
+        if previo is None or previo >= corte_dt:
+            conservar[clave] = offset
+    if fallidos:
+        # revisión intento 2 (D): no se poda ni se marca, y solo se reintenta cuando cambie el mtime
+        # de alguno de esos transcripts (antes, en cada start/close y para siempre)
+        marcador["poda_fallida"] = fallidos
         return False
+    marcador.pop("poda_fallida", None)
     marcador["offsets"] = conservar
     marcador["offsets_podados"] = True
+    return True
+
+
+def _fallida_sin_cambios(marcador):
+    """¿El último intento de poda falló y sus transcripts ilegibles siguen igual (mismo mtime)?"""
+    fallidos = marcador.get("poda_fallida")
+    tdir = marcador.get("transcriptDir")
+    if not isinstance(fallidos, list) or not fallidos or not tdir:
+        return False
+    for item in fallidos:
+        if not (isinstance(item, list) and len(item) == 2 and isinstance(item[0], str)):
+            return False
+        try:
+            actual = (Path(tdir) / item[0]).stat().st_mtime
+        except (OSError, ValueError):
+            actual = None
+        if actual != item[1]:
+            return False
     return True
 
 
@@ -401,7 +426,8 @@ def _migrar_cerrados(state):
     su medida. Agrupa las colas por transcript: cada fichero se abre UNA vez, se leen todas sus colas
     y se cierra antes de abrir el siguiente (D2: antes quedaban todos abiertos a la vez)."""
     marcadores = [m for m in state.values()
-                  if isinstance(m, dict) and "ultimoCierre" in m and not m.get("offsets_podados")]
+                  if isinstance(m, dict) and "ultimoCierre" in m and not m.get("offsets_podados")
+                  and not _fallida_sin_cambios(m)]
     por_fichero, planes, mtimes = {}, [], {}
     for m in marcadores:
         plan = _candidatos_de_poda(m, m.get("transcriptDir"), mtimes)
