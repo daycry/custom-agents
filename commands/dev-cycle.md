@@ -72,7 +72,7 @@ ninguna) para que no lo relean; planner registra los IDs y escenarios por tarea.
 Repite solo ante hechos nuevos. Sin selector, avisa y sigue con guías disponibles;
 conserva las puertas del ciclo. No inicia servicios ni genera piezas de proyecto.
 
-Pasa en el prompt de cada despacho (analyst, evaluator, planner, reviewer, qa, documenter)
+Pasa en el prompt de cada despacho (analyst, evaluator, architect, planner, implementer sin brief, reviewer, qa, documenter, knowledge-curator, nemesis)
 la línea `Kit activo: SHAREDKIT=…` del contexto de sesión, tal cual y si existe.
 
 ## Perfil efectivo antes de despachar

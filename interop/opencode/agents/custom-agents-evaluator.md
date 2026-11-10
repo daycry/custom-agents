@@ -46,7 +46,7 @@ Escribes en **español**, con Markdown correcto (tablas, checkboxes reales). Cad
 - **Salida:** `docs/roadmap/<YYYY-MM-DD>-<slug>/evaluation.md` (crea `docs/` y `docs/roadmap/` si faltan). Usa **el mismo `<slug>`** que la spec para que la cadena sea trazable.
 - **Plantillas (formato FIJO):** localiza el kit sin depender del scope (proyecto/usuario/plugin) y lee de ahí:
   ```bash
-  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}"; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; EVALKIT="${R:+$R/agent-kits/evaluator}"
+  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}"; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; EVALKIT="${R:+$R/agent-kits/evaluator}"
   # spec       en "$EVALKIT/templates/spec.md"
   # evaluación en "$EVALKIT/templates/evaluation.md"
   ```

@@ -41,7 +41,7 @@ Este paso no inicia servicios ni genera piezas de proyecto.
 > python3 "$SHAREDKIT/model-tier.py" evaluator --json     # {"model": "...", "effort": "...", "fuente": {...}}
 > ```
 >
-> Pasa a `analyst` y `evaluator` la línea `Kit activo: SHAREDKIT=…` del contexto de sesión (tal cual, si existe).
+> Pasa a `analyst`, `evaluator` y `architect` la línea `Kit activo: SHAREDKIT=…` del contexto de sesión (tal cual, si existe).
 > Sin `dev.json` `modelos.<agente>` (o sin el script — instalación parcial) → no pases `model`: el frontmatter del agente manda. Aplica a `evaluator` y, en Fase 2-bis, a `architect`.
 
 ## Fase 1 — Evaluar (agente `evaluator`)
