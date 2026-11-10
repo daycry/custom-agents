@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import stat
 import sys
 import threading
 import time
@@ -418,6 +419,35 @@ def _scrub_memoria(datos, scrub):
     return datos
 
 
+def _progress_firma(project):
+    """Cheap signature of what `progress_snapshot` reads (H-32, T-15): the roadmap listing and, per initiative
+    folder (newest first, up to `MAX_WALK`), the `lstat` of its `tasks.md`. Links are not followed. `None` when
+    the roadmap cannot be listed: then nothing is trusted from the cache."""
+    roadmap = os.path.join(str(project), 'docs', 'roadmap')
+    try:
+        names = sorted((entry.name for entry in os.scandir(roadmap) if _INITIATIVE_FOLDER.fullmatch(entry.name)),
+                       reverse=True)
+    except OSError:
+        return None
+    try:
+        redirected = _load_shared('local-read.py')._redirected
+    except (OSError, ValueError, ImportError, AttributeError, SyntaxError):
+        return None
+    firma = [len(names)]
+    for name in names[:MAX_WALK]:
+        folder = os.path.join(roadmap, name)
+        try:
+            info = os.lstat(folder)
+            if redirected(info) or not stat.S_ISDIR(info.st_mode):
+                firma.append((name, 'redirected'))   # a linked folder is not looked into (CWE-59)
+                continue
+            info = os.lstat(os.path.join(folder, 'tasks.md'))
+            firma.append((name, info.st_mtime_ns, info.st_size, info.st_ino))
+        except OSError:
+            firma.append((name, None))
+    return tuple(firma)
+
+
 def progress_snapshot(project, scrub=None):
     """Bounded public ledger projection, independent of network and live-agent state.
 
@@ -709,20 +739,41 @@ class PanelServer(HTTPServer):
         return page
 
     def snapshot(self):
+        """`api/progress` (H-32, T-15). Every 2 s of polling the ledgers' signature is checked (one `lstat`
+        per folder); unchanged, the same version is served (for up to `CACHE_MAX_AGE`, which keeps
+        `observed_at` honest). A change is recomputed on ONE background thread while the previous version
+        keeps being served, like the portfolio: a slow projection never holds this or another request. Only
+        the very first version is computed in the request. `tiene_plan` is applied when serving: the plan
+        inventory can grow after the projection."""
         now = time.monotonic()
-        if self._snapshot is None or now - self._snapshot_at >= 2:
-            try:
-                snapshot = progress_snapshot(self.project, scrub=self.scrub)
-                for fila in snapshot['initiatives']:   # `plan-<id16>.html` exists only for initiatives with a plan
-                    fila['tiene_plan'] = fila['id'] in self.plan_ids
-                self._snapshot = _encoded(snapshot)
-            except (OSError, ValueError, TypeError, KeyError, RecursionError):
-                self._snapshot = _encoded({'version': 1, 'source': 'canonical_ledger',
+        with self._snapshot_lock:
+            if self._snapshot is None or now - self._snapshot_at >= 2:
+                firma = _progress_firma(self.project)
+                self._snapshot_at = now
+                if self._snapshot is None:
+                    self._snapshot, self._snapshot_firma, self._snapshot_built = self._progress(), firma, now
+                elif firma is None or firma != self._snapshot_firma or now - self._snapshot_built >= CACHE_MAX_AGE:
+                    if self._snapshot_hilo is None or not self._snapshot_hilo.is_alive():
+                        self._snapshot_hilo = threading.Thread(target=self._recalcular_progreso, args=(firma,), daemon=True)
+                        self._snapshot_hilo.start()
+            datos = self._snapshot
+        datos = dict(datos, initiatives=[dict(fila, tiene_plan=fila.get('id') in self.plan_ids)
+                                         for fila in datos['initiatives']])
+        return _encoded(datos)
+
+    def _progress(self):
+        try:
+            return progress_snapshot(self.project, scrub=self.scrub)
+        except (OSError, ValueError, TypeError, KeyError, RecursionError):
+            return {'version': 1, 'source': 'canonical_ledger',
                     'observed_at': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
                     'status': 'unavailable', 'complete': False, 'initiatives': [],
-                    'issues': [{'status': 'read_failed'}]})
-            self._snapshot_at = now
-        return self._snapshot
+                    'issues': [{'status': 'read_failed'}]}
+
+    def _recalcular_progreso(self, firma):
+        datos = self._progress()
+        with self._snapshot_lock:
+            self._snapshot, self._snapshot_firma, self._snapshot_built = datos, firma, time.monotonic()
 
     def cartera(self):
         """Roadmap portfolio for Inicio and Iniciativas. No HTTP request computes it: the first one is computed at
@@ -1409,6 +1460,8 @@ def create_server(project, inventory, *, port=0, review_selection=None, review_s
         server.capability = secrets.token_urlsafe(32)
         server.access_prefix = '/' + server.capability + '/'
         server._snapshot = None; server._snapshot_at = 0
+        server._snapshot_firma = None; server._snapshot_built = 0   # H-32: signature-cached, background recompute
+        server._snapshot_lock = threading.Lock(); server._snapshot_hilo = None
         server._cartera = None; server._cartera_at = 0; server._cartera_built = 0; server._cartera_firma = None
         server._cartera_lock = threading.Lock(); server._cartera_hilo = None
         server._plans = {}

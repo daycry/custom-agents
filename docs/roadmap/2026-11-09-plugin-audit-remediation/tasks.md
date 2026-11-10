@@ -18,9 +18,9 @@ changelog: Fixed
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
 | Fase 2 | 6 | 6 | 100.0% |
-| Fase 3 | 2 | 4 | 50.0% |
+| Fase 3 | 3 | 4 | 75.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **14** | **21** | **66.7%** |
+| **TOTAL** | **15** | **21** | **71.4%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -444,14 +444,21 @@ GREEN: `pytest tests/test_hook_processes.py` → `6 passed` (H-31: la captura es
 
 ### T-15 — Panel y consola sin bloqueos
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-32, H-33, H-34 y menores. Panel servido con hilos acotados y progreso con caché por firma; `native-sessions` solo en Sesiones o a demanda; `runtimes` con caché; plazo en `leerResumen`.
-- **Archivos**: `skills/plugin-panel/scripts/serve_panel.py`, `skills/plugin-panel/scripts/console_service.py`, `skills/plugin-panel/scripts/console_common.py`, `skills/plugin-panel/assets/*.js`, tests del panel y de la consola.
+- **Archivos**: `skills/plugin-panel/scripts/serve_panel.py`, `skills/plugin-panel/scripts/console_service.py`, `skills/plugin-panel/scripts/console_common.py`, `skills/plugin-panel/assets/*.js`, tests del panel y de la consola (`tests/test_panel_console_perf.py`, nuevo), `skills/plugin-panel/scripts/console_snapshots.py` (`peek`: la última lectura sin lanzar el cálculo), `skills/plugin-panel/scripts/control_center.py` (ruta `native-sessions/cached`), `tests/console_fixture_server.py`, `tests/e2e/control-center.mjs` (los dobles del fixture y del e2e aceptan la ruta nueva), `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `skills/plugin-panel/references/control-center.md` (E3: cómo se refrescan progreso, inventario externo y runtimes) (añadidos por el implementer).
+- **Tiempo IA (ejec.)**: real 0,14h (medido)
 - **Verificación**: sonda en vivo antes y después (`testing/perf.md`); tests del panel y de la consola pasan.
+- **Changelog**: El panel servido ya no recalcula el progreso en cada sondeo ni deja esperando al resto de rutas mientras lo hace, y la consola solo arranca los CLI de sesiones nativas en la vista Sesiones, cada vez más espaciados si nada cambia, recuerda los runtimes instalados y da plazo a la lectura del resumen de revisiones.
+- **Cerrada**: 2026-11-10
 
 **Criterios de aceptación**
-- [ ] `runtimes` cacheado; `native-sessions` no relanza CLIs fuera de Sesiones.
-- [ ] Una petición lenta no bloquea las demás.
+- [x] `runtimes` cacheado; `native-sessions` no relanza CLIs fuera de Sesiones.
+- [x] Una petición lenta no bloquea las demás.
+
+RED: `tests/test_panel_console_perf.py` falló con 6 failed: el progreso se recalcula en los 3 sondeos sin cambios; con un progreso de 4 s api/progress tarda 4,08 s y la portada 3,88 s; native_sessions no acepta discover; los descubrimientos van cada 15 s (0, 15, 30, 45…) sin espaciarse; sibling recarga console_transport.py en cada llamada; leerResumen sin signal ni plazo · 2026-11-10.
+
+GREEN: `pytest tests/test_panel_console_perf.py` → `7 passed` (H-32: firma por `lstat` de cada `tasks.md` —sin mirar dentro de una carpeta enlazada—, recálculo en un hilo y `tiene_plan` aplicado al servir; H-33: `discover=False` sirve lo observado sin lanzar nada y los descubrimientos caen en 0, 15, 45 y 105 s con el mismo resultado; H-34: `runtimes` busca los ejecutables una vez cada 30 s y `sibling` carga cada hermano una vez, salvo `build_panel.py`, que sigue siendo nuevo en cada catálogo; menor: `leerResumen` aborta a los 4 s); las 44 suites `tests/test_panel_*`, `test_console_*` y `test_control_center_http.py` pasan (p. ej. `test_panel_server.py` 137 + 2 skipped, `test_panel_plan_ui.py` 124, `test_console_encoding.py` 760 tras registrar los dos scripts de T-14, `test_console_service.py` 5) salvo `test_console_transport.py::test_eof_closes_the_owned_process_instead_of_leaving_a_background_worker`, que falla igual sobre el código de partida (preexistente en Windows, fuera de alcance); `lint_plugin.py` 0 errores; `export-interop.py --check` → `92 ficheros al día`. Medida en proceso (servidor efímero en el puerto 0 sobre p68, reloj simulado para la consola): 10 sondeos sin cambios 10 → 0 recálculos y 0,638 → 0,018 s de mediana por sondeo; `api/progress` tras un cambio 0,639 → 0,022 s y la portada durante el recálculo 0,583 → 0,005 s; misma proyección (SHA `a4495396d688` sin `observed_at`); 10 sondeos de `runtimes` 1,24 → 0,21 s y 10 → 1 carga de `console_transport.py`; en 120 s de sondeo cada 2 s, CLIs lanzados desde Inicio 24 → 0 y desde Sesiones 24 → 12. Decisión: recálculo en segundo plano (como la cartera) en vez de `ThreadingHTTPServer`, para no abrir concurrencia en las rutas que escriben revisiones; e2e de la consola (Playwright) no ejecutado aquí · 2026-11-10.
 
 ### T-16 — Scripts de las puertas más rápidos
 

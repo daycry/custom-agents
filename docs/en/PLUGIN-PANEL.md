@@ -221,7 +221,10 @@ The server never serves arbitrary project files.
 Requires a project and excludes HTML/JSON export and personal roots. Project
 declarations are read for the initial snapshot. Catalog and diagnostics stay
 fixed at startup; Progress polls ledgers every five seconds, with manual refresh,
-search and state filters. Responses share a two-second read cache. Hidden tabs
+search and state filters. Responses share a two-second read cache; after that only
+the ledgers' signature is checked (one `lstat` per folder) and, when it changed, the
+recomputation runs in the background while the previous version is served: a slow
+projection never holds that or any other request. Hidden tabs
 pause polling; requests expire after four seconds. Failure preserves the last
 view and its original date, with an explicit freshness warning.
 

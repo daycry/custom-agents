@@ -221,7 +221,9 @@ Requiere proyecto y excluye HTML/JSON y raíces personales. Las declaraciones
 de proyecto se leen para la instantánea inicial. Catálogo y diagnóstico quedan
 fijados al arranque; Progreso relee ledgers cada cinco segundos, con botón de
 actualización, búsqueda y filtro de estado. Las respuestas comparten una lectura
-durante dos segundos. La pestaña oculta suspende peticiones; cada consulta vence
+durante dos segundos; pasado ese tiempo solo se comprueba la firma de los ledgers (un `lstat` por
+carpeta) y, si cambió, el recálculo va en segundo plano mientras se sirve la versión anterior: un
+progreso lento no retiene esa ni ninguna otra petición. La pestaña oculta suspende peticiones; cada consulta vence
 a los cuatro segundos. Un fallo conserva la vista y su fecha anterior con aviso.
 
 El parser canónico calcula conteos y fase desde `tasks.md`. Fecha de lectura y

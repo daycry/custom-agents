@@ -16,7 +16,7 @@ export function createContext(app){
  }
  async function overview(){
   const epoch=state.epoch
-  const results=await Promise.allSettled([app.plans.portfolio(),app.api('sessions'),app.api('runtimes'),app.api('native-sessions')])
+  const results=await Promise.allSettled([app.plans.portfolio(),app.api('sessions'),app.api('runtimes'),app.api('native-sessions/cached')])
   if(epoch!==state.epoch||state.view!=='overview')return
   const portfolio=results[0].status==='fulfilled'?results[0].value:null
   const sessions=results[1].status==='fulfilled'?results[1].value.sessions:null

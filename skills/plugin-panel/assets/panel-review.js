@@ -254,7 +254,9 @@
  }
  /* Estado de revisión por iniciativa para las tarjetas de Iniciativas (`page-iniciativas.js`): `api/review-summary` → `{id16: fila}`. */
  globalThis.PanelReview = {leerResumen(done) {
-  fetch('api/review-summary',{credentials:'omit',cache:'no-store'}).then(r => { if (!r.ok) { const error = Error('unavailable'); error.noDisponible = r.status === 404; throw error; } return r.json(); }).then(d => {
+  /* Plazo de 4 s, como el resto de lecturas del panel: una petición colgada no deja la tarjeta en «cargando». */
+  const controller = new AbortController(), guard = setTimeout(() => controller.abort(),4000);
+  fetch('api/review-summary',{credentials:'omit',cache:'no-store',signal:controller.signal}).finally(() => clearTimeout(guard)).then(r => { if (!r.ok) { const error = Error('unavailable'); error.noDisponible = r.status === 404; throw error; } return r.json(); }).then(d => {
    const rows = {};
    (object(d) && Array.isArray(d.initiatives) ? d.initiatives : []).forEach(row => { if (object(row) && /^[a-f0-9]{16}$/.test(row.initiative_id)) rows[row.initiative_id] = row; });
    done(rows);

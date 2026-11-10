@@ -74,7 +74,7 @@ def main():
     # Fixture availability must not depend on native tools installed on the QA host.
     server.service.runtimes=lambda ident:{'runtimes':[{'id':'codex','enabled':True,'installed':True,
         'connection':'fixture','capabilities':{'chat':True,'resume_known':True,'interrupt':True,'approval':True}}]}
-    server.service.native_sessions=lambda ident:{'status':'ok','complete':True,'sessions':[],'providers':[]}
+    server.service.native_sessions=lambda ident,discover=True:{'status':'ok','complete':True,'sessions':[],'providers':[]}
     print(json.dumps({'url':f'http://127.0.0.1:{server.server_port}/#token={server.token}','fixture':True}),flush=True)
     try:server.serve_forever(poll_interval=.1)
     except KeyboardInterrupt:pass

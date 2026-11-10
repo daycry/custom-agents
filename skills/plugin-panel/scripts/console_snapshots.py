@@ -31,6 +31,18 @@ class Snapshots:
                 value['complete']=False
                 value['status']='partial' if row['value'] is not None else 'unavailable'
             return value
+    def peek(self,key,pending):
+        """The last value of `key` without starting a computation (H-33, T-15); `pending` when none."""
+        with self.lock:
+            C.need(not self.closed,'console_closed',503)
+            row=self.rows.get(key);now=self.clock()
+            if row is None or row['value'] is None:
+                value=dict(pending);value['freshness']={'state':'not_requested' if row is None else 'waiting','age_seconds':None}
+                return value
+            value=C.json_load(row['value'])
+            state='refreshing' if row['active'] else 'refresh_failed' if row['failed'] else 'current'
+            value['freshness']={'state':state,'age_seconds':max(0,round(now-row['built'],1))}
+            return value
     def _refresh(self,row,compute):
         raw=None
         try:

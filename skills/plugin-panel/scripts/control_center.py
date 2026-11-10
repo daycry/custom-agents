@@ -111,6 +111,7 @@ class Handler(BaseHTTPRequestHandler):
         if tail=='plans':value=service.plans(workspace)
         elif tail=='sessions':value={'sessions':service.sessions.list(workspace)}
         elif tail=='native-sessions':value=service.native_sessions(workspace)
+        elif tail=='native-sessions/cached':value=service.native_sessions(workspace,discover=False)   # H-33: no CLI starts
         elif tail=='runtimes':value=service.runtimes(workspace)
         elif tail=='memory':value=service.memory(workspace)
         elif tail=='integrations':value=service.integrations(workspace)

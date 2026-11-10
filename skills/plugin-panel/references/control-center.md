@@ -164,6 +164,11 @@ Las señales no certifican procesos vivos ni sustituyen el estado canónico del 
 La captura externa requiere `sesion.actividad: true` y hooks cargados; comienza con
 los siguientes eventos reales, sin reconstruir el pasado.
 
+El inventario externo arranca los CLI de cada runtime: solo lo pide la vista Sesiones. Inicio
+lee lo ya observado (`native-sessions/cached`) sin lanzar nada, y con el mismo resultado cada
+descubrimiento espera el doble (15, 30, 60 y 120 s como tope); un cambio vuelve a 15 s. Los
+runtimes instalados se recuerdan 30 s.
+
 En Sesiones, el contador combina conexiones propias e inventario externo observado,
 deduplicando por runtime e identidad nativa. Una consulta fallida sin observaciones
 no se convierte en un cero confirmado. Las conexiones propias conservan su chat;
