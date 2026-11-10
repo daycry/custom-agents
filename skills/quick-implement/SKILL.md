@@ -34,6 +34,8 @@ Aporta lo que el comando no puede: un filtro de idoneidad en lenguaje natural qu
 > Si no lo encuentras (instalación parcial), **dilo y para**: ofrece implementar el cambio a mano,
 > avisando de que no habrá ledger ni puertas. Nunca improvises un método paralelo.
 
+Pasa a cada despacho la línea `Kit activo: SHAREDKIT=…` del contexto de sesión (tal cual, si existe).
+
 Lee el **núcleo** de ese comando; sus referencias de
 `agent-kits/dev-cycle/references/` se abren sólo al llegar a la condición que
 indica. Conserva la Fase 3 completa y el Knowledge Gate: comprueba candidatos

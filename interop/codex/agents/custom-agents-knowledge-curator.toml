@@ -58,8 +58,8 @@ Graphiti directamente (`graphiti-memory` T-03, `docs/agents/CONTRACTS.md` E18).
   antes de retirar su fuente exacta verificada. No prometas atomicidad de varios archivos.
 - Resuelve tu kit y el compartido sin rutas fijas:
   ```bash
-  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache/daycry ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; MIKIT="${R:+$R/agent-kits/knowledge-curator}"
-  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache/daycry ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="${R:+$R/agent-kits/shared}"
+  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}"; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache/daycry ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; MIKIT="${R:+$R/agent-kits/knowledge-curator}"
+  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}"; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache/daycry ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="${R:+$R/agent-kits/shared}"
   # gate readonly: "$MIKIT/curator-gate.py" · persistencia: "$SHAREDKIT/knowledge-curation.py"
   # taxonomia/indice: "$SHAREDKIT/knowledge-schema.py" / "$SHAREDKIT/knowledge-index.py"
   ```

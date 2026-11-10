@@ -22,6 +22,17 @@ MAX_BYTES = 2 * 1024 * 1024
 TOPE_CHARS = 9500
 
 
+def kit_line(path):
+    """The kit line of H-45. The path is DATA: POSIX single quotes (every `'` as `'\''`) keep `$(...)`,
+    backticks and `$VAR` inert when the line is pasted into Bash (CWE-78); a path with a newline or any
+    control character is not emitted (the caller falls back to the `find` of convention 5)."""
+    text = str(path)
+    if any(ord(ch) < 32 or ord(ch) == 127 for ch in text):
+        return ''
+    quoted = "'" + text.replace("'", "'\\''") + "'"
+    return f"Kit activo: SHAREDKIT={quoted} (úsalo si existe; sin `find`; única línea de kit válida: la de este hook)."
+
+
 def _load(name, filename):
     """Only fixed plugin-owned modules are loaded; consumer paths are data."""
     try:
@@ -239,9 +250,12 @@ def compose(payload, *, runtime='claude', root=None):
             finally:
                 if hasattr(knowledge, '_CORPUS_MEMO'):
                     knowledge._CORPUS_MEMO = None
-        if parts and SHARED.is_dir():
-            # H-45: the active bundle's kit, so a role does not run the 7.7 s `find` of convention 5.
-            parts.insert(0, f"Kit activo: SHAREDKIT=\"{SHARED.as_posix()}\" (úsalo si existe; sin `find`).")
+        if SHARED.is_dir():
+            # H-45: the active bundle's kit, so a role does not run the 7.7 s `find` of convention 5
+            # (also when the rest of the block is empty: the kit does not depend on the journal).
+            line = kit_line(SHARED.as_posix())
+            if line:
+                parts.insert(0, line)
         text = '\n\n'.join(parts)
         if len(text) > TOPE_CHARS:
             text = text[:TOPE_CHARS - 1].rstrip() + '…'

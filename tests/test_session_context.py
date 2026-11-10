@@ -49,7 +49,10 @@ def test_composition_restores_process_state_and_never_spawns(tmp_path, monkeypat
     monkeypatch.setenv('CLAUDE_PROJECT_DIR', 'outer-project')
     before = dict(os.environ), sys.argv[:], sys.stdout, sys.stderr
     for _ in range(2):
-        assert module.compose({'session_id': 'same'}, root=str(tmp_path)) == ''
+        # f4fix1 gap 17: an empty block still carries the kit line (and nothing else).
+        out = module.compose({'session_id': 'same'}, root=str(tmp_path))
+        assert json.loads(out)['hookSpecificOutput']['additionalContext'].startswith('Kit activo: SHAREDKIT=')
+        assert chr(10) not in json.loads(out)['hookSpecificOutput']['additionalContext']
     assert (dict(os.environ), sys.argv, sys.stdout, sys.stderr) == before
 
 
@@ -58,10 +61,15 @@ def test_invalid_runtime_does_not_block_or_emit_context(tmp_path):
     assert (result.returncode, result.stdout, result.stderr) == (0, b'', b'')
 
 
+EMPTY_BLOCK = b'{"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": ""}}' + bytes([10])
+
+
 def test_partial_installation_omits_unavailable_services(tmp_path, monkeypatch):
     module = native_module()
     monkeypatch.setattr(module, '_load', lambda *_args: None)
-    assert module.compose({}, root=str(tmp_path)) == ''
+    # f4fix1 gap 17: nothing else to say, but the kit line still goes out.
+    context = json.loads(module.compose({}, root=str(tmp_path)))['hookSpecificOutput']['additionalContext']
+    assert context.startswith('Kit activo: SHAREDKIT=') and chr(10) not in context
 
 
 def test_progress_default_retains_legacy_marker_timeout(tmp_path, monkeypatch):
@@ -172,9 +180,11 @@ def test_native_output_matches_shell_bytes(tmp_path, runtime, case):
     # The retired shell oracle knows nothing of the kit line of H-45 (T-19), which the native
     # compositor puts first; every other byte must still match.
     import re
-    kit_line = rb'Kit activo: SHAREDKIT=\\"[^"]*?\\" [^\n]*?\.\\n\\n'
+    kit_line = rb"Kit activo: SHAREDKIT='.*?' \(\xc3\xbasalo [^\n]*?\.(?:\\n\\n|(?="}}))"   # single-quoted since f4fix1 gap 1
     native_stdout, removed = re.subn(kit_line, b'', after.stdout, count=1)
     assert removed == (1 if after.stdout.strip() else 0)
+    if native_stdout == EMPTY_BLOCK:      # f4fix1 gap 17: the kit line alone; the oracle printed nothing
+        native_stdout = b''
     assert before.stdout == native_stdout
     # These fixtures have no due envelopes: both implementations retain the same
     # owned cache and journal artefact names, without borrowing another consumer.

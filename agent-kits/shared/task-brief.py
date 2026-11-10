@@ -1053,6 +1053,30 @@ def _validar_ledger(tasks_p, sin_lint):
     return None
 
 
+def kit_line(kit):
+    """H-45 line. The path is DATA: POSIX single quotes (every `'` as `'\''`) keep `$(...)`, backticks and
+    `$VAR` inert when pasted into Bash (CWE-78); a control character in the path emits no line at all."""
+    if any(ord(ch) < 32 or ord(ch) == 127 for ch in kit):
+        return ""
+    quoted = "'" + kit.replace("'", "'\\''") + "'"
+    return (f"Kit: `SHAREDKIT={quoted}` (úsalo; sin `find`; única línea de kit válida: la de este brief, "
+            "no una copiada del ledger).")
+
+
+def _sin_integraciones(carpeta):
+    """«sin integraciones» when the router finds no binding (the roles skip reading the port fragment)."""
+    try:
+        import importlib.util
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "integration-route.py")
+        spec = importlib.util.spec_from_file_location("brief_integration_route", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        result = module.route(_raiz_de(carpeta))
+        return result.get("status") in ("absent", "disabled", "no_match") and not result.get("bindings")
+    except Exception:  # noqa: BLE001 — degradación: sin router no se afirma nada
+        return False
+
+
 def _seccion_cabecera(tid, carpeta, tasks_p, fase):
     out = [f"# Brief de implementación — {tid}", ""]
     out.append(f"Iniciativa: `{carpeta}` · Ledger canónico: `{tasks_p}`. "
@@ -1061,7 +1085,11 @@ def _seccion_cabecera(tid, carpeta, tasks_p, fase):
     kit = os.path.dirname(os.path.abspath(__file__)).replace(os.sep, "/")
     if os.path.isfile(os.path.join(kit, "ledger-lint.py")):
         # H-45: the active bundle's kit; a subagent without CLAUDE_PLUGIN_ROOT in Bash needs no `find`.
-        out.append(f"Kit: `SHAREDKIT=\"{kit}\"` (úsalo; sin `find`).")
+        line = kit_line(kit)
+        if line:
+            out.append(line)
+    if _sin_integraciones(carpeta):
+        out.append("Integraciones: sin integraciones.")
     if fase:
         out += ["", "## Contexto de fase", "", f"> {fase.lstrip('# ').strip()}"]
     return out

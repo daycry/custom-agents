@@ -1701,6 +1701,21 @@ def _fecha_local_de_captured_at(captured_at):
         return hoy()
 
 
+_CIERRE_TARDIO_S = 3600   # un cierre más viejo que esto se materializó tarde: la iniciativa vigente puede no ser la suya
+
+
+def _cierre_tardio(captured_at):
+    """¿`captured_at` (UTC) es de hace más de `_CIERRE_TARDIO_S`? Un `replay` desde la cola puede correr
+    días después del cierre y redacta con la iniciativa vigente AL REPETIR (gap 9 del intento 1 de la
+    fase 4, mismo caso que `orphan_recovery`): sin la marca no se cita como historial de ninguna."""
+    if not captured_at:
+        return False
+    try:
+        return time.time() - calendar.timegm(time.strptime(str(captured_at), "%Y-%m-%dT%H:%M:%SZ")) > _CIERRE_TARDIO_S
+    except (ValueError, TypeError, OverflowError):
+        return False
+
+
 def draft(root, session_id=None, transcript=None, reason=None, enrich=None, captured_at=None, git_timeout=GIT_TIMEOUT):
     """`captured_at` (ISO `AAAA-MM-DDTHH:MM:SSZ`, del envelope de `capture-end`): si se da, la
     entrada usa la FECHA DEL CIERRE EN HORA LOCAL (nombre de fichero y frontmatter, gap 44), no la
@@ -1737,7 +1752,8 @@ def draft(root, session_id=None, transcript=None, reason=None, enrich=None, capt
         # T-21 (deuda de T-07): una sesión recuperada tarde (`orphan_recovery`) se redacta con la
         # iniciativa vigente AL RECUPERAR, que puede no ser la suya: sin la marca no se cita como
         # historial de ninguna iniciativa (sigue en la bitácora, atribuible solo por identidad).
-        **({"regla_iniciativa": "vigente"} if iniciativa != "n/a" and reason != "orphan_recovery" else {}),
+        **({"regla_iniciativa": "vigente"} if iniciativa != "n/a" and reason != "orphan_recovery"
+           and not _cierre_tardio(captured_at) else {}),
         "resumen": str(resumen),
         "resumen_por": resumen_por,
         "turnos": len(turnos),

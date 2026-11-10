@@ -4,7 +4,7 @@ Léelo **solo** al llegar al paso 2 de `SKILL.md` (despacho de las lentes). Cada
 CUAL al agente **`reviewer`** (solo lectura: `tools: Read, Grep, Glob, Bash`; `Agent` con
 `subagent_type: reviewer` y el `model` que devuelva `model-tier.py reviewer`) o, si el agente no está
 instalado, a un subagente genérico con la misma instrucción (degradación con aviso). Cada lente recibe
-SOLO: el diff (o cómo obtenerlo), las rutas de los artefactos contra los que revisa, y si N > 1 la tabla
+SOLO: la línea `Kit activo: SHAREDKIT=…` del contexto de sesión (tal cual, si existe), el diff (o cómo obtenerlo), las rutas de los artefactos contra los que revisa, y si N > 1 la tabla
 del intento anterior (§5 de `SKILL.md`). Antepón siempre la línea de contrato:
 
 > «Eres la Lente <A|B|C|D> de `adversarial-review`. Contexto fresco: no has visto implementar. Devuelve

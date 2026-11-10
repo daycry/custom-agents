@@ -1241,7 +1241,7 @@ otra salida histórica
 
 
 def test_brief_budget_auxiliares_comparten_margen_sin_recortar_criterios(inic, monkeypatch):
-    # 2150 (was 2300): the brief now opens with the kit line of H-45 (~100 characters with a real
+    # 2050 (was 2300; f4fix1 gaps 1, 7 and 12 added ~70 characters: quoting, «única línea válida», «sin integraciones»): the brief now opens with the kit line of H-45 (~100 characters with a real
     # path) that the auxiliary budget cannot trim; this scenario is at the edge of the 10000 cap.
     criterion = "contrato " * 400 + "criterio final."
     text = TASKS_CON_GAPS.replace("- **Descripción**: hacer la cosa A.", "- **Descripción**: hacer la cosa A.\n- **Tipo**: backend\n- **Archivos**: `src/adapter.py`\n- **Verificación**: `pytest -q` → verde")
@@ -1249,12 +1249,12 @@ def test_brief_budget_auxiliares_comparten_margen_sin_recortar_criterios(inic, m
     (inic / "tasks.md").write_text(text, encoding="utf-8")
     design = DESIGN.replace("Aísla la integración tras una interfaz; reversible en un sprint.", "Aísla la integración. " * 50)
     (inic / "design.md").write_text(design, encoding="utf-8")
-    monkeypatch.setattr(tb, "_memoria_tecnica", lambda *args: "## Memoria técnica\n" + "M" * 2150)
+    monkeypatch.setattr(tb, "_memoria_tecnica", lambda *args: "## Memoria técnica\n" + "M" * 2050)
     rc, out = _run([str(inic), "T-01", "--sin-lint", "--constitucion", str(inic / "no.md")])
     assert rc == 0 and len(out) <= tb.BRIEF_TOPE_CHARS
     assert criterion in out
     assert "## Persona de dominio" in out
-    assert "M" * 2150 in out
+    assert "M" * 2050 in out
     assert tb.CONTRATO in out
 
 
