@@ -432,6 +432,10 @@ RED fix2: `agent-kits/shared/test_usage_meter.py -k fix2` falló con 4 failed: c
 
 GREEN fix2: `pytest agent-kits/shared/test_usage_meter.py` → `90 passed` (B1: solo decide con la línea entera —cola de 4 KiB y, si no basta, de 64 KiB—, por el `timestamp` de la raíz; una línea mayor o que no es JSON da None y conserva el offset, sin regex; D: un transcript ilegible deja `poda_fallida` con su mtime y solo se reintenta cuando cambia). Copia del repo: los mismos 537 offsets y los mismos tokens al re-cerrar T-07 y T-12; migración 0,71 s (una cola de 1 MiB no cambiaba ningún offset y la subía a 15 s: descartada). Tiempo: 0,04h (medido, `plugin-audit-remediation/T-13-fix2`) · 2026-11-10.
 
+RED fix3: `agent-kits/shared/test_usage_meter.py -k fix3` falló con 2 failed: un transcript que desaparece tras el error de lectura queda en `poda_fallida` con mtime None y no se poda; tres EMFILE seguidos en un transcript viejo dejan el marcador sin podar · 2026-11-10.
+
+GREEN fix3: `pytest agent-kits/shared/test_usage_meter.py` → `92 passed` (5: un fichero que ya no existe se descarta, como en el camino normal; uno existente e ilegible se reintenta solo si cambia su mtime y como mucho `PODA_INTENTOS` = 3 veces; después se poda conservando su offset). Tiempo: 0,01h (medido, `plugin-audit-remediation/T-13-fix3`) · 2026-11-10.
+
 ### T-14 — Menos procesos por hook
 
 - **Estado**: completado
@@ -457,6 +461,10 @@ GREEN fix1: `pytest tests/test_hook_processes.py tests/test_hook_supervisor.py` 
 RED fix2: `tests/test_hook_processes.py -k fix2` falló con 3 failed: `git check-ignore .claude/.progress-last-subagent` sale 1; la captura redacta los 6.291.414 caracteres del turno entero; la fila de UserPromptSubmit de observability nombra `journal.py capture` · 2026-11-10.
 
 GREEN fix2: `pytest tests/test_hook_processes.py` → `14 passed` (5: `.claude/.progress-last-subagent` en `.gitignore`, `git check-ignore` sale 0; 6: se redacta una ventana de 4.000 + 16 KiB caracteres —más que cualquier secreto de una pieza— y después se corta a 4.000, así que un secreto que cruza el corte se redacta entero; `<private>` se sigue mirando en el texto completo; lectura con tope de 32 MiB; con un turno de 6 MiB lleno de `password=` y `ghp_…` ningún secreto queda en el log; 9: observability ES/EN nombran `journal-prompt.py`); `test_console_encoding.py -k "fix or journal-prompt"` y `test_journal.py -k "capture or captura or rotar or private or recort"` 44 + 3 skipped pasan. No reproduje los 8,4 s de 2 MiB de la revisión con los patrones probados (`redactar` de 2 MiB tardó entre 0,5 y 1,4 s aquí), pero el coste era proporcional al turno entero y ahora no lo es. Tiempo: 0,03h (medido, `plugin-audit-remediation/T-14-fix2`) · 2026-11-10.
+
+RED fix3: `tests/test_hook_processes.py -k fix3` falló con 3 failed: con cinco PEM, relleno y un sexto PEM que empieza en el carácter 18.885 se guardan `-----BEGIN PRIVATE KEY-----` y su base64; un `Bearer` y un `password=` cortados en el borde de la ventana quedan visibles · 2026-11-10.
+
+GREEN fix3: `pytest tests/test_hook_processes.py` → `18 passed` (1, CWE-532: la ventana se amplía, duplicándose, hasta que lo redactado llegue a 4.000 + 16 KiB caracteres, se agote el texto o se alcance `REDACCION_TOPE` = 1 MiB; en ese último caso se descartan los últimos 16 KiB redactados; en los tres casos lo guardado es igual a redactar el turno entero y cortar a 4.000; 10: `test_fix2_6` mide ahora los caracteres que pasan por `redactar` en vez de un tope de tiempo; 7: `test_fix3_7_un_turno_de_31_mib_se_captura_recortado` fija el tope de 32 MiB —TDD n/a: test de guarda escrito sobre el comportamiento ya correcto—). Por encima del tope el turno se omite sin dejar rastro: el contrato de UserPromptSubmit prohíbe stdout y stderr (el stdout es contexto y el exit 2 borra el prompt), y sin leer el JSON no hay `session_id` ni log de la sesión donde escribir; queda justificado, no se añade la línea. `test_journal.py -k "capture or captura or rotar or private or recort"` 44 + 3 skipped. Tiempo: 0,03h (medido, `plugin-audit-remediation/T-14-fix3`) · 2026-11-10.
 
 ### T-15 — Panel y consola sin bloqueos
 
@@ -484,6 +492,8 @@ RED fix2: `tests/test_panel_console_perf.py -k fix2` falló con 1 failed: con do
 
 GREEN fix2: `pytest tests/test_panel_console_perf.py` → `11 passed` (7: `plan_page` actualiza la caché de páginas y `plan_ids` bajo `_planes_lock`; 4: `test_fix2_4_la_deuda_del_e2e_de_la_consola_queda_en_t21` vigila la deuda A5 como las otras de T-21); `test_panel_server.py` 137 + 2 skipped, `test_panel_fix2.py` 18, `test_panel_plan_ui.py` y `test_panel_review_panel_server.py` pasan. Tiempo: 0,03h (medido, `plugin-audit-remediation/T-15-fix2`) · 2026-11-10.
 
+TDD n/a (revisión intento 3, punto 6): `test_fix2_4_la_deuda_del_e2e_de_la_consola_queda_en_t21` no tuvo rojo: vigila una deuda ya escrita en T-21 (pasaba en b0182bc), igual que los tests de deuda de la Fase 1. Los puntos 8 y 9 del intento 3 (deuda de la ruta 8.3 y decisión sobre la constitución) se registran en T-21; RED de `tests/test_statusline_cache.py::test_fix3_8_la_deuda_de_la_ruta_corta_8_3_queda_en_t21`: falló con `statusline-render.py` ausente del `Archivos` de T-21. Tiempo: 0,02h (medido, `plugin-audit-remediation/T-15-fix3`) · 2026-11-10.
+
 ### T-16 — Scripts de las puertas más rápidos
 
 - **Estado**: completado
@@ -508,6 +518,10 @@ GREEN fix1: `pytest tests/test_statusline_cache.py` → `32 passed` (D1+B2: cada
 RED fix2: `tests/test_statusline_cache.py -k "fix2 or fix1"` falló con 5 failed: el payload real (`context_window.current_usage` como objeto) lanza Python en cada refresco; `{"model":{"id":"a}","display_name":"X"}}` y `{"cwd":"C:/a}b","agent":{"model":{…}}}` pintan algo distinto de Python; la clave anidada en `agent.model` y `current_usage` dentro del grupo caen a Python · 2026-11-10.
 
 GREEN fix2: `pytest tests/test_statusline_cache.py` → `38 passed` (un escáner de miembros JSON en Bash: recorre los miembros de un objeto, salta cadenas con sus escapes al contar llaves, admite objetos anidados dentro del grupo y, ante una clave repetida o con escapes, una cadena sin cerrar o algo que no sigue, deja que Python pinte esos campos con la entrada en la clave de caché; las cuatro entradas con llaves en cadenas dan la misma salida que Python; los dos casos del test de fix1 que daban la anidada y `current_usage` por lentos pasan al atajo); `tests/test_hooks_shell.py -k statusline` 14, `test_console_encoding.py -k statusline` 8. Barra de estado con el payload real (con `current_usage`) en 7 turnos con el coste cambiando: 7 Pythons y 1,22 s por refresco con fix1 → 1 Python y 0,59 s, misma salida (`3dfebc8547c6`). Tiempo: 0,27h (medido, `plugin-audit-remediation/T-16-fix2`) · 2026-11-10.
+
+RED fix3: `tests/test_statusline_cache.py -k fix3` falló con 7 failed: una entrada de 24 KB de escapes no termina en menos de 1 s con la caché caliente; `0.50000000000000001`, `1.49999999999999999` y `0.12500000000000001` se redondean en Bash distinto que en Python; con coma final, texto tras el objeto o el escape `\x41`, Bash pinta campos y Python no · 2026-11-10.
+
+GREEN fix3: `pytest tests/test_statusline_cache.py` → `45 passed` antes del test de deuda (2: por encima de 8 KB no se escanea y pinta Python con la entrada en la clave; una sola pasada lee los tres grupos y cada cadena es un solo token; 3: con más de 15 dígitos significativos y las cifras tras la posición de redondeo cerca de la mitad —5 o 49…—, o más de 17, pinta Python; 4: coma final, texto tras el objeto y escapes inválidos caen a Python; sin `declare -A`, compatible con Bash 3.2); `tests/test_hooks_shell.py -k statusline` 14, `test_console_encoding.py -k statusline` 8. Payload real en 7 turnos: 1 Python, misma salida (`3dfebc8547c6`). Tiempo: 0,07h (medido, `plugin-audit-remediation/T-16-fix3`) · 2026-11-10.
 
 ## Fase 4 — Consumo de tokens
 
@@ -557,9 +571,9 @@ GREEN fix2: `pytest tests/test_statusline_cache.py` → `38 passed` (un escáner
 ### T-21 — Documentación alineada y menores
 
 - **Estado**: borrador
-- **Descripción**: Menores de la auditoría: Lente D en `dev-cycle`, `quick-implement` y CLAUDE.md; hooks globales y ADR-023 en CLAUDE.md; consola frente a panel servido; rutas de memoria que no viajan; shells muertos; degradación sin node; `release.py` (5 manifiestos, `.MANUAL-COPY` pendiente); cookie por puerto; mapa de errores y `aria-live` de la consola. Deuda de T-15 (revisión fase 3 intento 1, A5): ejecutar `tests/e2e/control-center.mjs` con `puppeteer` y el servidor de fixture, que no se pudo correr en la máquina de la fase (`puppeteer` no instalado). Deuda anterior a la fase 3 (revisión intento 2): con la raíz del proyecto en una ruta corta 8.3 de Windows, `statusline-render.py` no escribe nunca la caché (`resolve()` expande la ruta y la compara con la corta).
+- **Descripción**: Menores de la auditoría: Lente D en `dev-cycle`, `quick-implement` y CLAUDE.md; hooks globales y ADR-023 en CLAUDE.md; consola frente a panel servido; rutas de memoria que no viajan; shells muertos; degradación sin node; `release.py` (5 manifiestos, `.MANUAL-COPY` pendiente); cookie por puerto; mapa de errores y `aria-live` de la consola. Deuda de T-15 (revisión fase 3 intento 1, A5): ejecutar `tests/e2e/control-center.mjs` con `puppeteer` y el servidor de fixture, que no se pudo correr en la máquina de la fase (`puppeteer` no instalado). Deuda anterior a la fase 3 (revisión intento 2): con la raíz del proyecto en una ruta corta 8.3 de Windows, `statusline-render.py` no escribe nunca la caché (`resolve()` expande la ruta y la compara con la corta). Decisión pendiente del usuario (revisión fase 3 intento 3, punto 9): las trazas de la Fase 3 usan el veredicto «evidenciado (medida)» para gaps de evidencia o de criterio sin test dedicado, una excepción que `docs/CONSTITUTION.md` (l. 13) no recoge; propuesta: o una línea en la constitución («un gap de evidencia o de criterio se cierra con la medida o la ejecución que lo prueba, citada en la traza») o un ADR que la registre. No se toca la constitución sin el usuario.
 - **Notas**: Incluye la deuda de T-07 (revisión fase 2 intento 3, punto 12): `journal.py recover` redacta una sesión huérfana con la iniciativa vigente AL RECUPERAR y la marca `regla_iniciativa: vigente`, aunque la sesión fuera de otra iniciativa; decidir si las recuperadas tarde no llevan la marca. Incluye la deuda de T-08 (revisión fase 2 intento 1, A2): un aviso de ledger-lint para las tareas `completado` sin `RED:` ni `TDD n/a` cuando `dev.json` trae `tdd: true` (hoy solo lo comprueba la Lente A, criterio 5b). Incluye la deuda de T-05: nueva edición PDF de los manuales `docs/guides/subscription-efficiency.md` y `docs/guides/quality-playbook.md` para que digan que lite despacha al implementer nativo.
-- **Archivos**: `CLAUDE.md`, `commands/*.md`, `skills/**/SKILL.md`, `docs/**`, `hooks/*.sh`, `scripts/release.py`, `skills/plugin-panel/**`, `interop/**`, tests afectados.
+- **Archivos**: `CLAUDE.md`, `commands/*.md`, `skills/**/SKILL.md`, `docs/**`, `hooks/*.sh`, `scripts/release.py`, `skills/plugin-panel/**`, `interop/**`, tests afectados, `agent-kits/shared/statusline-render.py` (deuda de la ruta corta 8.3; revisión fase 3 intento 3, punto 8).
 - **Verificación**: lint 0 errores, evals 0 errores, interop al día, CI completa en Linux verde.
 
 **Criterios de aceptación**
@@ -738,3 +752,20 @@ Lentes: A + B + D. Corrección en `fix2` por el implementer; cada gap de código
 | 9 | Minor | La fila de UserPromptSubmit de observability ES/EN nombraba `journal.py capture` | T-14 | corregido | `journal-prompt.py`; `test_fix2_9_*` (823328d) |
 
 Anotado como deuda en T-21 (no es gap de esta fase): con la raíz del proyecto en una ruta corta 8.3, `statusline-render.py` no escribe la caché.
+
+## Revisión de dos lentes — intento 3: Fase 3 (T-13..T-16) — 1 Important, 9 Minor
+
+Lentes: A + B + D. Al tercer intento con gaps, el orquestador decide un ciclo final acotado (`fix3`), como en la Fase 1, siguiendo el «adelante, con todo» del usuario; sin intento 4 de lentes: lo verifica el orquestador con pruebas dirigidas. Cada gap de código con un test dedicado (`test_fix3_*`).
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | CWE-532: la ventana de redacción encoge al redactar y un secreto cortado en su borde (6.º PEM, `Bearer`, `password=`) acababa en los 4.000 guardados | T-14 | corregido | ventana que crece hasta 4.000 + 16 KiB redactados (tope 1 MiB); igual que redactar todo y cortar; `test_fix3_1_*` (e84f498) |
+| 2 | Minor | Escáner de la barra de estado cuadrático (25 KB → 13,5 s por refresco, también con caché caliente) | T-16 | corregido | tope de 8 KB, una pasada para los tres grupos, una cadena = un token; `test_fix3_2_*` (a89afdf) |
+| 3 | Minor | `NUMBER` admitía 27 dígitos: `0.50000000000000001` daba `ctx 1%` en Bash y `ctx 0%` en Python | T-16 | corregido | cerca del redondeo con más de 15 dígitos, o más de 17, pinta Python; `test_fix3_3_*` (a89afdf) |
+| 4 | Minor | Con JSON inválido Bash pintaba campos y Python no | T-16 | corregido | coma final, texto tras el objeto y escapes inválidos caen a Python; `test_fix3_4_*` (a89afdf) |
+| 5 | Minor | `poda_fallida` con mtime None no se podaba nunca y un error pasajero bloqueaba la poda para siempre | T-13 | corregido | un fichero ausente se descarta; tope de 3 intentos; `test_fix3_5_*` (1a55539) |
+| 6 | Minor | `test_fix2_4_…` no tuvo rojo y el ledger no lo decía | T-15 | corregido | `TDD n/a` en T-15 |
+| 7 | Minor | El tope de 32 MiB de la captura no tenía test; por encima se omite el turno sin rastro | T-14 | corregido | `test_fix3_7_*` (TDD n/a: guarda); el rastro no se añade: el contrato prohíbe stdout/stderr y sin JSON no hay log de sesión (justificado en T-14) |
+| 8 | Minor | `statusline-render.py` no figuraba en `Archivos` de T-21 ni había test de la deuda 8.3 | T-21 | corregido | `Archivos` de T-21; `test_fix3_8_*` |
+| 9 | Minor | La excepción «evidenciado (medida)» no está en `docs/CONSTITUTION.md` | T-21 | deuda aceptada | decisión pendiente del usuario registrada en T-21 con dos propuestas (línea en la constitución o ADR); no se toca la constitución |
+| 10 | Minor | `test_fix2_6` dependía de un tope de tiempo de 4,5 s | T-14 | corregido | mide los caracteres que pasan por `redactar` (e84f498) |

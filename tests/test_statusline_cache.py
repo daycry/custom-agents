@@ -309,3 +309,14 @@ def test_fix3_4_json_invalido_no_se_pinta_desde_bash(tmp_path, crudo):
     fria = hook('statusline', crudo, env)
     caliente = hook('statusline', crudo, env)
     assert fria == caliente and '[X]' not in caliente[1]
+
+
+def test_fix3_8_la_deuda_de_la_ruta_corta_8_3_queda_en_t21():
+    """8: la caché que `statusline-render.py` no escribe con una raíz en ruta corta 8.3 se vigila como
+    las demás deudas de T-21, con el fichero en su campo `Archivos`."""
+    ledger = (Path(__file__).parents[1] / 'docs/roadmap/2026-11-09-plugin-audit-remediation/tasks.md').read_text(encoding='utf-8')
+    t21 = ledger[ledger.index('### T-21'):]
+    t21 = t21[:t21.index('## Revisión de dos lentes')]
+    archivos = next(l for l in t21.splitlines() if l.startswith('- **Archivos**:'))
+    assert 'agent-kits/shared/statusline-render.py' in archivos
+    assert 'ruta corta 8.3' in t21
