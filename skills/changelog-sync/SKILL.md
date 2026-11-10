@@ -16,11 +16,11 @@ Genera las entradas `[Unreleased]` (EN) y `[Sin publicar]` (ES) del CHANGELOG a 
 
 Al cerrar una iniciativa hay que dejar constancia en el CHANGELOG. Escribirlo «de memoria» al
 final del día es justo cuando se olvidan tareas y se inventa alcance (pasó en la v1.15.0: las
-notas se redactaron a mano cuatro veces — [`LES-012`](../../docs/knowledge/lessons/)). Aquí la
+notas se redactaron a mano cuatro veces — `LES-012`, del registro de desarrollo del plugin, que no se distribuye). Aquí la
 fuente es el **ledger canónico**, que ya tiene el título, la descripción y los ficheros de cada
 tarea; el script solo los traslada.
 
-**El resumen lo escribe quien cierra la tarea, no lo adivina el script** ([`ADR-012`](../../docs/knowledge/adr/ADR-012-resumen-del-changelog-lo-escribe-quien-cierra-la-tarea.md)).
+**El resumen lo escribe quien cierra la tarea, no lo adivina el script** (`ADR-012` del registro de desarrollo del plugin, que no se distribuye).
 La `Descripción` del ledger está escrita para el implementador: medida sobre los **13 ledgers
 cerrados** de este repo (**63 tareas**),<!--m:base_ledgers=13,base_tareas=63--> su primera frase
 tenía **mediana 447 y máximo 1.944 caracteres** (la foto del 2026-09-04, con el script de

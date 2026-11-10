@@ -5,9 +5,9 @@
     {
       "before_sha256": "0cb54a3904a6584fbda161ccc7c9f4af1e86c0837818bad258d0b5f0d88b794c",
       "before_file": "commands/dev-cycle.md",
-      "after_sha256": "8f916f5588e4ebe9a9272c767fe83517f91af8125b75e364005e8e3e64b5767d",
+      "after_sha256": "efa522090025a0246ed4bbde061a50d30fe632581ce59f3180ee1a174a36a44b",
       "after_file": "commands/dev-cycle.md",
-      "reason": "Neutral measurement handoff; retains start/close, measured/estimated distinction, fix windows and reviewer allocation. Audit H-15: the light ledger declares `test-plan: n/a (sin UI)` when there is no UI and qa reads that marker from tasks.md in the quick path (no improvement-plan.md), so the quick path has an executable QA gate; the equivalent ledger and ADR remarks are condensed to keep the quick-path saving. Audit H-24/H-25: «seguir» after the 3rd attempt opens a new bounded cycle with the user's OK quoted by ledger-write.py --new-cycle-ok; the commit procedure has a single owner (implementer P4, where commit-selection.py now lives) and Phase 6 only verifies it and reuses it for the orchestrator's own artefacts."
+      "reason": "Neutral measurement handoff; retains start/close, measured/estimated distinction, fix windows and reviewer allocation. Audit H-15: the light ledger declares `test-plan: n/a (sin UI)` when there is no UI and qa reads that marker from tasks.md in the quick path (no improvement-plan.md), so the quick path has an executable QA gate; the equivalent ledger and ADR remarks are condensed to keep the quick-path saving. Audit H-24/H-25: «seguir» after the 3rd attempt opens a new bounded cycle with the user's OK quoted by ledger-write.py --new-cycle-ok; the commit procedure has a single owner (implementer P4, where commit-selection.py now lives) and Phase 6 only verifies it and reuses it for the orchestrator's own artefacts. Audit minors (T-21): the review sentence names Lens D (performance) next to Lens C, as adversarial-review and CLAUDE.md already do; nothing else in the paragraph changes."
     },
     {
       "before_sha256": "35918c8063f7a49bfec19df53fc6644fa3fccb6f806bdaffd2c8ab96658c9a6c",
@@ -61,9 +61,9 @@
     {
       "before_sha256": "144a3a36420a1b4aae1dd64ab85f89ee7d07c720009177ea7fd40b3b29931d78",
       "before_file": "skills/quick-implement/SKILL.md",
-      "after_sha256": "db76536e9e4dc7c48defcf424ed75c0e1c7f4b8719f7b70b3b0138f49fb306cd",
+      "after_sha256": "2252f994cf3847401eda297a89ec7e6feb6845d8510990e15b0378385fae6cf1",
       "after_file": "skills/quick-implement/SKILL.md",
-      "reason": "Plugin-root resolution fix: step 3 builds SHAREDKIT from the plugin root R already resolved for DEVCYCLE instead of a second lookup; same model-tier gate."
+      "reason": "Plugin-root resolution fix: step 3 builds SHAREDKIT from the plugin root R already resolved for DEVCYCLE instead of a second lookup; same model-tier gate. Audit minors (T-21): the review sentence names Lens D (performance) next to Lens C, as adversarial-review and CLAUDE.md already do; nothing else in the paragraph changes."
     },
     {
       "before_sha256": "f86c9ae830bdd207ddae88c7bfe3c0122b3d4654afca1308ac9b54255f103cca",

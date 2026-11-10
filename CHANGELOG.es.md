@@ -36,6 +36,14 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - El panel servido ya no recalcula el progreso en cada sondeo ni deja esperando al resto de rutas mientras lo hace, y la consola solo arranca los CLI de sesiones nativas en la vista Sesiones, cada vez más espaciados si nada cambia, recuerda los runtimes instalados y da plazo a la lectura del resumen de revisiones.
 - Las puertas tardan menos con los mismos resultados: scope-check mira el disco una vez por patrón, el archivado de ledgers grandes y code-health ya no recorren cada carácter, el brief de una tarea valida el ledger sin lanzar otro Python y la barra de estado solo arranca Python cuando cambia el roadmap.
 
+### Fixed — iniciativa `plugin-audit-remediation`, fase 4: consumo de tokens (2026-11-10)
+
+- Los roles ya no releen la selección de capacidades ni las integraciones en cada despacho: el orquestador las resuelve una vez por ciclo y se lo dice a cada rol («sin integraciones» si no hay ninguna), y el brief de la tarea lo indica.
+- El flujo completo de `/dev-cycle` y `/doctor` cargan mucho menos texto por defecto: las recetas de revisión visual del plan y las notas internas de `/doctor` viven en su propia referencia y solo se leen si hacen falta, y `scope-check` imprime su remedio en vez de repetirlo dos prompts. La vía rápida sigue ahorrando al menos 6.000 tokens estimados.
+- El bloque de arranque de sesión y cada brief de tarea traen la ruta del kit activo, así que un subagente sin `CLAUDE_PLUGIN_ROOT` ya no ejecuta el `find` de resolución.
+- OpenCode reutiliza el contexto de sesión hasta que cambia su firma (sin recomponerlo por evento ni a los 30 segundos), y solo los agentes con la herramienta `Agent` reciben la instrucción de delegar en las exportaciones de Codex y OpenCode.
+- Arreglos menores: los documentos de revisión nombran la Lente D y la guardia global de ADR-023; las piezas distribuidas ya no citan rutas de memoria que no viajan; la cookie de la consola es por puerto, siete códigos de error más tienen mensaje y el chat es una región viva; `release.py` bloquea ante una `.MANUAL-COPY` pendiente; `ledger-lint` avisa de las tareas completadas sin `RED:` con `tdd: true`; las sesiones del journal recuperadas tarde ya no se atribuyen a la iniciativa vigente; `/doctor` avisa si falta `node`; la caché de la barra de estado funciona con rutas cortas 8.3.
+
 ## [3.2.3] - 2026-11-09
 
 ### Fixed — resolución de la raíz del plugin y doctor (2026-11-09)

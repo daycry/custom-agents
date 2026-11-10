@@ -36,6 +36,14 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - The served panel no longer recomputes progress on every poll nor keeps other routes waiting while it does, and the console only starts the native-session CLIs in the Sessions view, further apart while nothing changes, remembers the installed runtimes and puts a deadline on the review-summary read.
 - The gates run faster with the same results: scope-check checks the disk once per pattern, archiving large ledgers and code-health no longer walk every character, a task brief validates the ledger without starting another Python, and the statusline only starts Python when the roadmap changes.
 
+### Fixed — `plugin-audit-remediation` initiative, phase 4: token consumption (2026-11-10)
+
+- Roles no longer re-read the capability selection or the integrations at every dispatch: the orchestrator resolves them once per cycle and tells each role («sin integraciones» when there are none), and the task brief says so.
+- The full `/dev-cycle` flow and `/doctor` load far less text by default: the visual plan review recipes and the internal `/doctor` notes live in their own reference and are read only when needed, and `scope-check` prints its own remedy instead of two prompts repeating it. The quick path still saves at least 6,000 estimated tokens.
+- The session start block and every task brief carry the active kit path, so a subagent without `CLAUDE_PLUGIN_ROOT` no longer runs the lookup `find`.
+- OpenCode reuses the session context until its signature changes (no per-event or 30-second recomputation), and only agents with the `Agent` tool receive the instruction to delegate in the Codex and OpenCode exports.
+- Minor fixes: the review docs name Lens D and the global guard of ADR-023; shipped pieces no longer cite memory paths that do not ship; the console cookie is scoped by port, seven more error codes have a message and the chat is a live region; `release.py` blocks on a pending `.MANUAL-COPY`; `ledger-lint` warns about completed tasks without `RED:` when `tdd: true`; journal sessions recovered late are no longer attributed to the current initiative; `/doctor` warns when `node` is missing; the statusline cache works with 8.3 short paths.
+
 ## [3.2.3] - 2026-11-09
 
 ### Fixed — plugin root resolution and doctor (2026-11-09)

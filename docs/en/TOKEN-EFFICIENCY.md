@@ -95,6 +95,29 @@ metrics. Compare the same goal, revision, model, conditions and success criteria
 Disclose retries, measurement coverage and cache data only when provided by the
 source. These helpers do not inspect conversations or call models or services.
 
+## What is loaded by default after the 3.2.2 audit
+
+Phase 4 of [the audit remediation](../roadmap/2026-11-09-plugin-audit-remediation/tasks.md)
+moved text that almost nobody needs on every dispatch. The figures are **size**
+(UTF-8 characters with LF, measured with `context-footprint.py`; tokens = characters/4,
+no tokenizer) and **not** observed or billed usage: fewer characters do not prove
+token savings until `usage-meter.py` measures them on the same goal and model.
+
+| What changes | Before | After |
+|---|---|---|
+| Visual plan review, out of `phase2-planning.md` (read only when asked) | 18,136 | 3,034 (+15,536 in `phase2-plan-review.md`) |
+| Internal `/doctor` notes, moved to `docs/reference/doctor.md` | 16,626 | 5,491 (+12,042 in the doc) |
+| `scope-check` warning explanation repeated in implementer and adversarial-review | 29,396 + 18,972 | 28,632 + 18,104 (the script prints its own remedy) |
+| Agents without `Agent`: instruction to delegate in Codex and OpenCode | 20 generated files | −6,264 (Codex) and −5,526 (OpenCode) bytes |
+| OpenCode context | recomputed per event and every 30 s | reused while its signature does not change |
+
+What grows is declared: each agent gains 139-296 characters with the rule «if the
+brief already carries the capability selection or «sin integraciones», do not re-read
+`capability-check.md` nor `project-integrations.md`» (5,491 and 5,306 characters that
+a dispatch with a selection no longer reads), and the session block and the brief carry
+a line with the kit path to avoid the `find`. The `/dev-cycle` quick path still saves
+at least 6,000 estimated tokens (6,136).
+
 ## Tool results and handoffs
 
 Keep full logs and exit codes while showing concise summaries and relevant

@@ -74,8 +74,8 @@ solo van los nombres, para no mantener una copia que se desincronice:
    con `python3 "$SHAREDKIT/model-tier.py" implementer --json` (`SHAREDKIT="${R:+$R/agent-kits/shared}"`, con la raíz `R` observada al resolver `DEVCYCLE`) y pasa `model` al Agent tool solo si
    `fuente.model` es `dev.json` (el `effort` de `dev.json` es informativo; sin script → frontmatter).
 4. **Las puertas NO se saltan**: la revisión adversarial es la skill **`adversarial-review`** (fuente
-   única del método: puerta `scope-check.py` antes de gastar revisores, lentes A/B + lente C de
-   seguridad condicional, bucle acotado a 3) y después `qa` con `qa-gate` (todo dentro de la Fase 3). Es lo que separa la vía rápida de "escribir código a lo loco": ahorra
+   única del método: puerta `scope-check.py` antes de gastar revisores, lentes A/B + C (seguridad) y
+   D (rendimiento) condicionales, bucle acotado a 3) y después `qa` con `qa-gate` (todo dentro de la Fase 3). Es lo que separa la vía rápida de "escribir código a lo loco": ahorra
    ceremonia, no seguridad. Solo se omiten a petición **explícita** del usuario.
 5. **Cierre**: estados finales del ledger y ritual de cierre de rama si hay rama.
 

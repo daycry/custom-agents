@@ -31,6 +31,7 @@ class ConsoleServer(ThreadingMixIn,HTTPServer):
         self.workspaces=workspaces;self.service=USE_CASES.Service(workspaces,sessions)
         self.token=secrets.token_urlsafe(32);self.cookie_nonce=secrets.token_urlsafe(32);self.slots=threading.BoundedSemaphore(16)
         super().__init__(('127.0.0.1',port),Handler)
+        self.cookie_name='ca_console_%d'%self.server_address[1]   # cookies are per host, not per port
     def process_request(self,request,address):
         if not self.slots.acquire(blocking=False):
             try:request.sendall(b'HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n')
@@ -78,7 +79,7 @@ class Handler(BaseHTTPRequestHandler):
         parsed=SimpleCookie()
         try:parsed.load(cookies[0])
         except Exception:raise C.ConsoleError('authentication_required',401) from None
-        token=parsed.get('ca_console')
+        token=parsed.get(self.server.cookie_name)
         C.need(token is not None and token.value.isascii() and hmac.compare_digest(token.value,self.server.cookie_nonce),'authentication_required',401)
         authorization=self.headers.get_all('Authorization') or []
         C.need(len(authorization)==1 and authorization[0].isascii() and hmac.compare_digest(authorization[0],'Bearer '+self.server.token),'authentication_required',401)
@@ -129,7 +130,7 @@ class Handler(BaseHTTPRequestHandler):
         self._guard(write=True);data=self._body()
         if self.path=='/api/bootstrap':
             C.need(set(data)=={'token'} and type(data['token']) is str and data['token'].isascii() and hmac.compare_digest(data['token'],self.server.token),'invalid_capability',403)
-            self._json({'status':'authenticated'},cookie='ca_console='+self.server.cookie_nonce+'; Path=/; HttpOnly; SameSite=Strict');return
+            self._json({'status':'authenticated'},cookie=self.server.cookie_name+'='+self.server.cookie_nonce+'; Path=/; HttpOnly; SameSite=Strict');return
         self._auth()
         match=re.fullmatch('/api/workspaces/'+WORKSPACE+'/(.+)',self.path)
         C.need(match is not None,'route_not_found',404)

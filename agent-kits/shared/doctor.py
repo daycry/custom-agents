@@ -314,6 +314,14 @@ def _herramientas_opcionales():
     node, npm = shutil.which("node"), shutil.which("npm")
     if node and npm:
         ls.append(linea(OK, "node/npm", "en PATH (opcional)"))
+    elif not node:
+        # Los hooks del plugin se lanzan con `node hooks/run-hook.mjs`: sin node ninguno arranca y cada
+        # uno da «command not found» (exit 127). El ciclo local no se bloquea, pero se pierden journal,
+        # índice de sesión, progreso en vivo y las guardias (auditoría 2026-11-09, menores).
+        ls.append(linea(AVISO, "node/npm", "falta node: los hooks del plugin no arrancan (cada uno da "
+                        "«command not found»; no bloquea el trabajo, pero no hay journal, índice de "
+                        "sesión, progreso en vivo ni guardias)",
+                        "instala node (v18 o superior) y reinicia la sesión; npm solo lo necesita la skill `to-pdf`"))
     else:
         falta = " y ".join(x for x, p in (("node", node), ("npm", npm)) if not p)
         ls.append(linea(INFO, "node/npm", f"falta {falta} (opcional)",

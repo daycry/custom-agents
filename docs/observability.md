@@ -9,6 +9,12 @@ contexto y fuerza `--ia no` durante replay. En Windows sigue usando el superviso
 y su cierre de procesos. La invocación directa del shell anterior permanece
 disponible. El timeout se mantiene hasta completar su validación medida.
 
+**Sin node.** Todos los hooks del plugin se lanzan con `node hooks/run-hook.mjs`: si `node`
+no está en el PATH, cada hook da «command not found» (exit 127). No bloquea el trabajo, pero
+no hay journal, índice de sesión, progreso en vivo ni guardias; `/doctor` lo avisa con su
+arreglo (instalar node y reiniciar la sesión). El resto del plugin (comandos, agentes y
+scripts de las puertas) solo necesita Python.
+
 El marcador de documentación pendiente (`.claude/.confluence-pending`) se crea
 directamente en el launcher Node para los tres runtimes, sin Python ni shell.
 Conserva los filtros de `docs/` y excluye `docs/security-scan/` y `docs/confluence/`.

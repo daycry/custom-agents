@@ -320,3 +320,48 @@ def test_fix3_8_la_deuda_de_la_ruta_corta_8_3_queda_en_t21():
     archivos = next(l for l in t21.splitlines() if l.startswith('- **Archivos**:'))
     assert 'agent-kits/shared/statusline-render.py' in archivos
     assert 'ruta corta 8.3' in t21
+
+
+# --- T-21: deuda de la ruta corta 8.3 (revisión fase 3, intento 3, punto 8) --------------------------
+
+def _render_module():
+    import importlib.util
+    path = Path(__file__).parents[1] / 'agent-kits/shared/statusline-render.py'
+    spec = importlib.util.spec_from_file_location('statusline_render_t21', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _short_alias(path):
+    """The 8.3 alias of an existing directory (Windows only), or None."""
+    if os.name != 'nt':
+        return None
+    import ctypes
+    buffer = ctypes.create_unicode_buffer(1024)
+    size = ctypes.windll.kernel32.GetShortPathNameW(str(path), buffer, 1024)
+    return buffer.value if 0 < size < 1024 else None
+
+
+def test_t21_cache_is_written_when_the_root_is_an_8_3_short_path(tmp_path):
+    root = tmp_path / 'a project with a long name'
+    root.mkdir()
+    short = _short_alias(root)
+    if not short or Path(short).resolve() == Path(short):
+        pytest.skip('no distinct 8.3 alias on this machine')
+    key = 'a' * 64
+    _render_module().write_cache(short, key, 'data\n')
+    assert (root / '.claude' / 'statusline-cache').read_text(encoding='utf-8') == key + '\ndata\n'
+
+
+def test_t21_a_redirected_dot_claude_still_blocks_the_cache(tmp_path):
+    root = tmp_path / 'project'
+    root.mkdir()
+    elsewhere = tmp_path / 'elsewhere'
+    elsewhere.mkdir()
+    try:
+        (root / '.claude').symlink_to(elsewhere, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip('symlinks unavailable')
+    _render_module().write_cache(str(root), 'b' * 64, 'data\n')
+    assert not (elsewhere / 'statusline-cache').exists()

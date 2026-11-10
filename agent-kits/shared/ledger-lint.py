@@ -53,6 +53,7 @@ horas IA) sin efectos secundarios — lo reutiliza `progress-report.py` (live-vi
 """
 import argparse
 import datetime
+import json
 import os
 import re
 import sys
@@ -784,6 +785,31 @@ def _parse_horas(campo):
     return est, real
 
 
+_RED_RE = re.compile(r"^\s*(?:\*\*)?(?:RED(?:\s+[\w-]+)?\s*:|TDD\s+n/a\b)", re.M)
+
+
+def _tdd_activo(path):
+    """¿El `.claude/dev.json` del proyecto de este ledger declara `tdd: true`? Se busca subiendo desde
+    la carpeta del ledger (hasta 6 niveles); sin fichero, ilegible o sin la clave → False."""
+    try:
+        carpeta = os.path.dirname(os.path.abspath(path))
+    except (TypeError, ValueError):
+        return False
+    for _ in range(6):
+        candidato = os.path.join(carpeta, ".claude", "dev.json")
+        if os.path.isfile(candidato):
+            try:
+                with open(candidato, encoding="utf-8-sig") as fh:
+                    return json.load(fh).get("tdd") is True
+            except (OSError, ValueError, AttributeError):
+                return False
+        padre = os.path.dirname(carpeta)
+        if padre == carpeta:
+            break
+        carpeta = padre
+    return False
+
+
 def lint(path, *, text=None, parsed=None):
     """Validate a ledger; a composing caller may supply matching text and its shared parse."""
     errors, warnings = [], []
@@ -953,6 +979,16 @@ def lint(path, *, text=None, parsed=None):
                 errors.append(
                     f"resumen descuadrado en «{nombre.strip()}»: tabla dice "
                     f"{comp}/{total}, las tareas dicen {rdone}/{rtotal}")
+
+    # ---- TDD (deuda de T-08): con `tdd: true` una tarea completada trae la evidencia del rojo ----
+    # Hoy solo lo comprobaba la Lente A (criterio 5b); aquí es un AVISO mecánico, nunca un error.
+    if path and any(t["estado"] == "completado" for t in all_tasks) and _tdd_activo(path):
+        bloques = bloques_de_tarea(text)
+        for t in all_tasks:
+            if t["estado"] == "completado" and not _RED_RE.search(bloques.get(t["id"], "")):
+                warnings.append(f"{t['id']}: completado sin evidencia `RED:` ni `TDD n/a` (dev.json "
+                                f"`tdd: true`): añade la línea `RED: <test> falló con <error> · <fecha>` "
+                                f"o `TDD n/a: <motivo>` en la tarea")
     return errors, warnings
 
 

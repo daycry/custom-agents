@@ -14,7 +14,7 @@ description: >
 
 Revisión ADVERSARIAL de un diff con lentes de contexto fresco en paralelo — A (conformidad con spec/plan/constitución, ✓/✗ por criterio), B (defectos de corrección), C (seguridad, CONDICIONAL) y D (rendimiento, CONDICIONAL — ambas por `review-lens-select.py` sobre ficheros/líneas sensibles o costosas) — con fusión, graduación Critical/Important/Minor, bucle acotado a 3 intentos, rebate con evidencia y traza en el ledger («Revisión de dos lentes — intento N»). Fuente única del método que usan /dev-cycle (Fase 3) y quick-implement; también a demanda sobre una rama o rango sin ledger. NO sustituye a `qa` (E2E + qa-gate) ni a `nemesis` (auditoría de seguridad completa), y NO revisa estilo ni propone refactors.
 
-Patrón que más críticos reales ha cazado en este repo (`docs/knowledge/lessons/LES-010-*`): revisores
+Patrón que más críticos reales ha cazado en este repo (la lección LES-010 del registro de desarrollo de este plugin, que no se distribuye): revisores
 de **contexto fresco** que NO han visto implementar, cada uno con una lente, sobre el **diff**. Fuente
 única del método: `/dev-cycle` y `quick-implement` la invocan y conservan solo lo suyo (intentos, horas).
 

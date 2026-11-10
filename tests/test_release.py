@@ -333,6 +333,23 @@ def test_copia_manual_divergente_aborta(repo):
     assert _versions(repo) == ("1.1.0", "1.1.0", "1.1.0")
 
 
+def test_t21_copia_manual_pendiente_aborta_como_la_divergente(repo):
+    """Una `.MANUAL-COPY` cuyo destino en `.github/` no existe tampoco está «al día»: aborta."""
+    (repo / ".github" / "workflows" / "ci.yml").unlink()
+    git(repo, "add", "-A"); git(repo, "commit", "-q", "-m", "sin la copia")
+    r = run(repo, "1.2.3")
+    assert r.returncode == 1
+    assert "copia manual pendiente: cp ci.yml.MANUAL-COPY " + os.path.join(".github", "workflows", "ci.yml") in r.stderr
+    assert _versions(repo) == ("1.1.0", "1.1.0", "1.1.0")
+
+
+def test_t21_el_docstring_habla_de_los_cinco_manifiestos():
+    with open(SCRIPT, encoding="utf-8") as f:
+        texto = f.read()
+    assert "TRES sitios" not in texto and "las 3 versiones" not in texto
+    assert "CINCO manifiestos" in texto
+
+
 def test_arbol_github_templates_manual_copy_se_compara(repo):
     (repo / "github-templates.MANUAL-COPY" / "ISSUE_TEMPLATE").mkdir(parents=True)
     (repo / "github-templates.MANUAL-COPY" / "ISSUE_TEMPLATE" / "bug.yml").write_text("name: Bug\n")

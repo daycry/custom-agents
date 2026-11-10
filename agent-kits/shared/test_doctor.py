@@ -3301,3 +3301,30 @@ def test_fix3_b5_doctor_avisa_de_un_ledger_ilegible_en_vez_de_decir_ninguna(tmp_
     roto.write_bytes(b"---\nestado: en-progreso\n---\n### T-01 \xff\xfe\n")
     filas = doctor._iniciativas(ROOT, str(tmp_path))
     assert any(f["estado"] == doctor.AVISO and "invalid_encoding" in f["detalle"] and f["arreglo"] for f in filas), filas
+
+
+# --- T-21 (menores de la auditoría): sin node, cada hook del plugin da «command not found» ---------
+
+def _herramienta(monkeypatch, presentes):
+    real = doctor.shutil.which
+    monkeypatch.setattr(doctor.shutil, "which",
+                        lambda nombre, *a, **k: ("/bin/" + nombre) if nombre in presentes else real(nombre, *a, **k)
+                        if nombre not in ("node", "npm", "jq") else None)
+    return {l["que"]: l for l in doctor._herramientas_opcionales()}
+
+
+def test_t21_sin_node_avisa_de_que_los_hooks_no_arrancan(monkeypatch):
+    filas = _herramienta(monkeypatch, {"npm"})
+    fila = filas["node/npm"]
+    assert fila["estado"] == doctor.AVISO
+    assert "hooks" in fila["detalle"] and "command not found" in fila["detalle"]
+    assert "node" in fila["arreglo"] and "no bloquea" in fila["detalle"] + fila["arreglo"]
+
+
+def test_t21_con_node_y_sin_npm_solo_informa_de_to_pdf(monkeypatch):
+    fila = _herramienta(monkeypatch, {"node"})["node/npm"]
+    assert fila["estado"] == doctor.INFO and "to-pdf" in fila["arreglo"]
+
+
+def test_t21_con_node_y_npm_sigue_ok(monkeypatch):
+    assert _herramienta(monkeypatch, {"node", "npm"})["node/npm"]["estado"] == doctor.OK

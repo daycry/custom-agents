@@ -35,6 +35,13 @@ const errors={
  document_unavailable:'Este documento no está disponible en el plan.',
  task_unavailable:'No se ha podido leer el detalle de esta tarea.',
  response_budget:'El resultado supera el límite de esta vista. Acota el alcance.',
+ workspace_not_found:'Este proyecto ya no está en el registro de la consola. Actualiza la lista de proyectos.',
+ session_not_found:'No se encuentra esta sesión en la consola. Actualiza la lista de conversaciones.',
+ session_not_resumable:'Esta sesión no se puede retomar ahora. Comprueba su estado en el entorno nativo.',
+ session_not_running:'La sesión no está en marcha, así que no hay nada que enviar o detener.',
+ runtime_not_enabled:'Este entorno no está habilitado para el proyecto. Actívalo en su configuración.',
+ native_busy:'El entorno nativo está atendiendo otra petición. Espera a que termine antes de repetir.',
+ native_connection_lost:'Se perdió la conexión con el entorno nativo. Comprueba que sigue en marcha y reconecta.',
  service_unavailable:'No se pudo preparar esta vista. Actualiza y revisa el diagnóstico si se repite.'}
 
 const accessStorageKey='custom-agents-console-access-v1'

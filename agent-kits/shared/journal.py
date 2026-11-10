@@ -1734,7 +1734,10 @@ def draft(root, session_id=None, transcript=None, reason=None, enrich=None, capt
         "iniciativa": iniciativa,
         # fix2 B-M4: la etiqueta sale de la regla única (`iniciativa_vigente`); solo estas entradas
         # se citan como historial de una iniciativa al arrancar.
-        **({"regla_iniciativa": "vigente"} if iniciativa != "n/a" else {}),
+        # T-21 (deuda de T-07): una sesión recuperada tarde (`orphan_recovery`) se redacta con la
+        # iniciativa vigente AL RECUPERAR, que puede no ser la suya: sin la marca no se cita como
+        # historial de ninguna iniciativa (sigue en la bitácora, atribuible solo por identidad).
+        **({"regla_iniciativa": "vigente"} if iniciativa != "n/a" and reason != "orphan_recovery" else {}),
         "resumen": str(resumen),
         "resumen_por": resumen_por,
         "turnos": len(turnos),

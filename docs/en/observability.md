@@ -9,6 +9,12 @@ services in the same interpreter, preserves context order and limits, and forces
 Direct invocation of the previous shell remains available. The timeout is retained
 until its measured validation is complete.
 
+**Without node.** Every plugin hook is launched with `node hooks/run-hook.mjs`: if `node`
+is not on the PATH, each hook prints «command not found» (exit 127). Work is not blocked,
+but there is no journal, session index, live progress or guards; `/doctor` warns about it
+with its fix (install node and restart the session). The rest of the plugin (commands,
+agents and the gate scripts) only needs Python.
+
 The pending documentation marker (`.claude/.confluence-pending`) is created
 directly by the Node launcher for all three runtimes, without Python or a shell.
 It retains the `docs/` filter and excludes `docs/security-scan/` and `docs/confluence/`.

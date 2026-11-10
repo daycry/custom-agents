@@ -28,7 +28,7 @@ assets, y sin la bandera un proyecto sin memoria devuelve 0 aciertos (spec CA-21
 | `LES-014` (comentarios de Jira firmados por script) | ❌ | integración concreta de `jira-sync`, ya cableada en la skill |
 | `ADR-*`, `GOT-*` | ❌ | decisiones y trampas de este repo; lo universal que contienen ya vive en las skills y fragmentos que viajan (p. ej. `GOT-005` → snippet de codificación en cada script) |
 
-**Una sola fuente.** Los 9 ficheros de `assets/doctrina/` son copias **byte a byte** de `docs/knowledge/lessons/LES-001…009`
+**Una sola fuente.** Los 9 ficheros de `assets/doctrina/` son copias **byte a byte** de las lecciones LES-001…009 del registro de desarrollo del plugin (`docs/knowledge/`, que no se distribuye)
 y `tests/test_doctrina_viaja.py` lo exige (mismo patrón que las copias `.MANUAL-COPY`). Para cambiar una lección:
 edita la de `docs/knowledge/lessons/` y copia el fichero. La carpeta no lleva README: contiene exactamente las 9.
 No viaja en el paquete portable «solo skills» (`scripts/export-skills.py`): sin `evaluator` no hay quien la aplique.

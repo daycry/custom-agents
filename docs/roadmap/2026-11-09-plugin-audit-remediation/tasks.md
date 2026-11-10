@@ -19,8 +19,8 @@ changelog: Fixed
 | Fase 1 | 6 | 6 | 100.0% |
 | Fase 2 | 6 | 6 | 100.0% |
 | Fase 3 | 4 | 4 | 100.0% |
-| Fase 4 | 4 | 5 | 80.0% |
-| **TOTAL** | **20** | **21** | **95.2%** |
+| Fase 4 | 5 | 5 | 100.0% |
+| **TOTAL** | **21** | **21** | **100.0%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -529,7 +529,9 @@ GREEN fix3: `pytest tests/test_statusline_cache.py` → `45 passed` antes del te
 
 ## Fase 4 — Consumo de tokens
 
-**Estado**: en-progreso
+**Estado**: completado
+
+Medidas de tamaño antes y después (separadas del consumo observado, que no se midió): `testing/tokens.md`, borrador en el scratchpad de la sesión (`<scratchpad>/tokens/tokens.md`, ruta exacta en el informe de entrega; el orquestador lo copia a `testing/`).
 
 ### T-17 — Capacidades e integraciones una vez por ciclo
 
@@ -602,14 +604,51 @@ GREEN: `node --test tests/opencode-plugin.test.mjs` 26 pass (read, bash, prompt 
 
 ### T-21 — Documentación alineada y menores
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: Menores de la auditoría: Lente D en `dev-cycle`, `quick-implement` y CLAUDE.md; hooks globales y ADR-023 en CLAUDE.md; consola frente a panel servido; rutas de memoria que no viajan; shells muertos; degradación sin node; `release.py` (5 manifiestos, `.MANUAL-COPY` pendiente); cookie por puerto; mapa de errores y `aria-live` de la consola. Deuda de T-15 (revisión fase 3 intento 1, A5): ejecutar `tests/e2e/control-center.mjs` con `puppeteer` y el servidor de fixture, que no se pudo correr en la máquina de la fase (`puppeteer` no instalado). Deuda anterior a la fase 3 (revisión intento 2): con la raíz del proyecto en una ruta corta 8.3 de Windows, `statusline-render.py` no escribe nunca la caché (`resolve()` expande la ruta y la compara con la corta). Decisión pendiente del usuario (revisión fase 3 intento 3, punto 9): las trazas de la Fase 3 usan el veredicto «evidenciado (medida)» para gaps de evidencia o de criterio sin test dedicado, una excepción que `docs/CONSTITUTION.md` (l. 13) no recoge; propuesta: o una línea en la constitución («un gap de evidencia o de criterio se cierra con la medida o la ejecución que lo prueba, citada en la traza») o un ADR que la registre. No se toca la constitución sin el usuario.
 - **Notas**: Incluye la deuda de T-07 (revisión fase 2 intento 3, punto 12): `journal.py recover` redacta una sesión huérfana con la iniciativa vigente AL RECUPERAR y la marca `regla_iniciativa: vigente`, aunque la sesión fuera de otra iniciativa; decidir si las recuperadas tarde no llevan la marca. Incluye la deuda de T-08 (revisión fase 2 intento 1, A2): un aviso de ledger-lint para las tareas `completado` sin `RED:` ni `TDD n/a` cuando `dev.json` trae `tdd: true` (hoy solo lo comprueba la Lente A, criterio 5b). Incluye la deuda de T-05: nueva edición PDF de los manuales `docs/guides/subscription-efficiency.md` y `docs/guides/quality-playbook.md` para que digan que lite despacha al implementer nativo.
-- **Archivos**: `CLAUDE.md`, `commands/*.md`, `skills/**/SKILL.md`, `docs/**`, `hooks/*.sh`, `scripts/release.py`, `skills/plugin-panel/**`, `interop/**`, tests afectados, `agent-kits/shared/statusline-render.py` (deuda de la ruta corta 8.3; revisión fase 3 intento 3, punto 8).
+- **Archivos**: `CLAUDE.md`, `commands/*.md`, `skills/**/SKILL.md`, `docs/**`, `hooks/*.sh`, `scripts/release.py`, `skills/plugin-panel/**`, `interop/**`, tests afectados, `agent-kits/shared/statusline-render.py` (deuda de la ruta corta 8.3; revisión fase 3 intento 3, punto 8), `agent-kits/evaluator/README.md` (ruta de memoria que no viaja), `agent-kits/shared/journal.py`, `agent-kits/shared/ledger-lint.py`, `agent-kits/shared/doctor.py`, `skills/plugin-panel/**`, `docs/TOKEN-EFFICIENCY.md`, `docs/en/TOKEN-EFFICIENCY.md`, `CHANGELOG.md`, `CHANGELOG.es.md` y las pruebas de la regresión de CI (`agent-kits/shared/test_redact.py`, `tests/test_audit_journal.py`, `tests/test_memory_local_recovery.py`, `tests/test_kit_path_injection.py`, `commands/doctor.md`) (añadidos por el implementer).
 - **Verificación**: lint 0 errores, evals 0 errores, interop al día, CI completa en Linux verde.
+- **Tiempo IA (ejec.)**: real 0,61h (medido)
+- **Changelog**: Arreglos menores de la auditoría: la documentación de revisión nombra la Lente D y la guardia global, la consola usa una cookie por puerto y avisa mejor de sus errores, release.py bloquea ante una copia manual pendiente, ledger-lint avisa de las tareas completadas sin RED y /doctor avisa si falta node.
+- **Cerrada**: 2026-11-10
 
 **Criterios de aceptación**
-- [ ] Los menores de la auditoría quedan corregidos o descartados con motivo en este ledger.
+- [x] Los menores de la auditoría quedan corregidos o descartados con motivo en este ledger.
+
+**Resolución de los menores y de la deuda (T-21)**
+
+| Elemento | Resultado |
+|---|---|
+| Lente D en `dev-cycle`, `quick-implement` y CLAUDE.md | Corregido (`tests/test_docs_alignment_t21.py`; los párrafos cambiados se registran en `dev-cycle-modular-replacements.json`) |
+| Hooks globales y ADR-023 en CLAUDE.md | Corregido (guardia global previa por identidad nativa) |
+| Consola frente a panel servido | Corregido en CLAUDE.md (`/plugin-catalog --serve` abre `control_center.py`; `build_panel.py --serve` es el informativo) |
+| Rutas de memoria que no viajan (LES-010, LES-012, ADR-012, ADR-019) | Corregido en `adversarial-review`, `changelog-sync`, `training-data-services` y el README del kit del evaluator: ya no citan rutas de `docs/knowledge/`. ADR-011 y ADR-017 solo aparecen como IDs sin ruta: sin cambio |
+| Shells muertos (`session-context.sh`, `progress-line.sh`, `ledger-lint-warn.sh`) | **No retirados, deuda con motivo:** son el oráculo de paridad de unas 57 pruebas de `tests/test_hooks_shell.py` y de `test_session_context.py`, y sus nombres son identidades de hook en `run-hook.mjs`, `build_panel.py`, `export-interop.py` y los fixtures golden del panel; quitarlos exige reescribir esas pruebas sobre el Python nativo. Propuesta: iniciativa propia |
+| Degradación sin node | Corregido: `/doctor` avisa (⚠️ con arreglo) y `docs/observability.md` + espejo EN lo documentan |
+| `skill-index.py` ignora `sesion.indice: false` con BOM | Ya estaba corregido (`utf-8-sig`); comprobado: con BOM no emite nada |
+| `release.py` (5 manifiestos, `.MANUAL-COPY` pendiente) | Corregido: docstring y bloqueo por copia pendiente (`tests/test_release.py`) |
+| Cookie por puerto | Corregido (`ca_console_<puerto>`; `tests/test_control_center_http.py`) |
+| Mapa de errores de la consola y `aria-live` | Corregido: 7 códigos con mensaje, chat `role="log"` `aria-live="polite"` (`tests/test_console_errors_and_live_region.py`) |
+| Preguntas o permisos nativos pendientes solo dentro de Sesiones | **Descartado:** un indicador global es una función nueva y la spec excluye funciones nuevas; el `aria-live` de `chat-requests` los anuncia dentro de Sesiones |
+| Deuda de T-15: `tests/e2e/control-center.mjs` con puppeteer | Ejecutado con `puppeteer-core` 23 (instalado en el scratchpad, fuera del repo) y Edge contra `tests/console_fixture_server.py`: 9 pasan, 0 fallan |
+| Deuda: ruta corta 8.3 y `statusline-render.py` (revisión fase 3, intento 3, punto 8) | Corregido: la caché se escribe con una raíz en ruta corta 8.3; `.claude` redirigido sigue bloqueando (`tests/test_statusline_cache.py`; la prueba del enlace simbólico se omite sin privilegio en esta máquina) |
+| Deuda de T-07: `journal.py recover` y `regla_iniciativa: vigente` | Decidido y corregido: las sesiones recuperadas tarde (`orphan_recovery`) no llevan la marca, así que no se citan como historial de la iniciativa vigente |
+| Deuda de T-08: aviso de ledger-lint sin `RED:` ni `TDD n/a` con `tdd: true` | Corregido (aviso, nunca error; `tests/test_ledger_lint.py`) |
+| Deuda de T-05: nueva edición PDF de los manuales | **No hecha, deuda con motivo:** exige la cadena de generación del PDF (diagramas y navegador) que no está disponible en esta máquina, y `check-handbook.py` ancla el PDF al markdown de `docs/guides/`; los manuales markdown ya dicen que lite despacha al implementer nativo. Queda para quien tenga esa cadena |
+| Decisión pendiente del usuario: veredicto «evidenciado (medida)» frente a `docs/CONSTITUTION.md` | **Sin tocar, sigue pendiente de decisión del usuario** (línea en la constitución o ADR) |
+
+RED: `tests/test_docs_alignment_t21.py` 4 failed, `tests/test_ledger_lint.py -k t21` 1 failed, `agent-kits/shared/test_journal.py -k t21` 2 failed, `tests/test_release.py -k t21` 2 failed, `tests/test_control_center_http.py -k t21` 1 failed, `tests/test_console_errors_and_live_region.py` 2 failed, `agent-kits/shared/test_doctor.py -k t21` 1 failed, `tests/test_statusline_cache.py -k t21` 1 failed: faltaban la Lente D, la guardia global y la distinción consola/panel en CLAUDE.md, 4 skills citaban rutas de `docs/knowledge/`, no había aviso de RED ausente con `tdd: true`, `recover` etiquetaba `vigente`, release no bloqueaba la copia pendiente ni hablaba de 5 manifiestos, la cookie era `ca_console` para todos los puertos, faltaban 7 códigos de error y el `aria-live` del chat estaba en `off`, sin node `/doctor` solo informaba y la caché de la barra de estado no se escribía con una ruta 8.3 · 2026-11-10.
+
+GREEN: las mismas pruebas pasan (`test_docs_alignment_t21.py` 5, `test_ledger_lint.py` 12, `test_journal.py` 194 + 10 skipped, `test_journal_selection.py` 68, `test_release.py` 29, `test_control_center_http.py` 22, `test_console_errors_and_live_region.py` 3, `test_doctor.py -k t21` 3, `test_statusline_cache.py` 47 + 1 skipped, `test_dev_cycle_split.py` 11 con ahorro de la vía rápida 6.136, `test_roadmap_index.py` 71, `test_plugin_panel.py` 110 + 2 skipped); `export-interop.py --check` 92 al día, lint 0 errores (16 avisos de siempre), evals 0 errores. Medidas de tamaño y su separación del consumo observado: borrador de `testing/tokens.md` en el scratchpad de la sesión (para copiar) y `docs/TOKEN-EFFICIENCY.md` + espejo EN · 2026-11-10.
+
+**Regresiones de CI de la fase 3 y de la fase 4** (PR 32 en rojo, 13 pruebas; reproducidas en Windows y en Linux `python:3.11-slim`)
+
+RED: 13 nodeids fallaban en 514409e: `test_redact.py::test_journal_real_fallback_without_redact_module` (`ImportError` de `journal-prompt.py`) y `::test_t10fix2_178_transcript_seguro_ramas` (`None`), `test_audit_journal.py::test_first_prompts_survive_the_atomic_link_publication_window` (`journal_update_conflict`), `test_memory_local_recovery.py` N01, N03, N04 x3, N05, N08 y N09 (sin entrada del journal ni log de prompts, `TypeError: string indices`), `test_console_encoding.py::test_las_suites_tambien_decodifican_a_sus_hijos_como_utf8` y `test_dataset_assembler.py::test_t10fix2_m12_el_limite_de_sistemas_de_ficheros_locales_esta_declarado` · 2026-11-10.
+
+Causas y arreglos: (1) commit de origen 544b50d (T-14, fase 3, H-31): `capture`, `_transcript_seguro` y `_asegurar_gitignore` pasaron a `journal-prompt.py`, que `journal.py` exige. Decisión: el bundle real SIEMPRE lo lleva (`run-hook.mjs` lo lanza solo y el instalador copia `agent-kits/` entero; el export de interop no enumera ficheros de kit y el paquete portable de skills no incluye el journal), así que NO se degrada `journal.py`: los bundles parciales de `test_redact.py` y de `test_memory_local_recovery.py` (lista de ficheros y bundle parcial de N08) copian también `journal-prompt.py`. (2) Los parches de las pruebas apuntaban a `journal` y no al módulo que ahora hace la comprobación: se redirigen a `journal._prompt_mod` y, para `JIO.IO`, a `journal._prompt_mod.JIO.IO` (journal-prompt carga su propia instancia de `journal-io`). (3) Fase 4, T-19: una prueba nueva lanzaba un subproceso en modo texto sin `encoding`; ahora `encoding='utf-8'`. (4) Fase 4, T-18: `commands/doctor.md` perdió la frase «sistemas de ficheros locales» (límite del tope de `/doctor`); se restaura en su sección Notas (+190 caracteres, sin tocar los presupuestos). Commits `b3f899d` y `d47c787`.
+
+GREEN: en Windows los tres ficheros completos (`test_redact.py` 130, `test_audit_journal.py` 21, `test_memory_local_recovery.py` 14) y los dos nodeids de la fase 4; en Linux (`git -c core.autocrlf=false archive HEAD` en `python:3.11-slim`, `-m 1g`, un contenedor): los tres ficheros + los dos nodeids → `162 passed, 4 skipped, 1 failed` (el fallo era un artefacto del contenedor: árbol sin `git add`, sin ficheros versionados) y, repetido con `git add -A`, `test_las_suites_tambien_decodifican_a_sus_hijos_como_utf8` → `1 passed` · 2026-11-10.
 
 ## Revisión de dos lentes — intento 1: Fase 1 (T-01…T-06) — 12 gaps corregidos (5 Important, 7 Minor), 4 descartados por el orquestador (T-01, T-02, T-03, T-04, T-05, T-06)
 
