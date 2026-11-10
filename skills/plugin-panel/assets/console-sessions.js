@@ -111,7 +111,7 @@ export function createSessions(app){
   if(signature===messageSignature)return
   messageSignature=signature;const root=$('chat-messages')
   const bottom=root.scrollHeight-root.scrollTop-root.clientHeight<100||!root.querySelector('.chat-message')
-  if(!session.messages?.length){ seenMessages=seenMessages||new Set()
+  if(!session.messages?.length){ seenMessages=seenMessages||new Map()
    empty(root,session.status==='connecting'?'Preparando tu entorno…':'¿Por dónde empezamos?',
     session.status==='connecting'?'La conexión está en preparación. Puedes escribir tu objetivo mientras esperas.':'Explica tu objetivo, pide un plan o continúa una tarea. Los permisos del entorno siguen vigentes.','chat')
    return
@@ -132,7 +132,7 @@ export function createSessions(app){
   if(session.truncated){truncatedNote=truncatedNote||el('p','Vista acotada de mensajes y operaciones. La historia nativa se conserva en su entorno.','small-muted');desired.unshift(truncatedNote)}
   reconcileChildren(root,desired)
   // The log is not a live region (it is rebuilt on every poll); only what is new is announced, in a region of its own.
-  if(seenMessages===null){seenMessages=new Set();newMessageAnnouncements(seenMessages,session.messages)}
+  if(seenMessages===null){seenMessages=new Map();newMessageAnnouncements(seenMessages,session.messages)}
   else{const fresh=newMessageAnnouncements(seenMessages,session.messages);if(fresh.length)$('chat-live').textContent=fresh.join(' ')}
   if(bottom)root.scrollTop=root.scrollHeight
  }

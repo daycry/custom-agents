@@ -70,14 +70,20 @@ export function reconcileChildren(root,desired){
  for(const child of [...root.children])if(!wanted.has(child))root.removeChild(child)
  desired.forEach((node,index)=>{if(root.children[index]!==node)root.insertBefore(node,root.children[index]||null)})
 }
-/* Text to announce for the messages not seen yet, in order; `seen` (a Set of ids) is updated. Only the assistant's
-   answers are announced (the user's own message is an echo), and each one is cut to `limit` characters. */
+/* Text to announce for the assistant's answers, in order: what is NEW with respect to what `seen` (a Map id → text
+   already announced) holds, so a streamed answer is read as it grows and an empty first fragment hides nothing. A text
+   that is not an extension of the announced one (a rewrite) is announced whole. The user's own message is an echo and
+   is never announced. Each piece is cut to `limit` characters. */
 export function newMessageAnnouncements(seen,messages,limit=280){
  const out=[]
  for(const message of messages||[]){
-  if(seen.has(message.id))continue
-  seen.add(message.id)
-  if(message.role!=='user'&&typeof message.text==='string'&&message.text.trim())out.push(message.text.trim().slice(0,limit))
+  if(message.role==='user'){seen.set(message.id,'');continue}
+  const text=typeof message.text==='string'?message.text:''
+  const before=seen.get(message.id)||''
+  if(!text.trim()||text===before)continue
+  const fresh=text.startsWith(before)?text.slice(before.length):text
+  seen.set(message.id,text)
+  if(fresh.trim())out.push(fresh.trim().slice(0,limit))
  }
  return out
 }

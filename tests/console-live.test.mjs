@@ -33,7 +33,7 @@ test('f4fix1 gap 6: an unchanged list is not touched and a dropped node is the o
 })
 
 test('f4fix1 gap 6: only the new assistant messages are announced, once',()=>{
- const seen=new Set()
+ const seen=new Map()
  const history=[{id:'1',role:'user',text:'hola'},{id:'2',role:'assistant',text:'respuesta uno'}]
  assert.deepEqual(newMessageAnnouncements(seen,history),['respuesta uno'])      // the first call reads history
  assert.deepEqual(newMessageAnnouncements(seen,history),[])                    // the next poll repeats nothing
@@ -52,4 +52,22 @@ test('f4fix1 gap 6: the log is not a live region and a separate one carries the 
  assert.ok(live.includes('aria-live="polite"')&&live.includes('sr-only'))
  const sessions=readFileSync(new URL('../skills/plugin-panel/assets/console-sessions.js',import.meta.url),'utf8')
  assert.ok(!/root\.replaceChildren\(\.\.\.desired\)/.test(sessions))
+})
+
+test('f4fix2 gap 3: a streamed answer is announced as it grows, never only its first fragment',()=>{
+ const seen=new Map()
+ const turn=text=>[{id:'u',role:'user',text:'hola'},{id:'a',role:'assistant',text}]
+ assert.deepEqual(newMessageAnnouncements(seen,turn('Primera parte.')),['Primera parte.'])
+ assert.deepEqual(newMessageAnnouncements(seen,turn('Primera parte.')),[])                       // same poll twice: silence
+ assert.deepEqual(newMessageAnnouncements(seen,turn('Primera parte. Segunda parte.')),['Segunda parte.'])
+ assert.deepEqual(newMessageAnnouncements(seen,turn('Primera parte. Segunda parte. Final.')),['Final.'])
+})
+
+test('f4fix2 gap 3: an empty first fragment does not hide the answer',()=>{
+ const seen=new Map()
+ const turn=text=>[{id:'a',role:'assistant',text}]
+ assert.deepEqual(newMessageAnnouncements(seen,turn('')),[])
+ assert.deepEqual(newMessageAnnouncements(seen,turn('   ')),[])
+ assert.deepEqual(newMessageAnnouncements(seen,turn('Ya hay respuesta.')),['Ya hay respuesta.'])
+ assert.deepEqual(newMessageAnnouncements(seen,turn('Otra versión distinta.')),['Otra versión distinta.'])   // rewritten text: announce it whole
 })
