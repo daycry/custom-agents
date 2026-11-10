@@ -169,7 +169,13 @@ def test_native_output_matches_shell_bytes(tmp_path, runtime, case):
                            input=payload, env=new_env, cwd=native_project, capture_output=True, timeout=90)
     assert before.returncode == after.returncode == 0
     assert before.stderr == after.stderr == b''
-    assert before.stdout == after.stdout
+    # The retired shell oracle knows nothing of the kit line of H-45 (T-19), which the native
+    # compositor puts first; every other byte must still match.
+    import re
+    kit_line = rb'Kit activo: SHAREDKIT=\\"[^"]*?\\" [^\n]*?\.\\n\\n'
+    native_stdout, removed = re.subn(kit_line, b'', after.stdout, count=1)
+    assert removed == (1 if after.stdout.strip() else 0)
+    assert before.stdout == native_stdout
     # These fixtures have no due envelopes: both implementations retain the same
     # owned cache and journal artefact names, without borrowing another consumer.
     def artefacts(root):

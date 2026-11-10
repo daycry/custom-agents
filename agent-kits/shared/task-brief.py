@@ -1058,6 +1058,10 @@ def _seccion_cabecera(tid, carpeta, tasks_p, fase):
     out.append(f"Iniciativa: `{carpeta}` · Ledger canónico: `{tasks_p}`. "
                "**NO toques el ledger**: lo actualiza el orquestador; tú limítate a "
                "reportar tu estado final (contrato de abajo).")
+    kit = os.path.dirname(os.path.abspath(__file__)).replace(os.sep, "/")
+    if os.path.isfile(os.path.join(kit, "ledger-lint.py")):
+        # H-45: the active bundle's kit; a subagent without CLAUDE_PLUGIN_ROOT in Bash needs no `find`.
+        out.append(f"Kit: `SHAREDKIT=\"{kit}\"` (úsalo; sin `find`).")
     if fase:
         out += ["", "## Contexto de fase", "", f"> {fase.lstrip('# ').strip()}"]
     return out

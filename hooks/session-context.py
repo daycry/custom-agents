@@ -239,6 +239,9 @@ def compose(payload, *, runtime='claude', root=None):
             finally:
                 if hasattr(knowledge, '_CORPUS_MEMO'):
                     knowledge._CORPUS_MEMO = None
+        if parts and SHARED.is_dir():
+            # H-45: the active bundle's kit, so a role does not run the 7.7 s `find` of convention 5.
+            parts.insert(0, f"Kit activo: SHAREDKIT=\"{SHARED.as_posix()}\" (úsalo si existe; sin `find`).")
         text = '\n\n'.join(parts)
         if len(text) > TOPE_CHARS:
             text = text[:TOPE_CHARS - 1].rstrip() + '…'

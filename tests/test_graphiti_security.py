@@ -175,7 +175,7 @@ _CITAS_POR_NOMBRE = {
 # This is a closure declaration, never an egress exception. Any owner change needs review.
 _CARGAS_LOCALES_REVISADAS = {
     "hooks/session-context.py": {
-        "sha256_lf": "2debf7ab1d46f6747aaf9bdcf28f7097a53e55a2ee9c772b5c1461e39f973039",   # T-13 (H-28): título y corpus de la memoria sin releer; mismas cargas locales, sin red
+        "sha256_lf": "aee26d89d532d4eebb3e00d325a970cd03738a9205c68e253bb25f7bb3b5987e",   # T-19 (H-45): línea «Kit activo» con la ruta local del bundle; T-13 (H-28): título y corpus de la memoria sin releer; mismas cargas locales, sin red
         "dependencies": ("agent-kits/shared/journal.py", "agent-kits/shared/skill-index.py",
                          "agent-kits/shared/progress-report.py", "agent-kits/shared/knowledge-find.py"),
     },

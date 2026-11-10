@@ -19,8 +19,8 @@ changelog: Fixed
 | Fase 1 | 6 | 6 | 100.0% |
 | Fase 2 | 6 | 6 | 100.0% |
 | Fase 3 | 4 | 4 | 100.0% |
-| Fase 4 | 2 | 5 | 40.0% |
-| **TOTAL** | **18** | **21** | **85.7%** |
+| Fase 4 | 3 | 5 | 60.0% |
+| **TOTAL** | **19** | **21** | **90.5%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -567,13 +567,20 @@ GREEN: `test_dev_cycle_split.py` 11 passed (las recetas Bash/PowerShell siguen b
 
 ### T-19 — Ruta del kit resuelta una vez
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: H-45. SessionStart y el brief inyectan la ruta absoluta del bundle activo; las piezas la usan antes de buscar.
-- **Archivos**: `hooks/session-context.py`, `agent-kits/shared/task-brief.py`, `agents/*.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `interop/**`, tests.
+- **Archivos**: `hooks/session-context.py`, `agent-kits/shared/task-brief.py`, `agents/*.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `interop/**`, tests (`tests/test_kit_path_injection.py` nuevo, `tests/test_session_context.py`, `tests/test_graphiti_security.py` huella de `session-context.py`, `agent-kits/shared/test_task_brief.py`) (añadidos por el implementer).
+- **Tiempo IA (ejec.)**: real 0,13h (medido)
 - **Verificación**: el bloque de sesión trae la ruta; test de resolución pasa.
+- **Changelog**: El bloque de arranque de sesión y el brief de cada tarea traen la ruta del kit del bundle activo, así que un subagente sin `CLAUDE_PLUGIN_ROOT` ya no ejecuta el `find` de resolución.
+- **Cerrada**: 2026-11-10
 
 **Criterios de aceptación**
-- [ ] Un subagente sin `CLAUDE_PLUGIN_ROOT` no necesita `find`.
+- [x] Un subagente sin `CLAUDE_PLUGIN_ROOT` no necesita `find`.
+
+RED: `tests/test_kit_path_injection.py` falló con 3 failed: el bloque de `SessionStart` no trae ninguna línea `SHAREDKIT=`, el brief de `task-brief.py` tampoco (un bash sin `CLAUDE_PLUGIN_ROOT` y sin bundle en el directorio no tiene de dónde sacar el kit) y `docs/CONVENTIONS.md`/`docs/en/CONVENTIONS.md` no documentan la ruta inyectada · 2026-11-10.
+
+GREEN: `tests/test_kit_path_injection.py` 3 passed (el bloque de sesión lleva UNA línea `Kit activo: SHAREDKIT="<ruta>"` la primera; el brief lleva `Kit: SHAREDKIT="<ruta>"` en su cabecera; un bash sin `CLAUDE_PLUGIN_ROOT`, en un directorio sin bundle, comprueba `[ -f "$SHAREDKIT/ledger-lint.py" ]` con solo esa ruta → `resolved`); `tests/test_session_context.py` 49 passed (el oráculo del shell retirado ya no conoce la línea: la prueba de paridad la quita de la salida nativa y compara el resto byte a byte); `test_task_brief.py` 94 (una prueba al borde del tope de 10.000 caracteres bajó su memoria simulada de 2.300 a 2.150 porque el brief ahora abre con ~100 caracteres que el presupuesto auxiliar no puede recortar); `tests/test_graphiti_security.py -k` de huellas 6 passed con la huella de `hooks/session-context.py` renovada (T-19, H-45: línea local, sin red); `export-interop.py --check` 92 al día, lint 0 errores, evals 0 errores. La ruta se calcula en ejecución (nunca queda en un fichero versionado) con barras `/` y entre comillas, porque una ruta con espacios (OneDrive) rompe el valor sin ellas. Medida: el coste de la línea es ≈ 150 caracteres por arranque de sesión y por brief, a cambio de evitar el `find` de la regla 5 de CONVENTIONS (7,7 s por bloque medido en la auditoría, una llamada de herramienta menos por bloque). Decisión: la instrucción de usar la ruta vive en la propia línea inyectada y en `CONVENTIONS.md`, no en los diez `agents/*.md`: `agents/evaluator.md` está a 14 bytes de su techo (CA-22) y cada agente ya recibe el brief o el contexto con la línea · 2026-11-10.
 
 ### T-20 — OpenCode e interop sin contexto repetido
 
