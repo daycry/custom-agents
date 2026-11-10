@@ -261,3 +261,51 @@ def test_fix2_b3_llaves_dentro_de_cadenas_dan_lo_mismo_que_python(tmp_path, crud
     python = hook('statusline', crudo, env)          # sin caché: Python pinta todo
     caliente = hook('statusline', crudo, env)        # con caché: Bash si decide
     assert fria == python == caliente
+
+
+# ------------------------------------------------- revisión intento 3 (fase 3): T-16
+
+def test_fix3_2_una_entrada_enorme_no_se_escanea_y_acierta_en_cache(tmp_path):
+    """2: el escáner era cuadrático (25 KB de escapes → 13,5 s por refresco, también con la caché
+    caliente). Por encima de 8 KB no se escanea: Python pinta, con la entrada en la clave."""
+    import time
+    proj, _ = proyecto(tmp_path)
+    env, count = counted_env(proj, tmp_path)
+    payload = {'model': {'display_name': 'Opus'}, 'cost': {'total_cost_usd': 0.42},
+               'context_window': {'used_percentage': 8}, 'nota': '\\"' * 12000}
+    fria = hook('statusline', payload, env)
+    assert fria[0] == 0 and fria[1].startswith('[Opus] $0.42 ctx 8%') and launches(count) == 1
+    inicio = time.monotonic()
+    caliente = hook('statusline', payload, env)
+    assert caliente == fria and launches(count) == 1
+    assert time.monotonic() - inicio < 1, time.monotonic() - inicio
+
+
+@pytest.mark.parametrize('crudo,esperado', [
+    ('{"context_window":{"used_percentage":0.50000000000000001}}', 'ctx 0%'),
+    ('{"context_window":{"used_percentage":1.49999999999999999}}', 'ctx 2%'),
+    ('{"cost":{"total_cost_usd":0.12500000000000001}}', '$0.12'),
+])
+def test_fix3_3_un_numero_que_no_es_el_texto_mas_corto_redondea_como_python(tmp_path, crudo, esperado):
+    """3: `NUMBER` admitía 27 dígitos significativos; `0.50000000000000001` daba `ctx 1%` en Bash y
+    `ctx 0%` en Python. Cerca del redondeo, con más de 15 dígitos, pinta Python."""
+    proj, _ = proyecto(tmp_path)
+    env, count = counted_env(proj, tmp_path)
+    fria = hook('statusline', crudo, env)
+    caliente = hook('statusline', crudo, env)
+    assert esperado in fria[1] and caliente == fria, (fria, caliente)
+
+
+@pytest.mark.parametrize('crudo', [
+    '{"model":{"display_name":"X",},"context_window":{"used_percentage":8}}',
+    '{"model":{"display_name":"X"}} basura',
+    r'{"model":{"display_name":"X","n":"\x41"}}',
+])
+def test_fix3_4_json_invalido_no_se_pinta_desde_bash(tmp_path, crudo):
+    """4: con JSON inválido Python pinta vacío y Bash pintaba campos con la caché caliente. El escáner
+    detecta la coma final, el texto tras el objeto y los escapes inválidos y deja que pinte Python."""
+    proj, _ = proyecto(tmp_path)
+    env, count = counted_env(proj, tmp_path)
+    fria = hook('statusline', crudo, env)
+    caliente = hook('statusline', crudo, env)
+    assert fria == caliente and '[X]' not in caliente[1]
