@@ -65,6 +65,7 @@ CAPTURA_MAX_CHARS = 4000           # tope por turno (un turno gigantesco no llen
 LOG_MAX_BYTES = 256 * 1024         # tope por fichero: al superarlo se conservan los ÚLTIMOS turnos (½ del tope)
 LOG_RETENCION_DIAS = 30            # purga de `session-prompts-*.log` más viejos (mtime) al capturar
 PAYLOAD_MAX_BYTES = 32 * 1024 * 1024   # 32 MiB: un turno mayor no es texto de una persona
+REDACCION_TOPE = 1024 * 1024      # caracteres como mucho en la ventana que se redacta (tiempo acotado)
 REDACCION_MARGEN = 16 * 1024    # más que cualquier secreto de una pieza (una clave PEM RSA 4096 ronda 3,3 KiB)
 LOG_GITIGNORE = "session-prompts-*"       # log y su `.lock`; se siembra en `.claude/.gitignore` del consumidor (revisión F4, Lente C gap 2)
 
@@ -236,9 +237,22 @@ def capture(root, payload):
     # REDACCION_MARGEN caracteres de más, un secreto que cruza el corte de CAPTURA_MAX_CHARS queda
     # entero dentro de la ventana y se redacta antes de cortar; `<private>` ya se miró en el texto
     # completo.
+    # Intento 3 (1, CWE-532): la ventana ENCOGE al redactar (un PEM de ~3,3 KiB queda en 19 caracteres)
+    # y un secreto cortado en su borde podía acabar dentro de los 4.000 guardados. Se amplía la ventana
+    # hasta que lo redactado llegue a CAPTURA_MAX_CHARS + REDACCION_MARGEN (así el borde queda fuera de
+    # lo guardado), se agote el texto o se llegue a REDACCION_TOPE; en ese último caso se descartan los
+    # últimos REDACCION_MARGEN caracteres redactados, donde podría quedar el trozo de un secreto.
     bruto = prompt.strip()
-    ventana = bruto[:CAPTURA_MAX_CHARS + REDACCION_MARGEN]
-    texto = redactar(ventana)
+    largo = CAPTURA_MAX_CHARS + REDACCION_MARGEN
+    while True:
+        ventana = bruto[:largo]
+        texto = redactar(ventana)
+        if len(ventana) == len(bruto) or len(texto) >= CAPTURA_MAX_CHARS + REDACCION_MARGEN:
+            break
+        if largo >= REDACCION_TOPE:
+            texto = texto[:max(0, len(texto) - REDACCION_MARGEN)]
+            break
+        largo = min(largo * 2, REDACCION_TOPE)
     if len(bruto) > len(ventana) or len(texto) > CAPTURA_MAX_CHARS:
         texto = texto[:CAPTURA_MAX_CHARS].rstrip() + " …[recortado]"
     d = os.path.join(root, LOG_DIR_REL)

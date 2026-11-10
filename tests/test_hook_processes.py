@@ -244,7 +244,8 @@ def test_fix2_6_un_prompt_de_varios_mib_lleno_de_secretos_se_captura_rapido_y_re
     inicio = time.monotonic()
     jp.capture(str(project), json.loads(payload))
     assert max(redactados) <= jp.CAPTURA_MAX_CHARS + 64 * 1024, max(redactados)   # una ventana, no el prompt entero
-    assert time.monotonic() - inicio < 4.5, time.monotonic() - inicio
+    # fix3 (10): medida determinista en vez de un tope de tiempo: caracteres que pasan por `redactar`
+    assert sum(redactados) <= 8 * (jp.CAPTURA_MAX_CHARS + jp.REDACCION_MARGEN), sum(redactados)
     result = _captura_directa(project, payload)
     assert result.returncode == 0
     texto = (project / '.claude/session-prompts-secretos.log').read_text(encoding='utf-8')
@@ -258,3 +259,62 @@ def test_fix2_9_observability_nombra_la_captura_real():
         fila = next(l for l in (ROOT / rel).read_text(encoding='utf-8').splitlines() if 'UserPromptSubmit` hook' in l
                     or 'hook `UserPromptSubmit`' in l)
         assert 'journal-prompt.py' in fila and 'journal.py capture`' not in fila, rel
+
+
+# ------------------------------------------------- revisión intento 3 (fase 3): T-14
+
+def _jp():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('fix3_journal_prompt', ROOT / 'agent-kits/shared/journal-prompt.py')
+    jp = importlib.util.module_from_spec(spec); spec.loader.exec_module(jp)
+    return jp
+
+
+def _pem(n):
+    cuerpo = '\n'.join(('MII' + chr(65 + (n + k) % 26) * 61) for k in range(50))
+    return f'-----BEGIN PRIVATE KEY-----\n{cuerpo}\n-----END PRIVATE KEY-----'
+
+
+def _capturado(project, jp, sid, prompt):
+    jp.capture(str(project), {'session_id': sid, 'prompt': prompt})
+    return json.loads((project / f'.claude/session-prompts-{sid}.log').read_text(encoding='utf-8').splitlines()[-1])['prompt']
+
+
+def _esperado_completo(jp, prompt):
+    texto = jp.redactar(prompt.strip())
+    return texto[:jp.CAPTURA_MAX_CHARS].rstrip() + ' …[recortado]' if len(texto) > jp.CAPTURA_MAX_CHARS else texto
+
+
+@pytest.mark.parametrize('caso', ['seis_pem', 'bearer_en_el_borde', 'password_en_el_borde'])
+def test_fix3_1_la_ventana_que_encoge_no_deja_ver_un_secreto_cortado(tmp_path, caso):
+    """1 (CWE-532): la ventana de redacción encoge al redactar (un PEM de ~3,3 KiB queda en 19
+    caracteres) y un secreto cortado en su borde acababa dentro de los 4.000 guardados sin redactar.
+    El resultado es el mismo que redactar el turno entero y cortar a 4.000."""
+    jp = _jp()
+    project, _ = _project(tmp_path)
+    borde = jp.CAPTURA_MAX_CHARS + jp.REDACCION_MARGEN
+    if caso == 'seis_pem':
+        cabeza = ' '.join(_pem(n) for n in range(5)) + ' relleno '
+        prompt = cabeza + 'r' * (18885 - len(cabeza)) + _pem(5) + ' cola ' * 200
+        fragmento = 'MII' + chr(65 + 5) * 20
+    elif caso == 'bearer_en_el_borde':
+        cabeza = ' '.join(_pem(n) for n in range(6)) + ' '
+        prompt = cabeza + 'r' * (borde - len(cabeza) - 30) + ' Authorization: Bearer ' + 'Zq9' * 30 + ' fin'
+        fragmento = 'Zq9Zq9'
+    else:
+        cabeza = ' '.join(_pem(n) for n in range(6)) + ' '
+        prompt = cabeza + 'r' * (borde - len(cabeza) - 12) + ' password=S3cr3t!Valor#Largo fin'
+        fragmento = 'S3cr3t'
+    guardado = _capturado(project, jp, caso, prompt)
+    assert fragmento not in guardado and 'BEGIN PRIVATE KEY-----\nMII' not in guardado
+    assert guardado == _esperado_completo(jp, prompt)
+
+
+def test_fix3_7_un_turno_de_31_mib_se_captura_recortado(tmp_path):
+    """7: el tope de lectura de 32 MiB no tenía test (bajarlo a 2 MiB devolvía el B4 de fix1)."""
+    project, _ = _project(tmp_path)
+    payload = json.dumps({'session_id': 'enorme', 'prompt': 'decidimos ' + 'y' * (31 * 1024 * 1024)}).encode()
+    result = _captura_directa(project, payload)
+    assert (result.returncode, result.stdout, result.stderr) == (0, b'', b'')
+    registro = json.loads((project / '.claude/session-prompts-enorme.log').read_text(encoding='utf-8').splitlines()[-1])
+    assert registro['prompt'].startswith('decidimos y') and registro['prompt'].endswith('[recortado]')
