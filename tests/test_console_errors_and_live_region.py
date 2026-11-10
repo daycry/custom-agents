@@ -31,6 +31,8 @@ def test_each_mapped_code_is_one_the_server_can_return_or_a_known_client_code():
 def test_the_chat_is_a_polite_live_region_and_pending_requests_are_announced():
     html = (ASSETS / 'control-center.html').read_text(encoding='utf-8')
     chat = re.search(r'<div id="chat-messages"[^>]*>', html)[0]
-    assert 'role="log"' in chat and 'aria-live="polite"' in chat and 'aria-live="off"' not in chat
+    # f4fix1 gap 6: the log is rebuilt on every poll, so the announcement moved to a region of its own.
+    assert 'role="log"' in chat and 'aria-live="off"' in chat and 'aria-live="polite"' not in chat
+    assert 'aria-live="polite"' in re.search(r'<div id="chat-live"[^>]*>', html)[0]
     requests = re.search(r'<div id="chat-requests"[^>]*>', html)[0]
     assert 'aria-live="polite"' in requests

@@ -63,6 +63,24 @@ export function sessionCountLabel(inventory,managed){
  const complete=inventory?.status==='ok'&&inventory.complete===true&&inventory.freshness?.state!=='refresh_failed'
  return complete?count:'≥ '+count
 }
+/* Brings `root`'s children to `desired` touching only what differs: nodes already in place are not removed and
+   re-inserted, so a screen reader hears nothing again for them (gap 6 of the Phase 4 review). */
+export function reconcileChildren(root,desired){
+ const wanted=new Set(desired)
+ for(const child of [...root.children])if(!wanted.has(child))root.removeChild(child)
+ desired.forEach((node,index)=>{if(root.children[index]!==node)root.insertBefore(node,root.children[index]||null)})
+}
+/* Text to announce for the messages not seen yet, in order; `seen` (a Set of ids) is updated. Only the assistant's
+   answers are announced (the user's own message is an echo), and each one is cut to `limit` characters. */
+export function newMessageAnnouncements(seen,messages,limit=280){
+ const out=[]
+ for(const message of messages||[]){
+  if(seen.has(message.id))continue
+  seen.add(message.id)
+  if(message.role!=='user'&&typeof message.text==='string'&&message.text.trim())out.push(message.text.trim().slice(0,limit))
+ }
+ return out
+}
 export function loading(root,text='Preparando esta vista…'){root.replaceChildren(el('div',text,'loading'))}
 export function empty(root,title,description,symbol='box',actions=[],compact=false){
  const box=el('div',undefined,'empty-state'+(compact?' compact':''))

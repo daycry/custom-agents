@@ -1,18 +1,18 @@
-import {$,el,icon,button,badge,provider,providers,busy,relative,time,empty,markdown,panel,externalSessions,observedSessionCount} from './console-dom.js'
+import {$,el,icon,button,badge,provider,providers,busy,relative,time,empty,markdown,panel,externalSessions,observedSessionCount,reconcileChildren,newMessageAnnouncements} from './console-dom.js'
 
 export function createSessions(app){
  const state=app.state,drafts=new Map()
- let activeKey=null,current=null,messageSignature='',requestSignature='',listSignature='',inventorySignature='',nativeInventory=null,refreshSequence=0,pendingSend=null
+ let activeKey=null,current=null,seenMessages=null,truncatedNote=null,messageSignature='',requestSignature='',listSignature='',inventorySignature='',nativeInventory=null,refreshSequence=0,pendingSend=null
  function saveDraft(){if(activeKey)drafts.set(activeKey,$('chat-input').value)}
  function clear(){
-  saveDraft();activeKey=null;current=null;messageSignature='';requestSignature='';listSignature='';pendingSend=null;refreshSequence++
+  saveDraft();activeKey=null;current=null;seenMessages=null;$('chat-live').textContent='';messageSignature='';requestSignature='';listSignature='';pendingSend=null;refreshSequence++
   inventorySignature='';nativeInventory=null;$('native-session-inventory').replaceChildren()
   $('chat-input').value='';$('chat-messages').replaceChildren();$('chat-requests').replaceChildren();$('session-context').replaceChildren();$('session-tools').replaceChildren();$('session-list').replaceChildren()
   $('chat-title').textContent='Tu próxima conversación';$('chat-state').textContent='Elige una sesión de este proyecto.';$('chat-provider').textContent='SESIÓN'
   $('send-button').disabled=true;$('interrupt-button').disabled=true;$('resume-session').hidden=true
  }
  async function select(id){
-  if(state.selectedSession!==id){saveDraft();state.selectedSession=id;current=null;messageSignature='';requestSignature='';pendingSend=null}
+  if(state.selectedSession!==id){saveDraft();state.selectedSession=id;current=null;seenMessages=null;$('chat-live').textContent='';messageSignature='';requestSignature='';pendingSend=null}
   const selected=state.workspace+':'+id
   if(activeKey!==selected){activeKey=selected;$('chat-input').value=drafts.get(selected)||'';$('chat-messages').replaceChildren();$('chat-requests').replaceChildren()}
   renderList(true);await snapshot()
@@ -111,7 +111,7 @@ export function createSessions(app){
   if(signature===messageSignature)return
   messageSignature=signature;const root=$('chat-messages')
   const bottom=root.scrollHeight-root.scrollTop-root.clientHeight<100||!root.querySelector('.chat-message')
-  if(!session.messages?.length){
+  if(!session.messages?.length){ seenMessages=seenMessages||new Set()
    empty(root,session.status==='connecting'?'Preparando tu entorno…':'¿Por dónde empezamos?',
     session.status==='connecting'?'La conexión está en preparación. Puedes escribir tu objetivo mientras esperas.':'Explica tu objetivo, pide un plan o continúa una tarea. Los permisos del entorno siguen vigentes.','chat')
    return
@@ -129,8 +129,12 @@ export function createSessions(app){
    if(row._text!==message.text){row.querySelector('.message-body').replaceChildren(markdown(message.text));row._text=message.text}
    desired.push(row)
   }
-  if(session.truncated)desired.unshift(el('p','Vista acotada de mensajes y operaciones. La historia nativa se conserva en su entorno.','small-muted'))
-  root.replaceChildren(...desired);if(bottom)root.scrollTop=root.scrollHeight
+  if(session.truncated){truncatedNote=truncatedNote||el('p','Vista acotada de mensajes y operaciones. La historia nativa se conserva en su entorno.','small-muted');desired.unshift(truncatedNote)}
+  reconcileChildren(root,desired)
+  // The log is not a live region (it is rebuilt on every poll); only what is new is announced, in a region of its own.
+  if(seenMessages===null){seenMessages=new Set();newMessageAnnouncements(seenMessages,session.messages)}
+  else{const fresh=newMessageAnnouncements(seenMessages,session.messages);if(fresh.length)$('chat-live').textContent=fresh.join(' ')}
+  if(bottom)root.scrollTop=root.scrollHeight
  }
  function renderRequests(session){
   const signature=JSON.stringify(session.pending||[])
@@ -196,7 +200,7 @@ export function createSessions(app){
    }))
    box.append(error,actions);desired.push(box)
   }
-  root.replaceChildren(...desired)
+  reconcileChildren(root,desired)
  }
  async function snapshot(){
   const id=state.selectedSession;if(!id)return
