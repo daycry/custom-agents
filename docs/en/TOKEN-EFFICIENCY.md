@@ -107,17 +107,17 @@ token savings until `usage-meter.py` measures them on the same goal and model.
 |---|---|---|
 | Visual plan review, out of `phase2-planning.md` (read only when asked) | 18,136 | 3,034 (+15,536 in `phase2-plan-review.md`) |
 | Internal `/doctor` notes, moved to `agent-kits/shared/doctor-reference.md` (ships with the kit) | 16,626 | 5,700 (+12,129 in the reference) |
-| `scope-check` warning explanation repeated in implementer and adversarial-review | 29,396 + 18,972 | 28,842 + 18,104 (the script prints its own remedy) |
+| `scope-check` warning explanation repeated in implementer and adversarial-review | 29,396 + 18,972 | 28,950 + 18,104 (the script prints its own remedy) |
 | Agents without `Agent`: instruction to delegate in Codex and OpenCode | 20 generated files | −6,264 (Codex) and −5,526 (OpenCode) bytes |
 | OpenCode context | recomputed per event and every 30 s | reused while its signature does not change |
 
-What grows is declared. Each agent gains between 154 and 506 characters (the
-implementer drops 554 net). The cause is a rule: when the brief already carries the
+What grows is declared. Each agent gains between 154 and 614 characters (the
+implementer drops 446 net). The cause is a rule: when the brief already carries the
 capability selection or the marker that there are no integrations, `capability-check.md`
-and `project-integrations.md` are not re-read. Those reads total 5,561 and 5,306
+and `project-integrations.md` are not re-read. Those reads total 5,597 and 5,306
 characters that a dispatch with a selection no longer makes. The session block and the
-brief also carry a line with the kit path to avoid the `find`, and the resolution recipe
-honours that path when it already exists.
+brief also carry a line with the kit path to avoid the `find`. The resolution recipe uses
+it only without `CLAUDE_PLUGIN_ROOT` and when it is an absolute path with the kit marker.
 
 The `/dev-cycle` quick path still saves at least 6,000 estimated tokens: 6,051, after
 adding the instruction to pass the kit line to every dispatch. The plan asked for a
