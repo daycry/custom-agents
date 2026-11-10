@@ -11,6 +11,8 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-11-10
+
 ### Fixed — `plugin-audit-remediation` initiative, phase 1: security and data loss (2026-11-09)
 
 - The Jira worklog no longer loses the hour bank: a state file with a BOM is read, an unreadable or mistyped one stops the run without writing, saves are atomic, and future dates, negative or non-finite hours and invalid config numbers are rejected. `usage-meter.py` no longer overwrites an unreadable `usage-state.json`: `start`/`close` exit 3 without writing and measurement degrades to an estimate, and `/doctor` shows ⚠️ with the fix.
@@ -1407,6 +1409,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[3.3.0]: https://github.com/daycry/custom-agents/releases/tag/v3.3.0
 [3.2.3]: https://github.com/daycry/custom-agents/releases/tag/v3.2.3
 [3.2.2]: https://github.com/daycry/custom-agents/releases/tag/v3.2.2
 [3.2.1]: https://github.com/daycry/custom-agents/releases/tag/v3.2.1

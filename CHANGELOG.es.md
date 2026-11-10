@@ -11,6 +11,8 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+## [3.3.0] - 2026-11-10
+
 ### Fixed — iniciativa `plugin-audit-remediation`, fase 1: seguridad y pérdida de datos (2026-11-09)
 
 - El worklog de Jira ya no pierde el banco de horas: un estado con BOM se lee, uno ilegible o con tipos erróneos detiene la ejecución sin escribir, el guardado es atómico y se rechazan fechas futuras, horas negativas o no finitas y números de configuración inválidos. `usage-meter.py` ya no sobrescribe un `usage-state.json` ilegible: `start`/`close` salen con exit 3 sin escribir y la medición degrada a estimación, y `/doctor` muestra ⚠️ con el arreglo.
@@ -1419,6 +1421,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[3.3.0]: https://github.com/daycry/custom-agents/releases/tag/v3.3.0
 [3.2.3]: https://github.com/daycry/custom-agents/releases/tag/v3.2.3
 [3.2.2]: https://github.com/daycry/custom-agents/releases/tag/v3.2.2
 [3.2.1]: https://github.com/daycry/custom-agents/releases/tag/v3.2.1
