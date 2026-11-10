@@ -110,7 +110,9 @@ for (const runtime of ['claude', 'codex', 'opencode']) {
   test(`${runtime}: denial is retained when cleanup confirmation expires`, { skip: process.platform !== 'win32' }, () => {
     const supervisor = readFileSync(join(root, 'hooks', 'runtime-supervisor.py'), 'utf8')
       .replace('close_job(owner, int(args[2]))', 'close_job(owner, int(args[2]))\n            time.sleep(2)');
-    const result = invoke(runtime, print(decision('deny')), { supervisor });
+    // H-29 (T-14): an empty job needs no cleanup; a live descendant keeps the cleanup path under test.
+    const descendant = "import subprocess,sys\nsubprocess.Popen([sys.executable,'-I','-S','-c','import time; time.sleep(3)'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n";
+    const result = invoke(runtime, descendant + print(decision('deny')), { supervisor });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stderr, /cleanup confirmation timed out/);
     const output = JSON.parse(result.stdout);

@@ -18,9 +18,9 @@ changelog: Fixed
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
 | Fase 2 | 6 | 6 | 100.0% |
-| Fase 3 | 1 | 4 | 25.0% |
+| Fase 3 | 2 | 4 | 50.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **13** | **21** | **61.9%** |
+| **TOTAL** | **14** | **21** | **66.7%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -426,14 +426,21 @@ GREEN: `pytest tests/test_session_context.py` → `49 passed` (H-28: una apertur
 
 ### T-14 — Menos procesos por hook
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: H-29, H-30 y H-31. Sin el Python de limpieza cuando el job ya está vacío; SubagentStop en Python con debounce; captura de UserPromptSubmit con un módulo ligero.
-- **Archivos**: `hooks/run-hook.mjs`, `hooks/runtime-supervisor.py`, `hooks/subagent-progress.sh`, `hooks/subagent-progress.py`, `hooks/hooks.json`, `agent-kits/shared/journal-capture.py`, `agent-kits/shared/journal.py`, `interop/**`, tests de hooks.
+- **Archivos**: `hooks/run-hook.mjs`, `hooks/runtime-supervisor.py`, `hooks/subagent-progress.sh`, `hooks/subagent-progress.py`, `hooks/hooks.json`, `agent-kits/shared/journal-capture.py`, `agent-kits/shared/journal.py`, `interop/**`, tests de hooks (`tests/test_hook_processes.py`, nuevo), `agent-kits/shared/journal-prompt.py` (módulo ligero de la captura: el plan nombraba `journal-capture.py`, que es el de SessionEnd; se separa para no cargar la política de la cola en cada turno), `tests/hook-guard-delivery.test.mjs` (el caso «la confirmación de limpieza expira» necesita ahora un descendiente vivo: con el job vacío ya no hay limpieza), `tests/test_graphiti_security.py` (huella `_LAUNCHER_NODE_HASH` revisada: sin red; citas por nombre de `journal-prompt.py` y de `subagent-progress.py`), `docs/observability.md`, `docs/en/observability.md`, `docs/INTEROP.md`, `docs/en/INTEROP.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md` (E3: qué ejecuta cada hook) (añadidos por el implementer). Sin cambios en `hooks/hooks.json` ni en `interop/**`: los nombres registrados siguen siendo los mismos y el launcher elige el script.
+- **Tiempo IA (ejec.)**: real 0,44h (medido)
 - **Verificación**: medidas antes y después en `testing/perf.md`; `tests/test_hooks_shell.py` y las suites de hooks pasan.
+- **Changelog**: Los hooks lanzan menos procesos en Windows: al terminar un subagente el estado se calcula en un solo Python y no se repite si no ha cambiado, cada turno del usuario se captura sin cargar el journal entero y ningún hook arranca un segundo Python solo para cerrar un job vacío.
+- **Cerrada**: 2026-11-10
 
 **Criterios de aceptación**
-- [ ] SubagentStop baja de ~9 procesos a ≤ 3.
-- [ ] La captura no importa `journal.py`.
+- [x] SubagentStop baja de ~9 procesos a ≤ 3.
+- [x] La captura no importa `journal.py`.
+
+RED: `tests/test_hook_processes.py` (sobre el código de partida, copiado del commit faed5b5) falló con 4 failed: UserPromptSubmit carga journal.py; SubagentStop sin Bash dice Git Bash unavailable y no emite (x2); en Windows el supervisor se lanza como run y después close con el job ya vacío · 2026-11-10.
+
+GREEN: `pytest tests/test_hook_processes.py` → `6 passed` (H-31: la captura escribe el turno, siembra `.gitignore` y respeta `<private>` y `captura: false` con `journal.py` sustituido por un marcador que no se ejecuta; H-30: SubagentStop sin Bash con la misma salida que `progress-report.py active`, la segunda vez en silencio y de nuevo al cambiar el ledger; H-29: el supervisor solo se lanza como `run` si el job queda vacío y como `run` + `close` con un descendiente vivo, que muere); `node --test tests/hook-runtime.test.mjs` 25/25, `hook-guard-delivery.test.mjs` 75/75, `hook-budget.test.mjs` 11/11, `opencode-plugin.test.mjs` 26/26; `test_hook_supervisor.py` 15, `test_journal.py` 192 + 10 skipped, `test_journal_selection.py` 68, `tests/test_hooks_shell.py -k "subagent or capture or prompt or journal or supervis"` 18, `test_native_guard_launcher.py` 5, `test_agent_activity_store.py` 239 + 1 skipped, `test_hooks_config.py` 4, `test_bench_hooks.py` 28, `tests/test_graphiti_security.py` 126 passed; `scripts/bench-session-end.py --assert-p95-ms 100 --assert-p99-ms 300` → p95 19,45 ms, p99 24,25 ms; `export-interop.py --check` → `92 ficheros al día`; `lint_plugin.py` 0 errores. Medida (Job Object, 5 eventos tras uno de calentamiento, mediana, `.venv` cuenta 2 procesos por Python): SubagentStop 26 → 4 procesos y 2,76 → 1,26 s con la misma primera salida; UserPromptSubmit 7 → 4 y 1,36 → 0,99 s; SessionEnd 7 → 4 y 1,08 → 0,91 s. Decisiones: la marca `JOB_EMPTY` (bit 24 del código de salida) solo la pone el supervisor tras comprobar que su job no tiene otro proceso; un código de negocio fuera de 0-255 pasa a 1 para que nadie la imite; el debounce de SubagentStop comparte `.progress-last` con la línea del ledger (no se repite lo que el usuario acaba de ver) · 2026-11-10.
 
 ### T-15 — Panel y consola sin bloqueos
 

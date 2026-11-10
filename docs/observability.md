@@ -93,8 +93,9 @@ regenerado de Codex. Cuando C-06 unifique el arranque en un solo Python se
 revisará su bajada a 10 s. El launcher compartido conserva su presupuesto
 interno de 20 s para contexto; el adaptador nativo de OpenCode también tiene
 su propio límite de 20 s. El timeout de registro no amplía esos límites.
-`UserPromptSubmit` invoca `journal.py capture` con `-I -S`: mantiene el log,
-la redacción y los opt-outs sin cargar paquetes del consumidor.
+`UserPromptSubmit` invoca `journal-prompt.py` con `-I -S` (el módulo ligero de la
+captura; `journal.py capture` sigue disponible y usa el mismo código): mantiene el log,
+la redacción y los opt-outs sin cargar paquetes del consumidor ni las ~3.000 líneas de `journal.py`.
 
 Al reconstruir el índice de conocimiento se barren solo sus temporales
 `knowledge-index.sqlite.<pid>.tmp` y `-journal`: ambos deben tener al menos
@@ -120,7 +121,7 @@ con el ledger canónico: **¿cómo va la iniciativa ahora mismo?** Todo determin
 | Momento | Mecanismo | Qué ves |
 |---|---|---|
 | Cada edición de un `docs/roadmap/*/tasks.md` | hook `PostToolUse` → `progress-line.sh` | Una línea: `📋 <slug> · T-04/12 completadas (33%) · fase 2/4 «…» · en curso: T-05 … · IA real 1h 12m`. Con debounce: si el estado no cambió, silencio. |
-| Al terminar un subagente | hook `SubagentStop` → `subagent-progress.sh` | Las mismas líneas, una por iniciativa `en-progreso` (solo si hay alguna). |
+| Al terminar un subagente | hook `SubagentStop` → `subagent-progress.sh` (el launcher ejecuta `subagent-progress.py` en un solo Python, sin Bash) | Las mismas líneas, una por iniciativa `en-progreso` (solo si hay alguna). Con debounce: si es exactamente lo último que se mostró (`.claude/.progress-last`, el mismo fichero que la línea del ledger), silencio. |
 | Al arrancar, retomar o tras compactar el contexto | hook `SessionStart` → `session-context.sh` | (1) **Índice de piezas** del plugin (`agent-kits/shared/skill-index.py`): 3 líneas de reglas de enrutado + una línea ≤ 110 caracteres por comando/skill/agente, generado DETERMINISTA desde los frontmatters, ≤ 45 líneas / ≤ 3.500 caracteres, con caché por hash en `.claude/.skill-index.cache`; es la respuesta a «la skill correcta no se disparó»: las descriptions solo se ven cuando Claude las busca, el índice las pone delante en cada arranque. Informativo (no fuerza nada); desactivable con `.claude/dev.json` `{"sesion": {"indice": false}}`. (2) Bloque ≤ 15 líneas del roadmap: iniciativas activas, tareas en curso, marcadores abiertos del usage-meter y «retoma desde la tarea en-progreso» (solo si hay algo activo). Va también en `compact` porque la compactación resume la conversación y puede perder el índice del arranque (guía oficial de hooks, «Re-inject context after compaction», verificada 2026-09-03). Total < 10.000 caracteres (tope del hook). Sin nada que decir, no inyecta nada. |
 | En cada turno del usuario | hook `UserPromptSubmit` → `user-prompt-capture.sh` | Nada en pantalla (en este evento el stdout se inyectaría como contexto y un exit 2 borraría el prompt: el hook nunca emite y siempre sale 0): `journal.py capture` añade el turno como una línea JSON a `.claude/session-prompts-<session_id>.log` — **no versionado** (`capture` siembra `.claude/.gitignore` con `session-prompts-*`), **secretos evidentes redactados** antes de tocar el disco, `0600`, cerrojo entre turnos solapados, topes por turno/fichero y purga a 30 días. Opt-out por turno: `<private>` en cualquier parte (el log no se toca y ese turno tampoco sale de la transcripción). Opt-out por proyecto: `dev.json` `{"sesion": {"captura": false}}` (o `journal: false`). Solo en proyectos con rastro del plugin. `hooks.json` declara `timeout: 5` (default oficial 30). |
 | Cuando el runtime emite el cierre | hook `SessionEnd` → `session-journal.sh` (exec form, `timeout: 5`) | El launcher invoca `journal-capture.py`: escribe solo un **envelope atómico** (≤ 64 KiB, identidad determinista, sin materializador/git/IA/red) en la outbox local. El benchmark in-process mide la operación, excluyendo arranque y presupuesto nativo; no demuestra la latencia total del hook. |
@@ -161,7 +162,10 @@ el log de prompts retenido permite `recover`.
 En Windows, `runtime-supervisor.py` incorpora el intérprete a un Job Object
 antes de ejecutar el negocio. El handle no heredable pertenece a Node:
 terminar solo el launcher cierra el job y alcanza los descendientes aunque
-Python ya haya salido. Un fallo de contención omite el hook con aviso.
+Python ya haya salido. Un fallo de contención omite el hook con aviso. Si al
+terminar el negocio el job solo contiene al supervisor, este lo marca en su código
+de salida y el launcher no lanza el segundo Python de `close` (no queda nada que
+cerrar; con un descendiente vivo la limpieza sigue igual).
 En POSIX, el adaptador posee el grupo del launcher; la limpieza comprueba
 esa propiedad, detiene y termina sus miembros hijos y conserva vivo al dueño.
 Los demás lanzamientos usan su propio grupo. La confirmación de cierre tiene

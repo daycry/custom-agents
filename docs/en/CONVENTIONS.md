@@ -368,7 +368,7 @@ have to be re-discovered", generalizing the bookend pattern from `agents/nemesis
   — in any other repo it exits silently; (7) **entries are versioned** (project memory, like ADRs and
   lessons) — whoever prefers not to adds `docs/knowledge/journal/*.md` (not the `README.md`) to their
   `.gitignore`; the file name is `YYYY-MM-DD-<active initiative | sesion>.md`; (8) **turn capture**
-  (`memory-retrieval` F4): the `UserPromptSubmit` hook (`hooks/user-prompt-capture.sh` → `journal.py capture`)
+  (`memory-retrieval` F4): the `UserPromptSubmit` hook (`hooks/user-prompt-capture.sh` → `journal-prompt.py`, the same code as `journal.py capture`)
   appends the user's turn to `.claude/session-prompts-<session_id>.log`, **unversioned** (`capture` seeds
   `.claude/.gitignore` with `session-prompts-*`), with **obvious secrets redacted** before touching disk, `0600`,
   a lock between overlapping turns and a 30-day purge; per-turn opt-out `<private>` (the log is untouched and

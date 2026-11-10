@@ -123,7 +123,7 @@ _BOOTSTRAP_NODE_HASHES = {
 # prompt capture; same local executables/imports, no network path (review 2026-10-29).
 # F2 T-09/T-10: fixed local marker and combined local parser only; self-audit in
 # testing/t10-egress-boundary-review-2026-10-29.json. Independent phase review remains T-19.
-_LAUNCHER_NODE_HASH = "66b5b2cf8c7029cef9882263cfbdd6d4e29a4b840dcb3e2e09989382fe398f77"   # revisado 2026-11-09: NoDefaultCurrentDirectoryInExePath y PATH absoluto, sin red
+_LAUNCHER_NODE_HASH = "1abca05d5f7806ae6ea554f52ee8ce681e3dc9049c8f8d03c57d7cbee668a35d"   # revisado 2026-11-10 (T-14): JOB_EMPTY del supervisor y subagent-progress.py/journal-prompt.py locales, sin red
 _EXT_RE = "|".join(_EXT_ESCANEABLES + _EXT_NO_ESCANEABLES)
 # Gap #155 (Important, fix1 Fase 4): el lookahead final quita los falsos positivos del escaneo de
 # CODIGO (`hashlib.sha256` casaba como `hashlib.sh`). Hace falta porque a partir de este fix una
@@ -149,6 +149,7 @@ _CITAS_SIN_FICHERO_PERMITIDAS = ()
 _CITAS_POR_NOMBRE = {
     ("hooks/run-hook.mjs", "journal.py"): "agent-kits/shared/journal.py",
     ("hooks/run-hook.mjs", "journal-capture.py"): "agent-kits/shared/journal-capture.py",
+    ("hooks/run-hook.mjs", "journal-prompt.py"): "agent-kits/shared/journal-prompt.py",   # T-14 (H-31)
     ("hooks/run-hook.mjs", "native-guardrail.py"): "agent-kits/shared/native-guardrail.py",
     ("hooks/run-hook.mjs", "agent-activity-store.py"): "agent-kits/shared/agent-activity-store.py",
     ("hooks/run-hook.mjs", "ledger-post.py"): "hooks/ledger-post.py",
@@ -157,6 +158,7 @@ _CITAS_POR_NOMBRE = {
     ("hooks/session-context.py", "skill-index.py"): "agent-kits/shared/skill-index.py",
     ("hooks/session-context.py", "progress-report.py"): "agent-kits/shared/progress-report.py",
     ("hooks/session-context.py", "knowledge-find.py"): "agent-kits/shared/knowledge-find.py",
+    ("hooks/subagent-progress.py", "progress-report.py"): "agent-kits/shared/progress-report.py",   # T-14 (H-30)
     ("hooks/ledger-post.py", "ledger-lint.py"): "agent-kits/shared/ledger-lint.py",
     ("hooks/ledger-post.py", "progress-report.py"): "agent-kits/shared/progress-report.py",
     ("hooks/ledger-post.py", "local-read.py"): "agent-kits/shared/local-read.py",

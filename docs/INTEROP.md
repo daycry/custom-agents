@@ -443,7 +443,7 @@ intérprete concreto. El payload viaja por stdin, nunca como código de shell.
 
 SessionEnd llama al escritor canónico `journal-capture.py` con Python aislado (`-I -S`);
 la guardia previa también usa Python aislado sin Bash. UserPromptSubmit llama
-a `journal.py capture`, sin Bash. Los demás hooks
+a `journal-prompt.py` (captura ligera), sin Bash; SubagentStop, a `subagent-progress.py`, también sin Bash. Los demás hooks
 usan Bash con un adaptador `python3` al intérprete seleccionado. Si falta una herramienta,
 se avisa por stderr y se continúa con exit 0. Las guardias de implementer y architect conservan su alcance por agente.
 

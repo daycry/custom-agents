@@ -369,7 +369,7 @@ lo que "ya no hay que volver a descubrir" cada vez, generalizando el patrón de 
   (7) **las entradas se versionan** (memoria del proyecto, como ADR y lecciones) — quien no quiera
   versionarlas añade `docs/knowledge/journal/*.md` (no el `README.md`) a su `.gitignore`; el nombre es
   `AAAA-MM-DD-<iniciativa activa | sesion>.md`; (8) **captura del turno** (`memory-retrieval` F4): el hook
-  `UserPromptSubmit` (`hooks/user-prompt-capture.sh` → `journal.py capture`) acumula el turno del usuario en
+  `UserPromptSubmit` (`hooks/user-prompt-capture.sh` → `journal-prompt.py`, el mismo código que `journal.py capture`) acumula el turno del usuario en
   `.claude/session-prompts-<session_id>.log`, **no versionado** (`capture` siembra `.claude/.gitignore` con
   `session-prompts-*`), con **secretos evidentes redactados** antes de tocar el disco, `0600`, cerrojo entre
   turnos solapados y purga a 30 días; opt-out por turno `<private>` (el log no se toca y ese turno tampoco

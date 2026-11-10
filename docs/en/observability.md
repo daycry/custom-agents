@@ -95,8 +95,9 @@ Codex manifest. C-06 will revisit a 10 s timeout once startup uses one Python
 process. The shared launcher retains its internal 20 s context budget; the
 native OpenCode adapter also has a separate 20 s limit. The registration
 timeout does not extend either limit. `UserPromptSubmit` invokes
-`journal.py capture` with `-I -S`, preserving the log, redaction and opt-outs
-without loading consumer packages.
+`journal-prompt.py` with `-I -S` (the lightweight capture module; `journal.py capture`
+remains available and runs the same code), preserving the log, redaction and opt-outs
+without loading consumer packages or the ~3,000 lines of `journal.py`.
 
 Knowledge-index reconstruction sweeps only its own
 `knowledge-index.sqlite.<pid>.tmp` files and journals: every sibling must be
@@ -122,7 +123,7 @@ using only the canonical ledger: **how is the initiative going right now?** All 
 | When | Mechanism | What you see |
 |---|---|---|
 | Every edit of a `docs/roadmap/*/tasks.md` | `PostToolUse` hook → `progress-line.sh` | One line: `📋 <slug> · T-04/12 completadas (33%) · fase 2/4 «…» · en curso: T-05 … · IA real 1h 12m`. Debounced: if the state did not change, silence. |
-| When a subagent finishes | `SubagentStop` hook → `subagent-progress.sh` | The same lines, one per `en-progreso` initiative (only if there is any). |
+| When a subagent finishes | `SubagentStop` hook → `subagent-progress.sh` (the launcher runs `subagent-progress.py` in one Python, without Bash) | The same lines, one per `en-progreso` initiative (only if there is any). Debounced: if it is exactly what was last shown (`.claude/.progress-last`, the same file as the ledger line), silence. |
 | On startup, resume or after context compaction | `SessionStart` hook → `session-context.sh` | (1) **Piece index** of the plugin (`agent-kits/shared/skill-index.py`): 3 routing-rule lines + one line ≤ 110 chars per command/skill/agent, generated DETERMINISTICALLY from the frontmatters, ≤ 45 lines / ≤ 3,500 chars, hash-cached in `.claude/.skill-index.cache`; it answers "the right skill did not fire": descriptions are only seen when Claude looks them up, the index puts them in front on every start. Informative (forces nothing); disable with `.claude/dev.json` `{"sesion": {"indice": false}}`. (2) Roadmap block ≤ 15 lines: active initiatives, in-progress tasks, open usage-meter markers and "resume from the in-progress task" (only if something is active). Also on `compact`, because compaction summarises the conversation and may drop the startup index (official hooks guide, "Re-inject context after compaction", verified 2026-09-03). Total < 10,000 chars (hook cap). Nothing to say → nothing injected. |
 | On every user turn | `UserPromptSubmit` hook → `user-prompt-capture.sh` | Nothing on screen (on this event stdout would be injected as context and exit 2 would erase the prompt: the hook never emits and always exits 0): `journal.py capture` appends the turn as one JSON line to `.claude/session-prompts-<session_id>.log` — **not versioned** (`capture` seeds `.claude/.gitignore` with `session-prompts-*`), **obvious secrets redacted** before touching disk, `0600`, a lock between overlapping turns, per-turn/per-file caps and a 30-day purge. Per-turn opt-out: `<private>` anywhere in the turn (the log is untouched and that turn never comes back from the transcript either). Per-project opt-out: `dev.json` `{"sesion": {"captura": false}}` (or `journal: false`). Only in projects with a trace of the plugin. `hooks.json` declares `timeout: 5` (official default 30). |
 | When the runtime emits closure | `SessionEnd` hook → `session-journal.sh` (exec form, `timeout: 5`) | The launcher invokes `journal-capture.py` to write only an **atomic envelope** (≤ 64 KiB, deterministic identity, no materializer/git/AI/network) into the local outbox. The in-process benchmark measures the operation, excluding startup and native budget; it does not establish total hook latency. |
@@ -164,7 +165,10 @@ retained prompt log remains available to `recover`.
 On Windows, `runtime-supervisor.py` places the interpreter in a Job Object
 before running business code. Node owns the non-inheritable handle: killing
 only the launcher closes the job and reaches descendants even after Python
-has exited. Failed containment skips the hook with a warning. On POSIX the
+has exited. Failed containment skips the hook with a warning. When the business
+code ends and the job holds only the supervisor, it says so in its exit code and
+the launcher skips the second `close` Python (nothing is left to close; with a live
+descendant the cleanup runs as before). On POSIX the
 adapter owns the launcher group; cleanup verifies ownership, stops and
 terminates child members while keeping the owner alive. Other invocations
 use their own group. Closure confirmation has an additional 500 ms ceiling;

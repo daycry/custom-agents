@@ -435,7 +435,7 @@ Payloads travel through stdin and are never interpreted as shell code.
 
 SessionEnd invokes canonical `journal-capture.py` with isolated Python (`-I -S`);
 the before-tool guard also uses isolated Python without Bash. UserPromptSubmit
-invokes `journal.py capture`, without Bash. Other hooks run through
+invokes `journal-prompt.py` (lightweight capture), without Bash; SubagentStop invokes `subagent-progress.py`, also without Bash. Other hooks run through
 Bash with a `python3` adapter for the selected interpreter. Missing tools produce a stderr warning
 and exit 0. The implementer and architect guards remain scoped to their agents.
 
