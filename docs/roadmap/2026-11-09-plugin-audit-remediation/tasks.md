@@ -840,3 +840,28 @@ Lentes: A + B + D. Al tercer intento con gaps, el orquestador decide un ciclo fi
 | 8 | Minor | `statusline-render.py` no figuraba en `Archivos` de T-21 ni había test de la deuda 8.3 | T-21 | corregido | `Archivos` de T-21; `test_fix3_8_*` |
 | 9 | Minor | La excepción «evidenciado (medida)» no está en `docs/CONSTITUTION.md` | T-21 | deuda aceptada | decisión pendiente del usuario registrada en T-21 con dos propuestas (línea en la constitución o ADR); no se toca la constitución |
 | 10 | Minor | `test_fix2_6` dependía de un tope de tiempo de 4,5 s | T-14 | corregido | mide los caracteres que pasan por `redactar` (e84f498) |
+
+## Revisión de dos lentes — intento 1: Fase 4 (T-17..T-21) — 6 Important, 11 Minor, 1 descartado
+
+Lentes: A + B + C + D (C por `hooks/session-context.py`; D por `scripts/export-interop.py` y la caché de la statusline). Se fusionan los gaps repetidos (C1+B3, A1+D2, D1 con la nota de B, A3+D5). Corrección en `fix1` por el implementer; cada gap corregido lleva un test dedicado que lo nombra (`test_f4fix1_*`) o su medida.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | C1+B3: `SHAREDKIT="<ruta>"` sin escapar entre comillas dobles; al pegarlo en Bash, `$(…)`, la comilla invertida y `$VAR` se ejecutan o se expanden (reproducido con un directorio `b$(touch PWNED)`; CWE-78) | T-19 | pendiente | `hooks/session-context.py:244`, `agent-kits/shared/task-brief.py:170-173,1064` |
+| 2 | Important | A1+D2: la ruta inyectada solo llega al hilo principal y a los despachos con brief; reviewer, qa, documenter, planner, evaluator y analyst siguen con el `find`, y las recetas de los agentes sobrescriben un `SHAREDKIT` que ya existe | T-19 | pendiente | `agents/qa.md:68` (y la misma receta en los demás), `skills/adversarial-review/references/lens-prompts.md:6-8`, `commands/dev-cycle.md:80-82` |
+| 3 | Important | D1: en OpenCode, el bucle de eventos llama a `invalidate()` en cada evento de actividad o captura, y `session.idle` reescribe el journal, que está en la firma; la caché nunca sobrevive a un turno. El test no pasa por el flujo de eventos | T-20 | pendiente | `hooks/opencode-plugin.js:331-345`; `docs/INTEROP.md:393`; `docs/TOKEN-EFFICIENCY.md:119` |
+| 4 | Important | A2: el puntero de `/doctor` a sus notas (`docs/reference/doctor.md`) es relativo al proyecto; en un consumidor no existe y por `npx` no viaja `docs/` | T-18 | pendiente | `commands/doctor.md:70`; `install/providers.mjs:29-34`; copias en `interop/` |
+| 5 | Important | A3+D5: la Verificación de T-17/T-18 (CA-06) pide `context-footprint.py` y no hay salida suya; las cifras de `testing/tokens.md` y `TOKEN-EFFICIENCY` no describen HEAD (`doctor.md` 5.659 y no 5.491; base «514409e~» mal nombrada; evaluator medido en CRLF; bases de planner y evaluator −7) | T-17, T-18 | pendiente | `tasks.md:542,559`; `testing/tokens.md:7,9,18,25`; `docs/TOKEN-EFFICIENCY.md:109,116` y espejo EN |
+| 6 | Important | B1: el chat de la consola pasa a `aria-live="polite"` y se reconstruye entero con `replaceChildren` en cada sondeo de 2 s; un lector de pantalla vuelve a anunciar la conversación visible | T-21 | pendiente | `skills/plugin-panel/assets/control-center.html:63`; `console-sessions.js:129,133,199`; `control-center.js:331` |
+| 7 | Minor | C2: el brief no distingue la línea de kit que genera el script de una igual copiada desde el ledger (CWE-829) | T-19 | pendiente | `task-brief.py:173`; `docs/CONVENTIONS.md:105` |
+| 8 | Minor | B2: `_RED_RE` no casa `  - RED:`, `**RED**:` ni `RED (fix2):`; falsos avisos en ledgers reales | T-21 | pendiente | `agent-kits/shared/ledger-lint.py:788` |
+| 9 | Minor | B4: `replay` desde la cola sigue redactando con la iniciativa vigente y la marca `vigente` (arreglo parcial de la deuda de T-07) | T-21 | pendiente | `agent-kits/shared/journal.py:832-834,1711,1740` |
+| 10 | Minor | D3: el tope de 250 ms de la firma desactiva la caché de OpenCode en proyectos medianos (lstat/readdir en serie) | T-20 | pendiente | `hooks/opencode-plugin.js:103` |
+| 11 | Minor | D4: una sola ranura de caché; padre e hija se la pisan en cada delegación | T-20 | pendiente | `hooks/opencode-plugin.js:241,251` |
+| 12 | Minor | D6: ningún script emite «sin integraciones»; los 10 agentes pagan siempre la prosa nueva de T-17 | T-17 | pendiente | `task-brief.py:1216-1220`; `commands/dev-cycle.md:70` |
+| 13 | Minor | A5: el plan pedía ampliar el margen de la vía rápida y bajó (6.158 → 6.136, ≥ 6.000); la desviación no está registrada | T-17, T-21 | pendiente | `improvement-plan.md:33`; `testing/tokens.md:45` |
+| 14 | Minor | A6: las medidas de la fase 4 no están donde dice el plan (`testing/perf.md`) ni enlazadas desde él | — | pendiente | `improvement-plan.md:26` |
+| 15 | Minor | A7: frase de unas 65 palabras con comillas anidadas (regla 1 de `docs-style.md`) | T-21 | pendiente | `docs/TOKEN-EFFICIENCY.md:121-126` y espejo EN |
+| 16 | Minor | D-nota: el Changelog de T-20 atribuye la caché también a Codex, que no la tiene | T-20 | pendiente | `CHANGELOG.md` / `CHANGELOG.es.md` (T-20) |
+| 17 | Minor | A-nota: `session-context.py` no emite la línea del kit si el resto del bloque está vacío | T-19 | pendiente | `hooks/session-context.py:242` |
+| 18 | Important | A4: la Verificación de T-21 exige la CI completa en Linux | T-21 | descartado (rebatido) | la CI del PR #32 (`ci.yml`, ubuntu y Python 3.11) pasó completa en `774aebb`: run 42765058054, job 129659480354, `success` |
