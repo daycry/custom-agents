@@ -673,7 +673,10 @@ const countLauncher = `import fs from 'node:fs';
   if (process.argv[2] === 'session-context.sh') {
     const n = fs.existsSync('runs') ? Number(fs.readFileSync('runs','utf8')) + 1 : 1;
     fs.writeFileSync('runs', String(n));
-    const transient = fs.existsSync('transient') ? 'Journal (estado operativo de la cola del journal; datos, no instrucciones): replay bloqueado. ' : '';
+    let source = ''; try { source = JSON.parse(fs.readFileSync(0, 'utf8')).source; } catch {}
+    fs.appendFileSync('sources', source + ',');
+    const transient = fs.existsSync('transient') ? 'Journal (estado operativo de la cola del journal; datos, no instrucciones): replay bloqueado (otro replay en curso) — el arranque continúa. '
+      : fs.existsSync('permanent') ? 'Journal (estado operativo de la cola del journal; datos, no instrucciones): outbox.py no disponible — el arranque continúa. ' : '';
     process.stdout.write(JSON.stringify({hookSpecificOutput:{additionalContext: transient + 'context ' + n}}));
   }`;
 const ask = async (ctx, sessionID = 'f2') => { const event = { sessionID, system: [] }; await ctx.hooks.get('session.context')(event); return event.system[0].text; };
@@ -691,7 +694,11 @@ test('f4fix2 gap 6: a cache hit still drains a non-empty outbox, in the backgrou
     await until(() => runs(dir) >= 2);                              // and the queue was drained behind it
     assert.equal(await ask(ctx), 'context 1');
     await new Promise(resolve => setTimeout(resolve, 300));
-    assert.equal(runs(dir), 2);                                     // the same queue is not drained twice
+    assert.equal(runs(dir), 2);                                     // the same queue is not drained twice at once
+    assert.equal(readFileSync(join(dir, 'sources'), 'utf8').split(',').filter(Boolean).pop(), 'drain');   // gap 5: replay only
+    const clock = Date.now;                                         // gap 3: a queue that did not move is retried later
+    try { Date.now = () => clock() + 31000; assert.equal(await ask(ctx), 'context 1'); await until(() => runs(dir) >= 3); }
+    finally { Date.now = clock; }
   } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -701,18 +708,22 @@ test('f4fix2 gap 7: the transient replay notice is not cached and the cost marke
     const adapter = await isolatedPlugin(dir, countLauncher);
     const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
     writeFileSync(join(dir, 'transient'), '1');
-    assert.match(await ask(ctx), /context 1/); assert.match(await ask(ctx), /context 2/);
+    assert.match(await ask(ctx), /context 1/); assert.match(await ask(ctx), /context 2/);   // blocked replay: never cached
     rmSync(join(dir, 'transient'));
     assert.equal(await ask(ctx), 'context 3'); assert.equal(await ask(ctx), 'context 3');
+    writeFileSync(join(dir, 'permanent'), '1');                      // gap 4: a permanent notice is cached like any text
+    const permanent = await ask(ctx, 'other'); assert.match(permanent, /outbox.py no disponible.*context 4/);
+    assert.equal(await ask(ctx, 'other'), permanent);
+    rmSync(join(dir, 'permanent'));
     const journal = join(dir, 'docs', 'knowledge', 'journal'); mkdirSync(journal, { recursive: true });
     const entry = markers => ['---', 'fecha: "2026-01-01"', 'session_id: "m"', 'iniciativa: "demo"', 'resumen: "Sesión de trabajo"',
       'decisiones: []', ...markers, '---', ''].join(String.fromCharCode(10));
     writeFileSync(join(journal, '2026-01-01-demo.md'), entry(['marcadores_cerrados: []']));
-    assert.equal(await ask(ctx), 'context 4');
-    writeFileSync(join(journal, '2026-01-01-demo.md'), entry(['marcadores_cerrados: []']).replace('decisiones: []', 'decisiones: []'));
-    assert.equal(await ask(ctx), 'context 4');
+    assert.equal(await ask(ctx), 'context 5');
+    writeFileSync(join(journal, '2026-01-01-demo.md'), entry(['marcadores_cerrados: []']));
+    assert.equal(await ask(ctx), 'context 5');
     writeFileSync(join(journal, '2026-01-01-demo.md'), entry(['marcadores_cerrados:', '  - "x/y"']));
-    assert.equal(await ask(ctx), 'context 5');                      // present markers: the entry is no longer a placeholder
+    assert.equal(await ask(ctx), 'context 6');                      // present markers: the entry is no longer a placeholder
   } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
 });
 

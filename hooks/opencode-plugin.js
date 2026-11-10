@@ -194,19 +194,23 @@ export default {
     }
 
     // A cache hit must not leave the capture queue to pile up: the envelopes are replayed (oldest first) by a
-    // background run of the context service, once per distinct queue state, without delaying the answer.
-    let drained = '';
+    // background run of the replay alone (`source: 'drain'`: no index, progress or memory), without delaying the
+    // answer. A queue that did not move is tried again after DRAIN_RETRY_MS (a blocked or failed replay leaves it
+    // untouched); a queue that changed is drained at once.
+    const DRAIN_RETRY_MS = 30000;
+    let drained = '', drainedAt = 0;
     async function drainQueue(cwd, sessionID) {
       try {
         const names = (await readdir(join(cwd, '.claude', 'journal', 'outbox'))).filter(name => name.endsWith('.json')).sort().join('|');
-        if (!names || names === drained) return;
-        drained = names;
-        const task = run(bindings.context.handlers[0], { hook_event_name: 'SessionStart', source: 'resume', session_id: sessionID, cwd }).then(() => {});
+        if (!names || (names === drained && Date.now() - drainedAt < DRAIN_RETRY_MS)) return;
+        drained = names; drainedAt = Date.now();
+        const task = run(bindings.context.handlers[0], { hook_event_name: 'SessionStart', source: 'drain', session_id: sessionID, cwd }).then(() => {});
         inflight.add(task); void task.finally(() => inflight.delete(task));
       } catch { /* No queue, nothing to drain. */ }
     }
-    // The operational notice of a blocked or failing replay describes a moment, not the project: never cached.
-    const TRANSIENT_NOTICE = 'Journal (estado operativo de la cola del journal';
+    // Only «replay blocked by another replay» describes a moment and is never cached; the permanent notices (damaged
+    // queue, outbox.py missing) are cached like any other text.
+    const TRANSIENT_NOTICE = 'bloqueado (otro replay en curso)';
 
     // Session APIs may expose other locations. Never reuse the instance root without checking.
     async function project(sessionID) {
