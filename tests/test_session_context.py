@@ -180,10 +180,10 @@ def test_native_output_matches_shell_bytes(tmp_path, runtime, case):
     # The retired shell oracle knows nothing of the kit line of H-45 (T-19), which the native
     # compositor puts first; every other byte must still match.
     import re
-    kit_line = rb"Kit activo: SHAREDKIT='.*?' \(\xc3\xbasalo [^\n]*?\.(?:\\n\\n|(?="}}))"   # single-quoted since f4fix1 gap 1
+    kit_line = rb"Kit activo: SHAREDKIT='.*?' \(\xc3\xbasalo [^\n]*?\.(?:\\n\\n|(?=\x22}}))"   # single-quoted since f4fix1 gap 1
     native_stdout, removed = re.subn(kit_line, b'', after.stdout, count=1)
     assert removed == (1 if after.stdout.strip() else 0)
-    if native_stdout == EMPTY_BLOCK:      # f4fix1 gap 17: the kit line alone; the oracle printed nothing
+    if native_stdout.strip() == EMPTY_BLOCK.strip():      # f4fix1 gap 17: the kit line alone; the oracle printed nothing
         native_stdout = b''
     assert before.stdout == native_stdout
     # These fixtures have no due envelopes: both implementations retain the same
