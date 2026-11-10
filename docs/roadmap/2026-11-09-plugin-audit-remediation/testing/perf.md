@@ -137,3 +137,7 @@ Mismo método; solo cambian estas cifras.
 |---|---|---|---|
 | Migración única de `usage-state.json` (copia del repo) | 1,23 s | 0,71 s | solo la línea entera decide (colas de 4 y 64 KiB, sin regex); los mismos 537 offsets y los mismos tokens al re-cerrar T-07 y T-12. Una cola de 1 MiB no cambiaba ningún offset y la subía a 15 s: descartada |
 | Barra de estado con el payload real de Claude Code (`context_window.current_usage` anidado), 7 turnos con el coste cambiando | 7 Pythons, 1,22 s por refresco | 1 Python, 0,59 s por refresco | escáner de miembros JSON; misma salida (`3dfebc8547c6`). La cifra «7 → 1» del intento 1 se midió sin `current_usage` |
+
+## Fase 4
+
+Las medidas de tamaño de la fase 4 (CA-06) están en [`tokens.md`](tokens.md). Se midieron con `context-footprint.py` sobre `cb6fb40` y `2080b49`, en LF. El consumo observado sigue sin medirse.

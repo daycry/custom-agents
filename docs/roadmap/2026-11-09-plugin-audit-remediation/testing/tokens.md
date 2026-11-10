@@ -4,49 +4,59 @@
 
 ## Método
 
-- **Qué se mide:** TAMAÑO de lo que se carga, en caracteres UTF-8 con saltos LF (script de medida sobre el árbol de trabajo; el mismo criterio que `context-footprint.py`). Tokens estimados = caracteres / 4, sin tokenizer.
+- **Qué se mide:** TAMAÑO de lo que se carga, en caracteres UTF-8 con saltos LF, con `agent-kits/shared/context-footprint.py --project <árbol> --file …` (la herramienta que nombra la Verificación de T-17 y T-18). Tokens estimados = caracteres / 4, sin tokenizer.
 - **Qué NO se mide:** consumo observado ni facturado. Reducir caracteres no acredita ahorro de tokens hasta medirlo con `usage-meter.py` sobre el mismo objetivo y modelo; no se ha hecho en esta fase.
-- **Antes:** árbol en 514409e~ (inicio de la fase, HEAD de la fase 3). **Después:** árbol de la fase 4 cerrada.
+- **Antes:** `cb6fb40` (el último commit de la fase 3, padre de T-17), extraído con `git -c core.autocrlf=false archive`. **Después:** el HEAD de la fase 4 tras el fix1 (`2080b49`), extraído igual. Los dos árboles en LF.
 - Máquina: Windows 11, Python 3.13.
 
-## Tamaño por pieza (caracteres)
+## Tamaño por pieza (caracteres, `context-footprint.py`)
 
 | Pieza | Antes | Después | Delta | Tarea |
 |---|---|---|---|---|
-| `agents/analyst.md`, `documenter.md`, `planner.md`, `qa.md`, `implementer.md` (bruto T-17) | 11.635 / 18.032 / 21.420 / 19.271 / 29.396 | +296 cada uno | +296 | T-17 |
-| `agents/architect.md`, `knowledge-curator.md`, `nemesis.md`, `reviewer.md` | 15.790 / 12.920 / 15.449 / 8.495 | +154 cada uno | +154 | T-17 |
-| `agents/evaluator.md` (tope 15.513 bytes) | 14.921 | 15.060 (15.499 bytes) | +139 | T-17 |
-| `agents/implementer.md` (neto, tras T-18) | 29.396 | 28.632 | −764 | T-17/T-18 |
+| `agents/analyst.md` | 11.635 | 12.041 | +406 | T-17/T-19 |
+| `agents/architect.md` | 15.790 | 16.054 | +264 | T-17/T-19 |
+| `agents/documenter.md` | 18.032 | 18.438 | +406 | T-17/T-19 |
+| `agents/evaluator.md` (tope CA-22: 15.513 bytes LF; HEAD 15.414) | 14.921 | 15.115 | +194 | T-17/T-19 |
+| `agents/implementer.md` | 29.396 | 28.797 | −599 | T-17/T-18/T-19 |
+| `agents/knowledge-curator.md` | 12.920 | 13.184 | +264 | T-17/T-19 |
+| `agents/nemesis.md` | 15.449 | 15.768 | +319 | T-17/T-19 |
+| `agents/planner.md` | 21.420 | 21.826 | +406 | T-17/T-19 |
+| `agents/qa.md` | 19.271 | 19.732 | +461 | T-17/T-19 |
+| `agents/reviewer.md` | 8.495 | 8.649 | +154 | T-17 |
 | `agent-kits/shared/project-integrations.md` | 5.199 | 5.306 | +107 | T-17 |
-| `commands/dev-cycle.md` | 28.708 | 28.784 | +76 | T-17/T-21 |
-| `skills/quick-implement/SKILL.md` | 6.922 | 6.935 | +13 | T-21 |
-| `phase2-planning.md` (carga por defecto del flujo completo) | 18.136 | 3.034 | −15.102 | T-18 |
-| `phase2-plan-review.md` (solo si se pide la revisión visual) | 0 | 15.536 | +15.536 | T-18 |
-| `commands/doctor.md` | 16.626 | 5.491 | −11.135 | T-18 |
-| `docs/reference/doctor.md` (no se carga) | 0 | 12.042 | +12.042 | T-18 |
+| `agent-kits/shared/capability-check.md` | 5.491 | 5.546 | +55 | T-19 fix1 |
+| `commands/dev-cycle.md` | 28.708 | 28.957 | +249 | T-17/T-19 |
+| `commands/pm-cycle.md` | 10.402 | 10.516 | +114 | T-19 fix1 |
+| `skills/quick-implement/SKILL.md` | 6.922 | 7.038 | +116 | T-21/T-19 |
+| `agent-kits/dev-cycle/references/phase2-planning.md` (carga por defecto del flujo completo) | 18.136 | 3.034 | −15.102 | T-18 |
+| `agent-kits/dev-cycle/references/phase2-plan-review.md` (solo si se pide la revisión visual) | 0 | 15.536 | +15.536 | T-18 |
+| `commands/doctor.md` | 16.626 | 5.700 | −10.926 | T-18 |
+| `agent-kits/shared/doctor-reference.md` (no se carga; viaja con el kit) | 0 | 12.129 | +12.129 | T-18 fix1 |
 | `skills/adversarial-review/SKILL.md` | 18.972 | 18.104 | −868 | T-18 |
-| Interop OpenCode, agente `implementer` | 29.702 | 28.344 | −1.358 | T-17/T-18 |
+| Interop OpenCode, agente `implementer` | 29.702 | 28.509 | −1.193 | T-17/T-18 |
+
+Correcciones respecto a la versión anterior de este fichero: `commands/doctor.md` mide 5.700 (no 5.491; 5.491 es `capability-check.md` en `cb6fb40`); el `evaluator` se mide en LF (antes se midió en CRLF); la base es `cb6fb40` (antes se nombraba `514409e~`, que es el commit de T-20, no el inicio de la fase); las bases de planner y evaluator eran 7 caracteres menores.
 
 ## Lo que cada tarea evita por despacho (tamaño leído que se omite)
 
 | Tarea | Se omite | Caracteres | ≈ tokens |
 |---|---|---|---|
-| T-17 | `capability-check.md` si el brief/ledger ya trae la selección | 5.491 | 1.373 |
+| T-17 | `capability-check.md` si el brief/ledger ya trae la selección | 5.546 | 1.387 |
 | T-17 | `project-integrations.md` con «sin integraciones» | 5.306 | 1.327 |
 | T-18 | revisión visual del plan en cada flujo completo | 15.102 | 3.776 |
-| T-18 | notas de `/doctor` en cada invocación | 11.135 | 2.784 |
+| T-18 | notas de `/doctor` en cada invocación | 10.926 | 2.732 |
 | T-20 | bloque de delegación en 9 agentes × runtime | 6.264 (Codex), 5.526 (OpenCode) en total | ~690 por agente |
 | T-19 | `find` de la regla 5 (tiempo, no texto: 7,7 s por bloque según la auditoría) | — | — |
 
-Flujo completo de `/dev-cycle` por defecto (comando + fases 1, 2 sin revisión visual, 3-subagentes y 4): 56.363 → 41.337 caracteres (−15.026, ≈ −3.757 tokens).
+Flujo completo de `/dev-cycle` por defecto (comando + fases 1, 2 sin revisión visual, 3-subagentes y 4): 56.363 → 41.510 caracteres (−14.853, ≈ −3.713 tokens).
 
 ## Puerta de la vía rápida (CA-06)
 
-`quick_default_estimate` de la línea base − (`dev-cycle.md` + `quick-implement/SKILL.md`) / 4: **6.158 → 6.136** (mínimo 6.000). Los cambios de párrafo de `dev-cycle.md` y de la skill se registran con su motivo en `tests/fixtures/dev-cycle-modular-replacements.json`.
+`quick_default_estimate` de la línea base (15.066) − (`dev-cycle.md` + `quick-implement/SKILL.md`, ceil(caracteres/4)): **6.158 → 6.066** (mínimo 6.000; margen 66). El plan pedía ampliar el margen y baja 92: la desviación se debe al texto añadido en T-17 (marca «sin integraciones») y en el fix1 (pasar la línea del kit a cada despacho) y se registra en el ledger. Los cambios de párrafo de `dev-cycle.md` y de la skill se registran con su motivo en `tests/fixtures/dev-cycle-modular-replacements.json`.
 
 ## Recomputación del contexto de OpenCode (T-20)
 
-Recuento, no tiempo. Prueba `opencode-plugin.test.mjs`: antes, un prompt, un `bash` completado y el reloj a +31 s recomputaban el contexto; ahora, con los ficheros sin cambiar, ninguno lo hace.
+Recuento, no tiempo. Prueba `opencode-plugin.test.mjs`: antes, un prompt, un `bash` completado y el reloj a +31 s recomputaban el contexto; ahora, con los ficheros sin cambiar, ninguno lo hace. Tras el fix1, tampoco lo recomputan los cierres de turno (`session.execution.started/succeeded`, `session.idle`) cuando lo que cita el bloque no cambia (`f4fix1 gap 3`), y una sesión delegada no desaloja la del padre (`gap 11`).
 
 ## Consumo observado
 
