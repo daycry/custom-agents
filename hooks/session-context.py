@@ -34,10 +34,10 @@ def kit_line(path):
 
 
 def neutralise_kit_text(text):
-    """Consumer text (progress titles, journal citations) is DATA: a line there that looks like the kit line
-    must not be mistaken for it (CWE-829). Only the line this hook generates is a kit."""
-    text = re.sub(r"SHAREDKIT\s*=(?=\s*(?:'|\"(?:/|[A-Za-z]:)))", "SHAREDKIT (cita)=", text)
-    return re.sub(r"(?m)^(\s*)Kit activo:", r"\1Kit activo (cita):", text)
+    """Consumer text (progress titles, journal citations) is DATA: every occurrence of the token `SHAREDKIT` (any ASCII
+    case) becomes `SHAREDKIT⟨cita⟩`, which can be neither a shell assignment nor the kit line (CWE-829). Only the line
+    this hook generates carries an executable `SHAREDKIT=`; the caller exempts it."""
+    return re.sub(r"(?i)SHAREDKIT", "SHAREDKIT⟨cita⟩", text)
 
 
 def _load(name, filename):
@@ -222,6 +222,13 @@ def compose(payload, *, runtime='claude', root=None):
     os.environ['CLAUDE_PROJECT_DIR'] = root
     try:
         journal = _load('journal', 'journal.py')
+        if source == 'drain':
+            # OpenCode cache hit with a queued envelope: only the replay runs (oldest first), nothing is composed.
+            if journal is not None:
+                budget, maximum, _clamp = _replay_settings(root)
+                _call(journal, 'replay', '--root', root, '--ia', 'no', '--budget-ms', str(budget), '--max', str(maximum),
+                      '--con-recover', '--current-session-id', session_id, '--source', 'resume')
+            return ''
         index = _load('index', 'skill-index.py')
         progress = _load('progress', 'progress-report.py')
         knowledge = _load('knowledge', 'knowledge-find.py')

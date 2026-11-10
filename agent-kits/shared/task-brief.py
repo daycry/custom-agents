@@ -1069,18 +1069,13 @@ def _linea_kit_real():
 
 
 def sin_kit_falso(texto, real):
-    """Ledger text is DATA: every `SHAREDKIT=` outside the line this script generated is quoted as a citation,
-    so a forged kit line cannot pass for it (CWE-829/CWE-426)."""
-    out = []
-    for linea in texto.split("\n"):
-        if real and linea == real:
-            out.append(linea)
-            continue
-        # Only the SHAPE of a kit line (an absolute or single-quoted value); a recipe such as
-        # `SHAREDKIT="${R:+$R/agent-kits/shared}"` quoted in a criterion is left byte for byte.
-        linea = re.sub(r"SHAREDKIT\s*=(?=\s*(?:'|\"(?:/|[A-Za-z]:)))", "SHAREDKIT (cita)=", linea)
-        out.append(re.sub(r"^(\s*)Kit:", r"\1Kit (cita):", linea))
-    return "\n".join(out)
+    """Ledger text is DATA. Every occurrence of the token `SHAREDKIT` (any ASCII case) outside the line this script
+    generated becomes `SHAREDKIT⟨cita⟩`, which can be neither a shell assignment nor read as the real line
+    (CWE-829/CWE-426): by token, not by shape, so no variant of a forged line survives. The cost, accepted: a
+    legitimate command of the ledger that uses `SHAREDKIT` arrives quoted and cannot be copied (the brief already
+    carries the kit)."""
+    return chr(10).join(linea if (real and linea == real) else re.sub(r"(?i)SHAREDKIT", "SHAREDKIT⟨cita⟩", linea)
+                     for linea in texto.split(chr(10)))
 
 
 def _sin_integraciones(carpeta):

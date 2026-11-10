@@ -890,7 +890,7 @@ def test_ca08_el_brief_cubre_todos_los_ledgers_con_y_sin_design(tmp_path, monkey
             import re as _re
             criteria = [line for line, fenced in tb._lineas_con_fence(chunk)
                         if not fenced and _re.match(r"^\s*-\s*\[[ xX]\]", line)]
-            assert all(line in out for line in criteria), (origen, tid, "lost criterion")
+            assert all(tb.sin_kit_falso(line, "") in out for line in criteria), (origen, tid, "lost criterion")   # fix3: the token SHAREDKIT arrives quoted
             assert tb.CONTRATO in out
             if len(out) > tb.BRIEF_TOPE_CHARS:
                 minimum = _re.search(r"mínimo obligatorio=(\d+)", err.getvalue())
