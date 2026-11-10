@@ -117,6 +117,7 @@ def run_budget():
 SOURCE_FILES = (
     'agent-kits/shared/journal.py',
     'agent-kits/shared/journal-capture.py',
+    'agent-kits/shared/journal-prompt.py',   # T-14 (H-31): the UserPromptSubmit hook and journal.py load it
     'agent-kits/shared/journal-io.py',
     'agent-kits/shared/local-state.py',
     'agent-kits/shared/outbox.py',
@@ -764,7 +765,7 @@ def test_N08_view_status_are_readonly_offline_and_missing_outbox_is_degraded(lab
         assert json.loads((child['control'] / 'audit.json').read_text(encoding='utf-8'))['attempts'] == []
     partial = lab.work / 'partial-source'
     for relative in ('agent-kits/shared/journal.py', 'agent-kits/shared/journal-capture.py',
-                     'agent-kits/shared/journal-io.py', 'agent-kits/shared/local-state.py',
+                     'agent-kits/shared/journal-prompt.py', 'agent-kits/shared/journal-io.py', 'agent-kits/shared/local-state.py',
                      'agent-kits/shared/redact.py', 'agent-kits/shared/local-read.py', 'package.json'):
         target = partial / relative; target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes((lab.source / relative).read_bytes())

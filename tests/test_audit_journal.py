@@ -206,7 +206,9 @@ def test_non_outbox_metadata_still_requires_file_sync(tmp_path, monkeypatch):
 def test_first_prompts_survive_the_atomic_link_publication_window(tmp_path, monkeypatch):
     mod = load('journal'); root = project(tmp_path)
     published, release = threading.Event(), threading.Event()
-    link, file = os.link, mod.JIO.IO.file
+    # `capture` now lives in journal-prompt.py, which loads its own journal-io instance (H-31, T-14)
+    io = mod._prompt_mod.JIO.IO
+    link, file = os.link, io.file
     errors = []
     def paused_link(source, target, *args, **kwargs):
         result = link(source, target, *args, **kwargs)
@@ -220,7 +222,7 @@ def test_first_prompts_survive_the_atomic_link_publication_window(tmp_path, monk
             if Path(path).name == '.gitignore' and published.is_set(): release.set()
             raise
     monkeypatch.setattr(os, 'link', paused_link)
-    monkeypatch.setattr(mod.JIO.IO, 'file', observe)
+    monkeypatch.setattr(io, 'file', observe)
     def first():
         try: mod.capture(str(root), {'session_id': 'first-link', 'prompt': 'Synthetic first'})
         except Exception as error: errors.append(type(error).__name__)

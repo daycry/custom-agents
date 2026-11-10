@@ -159,7 +159,8 @@ def test_journal_real_fallback_without_redact_module(tmp_path):
     """The shipped backup executes in journal's globals when its sibling is absent."""
     bundle = tmp_path / 'owned-journal'
     bundle.mkdir()
-    for filename in ('journal.py', 'journal-capture.py'):
+    # the real bundle always carries the three modules (run-hook.mjs launches capture and prompt alone)
+    for filename in ('journal.py', 'journal-capture.py', 'journal-prompt.py'):
         (bundle / filename).write_bytes(Path(HERE, filename).read_bytes())
     assert not (bundle / 'redact.py').exists()
     spec = importlib.util.spec_from_file_location('owned_journal_fallback', bundle / 'journal.py')
@@ -342,7 +343,7 @@ def test_t10fix2_178_ultimo_dead_letter_ramas(tmp_path):
 def test_t10fix2_178_transcript_seguro_ramas(tmp_path, monkeypatch):
     permitido = tmp_path / "transcripts"
     permitido.mkdir()
-    monkeypatch.setattr(journal, "_transcripts_permitidos_root", lambda: str(permitido))
+    monkeypatch.setattr(journal._prompt_mod, "_transcripts_permitidos_root", lambda: str(permitido))
     bueno = permitido / "s1.jsonl"
     bueno.write_text("{}\n", encoding="utf-8")
     assert journal._transcript_seguro(str(bueno), "s1") == str(bueno)
@@ -355,14 +356,14 @@ def test_t10fix2_178_transcript_seguro_ramas(tmp_path, monkeypatch):
     monkeypatch.setattr(journal.os.path, "islink", lambda p: True)
     assert journal._transcript_seguro(str(bueno), "s1") is None
     monkeypatch.undo()
-    monkeypatch.setattr(journal, "_transcripts_permitidos_root", lambda: str(permitido))
+    monkeypatch.setattr(journal._prompt_mod, "_transcripts_permitidos_root", lambda: str(permitido))
 
     def islink_roto(p):
         raise OSError("no")
     monkeypatch.setattr(journal.os.path, "islink", islink_roto)
     assert journal._transcript_seguro(str(bueno), "s1") is None
     monkeypatch.undo()
-    monkeypatch.setattr(journal, "_transcripts_permitidos_root", lambda: str(permitido))
+    monkeypatch.setattr(journal._prompt_mod, "_transcripts_permitidos_root", lambda: str(permitido))
 
     def commonpath_roto(ps):
         raise ValueError("otra unidad")
