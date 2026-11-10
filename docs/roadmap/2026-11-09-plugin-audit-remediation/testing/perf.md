@@ -116,3 +116,15 @@ Cada ejecución en un proceso nuevo (`t16_measure.py`), calentamiento + 3, media
 | Pythons de la barra de estado en 7 turnos | 7 | 1 |
 
 `ledger-lint` no cambia de forma apreciable: lo caro del caso de la auditoría (5,6 s con 507 KB) era el archivado. El proceso que sigue lanzando `task-brief.py` es la consulta de memoria (`knowledge-find.py`).
+
+## Revisión de dos lentes, intento 1: medidas nuevas (2026-11-10)
+
+Mismo método que arriba; solo cambian estas cifras.
+
+| Medida | Antes | Después | Nota |
+|---|---|---|---|
+| Migración única de `usage-state.json` (copia del repo) | 2,4 s | 1,23 s | D2: un transcript abierto cada vez y un `stat` por fichero; mismos 537 offsets y mismos tokens al re-cerrar T-07 y T-12 |
+| Procesos por SubagentStop con un Python normal (sin `.venv`) | 22 | 3 | A3: `node -e ""` cuenta 1; el `.venv` añade un redirector por Python |
+| Procesos por UserPromptSubmit / SessionEnd con un Python normal | 5 / 5 | 3 / 3 | A3 |
+| Paso del lint en `task-brief.py`, aislado (mediana de 5) | 0,410 s (subproceso) | 0,014 s (en proceso) | A1: el brief completo sigue en ~1,1 s porque lo domina la consulta de memoria (`knowledge-find.py`, subproceso) |
+| Barra de estado, 7 turnos con el coste cambiando | 7 Pythons | 1 Python (0,76 s por refresco, máquina cargada) | D1/B2: cada campo dentro de su grupo; misma salida (`3dfebc8547c6`) |
