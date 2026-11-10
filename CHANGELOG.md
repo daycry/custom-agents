@@ -29,6 +29,13 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - Scope check, QA coverage and the Jira export split the ledger like ledger-lint: an example inside a code block or a notes section no longer widens the scope or creates phantom tasks, and the whole Verificación sub-list reaches Jira; ledger-lint ignores a quoted summary and rejects a ledger state outside the vocabulary.
 - "Continue" after the third review attempt is now an executable path: `ledger-write.py review --attempt 4 --new-cycle-ok "<quote>"` opens a new bounded cycle with the user's OK quoted in the header; task commits have a single owner and procedure (implementer P4), which phase 6 only verifies.
 
+### Fixed — `plugin-audit-remediation` initiative, phase 3: process performance (2026-11-10)
+
+- Session start opens each ledger and the meter state once and reads the technical memory once for all its queries: half the time with the same output; `usage-state.json` no longer grows with every transcript (from 4 MB to ~100 KB) without changing any measurement.
+- Hooks start fewer processes on Windows: when a subagent finishes the state is computed in one Python and not repeated if unchanged, each user turn is captured without loading the whole journal, and no hook starts a second Python just to close an empty job.
+- The served panel no longer recomputes progress on every poll nor keeps other routes waiting while it does, and the console only starts the native-session CLIs in the Sessions view, further apart while nothing changes, remembers the installed runtimes and puts a deadline on the review-summary read.
+- The gates run faster with the same results: scope-check checks the disk once per pattern, archiving large ledgers and code-health no longer walk every character, a task brief validates the ledger without starting another Python, and the statusline only starts Python when the roadmap changes.
+
 ## [3.2.3] - 2026-11-09
 
 ### Fixed — plugin root resolution and doctor (2026-11-09)

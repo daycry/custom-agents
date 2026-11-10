@@ -29,6 +29,13 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - La puerta de alcance, la cobertura de QA y el volcado a Jira trocean el ledger como ledger-lint: un ejemplo dentro de un bloque de código o una sección de notas ya no amplía el alcance ni crea tareas fantasma, y la Verificación en sub-lista llega entera a Jira; ledger-lint ignora un resumen citado y rechaza un estado de ledger fuera del vocabulario.
 - «Seguir» tras el 3.er intento de revisión es un camino ejecutable: `ledger-write.py review --attempt 4 --new-cycle-ok "<cita>"` abre un ciclo nuevo acotado con el OK del usuario citado en la cabecera; los commits de tarea tienen un único dueño y procedimiento (P4 del implementer), que la Fase 6 solo verifica.
 
+### Fixed — iniciativa `plugin-audit-remediation`, fase 3: rendimiento de procesos (2026-11-10)
+
+- El arranque de sesión abre cada ledger y el estado del medidor una sola vez y lee la memoria técnica una vez para todas sus consultas: la mitad de tiempo con la misma salida; `usage-state.json` deja de crecer con cada transcript (de 4 MB a ~100 KB) sin cambiar ninguna medida.
+- Los hooks lanzan menos procesos en Windows: al terminar un subagente el estado se calcula en un solo Python y no se repite si no ha cambiado, cada turno del usuario se captura sin cargar el journal entero y ningún hook arranca un segundo Python solo para cerrar un job vacío.
+- El panel servido ya no recalcula el progreso en cada sondeo ni deja esperando al resto de rutas mientras lo hace, y la consola solo arranca los CLI de sesiones nativas en la vista Sesiones, cada vez más espaciados si nada cambia, recuerda los runtimes instalados y da plazo a la lectura del resumen de revisiones.
+- Las puertas tardan menos con los mismos resultados: scope-check mira el disco una vez por patrón, el archivado de ledgers grandes y code-health ya no recorren cada carácter, el brief de una tarea valida el ledger sin lanzar otro Python y la barra de estado solo arranca Python cuando cambia el roadmap.
+
 ## [3.2.3] - 2026-11-09
 
 ### Fixed — resolución de la raíz del plugin y doctor (2026-11-09)
