@@ -299,3 +299,76 @@ def test_fix1_a5_ningun_documento_cita_el_matcher_sin_clear():
                 'agent-kits/shared/skill-index.py', 'skills/plugin-dev/references/claude-code-contracts.md',
                 'docs/observability.md', 'docs/en/observability.md', 'hooks/session-context.sh'):
         assert viejo not in (ROOT / rel).read_text(encoding='utf-8'), rel
+
+
+# ------------------------------------------------- H-28 (auditoría 2026-11-09, T-13): una pasada
+
+_H28_CONTADOR = r'''
+import collections, importlib.util, json, os, sys
+native, project = sys.argv[1], sys.argv[2]
+opens = collections.Counter()
+def hook(event, args):
+    if event == 'open' and isinstance(args[0], str):
+        name = os.path.basename(os.path.dirname(args[0])) + '/' + os.path.basename(args[0])
+        if name.endswith(('/tasks.md', '/usage-state.json')):
+            opens[name] += 1
+sys.addaudithook(hook)
+spec = importlib.util.spec_from_file_location('sc_h28', native)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+out = module.compose({'source': 'startup', 'session_id': 'h28'}, root=project)
+print(json.dumps({'opens': opens, 'out': out}))
+'''
+
+
+def test_h28_compose_lee_cada_ledger_y_usage_state_una_sola_vez(tmp_path):
+    """H-28: el arranque abre cada `tasks.md` y `usage-state.json` UNA vez (antes: el bloque de
+    sesión, el historial y la memoria releían los ledgers y el estado del meter se cargaba dos
+    veces, una por `_leer_usage_state` y otra por el `status` del meter)."""
+    project, led = legacy.proyecto(tmp_path)
+    legacy._knowledge(project)
+    legacy._owned_history(project, 'selected.md', 'demo', 'Selected history')
+    # la activa supera el prefijo de 16 KiB (antes: 16 KiB + 256 KiB = dos aperturas) y hay dos
+    # inactivas, una grande y otra pequeña
+    led.write_text(led.read_text(encoding='utf-8') + ('relleno ' * 60 + '\n') * 80, encoding='utf-8')
+    for index, repeat in enumerate((400, 0)):
+        other = project / f'docs/roadmap/2025-01-0{index + 1}-cerrada{index}/tasks.md'
+        other.parent.mkdir(parents=True)
+        other.write_text(led.read_text(encoding='utf-8').replace('estado: en-progreso', 'estado: completado', 1)
+                         + ('relleno ' * 60 + '\n') * repeat, encoding='utf-8')
+    (project / '.claude/usage-state.json').write_text(json.dumps({
+        'demo/T-01': {'inicio': '2026-01-03T00:00:00Z'},
+        'demo/T-00': {'inicio': '2026-01-01T00:00:00Z', 'ultimoCierre': '2026-01-02T00:00:00Z'},
+    }), encoding='utf-8')
+    env = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(ROOT))
+    result = subprocess.run([sys.executable, '-c', _H28_CONTADOR, str(NATIVE), str(project)],
+                            capture_output=True, text=True, encoding='utf-8', env=env, timeout=120)
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout.strip().splitlines()[-1])
+    context = json.loads(data['out'])['hookSpecificOutput']['additionalContext']
+    assert 'Ledger canónico' in context and 'Selected history' in context and 'Memoria técnica' in context
+    assert 'usage-meter: marcadores abiertos → demo/T-01' in context
+    opens = data['opens']
+    assert opens.get('.claude/usage-state.json') == 1, opens
+    ledgers = {name: count for name, count in opens.items() if name.endswith('/tasks.md')}
+    assert len(ledgers) == 3 and max(ledgers.values()) == 1, ledgers
+
+
+def test_h28_compose_lee_el_corpus_de_la_memoria_una_sola_vez(tmp_path):
+    """H-28: con dos iniciativas activas la memoria consulta dos veces knowledge-find; el corpus de
+    `docs/knowledge/` se lee y se parsea una vez por arranque, no una vez por consulta."""
+    project, led = legacy.proyecto(tmp_path)
+    legacy._knowledge(project)
+    other = project / 'docs/roadmap/2026-01-02-other/tasks.md'
+    other.parent.mkdir(parents=True)
+    other.write_bytes(led.read_bytes())
+    script = _H28_CONTADOR.replace("name.endswith(('/tasks.md', '/usage-state.json'))",
+                                   "name.endswith('/ADR-001-lentes-en-paralelo.md')")
+    env = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(ROOT))
+    result = subprocess.run([sys.executable, '-c', script, str(NATIVE), str(project)],
+                            capture_output=True, text=True, encoding='utf-8', env=env, timeout=120)
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout.strip().splitlines()[-1])
+    context = json.loads(data['out'])['hookSpecificOutput']['additionalContext']
+    assert 'Memoria técnica' in context and 'consultadas' not in context
+    assert data['opens'] == {'adr/ADR-001-lentes-en-paralelo.md': 1}, data['opens']

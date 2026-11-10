@@ -18,9 +18,9 @@ changelog: Fixed
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
 | Fase 2 | 6 | 6 | 100.0% |
-| Fase 3 | 0 | 4 | 0.0% |
+| Fase 3 | 1 | 4 | 25.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **12** | **21** | **57.1%** |
+| **TOTAL** | **13** | **21** | **61.9%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -404,18 +404,25 @@ GREEN fix1: `pytest tests/test_ledger_write.py -k "fix1 or h24"` → `4 passed`;
 
 ## Fase 3 — Rendimiento de procesos
 
-**Estado**: borrador
+**Estado**: en-progreso
 
 ### T-13 — SessionStart en una pasada
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: H-28 y H-40. Una sola instantánea del roadmap por arranque; `usage-state.json` sin `offsets` en marcadores cerrados.
-- **Archivos**: `hooks/session-context.py`, `agent-kits/shared/progress-report.py`, `agent-kits/shared/usage-meter.py`, sus tests.
+- **Archivos**: `hooks/session-context.py`, `agent-kits/shared/progress-report.py`, `agent-kits/shared/usage-meter.py`, sus tests (`agent-kits/shared/test_progress_report.py`, `agent-kits/shared/test_usage_meter.py`, `tests/test_session_context.py`), `agent-kits/shared/knowledge-find.py` (la memoria del arranque leía el corpus una vez por consulta), `agent-kits/shared/ledger-lint.py` (`estado_ledger`: el estado de un prefijo sin trocear las tareas, con la regla de `parse_ledger`), `tests/test_graphiti_security.py` (huella `sha256_lf` de `hooks/session-context.py`), `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md` (E3: qué guarda `usage-state.json`) (añadidos por el implementer), `docs/roadmap/2026-11-09-plugin-audit-remediation/testing/perf.md` (medidas de CA-05; la guardia del implementer no le deja escribir en `testing/`: borrador entregado al orquestador).
+- **Tiempo IA (ejec.)**: real 1,28h (medido)
 - **Verificación**: medida antes y después sobre este repo (`testing/perf.md`); misma salida.
+- **Changelog**: El arranque de sesión abre cada ledger y el estado del medidor una sola vez y lee la memoria técnica una vez para todas sus consultas: la mitad de tiempo con la misma salida; `usage-state.json` deja de crecer con cada transcript (de 4 MB a ~100 KB) sin cambiar ninguna medida.
+- **Cerrada**: 2026-11-10
 
 **Criterios de aceptación**
-- [ ] Cada ledger se lee una vez por arranque.
-- [ ] Salida idéntica a la anterior salvo las mejoras de T-07.
+- [x] Cada ledger se lee una vez por arranque.
+- [x] Salida idéntica a la anterior salvo las mejoras de T-07.
+
+RED: `tests/test_session_context.py -k h28 + agent-kits/shared/test_usage_meter.py -k h40` falló con 4 failed: el arranque abre el ledger activo 5 veces, cada inactivo 2 y usage-state.json 2; con dos activas el corpus de la memoria se lee 2 veces; close guarda los 40 offsets de transcripts sin cambios; la migración no poda los marcadores cerrados existentes · 2026-11-10.
+
+GREEN: `pytest tests/test_session_context.py` → `49 passed` (H-28: una apertura por `tasks.md` y por `usage-state.json`, corpus una vez); `agent-kits/shared/test_usage_meter.py` → `83 passed` (H-40: close poda y re-close mide 105 = 100 + la línea nueva del transcript reanudado; la migración conserva `ultimoCierre`, `ventana_id`, `revision_medicion`, `fuente_id` y deja intacto el marcador abierto); `test_progress_report.py` 45 (incl. `estado_ledger` == `parse_ledger` en los 68 ledgers del repo y `_LectorUnaVez` == `local-read.read_text`; TDD n/a en estos dos: equivalencias escritas tras el código), `test_work_resume.py` 75, `test_review_resume.py` 18, `test_journal.py` 192 + 10 skipped, `tests/test_knowledge_find.py` 106 + 2 skipped, `tests/test_ledger_lint.py` 9, `test_ledger_single_parser.py` 10, `test_copias_declaradas.py` 31, `tests/test_graphiti_security.py` 126 passed (huella nueva, sin red). Medida (5 procesos nuevos, mediana, misma salida por SHA): `compose` p68 2,23 → 1,14 s y p345 2,66 → 1,31 s; aperturas de `tasks.md` 107 → 68 (máx. por ledger 3 → 1), `usage-state.json` 2 → 1, corpus 2 → 1; `usage-state.json` 4.007.683 → 134.997 B (`json.load` 36,9 → 2,0 ms), re-close igual en T-07 y T-12 reales; en el repo, 103.374 B tras el primer close. Decisiones: el historial del arranque va directo a la iniciativa vigente (el escaneo de 1 MiB llegaba a la misma con una sola activa); un ledger ≤ 1 MiB se lee entero en una apertura y se sirve de esos bytes; poda por offset solo si el último registro anterior al `start` cae fuera de la tolerancia de 60 s (la poda por mtime sola contaba 4 respuestas de más en T-12) · 2026-11-10.
 
 ### T-14 — Menos procesos por hook
 

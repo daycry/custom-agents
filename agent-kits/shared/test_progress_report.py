@@ -478,3 +478,45 @@ def test_fix1_b5_revisiones_omitidas_por_ledger_grande_se_dicen(tmp_path):
     code, out, _ = run("session", "--root", str(tmp_path))
     assert code == 0
     assert "Revisiones omitidas: ledger > 256 KiB; /work-resume --initiative 2026-09-02-demo" in out
+
+
+# ---------------------------------------- H-28 (auditoría 2026-11-09, T-13): una pasada
+
+def test_h28_estado_ledger_coincide_con_parse_ledger_en_los_ledgers_del_repo():
+    """La lectura de cabecera del arranque usa `estado_ledger` (sin trocear tareas): mismo estado
+    que `parse_ledger` en cada ledger del repo, entero y en el prefijo de 16 KiB."""
+    roadmap = HERE.parents[1] / "docs" / "roadmap"
+    vistos = 0
+    for path in sorted(roadmap.glob("*/tasks.md")):
+        texto = path.read_text(encoding="utf-8", errors="replace")
+        for parte in (texto, texto[:16 * 1024], "\ufeff" + texto[:4096]):
+            parsed = pr.parse_ledger(parte)
+            fm = parsed["frontmatter"].get("estado")
+            esperado = pr.norm_estado(fm) if fm else parsed["estado_tabla"]
+            assert pr._ll.estado_ledger(parte) == esperado, path
+        vistos += 1
+    assert vistos >= 10
+
+
+def test_h28_lector_una_vez_sirve_prefijos_y_lectura_entera_como_local_read(tmp_path):
+    """`_LectorUnaVez` abre el ledger una vez y devuelve lo mismo que `local-read.read_text`."""
+    reader = pr._load_module("t_local_read", "local-read.py")
+    ledger = tmp_path / "docs" / "roadmap" / "2026-01-01-x" / "tasks.md"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_bytes(("---\nestado: en-progreso\n---\n# Título ñ\n" + "línea € " * 9000).encode("utf-8"))
+    rel = "docs/roadmap/2026-01-01-x/tasks.md"
+    lector = pr._LectorUnaVez(reader, {rel: ledger.stat().st_size})
+    for kwargs in ({"max_bytes": 16 * 1024, "prefix": True}, {"max_bytes": 256 * 1024, "prefix": True},
+                   {"max_bytes": 16 * 1024 * 1024}, {"max_bytes": 1000}, {"max_bytes": 16 * 1024 + 1, "prefix": True}):
+        assert lector.read_text(tmp_path, rel, **kwargs) == reader.read_text(tmp_path, rel, **kwargs), kwargs
+    abiertos = []
+    original = reader.read_bytes
+    reader.read_bytes = lambda *a, **k: abiertos.append(k) or original(*a, **k)
+    try:
+        lector2 = pr._LectorUnaVez(reader, {rel: ledger.stat().st_size})
+        lector2.read_text(tmp_path, rel, max_bytes=16 * 1024, prefix=True)
+        lector2.read_text(tmp_path, rel, max_bytes=256 * 1024, prefix=True)
+        lector2.read_text(tmp_path, rel, max_bytes=16 * 1024 * 1024)
+    finally:
+        reader.read_bytes = original
+    assert len(abiertos) == 1, abiertos

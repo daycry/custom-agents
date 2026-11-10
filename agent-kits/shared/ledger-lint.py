@@ -518,6 +518,34 @@ def bloques_de_tarea(text):
     # --8<-- fin bloques_de_tarea (cuerpo)
 
 
+def _frontmatter_de(lines):
+    """Claves planas `clave: valor` del bloque YAML inicial (líneas ya sin vallas)."""
+    frontmatter = {}
+    if lines and lines[0].strip() == "---":
+        for ln in lines[1:]:
+            if ln.strip() == "---":
+                break
+            m = re.match(r"^([A-Za-z_][\w-]*)\s*:\s*(.*)$", ln)
+            if m:
+                val = m.group(2).split("#", 1)[0].strip()
+                frontmatter[m.group(1)] = val
+    return frontmatter
+
+
+def _estado_tabla_de(text):
+    m = re.search(r"^\|\s*\*\*Estado\*\*\s*\|[ \t]*([^|\s][^|]*)\|", text, re.M)
+    return norm_estado(m.group(1)) if m else None
+
+
+def estado_ledger(text):
+    """Estado del ledger con la MISMA regla que `parse_ledger` (frontmatter `estado:` o, si falta, la
+    fila `| **Estado** |`), sin trocear las tareas: lo usan las lecturas de cabecera del arranque
+    (H-28, T-13), que solo necesitan saber si la iniciativa está activa."""
+    text = text.lstrip("﻿")
+    fm = _frontmatter_de(sin_vallas(text).splitlines()).get("estado")
+    return norm_estado(fm) if fm else _estado_tabla_de(text)
+
+
 def parse_ledger(text):
     """Parser ESTRUCTURAL del ledger (sin efectos secundarios, importable).
 
@@ -552,17 +580,8 @@ def parse_ledger(text):
     lines = sin_vallas(text).splitlines()
 
     # ---- frontmatter (claves planas) y tabla de cabecera ----
-    frontmatter = {}
-    if lines and lines[0].strip() == "---":
-        for ln in lines[1:]:
-            if ln.strip() == "---":
-                break
-            m = re.match(r"^([A-Za-z_][\w-]*)\s*:\s*(.*)$", ln)
-            if m:
-                val = m.group(2).split("#", 1)[0].strip()
-                frontmatter[m.group(1)] = val
-    m = re.search(r"^\|\s*\*\*Estado\*\*\s*\|[ \t]*([^|\s][^|]*)\|", text, re.M)
-    estado_tabla = norm_estado(m.group(1)) if m else None
+    frontmatter = _frontmatter_de(lines)
+    estado_tabla = _estado_tabla_de(text)
     # Fecha de creación del ledger: `creado:` del frontmatter o la fila `| **Fecha** | AAAA-MM-DD |` de la
     # tabla de cabecera (la usa `lint()` para que `Cerrada` no sea anterior). Solo si es una fecha bien formada.
     m = re.search(r"^\|\s*\*\*Fecha\*\*\s*\|[ \t]*([^|\s][^|]*)\|", text, re.M)

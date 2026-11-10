@@ -1213,3 +1213,77 @@ def test_fix3_status_marca_solo_el_estado_ilegible_como_fatal(entorno):
     rc, res = _run(None, ["status", "--state", str(state)])
     assert rc == 0 and not res.get("estado_ilegible") and res.get("avisos"), res
 
+
+
+# ------------------------------------------- H-40 (auditoría 2026-11-09, T-13): state acotado
+
+def _envejecer(path, horas=3):
+    """mtime `horas` atrás: un transcript que no se ha tocado desde antes de la ventana."""
+    import os
+    import time
+    viejo = time.time() - horas * 3600
+    os.utime(path, (viejo, viejo))
+
+
+def _rec_viejo(msg_id, inp, horas=3):
+    """Registro escrito `horas` atrás (timestamp coherente con el mtime envejecido)."""
+    rec = json.loads(_rec(msg_id, inp=inp))
+    rec["timestamp"] = (datetime.now(timezone.utc) - timedelta(hours=horas)).isoformat()
+    return json.dumps(rec)
+
+
+def _cerrar(tdir, state, artefacto="a.md"):
+    return _run(None, ["close", "--artefacto", artefacto, "--state", str(state),
+                       "--transcript-dir", str(tdir)])[1]
+
+
+def test_h40_close_poda_los_offsets_de_transcripts_sin_cambios(entorno):
+    """H-40: un marcador cerrado no guarda el tamaño de cada transcript antiguo (crecía sin límite:
+    3,9 MB con ~120 marcadores); solo los ficheros tocados en la ventana, y re-cerrar mide igual."""
+    _, tdir, state = entorno
+    for n in range(40):
+        _write(tdir / f"vieja-{n:02d}.jsonl", [_rec_viejo(f"v{n}", inp=999)])
+        _envejecer(tdir / f"vieja-{n:02d}.jsonl")
+    res = _start_close(tdir, state, antes=[_rec("m1", inp=7)], despues=[_rec("m2", inp=100, out=10)])
+    marcador = json.loads(state.read_text(encoding="utf-8"))["a.md"]
+    assert marcador["offsets"] == {"sesion.jsonl": marcador["offsets"]["sesion.jsonl"]}
+    assert marcador.get("offsets_podados") is True
+    # re-close: misma ventana; un transcript antiguo que se reanuda cuenta solo lo nuevo
+    with open(tdir / "vieja-00.jsonl", "a", encoding="utf-8") as f:
+        f.write(_rec("reanudada", inp=5) + "\n")
+    res2 = _cerrar(tdir, state)
+    assert res["tokens_reales"]["entrada"] == 100
+    assert res2["tokens_reales"]["entrada"] == 105 and res2["tokens_reales"]["respuestas"] == 2
+    assert res2["revision_medicion"] == 2 and res2["ventana_id"] == res["ventana_id"]
+
+
+def test_h40_migracion_poda_los_marcadores_cerrados_existentes_sin_perder_la_medicion(entorno):
+    """H-40: los marcadores ya cerrados con todos sus offsets se podan al siguiente start/close;
+    los abiertos no se tocan y los campos de medición se conservan."""
+    _, tdir, state = entorno
+    for n in range(30):
+        _write(tdir / f"vieja-{n:02d}.jsonl", [_rec_viejo(f"v{n}", inp=999)])
+        _envejecer(tdir / f"vieja-{n:02d}.jsonl")
+    _write(tdir / "sesion.jsonl", [])
+    rc, _ = _run(None, ["start", "--artefacto", "cerrado.md", "--state", str(state), "--transcript-dir", str(tdir)])
+    rc, _ = _run(None, ["start", "--artefacto", "abierto.md", "--state", str(state), "--transcript-dir", str(tdir)])
+    with open(tdir / "sesion.jsonl", "a", encoding="utf-8") as f:
+        f.write(_rec("m1", inp=40) + "\n")
+    data = json.loads(state.read_text(encoding="utf-8"))
+    data["cerrado.md"].update({"ultimoCierre": um._now_iso(), "ventana_id": "win-" + "a" * 32,
+                               "revision_medicion": 3, "fuente_id": "src-x"})   # cierre de una versión anterior
+    legacy = dict(data["cerrado.md"])
+    state.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")   # como lo guarda el meter
+    antes = state.stat().st_size
+    rc, _ = _run(None, ["start", "--artefacto", "otro.md", "--state", str(state), "--transcript-dir", str(tdir)])
+    assert rc == 0
+    data = json.loads(state.read_text(encoding="utf-8"))
+    cerrado = data["cerrado.md"]
+    assert set(cerrado["offsets"]) == {"sesion.jsonl"} and cerrado["offsets_podados"] is True
+    assert {k: v for k, v in cerrado.items() if k not in ("offsets", "offsets_podados")} == \
+        {k: v for k, v in legacy.items() if k != "offsets"}
+    assert len(data["abierto.md"]["offsets"]) == 31 and "offsets_podados" not in data["abierto.md"]
+    # la ventana del migrado se sigue midiendo igual
+    assert _cerrar(tdir, state, "cerrado.md")["tokens_reales"]["entrada"] == 40
+    assert _cerrar(tdir, state, "abierto.md")["tokens_reales"]["entrada"] == 40
+    assert state.stat().st_size < antes

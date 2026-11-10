@@ -148,15 +148,21 @@ def _memory(knowledge, progress, root):
             continue
         consultadas.append(a)
         slug, path = a.get("slug", ""), a.get("path", "")
-        titulo = ""
+        # H-28: el título sale de los bytes que la instantánea ya leyó; solo sin ellos se abre el ledger
         try:
-            with open(os.path.join(root, path) if not os.path.isabs(path) else path, encoding="utf-8", errors="replace") as f:
-                for ln in f:
-                    if ln.startswith("# "):
-                        titulo = re.sub(r"^#\s*(?:Checklist de Tareas\s*[—:-]\s*)?", "", ln).strip()
-                        break
-        except OSError:
-            pass
+            titulo = progress.titulo_ledger(root, path)
+        except Exception:   # módulo de otra versión o doble de test: se lee como antes
+            titulo = None
+        if not isinstance(titulo, str):
+            titulo = ""
+            try:
+                with open(os.path.join(root, path) if not os.path.isabs(path) else path, encoding="utf-8", errors="replace") as f:
+                    for ln in f:
+                        if ln.startswith("# "):
+                            titulo = re.sub(r"^#\s*(?:Checklist de Tareas\s*[—:-]\s*)?", "", ln).strip()
+                            break
+            except OSError:
+                pass
         d = run(knowledge, "--json", "--root", root, "--limit", "0",
                 "--contexto", titulo, "--iniciativa", slug)
         ordenes.append(f"--contexto \"{titulo}\" --iniciativa {slug}")
@@ -223,11 +229,16 @@ def compose(payload, *, runtime='claude', root=None):
                 parts.append(text)
         if knowledge is not None and progress is not None and os.path.isdir(os.path.join(root, 'docs', 'knowledge')) and os.path.isdir(os.path.join(root, 'docs', 'roadmap')):
             try:
+                if hasattr(knowledge, '_CORPUS_MEMO'):
+                    knowledge._CORPUS_MEMO = {}   # H-28: el corpus se lee una vez para todas las consultas
                 text = _memory(knowledge, progress, root)
                 if text:
                     parts.append(text)
             except Exception:
                 pass
+            finally:
+                if hasattr(knowledge, '_CORPUS_MEMO'):
+                    knowledge._CORPUS_MEMO = None
         text = '\n\n'.join(parts)
         if len(text) > TOPE_CHARS:
             text = text[:TOPE_CHARS - 1].rstrip() + '…'

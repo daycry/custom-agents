@@ -291,7 +291,97 @@ def _ventana_descarta(ts_dt, inicio_dt):
         return False, True
 
 
-def _sum_usage_window(tdir, offsets, inicio=None, cobertura=None):
+_TS_RE = re.compile(rb'"timestamp"\s*:\s*"([^"]{10,40})"')
+_COLAS_BYTES = (4 * 1024, 64 * 1024)
+
+
+def _ts_previo(path, offset, abiertos=None):
+    """Timestamp del ÚLTIMO registro antes de `offset` (los transcripts se escriben en orden: es el
+    más reciente de lo que había en el `start`). Lee una cola de 4 KiB y, si no basta, de 64 KiB: la
+    línea entera si cabe o, si no, su último campo `timestamp` (Claude Code lo escribe al final del
+    registro). None si no se puede saber (quien llama conserva entonces el offset)."""
+    for tam in _COLAS_BYTES:
+        try:
+            fh = abiertos.get(path) if abiertos is not None else None
+            if fh is None:
+                fh = open(path, "rb")
+                if abiertos is not None:
+                    abiertos[path] = fh   # la migración abre cada transcript una vez para todos los marcadores
+            try:
+                desde = max(0, int(offset) - tam)
+                fh.seek(desde)
+                cola = fh.read(int(offset) - desde)
+            finally:
+                if abiertos is None:
+                    fh.close()
+        except (OSError, ValueError, OverflowError):
+            return None
+        lineas = cola.rstrip(b"\n").split(b"\n")
+        if len(lineas) > 1 or desde == 0:
+            try:
+                rec = json.loads(lineas[-1])
+                if isinstance(rec, dict) and rec.get("timestamp"):
+                    return _parse_iso(rec.get("timestamp"))
+            except ValueError:
+                pass
+        encontrados = _TS_RE.findall(lineas[-1])
+        if encontrados:
+            return _parse_iso(encontrados[-1].decode("ascii", "replace"))
+        if desde == 0:
+            return None
+    return None
+
+
+def _podar_offsets(marcador, tdir, abiertos=None):
+    """H-40 (T-13): un marcador CERRADO conserva solo los offsets que cambian la medida. Antes
+    guardaba el tamaño de todos los `.jsonl` del proyecto en cada marcador y `usage-state.json`
+    crecía sin límite (3,9 MB con ~225 marcadores), y cada arranque lo cargaba entero.
+
+    Sin offset, un transcript se lee desde 0 y el filtro por `timestamp` de T-04 descarta lo anterior
+    a `inicio - tolerancia`. El offset solo afina si en el `start` el fichero ya tenía registros
+    dentro de esa tolerancia: se conserva entonces, o si no se puede saber. Además, un transcript sin
+    offset que no se ha escrito desde antes del corte se salta sin leerlo (`podados` en
+    `_sum_usage_window`). Así re-cerrar mide exactamente lo mismo. Sin carpeta de transcripciones o
+    sin `inicio` legible no se poda nada. Idempotente: `offsets_podados` marca el marcador podado."""
+    offsets = marcador.get("offsets")
+    if marcador.get("offsets_podados") or not isinstance(offsets, dict):
+        return False
+    inicio_dt = _parse_iso(marcador.get("inicio")) if marcador.get("inicio") else None
+    if inicio_dt is None or not tdir or not Path(tdir).is_dir():
+        return False
+    corte_dt = inicio_dt - timedelta(seconds=TIMESTAMP_TOLERANCIA_SEG)
+    corte = corte_dt.timestamp()
+    conservar = {}
+    for clave, offset in offsets.items():
+        ruta = Path(tdir) / clave
+        try:
+            mtime = ruta.stat().st_mtime
+        except (OSError, ValueError):
+            continue   # ya no existe: si reaparece se lee como fichero nuevo, con el filtro por timestamp
+        if mtime < corte or not isinstance(offset, (int, float)) or offset <= 0:
+            continue   # nada escrito desde antes del corte, o nada antes del offset
+        previo = _ts_previo(ruta, offset, abiertos)
+        if previo is None or previo >= corte_dt:
+            conservar[clave] = offset
+    marcador["offsets"] = conservar
+    marcador["offsets_podados"] = True
+    return True
+
+
+def _migrar_cerrados(state):
+    """Poda los marcadores que cerró una versión anterior (H-40), con la misma regla y sin cambiar
+    su medida."""
+    abiertos = {}
+    try:
+        for m in state.values():
+            if isinstance(m, dict) and "ultimoCierre" in m and not m.get("offsets_podados"):
+                _podar_offsets(m, m.get("transcriptDir"), abiertos)
+    finally:
+        for fh in abiertos.values():
+            fh.close()
+
+
+def _sum_usage_window(tdir, offsets, inicio=None, cobertura=None, podados=False):
     """Suma el usage de los registros NUEVOS (más allá del offset por fichero), con
     dedupe GLOBAL por message.id (registros repetidos de una misma respuesta, incluso
     entre el fichero principal y un subagente) y búsqueda RECURSIVA bajo la carpeta del
@@ -309,6 +399,9 @@ def _sum_usage_window(tdir, offsets, inicio=None, cobertura=None):
     `cobertura` (dict opcional, D-086): se rellena con `leidos` (ficheros con bytes nuevos en la
     ventana), `subagente` (de esos, bajo `subagents/`), `errores` (ficheros que no se pudieron leer)
     y `campos_malos` (campos de usage no numéricos contados como 0).
+
+    `podados` (H-40): los offsets son los de un marcador cerrado y podado (`_podar_offsets`); un
+    fichero sin offset cuyo mtime es anterior a `inicio - tolerancia` no tiene nada de la ventana.
     """
     seen = {}
     avisos = []
@@ -318,8 +411,17 @@ def _sum_usage_window(tdir, offsets, inicio=None, cobertura=None):
     descartados_por_ventana = 0
     timestamps_no_comparables = 0
     leidos, de_subagente, errores = 0, 0, 0
+    corte = None
+    if podados and inicio_dt is not None:
+        corte = (inicio_dt - timedelta(seconds=TIMESTAMP_TOLERANCIA_SEG)).timestamp()
     for f in sorted(tdir.rglob("*.jsonl"), key=lambda p: _rel_key(p, tdir)):
         clave = _rel_key(f, tdir)
+        if corte is not None and clave not in offsets:
+            try:
+                if f.stat().st_mtime < corte:
+                    continue   # sin escribir desde antes de la ventana (H-40)
+            except OSError:
+                pass
         start = offsets.get(clave, 0)
         if not isinstance(start, (int, float)) or start < 0:
             avisos.append(f"offset corrupto para {clave}; se relee completo")
@@ -585,6 +687,7 @@ def cmd_start(args):
     if not tdir:
         marcador["aviso"] = "transcripciones no localizadas; close degradará a fuente=estimado"
     state[args.artefacto] = marcador
+    _migrar_cerrados(state)
     _save_state(args.state, state, avisos)
     salida = {"ok": True, "artefacto": args.artefacto,
               "inicio": marcador["inicio"], "ficheros": len(marcador["offsets"])}
@@ -644,7 +747,8 @@ def cmd_close(args):
         if tdir and Path(tdir).is_dir():
             try:
                 tokens, avs = _sum_usage_window(tdir, marcador.get("offsets") or {},
-                                                 inicio=marcador.get("inicio"), cobertura=cobertura)
+                                                 inicio=marcador.get("inicio"), cobertura=cobertura,
+                                                 podados=bool(marcador.get("offsets_podados")))
                 avisos += avs
             except Exception as e:  # degradación total: nunca bloquear
                 avisos.append(f"lectura de transcripciones falló: {e}")
@@ -695,6 +799,8 @@ def cmd_close(args):
     resultado.update(_procedencia(resultado["fuente"] == "medido", cobertura, resultado["eur"], sin_precio, rates))
     if marcador:
         marcador["ultimoCierre"] = fin  # el marcador se conserva: re-close = misma ventana actualizada
+        _podar_offsets(marcador, args.transcript_dir or marcador.get("transcriptDir"))   # H-40
+        _migrar_cerrados(state)
         identidad = None
         if resultado["fuente"] == "medido":
             identidad = _identidad_medicion(marcador, tdir, avisos)
