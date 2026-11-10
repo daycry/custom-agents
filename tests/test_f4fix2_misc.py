@@ -52,3 +52,56 @@ def test_f4fix2_11_conventions_document_the_quoted_line_the_only_valid_one_and_t
 def test_f4fix2_13_the_english_doctor_mirror_names_where_the_command_points():
     text = (ROOT / 'docs/en/reference/doctor.md').read_text(encoding='utf-8')
     assert '`$R/agent-kits/shared/doctor-reference.md`' in text and 'a pointer here' not in text
+
+
+# ------------------------------------------------------------------ tests de los gaps 5 y 14 del intento 1
+
+import json
+import subprocess
+import sys
+
+MEASURED = ['agents/implementer.md', 'commands/doctor.md', 'agent-kits/shared/doctor-reference.md',
+            'agent-kits/dev-cycle/references/phase2-planning.md', 'agent-kits/dev-cycle/references/phase2-plan-review.md',
+            'skills/adversarial-review/SKILL.md', 'agent-kits/shared/capability-check.md',
+            'agent-kits/shared/project-integrations.md']
+TESTING = ROOT / 'docs/roadmap/2026-11-09-plugin-audit-remediation/testing'
+
+
+def _footprint():
+    """Characters in LF per file, from the tool the Verification of T-17 and T-18 names (never a script of ours)."""
+    args = [sys.executable, str(ROOT / 'agent-kits/shared/context-footprint.py'), '--project', str(ROOT)]
+    for rel in MEASURED:
+        args += ['--file', rel]
+    proc = subprocess.run(args, capture_output=True, text=True, encoding='utf-8', timeout=120)
+    data = json.loads(proc.stdout)
+    assert data['status'] == 'ok' and data['normalization'] == 'utf8-lf', proc.stdout[:300]
+    return {row['path']: row['characters'] for row in data['files']}
+
+
+def test_f4fix2_5_the_published_figures_match_context_footprint_on_head():
+    measured = _footprint()
+    tokens_md = Path(os.environ.get('F4FIX2_TOKENS_MD') or TESTING / 'tokens.md').read_text(encoding='utf-8')
+    spanish = (ROOT / 'docs/TOKEN-EFFICIENCY.md').read_text(encoding='utf-8')
+    english = (ROOT / 'docs/en/TOKEN-EFFICIENCY.md').read_text(encoding='utf-8')
+    es = lambda n: f'{n:,}'.replace(',', '.')
+    en = lambda n: f'{n:,}'
+    for rel, size in measured.items():
+        assert es(size) in tokens_md, (rel, es(size), 'testing/tokens.md')
+    for rel in ('commands/doctor.md', 'agent-kits/shared/doctor-reference.md', 'agent-kits/dev-cycle/references/phase2-planning.md',
+                'agent-kits/dev-cycle/references/phase2-plan-review.md', 'skills/adversarial-review/SKILL.md', 'agents/implementer.md'):
+        assert es(measured[rel]) in spanish, (rel, es(measured[rel]), 'TOKEN-EFFICIENCY.md')
+        assert en(measured[rel]) in english, (rel, en(measured[rel]), 'en/TOKEN-EFFICIENCY.md')
+    for text, fmt in ((spanish, es), (english, en)):
+        assert fmt(measured['agent-kits/shared/capability-check.md']) in text
+        assert fmt(measured['agent-kits/shared/project-integrations.md']) in text
+    # The quick-path margin the docs quote.
+    estimate = lambda rel: (len((ROOT / rel).read_bytes().decode('utf-8').replace('\r\n', '\n')) + 3) // 4
+    saving = 15066 - estimate('commands/dev-cycle.md') - estimate('skills/quick-implement/SKILL.md')
+    assert saving >= 6000
+    assert es(saving) in spanish and en(saving) in english and es(saving) in tokens_md
+
+
+def test_f4fix2_14_perf_md_links_to_tokens_md_and_it_exists():
+    perf = (TESTING / 'perf.md').read_text(encoding='utf-8')
+    assert '[`tokens.md`](tokens.md)' in perf
+    assert (TESTING / 'tokens.md').is_file()
