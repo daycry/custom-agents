@@ -175,7 +175,7 @@ _CITAS_POR_NOMBRE = {
 # This is a closure declaration, never an egress exception. Any owner change needs review.
 _CARGAS_LOCALES_REVISADAS = {
     "hooks/session-context.py": {
-        "sha256_lf": "65d17ff8732215aec694be119bd0bd0cfc0daf6b56d2418633b3794b8e56236d",   # f4fix3 (gaps 1 y 5): modo `drain` (solo replay); token SHAREDKIT neutralizado; el token SHAREDKIT del consumidor se neutraliza sin distinguir mayúsculas ni forma; f4fix2 (gap 1): el texto del consumidor se neutraliza (`neutralise_kit_text`), solo vale la línea del hook; f4fix1 (gaps 1 y 17): la línea «Kit activo» va entre comillas simples (CWE-78) y también con el bloque vacío; T-19 (H-45): línea «Kit activo» con la ruta local del bundle; T-13 (H-28): título y corpus de la memoria sin releer; mismas cargas locales, sin red
+        "sha256_lf": "5180cec9d7297a4f47f467154900360ce974c22439717511cc92e1c9e21e665b",   # f4fix3 (gaps 1 y 5): modo `drain` (solo replay); token SHAREDKIT neutralizado salvo tras `$` (expansión, no asignación); el token SHAREDKIT del consumidor se neutraliza sin distinguir mayúsculas ni forma; f4fix2 (gap 1): el texto del consumidor se neutraliza (`neutralise_kit_text`), solo vale la línea del hook; f4fix1 (gaps 1 y 17): la línea «Kit activo» va entre comillas simples (CWE-78) y también con el bloque vacío; T-19 (H-45): línea «Kit activo» con la ruta local del bundle; T-13 (H-28): título y corpus de la memoria sin releer; mismas cargas locales, sin red
         "dependencies": ("agent-kits/shared/journal.py", "agent-kits/shared/skill-index.py",
                          "agent-kits/shared/progress-report.py", "agent-kits/shared/knowledge-find.py"),
     },

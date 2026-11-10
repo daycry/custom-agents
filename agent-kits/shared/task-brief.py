@@ -1070,11 +1070,11 @@ def _linea_kit_real():
 
 def sin_kit_falso(texto, real):
     """Ledger text is DATA. Every occurrence of the token `SHAREDKIT` (any ASCII case) outside the line this script
-    generated becomes `SHAREDKIT⟨cita⟩`, which can be neither a shell assignment nor read as the real line
+    generated (except after `$`, an expansion that cannot assign) becomes `SHAREDKIT⟨cita⟩`, which can be neither a shell assignment nor read as the real line
     (CWE-829/CWE-426): by token, not by shape, so no variant of a forged line survives. The cost, accepted: a
     legitimate command of the ledger that uses `SHAREDKIT` arrives quoted and cannot be copied (the brief already
     carries the kit)."""
-    return chr(10).join(linea if (real and linea == real) else re.sub(r"(?i)SHAREDKIT", "SHAREDKIT⟨cita⟩", linea)
+    return chr(10).join(linea if (real and linea == real) else re.sub(r"(?i)(?<!\$)SHAREDKIT", "SHAREDKIT⟨cita⟩", linea)
                      for linea in texto.split(chr(10)))
 
 
@@ -1583,6 +1583,11 @@ def main(argv=None):
     out += _seccion_constitucion(args)
     out += (["", TDD_BRIEF] if args.tdd or profile.get("tdd") else []) if lite else _seccion_tdd(args)
     out += ["", CONTRATO]
+    # Consumer text is DATA (fix3 gap 1): neutralise BEFORE the budget so the lengths it reports are the real ones.
+    real_kit = _linea_kit_real()
+    out = [sin_kit_falso(parte, real_kit) for parte in out]
+    if isinstance(persona_contenido, str):
+        persona_contenido = sin_kit_falso(persona_contenido, real_kit)
 
     if lite:
         if persona_insert_idx is not None:
@@ -1590,7 +1595,7 @@ def main(argv=None):
                     _PERSONA_INICIO, _neutraliza_encabezados(persona_contenido), _PERSONA_FIN, ""]
         out += ["## Perfil lite", "", "Lo ejecuta la identidad nativa `implementer` (su guardia aplica), en secuencia y sin paralelismo. "
                 "Usa ledger-write.py; revisión con contexto fresco secuencial y qa-gate obligatorios.", ""]
-        texto = sin_kit_falso("\n".join(out), _linea_kit_real()) + "\n"
+        texto = chr(10).join(out) + chr(10)
         if len(texto) > profile["brief_max_chars"]:
             print(f"lite: contenido obligatorio={len(texto)} > 6000; divide la tarea o reduce su contexto explícito. "
                   "No se emite un brief parcial.", file=sys.stderr)
@@ -1602,7 +1607,7 @@ def main(argv=None):
     out, resto_sin_persona = presupuesto_persona(
         out, persona_insert_idx, tipo, persona_ruta, persona_contenido, args.carpeta)
 
-    texto = sin_kit_falso("\n".join(out), _linea_kit_real()) + "\n"
+    texto = chr(10).join(out) + chr(10)
     _avisa_si_excede_tope(tid, texto, resto_sin_persona)
     print(texto, end="")
     return 0

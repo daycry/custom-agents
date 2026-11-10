@@ -37,7 +37,7 @@ def neutralise_kit_text(text):
     """Consumer text (progress titles, journal citations) is DATA: every occurrence of the token `SHAREDKIT` (any ASCII
     case) becomes `SHAREDKIT⟨cita⟩`, which can be neither a shell assignment nor the kit line (CWE-829). Only the line
     this hook generates carries an executable `SHAREDKIT=`; the caller exempts it."""
-    return re.sub(r"(?i)SHAREDKIT", "SHAREDKIT⟨cita⟩", text)
+    return re.sub(r"(?i)(?<!\$)SHAREDKIT", "SHAREDKIT⟨cita⟩", text)
 
 
 def _load(name, filename):
