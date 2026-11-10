@@ -379,7 +379,7 @@ PIEZAS = versionados(ROOT) or []
 # Los exits permitidos son los VEREDICTOS legítimos del script; un traceback se caza aparte (stderr).
 def _sin_debounce(w, carpeta):
     """SubagentStop no repite el último estado mostrado: cada arranque del modo parte sin `.progress-last`."""
-    marca = os.path.join(w, carpeta, '.claude', '.progress-last')
+    marca = os.path.join(w, carpeta, '.claude', '.progress-last-subagent')
     if os.path.exists(marca):
         os.remove(marca)
     return ['--root', os.path.join(w, carpeta)]

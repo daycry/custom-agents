@@ -540,15 +540,15 @@ flowchart TD
 flowchart LR
     L[("docs/roadmap/*/tasks.md<br/>ledger canónico")] -->|Write/Edit| H1["hook PostToolUse<br/>progress-line.sh"]
     H1 -->|"systemMessage (con debounce)"| U(["👀 usuario<br/>📋 slug · T-04/12 (33%) · fase 2/4 · en curso T-05"])
-    SA["subagente termina"] --> H2["hook SubagentStop<br/>subagent-progress.sh"]
-    H2 -->|"systemMessage: iniciativas activas"| U
+    SA["subagente termina"] --> H2["hook SubagentStop<br/>subagent-progress.sh → subagent-progress.py (un Python)"]
+    H2 -->|"systemMessage: iniciativas activas (con debounce propio)"| U
     OC["OpenCode V2: session.context"] --> H3
     OCP["OpenCode V2: session.prompt"] --> H5
     OCI["OpenCode V2: session.execution<br/>succeeded · failed · interrupted"] --> H4
     SS["sesión: startup · resume · compact"] --> H3["hook SessionStart<br/>session-context.sh"]
     H3 -->|"additionalContext: índice de piezas (≤ 45 líneas, caché por hash)<br/>+ retoma ≤ 15 líneas (tarea en-progreso)<br/>+ journal ≤ 25 líneas (solo startup · resume)"| C(["🧠 contexto de sesión"])
     UP["turno del usuario"] --> H5["hook UserPromptSubmit<br/>user-prompt-capture.sh (timeout 5)"]
-    H5 -->|"journal.py capture (sin stdout, exit 0; opt-out private; secretos redactados)"| LOG[(".claude/session-prompts-sid.log<br/>no versionado · 0600 · purga 30 d<br/>= checkpoint de la sesión")]
+    H5 -->|"journal-prompt.py, captura ligera (sin stdout, exit 0; opt-out private; secretos redactados)"| LOG[(".claude/session-prompts-sid.log<br/>no versionado · 0600 · purga 30 d<br/>= checkpoint de la sesión")]
     SE["Claude: cierre / clear<br/>Codex: cierre del hilo principal"] --> H4["captura compartida<br/>Claude: registro 5 s · Codex: registro 3 s<br/>OpenCode: adapter 20 s"]
     H4 -->|"journal-capture.py<br/>(envelope atómico ≤ 64 KiB, sin materializador/git/IA/red)"| OB[(".claude/journal/outbox/<br/>event_id.json")]
     OB -->|"journal.py replay --budget-ms 300 --max 3<br/>(claim → materializa con git/log/IA opt-in → done/dead-letter)"| H3

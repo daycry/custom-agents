@@ -230,9 +230,15 @@ def job_is_empty():
 
 
 def with_empty_job(code):
-    # A business code outside 0..255 becomes 1: no business code can imitate the mark.
-    if not isinstance(code, int) or isinstance(code, bool) or not 0 <= code < 256:
+    # Only a code inside the mark's range (JOB_EMPTY..JOB_EMPTY+255) is normalised to 1, so no business
+    # code can imitate it; any other code (0xC0000005, negative…) is kept for diagnosis. The mark is
+    # added only to 0..255 and only after checking the job (review attempt 1, B5).
+    if not isinstance(code, int) or isinstance(code, bool):
         code = 1
+    elif JOB_EMPTY <= code < JOB_EMPTY + 256:
+        code = 1
+    if not 0 <= code < 256:
+        return code
     try:
         return code | JOB_EMPTY if job_is_empty() else code
     except Exception:

@@ -154,3 +154,64 @@ def test_h29_con_un_descendiente_vivo_la_limpieza_sigue(tmp_path):
     import time
     time.sleep(3.5)
     assert not marca.exists(), 'el descendiente sobrevivió a la limpieza'
+
+
+# ------------------------------------------------- revisión intento 1 (fase 3): T-14
+
+def _captura_directa(project, raw):
+    return subprocess.run([sys.executable, str(ROOT / 'agent-kits/shared/journal-prompt.py'), '--root', str(project)],
+                          input=raw, capture_output=True, timeout=60)
+
+
+def test_fix1_b4_un_prompt_enorme_se_recorta_y_no_se_descarta(tmp_path):
+    """B4: un payload de más de 2 MiB se descartaba entero; antes se guardaba recortado a 4.000
+    caracteres, como ahora."""
+    project, _ = _project(tmp_path)
+    payload = json.dumps({'session_id': 'grande', 'prompt': 'decidimos ' + 'x' * (3 * 1024 * 1024)}).encode()
+    result = _captura_directa(project, payload)
+    assert (result.returncode, result.stdout, result.stderr) == (0, b'', b'')
+    registro = json.loads((project / '.claude/session-prompts-grande.log').read_text(encoding='utf-8').splitlines()[-1])
+    assert registro['prompt'].startswith('decidimos x') and registro['prompt'].endswith('[recortado]')
+
+
+def test_fix1_b4_utf8_invalido_se_lee_con_reemplazo(tmp_path):
+    """B4: un byte UTF-8 inválido hacía perder el turno; antes se leía con `errors=replace`."""
+    project, _ = _project(tmp_path)
+    raw = b'{"session_id": "roto", "prompt": "hola \xff mundo"}'
+    assert _captura_directa(project, raw).returncode == 0
+    registro = json.loads((project / '.claude/session-prompts-roto.log').read_text(encoding='utf-8').splitlines()[-1])
+    assert registro['prompt'] == 'hola \ufffd mundo'
+
+
+def test_fix1_b5_el_supervisor_conserva_el_codigo_original_si_no_marca():
+    """B5: cualquier código fuera de 0..255 pasaba a 1 aunque el job no estuviera vacío (se perdía
+    p. ej. 0xC0000005). Solo un código que imite la marca se normaliza."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('fix1_supervisor', ROOT / 'hooks' / 'runtime-supervisor.py')
+    sup = importlib.util.module_from_spec(spec); spec.loader.exec_module(sup)
+    flag = sup.JOB_EMPTY
+    for vacio in (True, False):
+        sup.job_is_empty = lambda vacio=vacio: vacio
+        assert sup.with_empty_job(0xC0000005) == 0xC0000005
+        assert sup.with_empty_job(-3) == -3
+        assert sup.with_empty_job(flag | 2) == (1 | flag if vacio else 1)   # nadie imita la marca
+        assert sup.with_empty_job(2) == (2 | flag if vacio else 2)
+
+
+def test_fix1_bnota_subagent_stop_no_se_calla_por_la_linea_del_ledger(tmp_path):
+    """B-nota: SubagentStop compartía `.progress-last` con ledger-post; tras editar el ledger dentro
+    de un subagente (cuyo systemMessage puede no llegar al usuario) el cierre se callaba. Cada hook
+    tiene ahora su propio último estado."""
+    bundle = _bundle(tmp_path)
+    project, _ = _project(tmp_path)
+    (project / '.claude' / '.progress-last').write_text(_esperado(project) and json.loads(_esperado(project))['systemMessage'],
+                                                       encoding='utf-8')
+    result = _launch(bundle, 'subagent-progress.sh', project, {'hook_event_name': 'SubagentStop'}, sin_bash=True)
+    assert result.stdout == _esperado(project), result.stderr
+
+
+def test_fix1_a6_flows_describen_los_hooks_reales():
+    for rel in ('docs/FLOWS.md', 'docs/en/FLOWS.md'):
+        texto = (ROOT / rel).read_text(encoding='utf-8')
+        assert 'journal-prompt.py' in texto and 'subagent-progress.py' in texto, rel
+        assert '"journal.py capture (' not in texto, rel

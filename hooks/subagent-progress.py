@@ -7,7 +7,7 @@ H-30 (T-14): `subagent-progress.sh` chained about nine processes per SubagentSto
 two Python interpreters…) and repeated the same state after every subagent. This module keeps
 its output byte for byte (`progress-report.py active` as `systemMessage`, only when an initiative
 is active) and suppresses a state the user has just seen, with the same `.progress-last` debounce
-as `ledger-post.py`. Informative only: always exit 0, never `decision`/`continue`.
+as `ledger-post.py`, in its own `.claude/.progress-last-subagent`. Informative only: always exit 0, never `decision`/`continue`.
 """
 import argparse
 import contextlib
@@ -53,7 +53,10 @@ def compose(root):
     if not text or text == SIN_ACTIVAS:
         return ''
     try:
-        if _load('ledger_post', HERE / 'ledger-post.py')._repeated(Path(os.path.abspath(root)), text):
+        # Own last state (review attempt 1, B-note): a ledger line shown by PostToolUse inside a subagent
+        # may never reach the user, so it must not silence the closing summary.
+        if _load('ledger_post', HERE / 'ledger-post.py')._repeated(Path(os.path.abspath(root)), text,
+                                                                  '.progress-last-subagent'):
             return ''
     except (OSError, ValueError, UnicodeError, AttributeError):
         pass   # as in ledger-post: a debounce failure may repeat a state, never lose it

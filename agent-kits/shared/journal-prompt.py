@@ -22,7 +22,6 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
     except Exception: pass  # noqa: BLE001
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PAYLOAD_MAX_BYTES = 2 * 1024 * 1024
 
 
 def _load_module(name, filename):
@@ -259,10 +258,9 @@ def main(argv=None):
         args = parser.parse_args(argv)
         if _politica is None or JIO is None:
             return 0
-        raw = sys.stdin.buffer.read(PAYLOAD_MAX_BYTES + 1)
-        if len(raw) > PAYLOAD_MAX_BYTES:
-            return 0
-        payload = json.loads(raw)
+        # Como `journal.py capture`: todo el payload, UTF-8 con reemplazo; `capture` recorta el turno a
+        # CAPTURA_MAX_CHARS (revisión intento 1, B4: un tope de bytes descartaba el turno entero).
+        payload = json.loads(sys.stdin.buffer.read().decode("utf-8", "replace"))
         root = args.root or os.environ.get("CLAUDE_PROJECT_DIR") or (payload.get("cwd") if isinstance(payload, dict) else None) or "."
         if os.path.isdir(str(root)):
             capture(str(root), payload)

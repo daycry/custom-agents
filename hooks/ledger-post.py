@@ -87,7 +87,7 @@ def _progress_lock(io, directory, deadline):
             os.close(fd)
 
 
-def _repeated(root, line):
+def _repeated(root, line, name='.progress-last'):
     deadline = time.monotonic() + 5
     io = state_module.StateIO(reader, _need, _guard, maximum=MAX_BYTES)
     directory = root / '.claude'
@@ -95,7 +95,7 @@ def _repeated(root, line):
     directory.mkdir(exist_ok=True)
     io.dirs(directory)
     with _progress_lock(io, directory, deadline):
-        path = directory / '.progress-last'
+        path = directory / name   # each informative hook keeps its own last state (SubagentStop: its own)
         try:
             raw, before = io.read(path, MAX_BYTES)
         except FileNotFoundError:

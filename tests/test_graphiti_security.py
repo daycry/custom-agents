@@ -180,7 +180,7 @@ _CARGAS_LOCALES_REVISADAS = {
                          "agent-kits/shared/progress-report.py", "agent-kits/shared/knowledge-find.py"),
     },
     "hooks/ledger-post.py": {
-        "sha256_lf": "116d105306af39b2357cef3d597496c3f00c42d938e39bd572c24c6e606aedbc",
+        "sha256_lf": "d973901509c4ae0a14fc609334ba29eb7df636921971c5c11c86d288f2f89013",   # fase 3 fix1 (B-nota): último estado por hook; mismas cargas locales, sin red
         "dependencies": ("agent-kits/shared/ledger-lint.py", "agent-kits/shared/progress-report.py",
                          "agent-kits/shared/local-read.py", "agent-kits/shared/local-state.py",
                          "agent-kits/shared/redact.py"),

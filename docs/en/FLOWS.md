@@ -540,15 +540,15 @@ flowchart TD
 flowchart LR
     L[("docs/roadmap/*/tasks.md<br/>canonical ledger")] -->|Write/Edit| H1["PostToolUse hook<br/>progress-line.sh"]
     H1 -->|"systemMessage (debounced)"| U(["👀 user<br/>📋 slug · T-04/12 (33%) · fase 2/4 · en curso T-05"])
-    SA["subagent finishes"] --> H2["SubagentStop hook<br/>subagent-progress.sh"]
-    H2 -->|"systemMessage: active initiatives"| U
+    SA["subagent finishes"] --> H2["SubagentStop hook<br/>subagent-progress.sh → subagent-progress.py (one Python)"]
+    H2 -->|"systemMessage: active initiatives (own debounce)"| U
     OC["OpenCode V2: session.context"] --> H3
     OCP["OpenCode V2: session.prompt"] --> H5
     OCI["OpenCode V2: session.execution<br/>succeeded · failed · interrupted"] --> H4
     SS["session: startup · resume · compact"] --> H3["SessionStart hook<br/>session-context.sh"]
     H3 -->|"additionalContext: piece index (≤ 45 lines, hash-cached)<br/>+ resume ≤ 15 lines (in-progress task)<br/>+ journal ≤ 25 lines (startup · resume only)"| C(["🧠 session context"])
     UP["user turn"] --> H5["UserPromptSubmit hook<br/>user-prompt-capture.sh (timeout 5)"]
-    H5 -->|"journal.py capture (no stdout, exit 0; private opt-out; secrets redacted)"| LOG[(".claude/session-prompts-sid.log<br/>unversioned · 0600 · 30-day purge<br/>= session checkpoint")]
+    H5 -->|"journal-prompt.py, lightweight capture (no stdout, exit 0; private opt-out; secrets redacted)"| LOG[(".claude/session-prompts-sid.log<br/>unversioned · 0600 · 30-day purge<br/>= session checkpoint")]
     SE["Claude: closure / clear<br/>Codex: main thread ends"] --> H4["shared capture<br/>Claude: registration 5 s · Codex: registration 3 s<br/>OpenCode: adapter 20 s"]
     H4 -->|"journal-capture.py<br/>(atomic envelope ≤ 64 KiB, no materializer/git/AI/network)"| OB[(".claude/journal/outbox/<br/>event_id.json")]
     OB -->|"journal.py replay --budget-ms 300 --max 3<br/>(claim → materialize with git/log/opt-in AI → done/dead-letter)"| H3
