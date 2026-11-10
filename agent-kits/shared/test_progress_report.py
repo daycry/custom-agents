@@ -247,6 +247,16 @@ def test_session_con_activas_bloque_acotado(tmp_path):
     assert "retoma desde la tarea en-progreso" in lines[-1]
 
 
+def test_session_archivos_sueltos_no_avisan_ni_entran_en_la_firma(tmp_path):
+    ledger(tmp_path, "2026-09-02-demo", DOS_FASES)
+    roadmap = tmp_path / "docs" / "roadmap"
+    (roadmap / "CALIBRATION.md").write_text("x", encoding="utf-8")
+    (roadmap / "README.md").write_text("x", encoding="utf-8")
+    snap = pr.instantanea(tmp_path)
+    assert not [a for a in snap["avisos"] if "ilegible" in a or "CALIBRATION" in a or "README" in a]
+    assert [r for r in snap["activas"]]
+
+
 def test_session_sin_roadmap_exit_0(tmp_path):
     code, out, _ = run("session", "--root", str(tmp_path))
     assert code == 0 and out.strip() == pr.LINEA_NEUTRA

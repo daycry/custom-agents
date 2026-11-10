@@ -38,13 +38,13 @@ changelog: Changed
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Defectos | 0 | 7 | 0% | 0 / 15h | 0 / 4.0h | 0 / 1.00h | 0 / 1090k |
+| Fase 1 — Defectos | 1 | 7 | 14% | 0 / 15h | 0 / 4.0h | 0 / 1.00h | 0 / 1090k |
 | Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev) | 0 | 4 | 0% | 0 / 32h | 0 / 7.9h | 0 / 1.98h | 0 / 2100k |
 | Fase 3 — Tokens | 0 | 11 | 0% | 0 / 30h | 0 / 8.2h | 0 / 2.05h | 0 / 2260k |
 | Fase 4 — Simplificación del código | 0 | 8 | 0% | 0 / 34.5h | 0 / 8.5h | 0 / 2.12h | 0 / 2470k |
 | Fase 5 — Alcance y entrenamiento | 0 | 5 | 0% | 0 / 26h | 0 / 6.5h | 0 / 1.62h | 0 / 1800k |
 | Fase 6 — Higiene del roadmap | 0 | 2 | 0% | 0 / 7h | 0 / 1.7h | 0 / 0.42h | 0 / 500k |
-| **TOTAL** | **0** | **37** | **0%** | **0 / 144.5h** | **0 / 36.8h** | **0 / 9.20h** | **0 / 10220k** |
+| **TOTAL** | **1** | **37** | **3%** | **0 / 144.5h** | **0 / 36.8h** | **0 / 9.20h** | **0 / 10220k** |
 
 Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +20 % está en el plan); tokens al precio de `.claude/rates.json`.
 
@@ -58,10 +58,13 @@ Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +2
 
 - **Descripción**: `session-snapshot` marca como «ilegible (redirected_path)» todo lo que `docs/roadmap/` contiene y no es carpeta (`CALIBRATION.md`, `README.md`). Hay que saltar lo que no sea directorio y reservar el aviso para carpetas realmente redirigidas.
 - **Changelog**: El aviso de arranque ya no acusa de ilegibles a CALIBRATION.md y README.md del roadmap.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-11-10
 - **Tiempo humano**: est. 1.5h · real —
-- **Tiempo IA (ejec.)**: est. 0.4h · real —
+- **Tiempo IA (ejec.)**: est. 0.4h · real 0.1h (estimado)
 - **Archivos**: `agent-kits/shared/progress-report.py` (líneas 479-481 y 495-497), `agent-kits/shared/test_progress_report.py`
+- RED: test_session_archivos_sueltos_no_avisan_ni_entran_en_la_firma falló con AssertionError: ['CALIBRATION.md: tasks.md ilegible (redirected_path)', 'README.md: tasks.md ilegible (redirected_path)'] · 2026-11-10
+- **Evidencia**: GREEN: `1 passed, 45 deselected`; el arreglo salta en silencio los ficheros regulares (`S_ISREG` sin redirección) antes de la firma; enlaces/junctions siguen como «redirected».
 - **Runtimes**: Sin diferencia: `progress-report.py` lo ejecutan los lanzadores de los tres runtimes.
 - **Verificación**:
   - `pytest -q agent-kits/shared/test_progress_report.py -k archivos_sueltos` → `1 passed` (rojo antes del arreglo: el test nuevo falla)
@@ -69,8 +72,8 @@ Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +2
   - puertas de runtimes (cabecera) → verde
 
 **Criterios de aceptación**
-- [ ] Un fichero suelto en `docs/roadmap/` no genera aviso ni entra en la firma de la caché.
-- [ ] Una carpeta realmente redirigida sigue avisando (tests existentes intactos).
+- [x] Un fichero suelto en `docs/roadmap/` no genera aviso ni entra en la firma de la caché.
+- [x] Una carpeta realmente redirigida sigue avisando (tests existentes intactos).
 
 ### T-02 — Invocar skills sin depender de la herramienta Skill (1.2)
 

@@ -1,6 +1,6 @@
 ---
 plan: plugin-audit-remediation
-estado: aprobado
+estado: completado
 creado: 2026-11-09
 spec: spec.md
 tasks: tasks.md

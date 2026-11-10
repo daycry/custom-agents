@@ -476,6 +476,8 @@ def instantanea(root):
     for folder in carpetas:
         try:
             dir_info = os.lstat(os.path.join(base, folder))
+            if not reader._redirected(dir_info) and stat.S_ISREG(dir_info.st_mode):
+                continue  # fichero suelto (CALIBRATION.md, README.md): no es una iniciativa
             if reader._redirected(dir_info) or not stat.S_ISDIR(dir_info.st_mode):
                 firma.append((folder, "redirected", None))
                 continue

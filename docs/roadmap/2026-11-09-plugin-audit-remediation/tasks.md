@@ -1,6 +1,6 @@
 ---
 tasks: plugin-audit-remediation
-estado: en-progreso
+estado: completado
 creado: 2026-11-09
 verificacion: obligatoria
 changelog: Fixed
