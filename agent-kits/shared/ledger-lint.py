@@ -786,7 +786,7 @@ def _parse_horas(campo):
 
 
 # Formas reales de la evidencia: `RED:`, `RED fix1:`, `RED (fix2):`, `**RED**:`, con o sin viñeta (`- RED:`).
-_RED_RE = re.compile(r"^[ \t]*(?:[-*+][ \t]+)?(?:\*\*)?(?:RED(?:\*\*)?(?:[ \t]*\([^)\n]*\))?(?:[ \t]+[\w-]+)?"
+_RED_RE = re.compile(r"^[ \t]*(?:[-*+][ \t]+)?(?:\*\*)?(?:RED(?:\*\*)?(?:[ \t]+[\w-]+){0,6}(?:[ \t]*\([^)\n]*\))?"
                      r"(?:\*\*)?[ \t]*:|TDD[ \t]+n/a\b)", re.M)
 
 

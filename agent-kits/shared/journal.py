@@ -671,6 +671,9 @@ def _validar_envelope(payload):
         return "sequence inválido"
     if payload.get("hook_event_name") != "SessionEnd":
         return f"hook_event_name {payload.get('hook_event_name')!r} != SessionEnd"
+    ini = payload.get("iniciativa")
+    if ini is not None and (not isinstance(ini, str) or not re.match(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$", ini)):
+        return "iniciativa inválida"
     return None
 
 
@@ -831,7 +834,8 @@ def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=F
                 transcript = _transcript_seguro(env.get("transcript_path") or None, sid)
                 p, _e = escribir_sesion(root, sid, reason=env.get("reason"), transcript=transcript,
                                         fuente="hook", captured_at=env.get("captured_at"),
-                                        ia=ia_efectiva, git_timeout=git_timeout)
+                                        ia=ia_efectiva, git_timeout=git_timeout,
+                                        iniciativa_capturada=env.get("iniciativa"))
                 if p is None:
                     causa2 = "sin rastro del plugin al materializar (docs/roadmap, docs/knowledge o .claude/dev.json)"
                     try:
@@ -1701,7 +1705,7 @@ def _fecha_local_de_captured_at(captured_at):
         return hoy()
 
 
-_CIERRE_TARDIO_S = 3600   # un cierre más viejo que esto se materializó tarde: la iniciativa vigente puede no ser la suya
+_CIERRE_TARDIO_S = 24 * 3600   # SOLO para envelopes antiguos sin `iniciativa` (fijada al capturar): pasado un día la vigente al materializar rara vez es la suya
 
 
 def _cierre_tardio(captured_at):
@@ -1716,7 +1720,8 @@ def _cierre_tardio(captured_at):
         return False
 
 
-def draft(root, session_id=None, transcript=None, reason=None, enrich=None, captured_at=None, git_timeout=GIT_TIMEOUT):
+def draft(root, session_id=None, transcript=None, reason=None, enrich=None, captured_at=None, git_timeout=GIT_TIMEOUT,
+          iniciativa_capturada=None):
     """`captured_at` (ISO `AAAA-MM-DDTHH:MM:SSZ`, del envelope de `capture-end`): si se da, la
     entrada usa la FECHA DEL CIERRE EN HORA LOCAL (nombre de fichero y frontmatter, gap 44), no la
     de hoy — `replay` puede correr días después (gap 8 de la revisión). `git_timeout` acota `_git`
@@ -1724,7 +1729,7 @@ def draft(root, session_id=None, transcript=None, reason=None, enrich=None, capt
     corto)."""
     avisos = []
     fecha = _fecha_local_de_captured_at(captured_at) if captured_at else hoy()
-    iniciativa = iniciativa_activa(root) or "n/a"
+    iniciativa = iniciativa_capturada or iniciativa_activa(root) or "n/a"
     enr = cargar_enrich(enrich, avisos)
     turnos = capturas(root, session_id)
     if enr.get("resumen"):
@@ -1753,7 +1758,7 @@ def draft(root, session_id=None, transcript=None, reason=None, enrich=None, capt
         # iniciativa vigente AL RECUPERAR, que puede no ser la suya: sin la marca no se cita como
         # historial de ninguna iniciativa (sigue en la bitácora, atribuible solo por identidad).
         **({"regla_iniciativa": "vigente"} if iniciativa != "n/a" and reason != "orphan_recovery"
-           and not _cierre_tardio(captured_at) else {}),
+           and (iniciativa_capturada or not _cierre_tardio(captured_at)) else {}),
         "resumen": str(resumen),
         "resumen_por": resumen_por,
         "turnos": len(turnos),
@@ -2405,7 +2410,8 @@ def resumen_ia(turnos, borrador, runner=None, which=None, environ=None):
 
 
 def escribir_sesion(root, session_id, reason=None, transcript=None, fuente="hook", enrich=None, ia="auto",
-                    runner=None, which=None, environ=None, entrada=None, captured_at=None, git_timeout=GIT_TIMEOUT):
+                    runner=None, which=None, environ=None, entrada=None, captured_at=None, git_timeout=GIT_TIMEOUT,
+                    iniciativa_capturada=None):
     """Lo que hace el hook SessionEnd (vía `replay`, session-end-durable-capture T-04): entrada
     DETERMINISTA primero (ya está en disco aunque lo que sigue muera por timeout) y, si toca IA
     (`on`, o `auto` + dev.json `sesion.resumen: true`; `off` la desactiva siempre — `replay` bajo
@@ -2414,7 +2420,8 @@ def escribir_sesion(root, session_id, reason=None, transcript=None, fuente="hook
     `entrada` (opcional): una entrada ya construida (`write --draft`) en vez de recalcular el borrador.
     `captured_at`/`git_timeout`: ver `draft`. Devuelve (ruta | None, entrada)."""
     e = entrada if entrada is not None else draft(root, session_id, transcript, reason, enrich,
-                                                   captured_at=captured_at, git_timeout=git_timeout)
+                                                   captured_at=captured_at, git_timeout=git_timeout,
+                                                   iniciativa_capturada=iniciativa_capturada)
     e.setdefault("materializado_en", _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
     e.setdefault("derivados_en", "replay" if fuente == "hook" else fuente)
     manual = set(e.get("manual") or [])

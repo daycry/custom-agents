@@ -1148,10 +1148,17 @@ def cmd_resume(args):
     if args.history_only:
         # H-48: the session block gets history or nothing; a failed selection is
         # reported by /work-resume, not as an opaque «Journal: <status>» line.
+        omitted = sum(1 for issue in result.get("issues") or [] if issue.get("status") == "legacy_initiative_rule")
+        notice = (f"Journal: {omitted} entrada(s) omitida(s) del arranque por no estar atribuidas a la iniciativa vigente "
+                  "(consulta /work-resume).") if omitted else ""
         if result["status"] != "ok" or not result["history"]:
+            if notice:
+                print(notice)
             return 0
         journal = _load_module("resume_render_journal", "journal.py")
         print(journal.selected_text({"status": result["status"], "entries": result["history"]}))
+        if notice:
+            print(notice)
     else:
         print(json.dumps(result, ensure_ascii=False) if args.json else resume_text(result))
     return 0
