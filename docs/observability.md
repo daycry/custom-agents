@@ -104,10 +104,15 @@ ficheros recientes se conservan. Se rechazan enlaces, junctions y nombres
 ajenos; la limpieza es local al directorio del índice y un fallo de E/S avisa
 sin impedir reconstruirlo. El `finally` limpia el temporal y el journal propios.
 
-La barra de estado usa como máximo un Python aislado por refresco. Con la
-misma entrada y metadatos de ledgers sin cambios, sirve los campos desde
-`.claude/statusline-cache` sin Python. Cambios de coste/contexto, ledgers,
-usage-state o scripts invalidan la caché; no guarda la entrada JSON cruda.
+La barra de estado usa como máximo un Python aislado por refresco. Con los
+metadatos de ledgers sin cambios sirve el segmento del roadmap desde
+`.claude/statusline-cache` sin Python, y Bash pinta modelo, coste y contexto
+directamente de la entrada (cambian en cada turno, así que ya no forman parte
+de la clave). Si alguno de esos campos no tiene la forma simple que Python
+imprimiría igual (un nombre con comillas o no ASCII, un número en notación
+científica o por debajo de 0,0001), ese refresco usa Python como antes.
+Cambios de ledgers, usage-state o scripts invalidan la caché; no guarda la
+entrada JSON cruda.
 Se respeta `CUSTOM_AGENTS_PYTHON`, se excluyen alias de WindowsApps y, sin
 intérprete o ante un error, queda el modelo y exit 0. El formato y redondeo
 siguen en Bash; no se necesita `jq`. El comando de `/setup` no cambia.

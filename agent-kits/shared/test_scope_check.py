@@ -656,3 +656,21 @@ def test_criterio_prefijo_solo_en_frontera_de_palabra():
     assert mod.criterios_alterados(base, pegado, pl) == [{"tarea": "T-01", "criterio": CRIT.rstrip(".")}]
     sin_tarea = base.split("### T-01")[0]                         # la tarea entera desaparece
     assert {a["tarea"] for a in mod.criterios_alterados(base, sin_tarea, pl)} == {"T-01", "T-02"}
+
+
+# ------------------------------------------------- H-35 (auditoría 2026-11-09, T-16): isdir por patrón
+
+def test_h35_clasificar_consulta_el_disco_una_vez_por_patron(tmp_path, monkeypatch):
+    """H-35: `casa()` hacía `os.path.isdir` por cada par fichero×patrón (1,9 s de 3,2 s en este repo);
+    ahora una vez por patrón y pasada, con el mismo resultado."""
+    mod = _mod()
+    (tmp_path / "src").mkdir()
+    cambiados = [f"src/f{i}.py" for i in range(40)] + ["docs/a.md", "otro.txt"]
+    patrones = [("src", "T-01"), ("docs/*.md", "T-02"), ("tests/test_a.py", "T-03"), ("lib/", "T-04")]
+    llamadas = []
+    real = mod.os.path.isdir
+    monkeypatch.setattr(mod.os.path, "isdir", lambda p: llamadas.append(p) or real(p))
+    en, fuera, excl, sin_tocar, quien = mod.clasificar(cambiados, patrones, f"{INI}/tasks.md", str(tmp_path))
+    assert sorted(en) == sorted(cambiados[:-1]) and fuera == ["otro.txt"]
+    assert sin_tocar == ["lib/ (T-04)", "tests/test_a.py (T-03)"]
+    assert len(llamadas) <= len(patrones), len(llamadas)

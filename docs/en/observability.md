@@ -107,9 +107,13 @@ excluded; cleanup stays within the index directory and I/O failures warn
 without blocking reconstruction. The `finally` cleans both owned files.
 
 The statusline uses at most one isolated Python process per refresh. With
-identical input and unchanged ledger metadata, `.claude/statusline-cache`
-serves public fields without Python. Cost/context, ledger, usage-state or
-script changes invalidate it; raw input JSON is never stored. Interpreter
+unchanged ledger metadata, `.claude/statusline-cache` serves the roadmap
+segment without Python, and Bash paints model, cost and context straight
+from the input (they change every turn, so they are no longer part of the
+key). When one of those fields lacks the plain shape Python would print
+unchanged (a name with quotes or non-ASCII text, a number in scientific
+notation or below 0.0001), that refresh uses Python as before. Ledger,
+usage-state or script changes invalidate it; raw input JSON is never stored. Interpreter
 selection honors `CUSTOM_AGENTS_PYTHON` and excludes WindowsApps aliases.
 Missing Python or a renderer error preserves the model and exit 0. Bash keeps
 the existing numeric formatting; `jq` is unnecessary. `/setup` keeps its command.

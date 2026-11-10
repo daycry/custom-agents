@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Opt-in Claude Code statusline: model, session cost, context, canonical roadmap.
 # /setup installs this absolute path; remove statusLine from settings to disable.
-# One isolated Python on a miss; no Python for identical input and unchanged ledgers.
-# Cache also tracks usage-state and renderer sources. Never evals input or cache.
+# One isolated Python on a miss; no Python while the ledgers stay unchanged (H-39: model, cost
+# and context change every turn, so Bash reads them from the input and the cache key covers only
+# the roadmap). Cache also tracks usage-state and renderer sources. Never evals input or cache.
 set -u
 INPUT=""
 IFS= read -r -d '' INPUT || true
@@ -29,6 +30,29 @@ fallback() {
 }
 [ -f "$RENDER" ] || { fallback; exit 0; }
 
+# H-39 (T-16): model, cost and context straight from the input, in Bash, when each field has the
+# plain shape whose text Python would print unchanged (one key, printable ASCII name, positional
+# number >= 1e-4). Anything else keeps the Python renderer for those fields, as before.
+input_field() {   # $1 key, $2 value regex; sets FIELD; returns 1 when Bash cannot decide
+  local key="\"$1\"" rest re LC_ALL=C
+  FIELD=""
+  case "$INPUT" in *"$key"*) ;; *) return 0 ;; esac
+  rest="${INPUT#*"$key"}"
+  case "$rest" in *"$key"*) return 1 ;; esac
+  re="^[[:space:]]*:[[:space:]]*($2)[[:space:]]*[,}]"
+  [[ "$rest" =~ $re ]] || return 1
+  FIELD="${BASH_REMATCH[1]}"
+  [[ "$FIELD" =~ ^[\ -~]*$ ]] || return 1   # printable ASCII only: Python would print it unchanged
+}
+# Shortest round-trip text, as JSON.stringify and Python's repr write a double: up to 17
+# significant digits, so the same text Python would print (a cost summed in floats is 0.43000000000000005).
+NUMBER='(0|[1-9][0-9]{0,5})([.][0-9]{1,21})?'
+fast=true model_in="" cost_in="" ctx_in=""
+if input_field display_name '"[^"\\]*"'; then model_in="${FIELD#\"}"; model_in="${model_in%\"}"; else fast=false; fi
+if input_field total_cost_usd "$NUMBER"; then cost_in="$FIELD"; else fast=false; fi
+if input_field used_percentage "$NUMBER"; then ctx_in="$FIELD"; else fast=false; fi
+case "$cost_in$ctx_in" in *0.0000*) fast=false ;; esac   # Python prints values < 1e-4 as 1e-05
+
 # Hash the input and a single batch of file metadata. GNU stat is used by Git Bash/Linux;
 # BSD stat keeps this optional optimization usable when available on another host.
 files=()
@@ -39,14 +63,14 @@ key=""
 if command -v sha256sum >/dev/null 2>&1; then
   metadata="$(stat -c '%n:%s:%y:%i' -- "${files[@]}" 2>/dev/null || stat -f '%N:%m:%z:%i' "${files[@]}" 2>/dev/null)"
   if [ -n "$metadata" ]; then
-    key="$(printf 'statusline-v1\000%s\000%s\000%s' "$INPUT" "$ROOT" "$metadata" | sha256sum)"
+    key="$(printf 'statusline-v2\000%s\000%s' "$ROOT" "$metadata" | sha256sum)"
     key="${key%% *}"
   fi
 fi
 DATA="" cached=false
 model="" cost="" ctx="" rm_seg=""
 CACHE="$ROOT/.claude/statusline-cache"
-if [ -n "$key" ] && [ -f "$CACHE" ] && [ ! -L "$CACHE" ]; then
+if [ "$fast" = true ] && [ -n "$key" ] && [ -f "$CACHE" ] && [ ! -L "$CACHE" ]; then
   if {
     IFS= read -r saved_key &&
     IFS= read -r model &&
@@ -58,6 +82,7 @@ if [ -n "$key" ] && [ -f "$CACHE" ] && [ ! -L "$CACHE" ]; then
     [ "$saved_key" = "$key" ] && cached=true
   fi
 fi
+if [ "$cached" = true ]; then model="$model_in" cost="$cost_in" ctx="$ctx_in"; fi
 if [ "$cached" = false ]; then
   PYTHON=""
   while IFS= read -r candidate; do

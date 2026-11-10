@@ -1882,3 +1882,28 @@ def test_brief_budget_aviso_mide_el_salto_final(inic, monkeypatch, capsys, rende
         assert f"{rendered_length} caracteres" in err
     else:
         assert "por encima de BRIEF_TOPE_CHARS" not in err
+
+
+
+# ------------------------------------------------- H-38 (auditoría 2026-11-09, T-16): lint en proceso
+
+def test_h38_el_brief_valida_el_ledger_sin_lanzar_ledger_lint(inic, monkeypatch):
+    """H-38: el brief lanzaba `ledger-lint.py` como subproceso (con su arranque de Python) antes de
+    componer; ahora lo valida en proceso con el mismo veredicto."""
+    lanzados = []
+    real = tb.subprocess.run
+    def run(cmd, *a, **k):
+        lanzados.append(" ".join(map(str, cmd)))
+        return real(cmd, *a, **k)
+    monkeypatch.setattr(tb.subprocess, "run", run)
+    rc, out = _run([str(inic), "T-01", "--constitucion", str(inic / "no.md")])
+    assert rc == 0 and "Brief de implementación — T-01" in out
+    assert not any("ledger-lint" in c for c in lanzados), lanzados
+
+
+def test_h38_un_ledger_invalido_se_sigue_rechazando_en_proceso(inic, capsys):
+    t = (inic / "tasks.md").read_text(encoding="utf-8")
+    (inic / "tasks.md").write_text(t.replace("- **Estado**: borrador", "- **Estado**: casi-hecho"), encoding="utf-8")
+    rc, _ = _run([str(inic), "T-01", "--constitucion", str(inic / "no.md")])
+    err = capsys.readouterr().err
+    assert rc == 2 and "ledger inválido" in err and "ledger-lint exit 1" in err and "incoherencias" in err

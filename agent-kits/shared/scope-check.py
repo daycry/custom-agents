@@ -397,12 +397,24 @@ def linea_base_ledger(root, base, tasks_rel):
     return None, None
 
 
-def casa(path, patron, root):
-    pat = patron.rstrip("/")
-    if patron.endswith("/") or os.path.isdir(os.path.join(root, pat)):
+def casa(path, patron, root, _memo=None):
+    """¿`path` cae bajo `patron`? `_memo` (un dict por pasada de `clasificar`, H-35/T-16) guarda por
+    patrón si es carpeta en disco y su regex: antes eran un `isdir` y una compilación por cada par
+    fichero×patrón (1,9 s de 3,2 s en este repo)."""
+    clave = (patron, root)
+    hecho = _memo.get(clave) if _memo is not None else None
+    if hecho is None:
+        pat = patron.rstrip("/")
+        carpeta = patron.endswith("/") or os.path.isdir(os.path.join(root, pat))
+        regex = GLOB_TO_REGEX(pat) if not carpeta and any(c in pat for c in "*?") else None
+        hecho = (pat, carpeta, regex)
+        if _memo is not None:
+            _memo[clave] = hecho
+    pat, carpeta, regex = hecho
+    if carpeta:
         return path == pat or path.startswith(pat + "/")
-    if any(c in pat for c in "*?"):
-        return GLOB_TO_REGEX(pat).match(path) is not None   # `*` un nivel · `**/` cero o más directorios
+    if regex is not None:
+        return regex.match(path) is not None   # `*` un nivel · `**/` cero o más directorios
     return path == pat
 
 
@@ -418,8 +430,9 @@ def clasificar(cambiados, patrones, tasks_rel, root, excluir=(), excluir_usuario
     en, fuera, excl, usados, quien = [], [], [], set(), {}
     # el ledger y su compañero: `ledger-archive.py` traslada ahí la historia cerrada del ledger
     propios = {tasks_rel, "/".join(tasks_rel.split("/")[:-1] + ["execution-history.md"])}
+    memo = {}
     for f in cambiados:
-        hit = [i for i, (p, _) in enumerate(patrones) if casa(f, p, root)]
+        hit = [i for i, (p, _) in enumerate(patrones) if casa(f, p, root, memo)]
         usados.update(hit)          # también si el fichero ya está en alcance «de oficio»
         g = patron_excluyente(f, excluir)
         if hit or f in propios:

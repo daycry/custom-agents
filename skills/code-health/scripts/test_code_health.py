@@ -451,3 +451,60 @@ def test_versionados_bajo_exclusiones_sin_git_es_null(tmp_path):
     r = analiza(fixture(tmp_path, con_git=False))
     assert r["excluidos_versionados"] is None
     assert not any("versionados" in a for a in r["avisos"])
+
+
+
+# ------------------------------------------------- H-37 (auditoría 2026-11-09, T-16): atajo de sin_comentario
+
+class _LineaContada(str):
+    """Cuenta los accesos por índice: el bucle carácter a carácter de `sin_comentario`."""
+    accesos = 0
+
+    def __getitem__(self, clave):
+        type(self).accesos += 1
+        return str.__getitem__(self, clave)
+
+
+def test_h37_sin_comentario_no_recorre_las_lineas_sin_marcador_ni_comillas():
+    """H-37: `sin_comentario` recorría cada carácter de cada línea (10 s del informe en este repo);
+    una línea sin marcador ni comillas sale entera y una sin comillas se corta en el marcador."""
+    _LineaContada.accesos = 0
+    linea = _LineaContada("        resultado = calcular(a, b) + otra_funcion(c) * 2  " * 4)
+    assert ch.sin_comentario(linea, "#") == str(linea)
+    assert _LineaContada.accesos == 0, _LineaContada.accesos
+    corta = _LineaContada("valor = 1  # comentario con texto")
+    assert ch.sin_comentario(corta, "#") == "valor = 1  "
+    assert _LineaContada.accesos <= 1
+
+
+def test_h37_sin_comentario_igual_que_antes_en_el_codigo_del_repo():
+    def referencia(line, marker):
+        out, i, q = [], 0, None
+        while i < len(line):
+            c = line[i]
+            if q:
+                out.append(c)
+                if c == "\\" and i + 1 < len(line):
+                    out.append(line[i + 1])
+                    i += 1
+                elif c == q:
+                    q = None
+            elif c in "\"'":
+                q = c
+                out.append(c)
+            elif line.startswith(marker, i):
+                break
+            else:
+                out.append(c)
+            i += 1
+        return "".join(out)
+    raiz = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    vistas = 0
+    for rel in ("agent-kits/shared/journal.py", "hooks/run-hook.mjs", "statusline/roadmap-statusline.sh",
+                "skills/plugin-panel/assets/panel-review.js", "agent-kits/shared/ledger-lint.py"):
+        marker = "//" if rel.endswith((".js", ".mjs")) else "#"
+        with open(os.path.join(raiz, rel), encoding="utf-8", errors="replace") as fh:
+            for line in fh.read().splitlines():
+                assert ch.sin_comentario(line, marker) == referencia(line, marker), (rel, line[:80])
+                vistas += 1
+    assert vistas > 1000

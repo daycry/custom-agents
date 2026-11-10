@@ -477,3 +477,95 @@ def test_nota_dentro_de_valla_de_codigo_no_se_toca():
     with tempfile.TemporaryDirectory() as tmp:
         carpeta = _carpeta(tmp, ledger_notas(nota_t01="ejemplo corto", nota_t02=nota))
         assert run_json(carpeta, "--apply")["notas"] == []
+
+
+# ------------------------------------------------- H-36 (auditoría 2026-11-09, T-16): sin bucles por carácter
+
+def _la_mod(nombre="ledger_archive_h36"):
+    spec = importlib.util.spec_from_file_location(nombre, SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _ledgers_del_repo():
+    raiz = os.path.join(os.path.dirname(os.path.dirname(HERE)), "docs", "roadmap")
+    for carpeta in sorted(os.listdir(raiz)):
+        ruta = os.path.join(raiz, carpeta, "tasks.md")
+        if os.path.isfile(ruta):
+            with open(ruta, encoding="utf-8", errors="replace") as fh:
+                yield carpeta, fh.read()
+
+
+def _split_fila_md_referencia(ln):
+    """La implementación anterior, carácter a carácter: el oráculo de la equivalencia."""
+    celdas, actual, en_codigo = [], [], False
+    for ch in ln.strip().strip("|"):
+        if ch == "`":
+            en_codigo = not en_codigo
+            actual.append(ch)
+        elif ch == "|" and not en_codigo:
+            celdas.append("".join(actual).strip())
+            actual = []
+        else:
+            actual.append(ch)
+    celdas.append("".join(actual).strip())
+    return celdas
+
+
+def test_h36_bloques_revision_no_recorre_el_ledger_caracter_a_caracter(monkeypatch):
+    """H-36: `bloques_revision` enumeraba cada carácter del ledger dos veces por llamada (5,6 s con un
+    ledger de 507 KB entre archive y lint); ahora indexa los saltos de línea con una búsqueda."""
+    mod = _la_mod()
+    texto = "".join(f"## Revisión de dos lentes — intento {n}: Fase {n}\n\n| # | Grado | Gap | Tarea | Corrección | Evidencia |\n"
+                    f"|---|---|---|---|---|---|\n| 1 | Minor | gap `a|b` {n} | T-0{n % 9 + 1} | corregido | e |\n\n" + "x" * 2000 + "\n"
+                    for n in range(1, 30))
+    vistos = [0]
+    original = enumerate
+    def contado(iterable, *a, **k):
+        for par in original(iterable, *a, **k):
+            vistos[0] += 1
+            yield par
+    monkeypatch.setattr(mod, "enumerate", contado, raising=False)
+    secs = mod.bloques_revision(texto)
+    assert len(secs) == 29 and secs[0]["a"] == 0
+    assert vistos[0] < len(texto) // 10, vistos[0]
+
+
+def test_h36_split_fila_md_trocea_sin_recorrer_cada_caracter():
+    """H-36: `split_fila_md` añadía cada carácter a una lista (3.112 llamadas, 2,3 s en el ledger de
+    507 KB); ahora trocea por `` ` `` y por `|`. Se cuentan las llamadas a funciones nativas."""
+    mod = _la_mod("ledger_archive_h36_split")
+    fila = "| 1 | Important | " + "una celda larga con `regex|alternancia` y texto " * 40 + " | T-07 | corregido | `a|b` |"
+    llamadas = [0]
+    def perfil(frame, evento, arg):
+        if evento == "c_call":
+            llamadas[0] += 1
+    sys.setprofile(perfil)
+    try:
+        celdas = mod.LL.split_fila_md(fila)
+    finally:
+        sys.setprofile(None)
+    assert celdas == _split_fila_md_referencia(fila) and len(celdas) == 6
+    assert llamadas[0] < len(fila) // 4, (llamadas[0], len(fila))   # antes: una llamada por carácter
+
+
+def test_h36_mismas_secciones_y_bloques_en_todos_los_ledgers_del_repo():
+    """La versión rápida devuelve exactamente lo mismo que la anterior en los ledgers reales."""
+    mod = _la_mod("ledger_archive_h36_repo")
+    vistos = 0
+    for carpeta, texto in _ledgers_del_repo():
+        for ln in texto.splitlines():
+            if ln.strip().startswith("|"):
+                assert mod.LL.split_fila_md(ln) == _split_fila_md_referencia(ln), (carpeta, ln[:80])
+        secs = mod.bloques_revision(texto)
+        inicios = [0] + [i + 1 for i, c in enumerate(texto) if c == "\n"]
+        limpio = mod.LL.sin_vallas(texto)
+        nl = [i for i, c in enumerate(limpio) if c == "\n"]
+        import bisect
+        for s in secs:
+            for clave, p in (("a", s["inicio"]), ("b", s["fin"])):
+                esperado = len(texto) if p >= len(limpio) else inicios[bisect.bisect_left(nl, p)]
+                assert s[clave] == esperado, (carpeta, s["cabecera"][:60])
+        vistos += 1
+    assert vistos >= 10

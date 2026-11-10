@@ -244,7 +244,15 @@ def leer(path):
 
 
 def sin_comentario(line, marker):
-    """Quita el comentario de línea (fuera de cadenas) — aproximación suficiente para shingles."""
+    """Quita el comentario de línea (fuera de cadenas) — aproximación suficiente para shingles.
+
+    Atajo (H-37, T-16): sin el marcador la línea sale entera, y sin comillas se corta en el primer
+    marcador; solo una línea con comillas y marcador se recorre carácter a carácter (antes, todas:
+    10 s del informe en este repo). Mismo resultado en los dos casos."""
+    if marker not in line:
+        return str(line)
+    if '"' not in line and "'" not in line:
+        return str(line)[:line.find(marker)]
     out, i, q = [], 0, None
     while i < len(line):
         c = line[i]

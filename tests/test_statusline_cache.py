@@ -46,11 +46,39 @@ def test_statusline_cache_invalidates_input_and_ledger_mtime(tmp_path):
     assert rc == 0
     changed = {**PAYLOAD, 'cost': {'total_cost_usd': 0.004}}
     assert '<$0.01' in hook('statusline', changed, env)[1]
-    assert launches(count) == 2
+    # H-39 (T-16): cost and context change every turn; Bash paints them and the roadmap stays cached
+    assert launches(count) == 1, 'a new cost must not launch Python'
     ledger.write_text(ledger.read_text(encoding='utf-8').replace('estado: en-progreso', 'estado: completado', 1), encoding='utf-8')
     os.utime(ledger, (2000000000, 2000000000))
     assert hook('statusline', changed, env)[1] == '[Opus] <$0.01 ctx 8%\n'
-    assert launches(count) == 3
+    assert launches(count) == 2
+
+
+@pytest.mark.parametrize('payload,rapido', [
+    ({'model': {'display_name': 'Opus 4.1'}, 'cost': {'total_cost_usd': 1.239}, 'context_window': {'used_percentage': 41.5}}, True),
+    ({'cost': {'total_cost_usd': 0.0}, 'context_window': {'used_percentage': 100}}, True),
+    ({'cost': {'total_cost_usd': 0.4 + 0.03}, 'context_window': {'used_percentage': 12.300000000000001}}, True),
+    ({}, True),
+    ({'model': {'display_name': 'Ópus 🐛'}, 'cost': {'total_cost_usd': 0.5}}, False),
+    ({'model': {'display_name': 'Quote " in name'}, 'cost': {'total_cost_usd': 2}}, False),
+    ({'cost': {'total_cost_usd': 0.00001}, 'context_window': {'used_percentage': 0.00002}}, False),
+    ({'cost': {'total_cost_usd': 1e-7}, 'model': {'display_name': None}}, False),
+    ({'model': {'display_name': 'A', 'other': {'display_name': 'B'}}}, False),
+    ({'cost': {'total_cost_usd': '0.42'}}, False),
+])
+def test_h39_bash_pinta_lo_mismo_que_python_y_reutiliza_la_cache(tmp_path, payload, rapido):
+    """H-39: la clave de la caché incluía el input entero y casi nunca acertaba. Ahora cubre solo el
+    roadmap y Bash pinta modelo, coste y contexto; cuando un campo no tiene la forma simple que Python
+    imprimiría igual, se usa Python como antes. La salida es la misma por los dos caminos."""
+    proj, _ = proyecto(tmp_path)
+    env, count = counted_env(proj, tmp_path)
+    fria = hook('statusline', payload, env)          # sin caché: Python
+    assert fria[0] == 0 and fria[2] == '' and launches(count) == 1
+    caliente = hook('statusline', payload, env)      # con caché: Bash si el input es simple
+    assert caliente == fria
+    assert launches(count) == (1 if rapido else 2)
+    otro = hook('statusline', {**payload, 'session_id': 'otro-turno'}, env)
+    assert otro == fria and launches(count) == (1 if rapido else 3)
 
 
 def test_statusline_skips_windowsapps_interpreter(tmp_path):

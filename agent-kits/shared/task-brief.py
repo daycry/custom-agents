@@ -679,22 +679,30 @@ def sin_vallas(text):
 # funciones LITERALMENTE como respaldo local - DECLARADO en `agent-kits/shared/copias.json`
 # (bloque `secciones_revision`, ADR-016): hay test que compara las cadenas.
 _HDR_CUALQUIERA_RE = re.compile(r"^##[ \t]+.*$", re.M)
+from bisect import bisect_right as _bisect_right
 
 
 def split_fila_md(ln):
     """Divide una fila de tabla Markdown por `|`, ignorando los `|` dentro de un tramo
     `` `codigo` `` (una celda de gap puede citar una regex con alternancia `a|b|c`; un split
-    ingenuo la trocearia). No es un parser Markdown completo: basta para code spans de una linea."""
-    celdas, actual, en_codigo = [], [], False
-    for ch in ln.strip().strip("|"):
-        if ch == "`":
-            en_codigo = not en_codigo
-            actual.append(ch)
-        elif ch == "|" and not en_codigo:
+    ingenuo la trocearia). No es un parser Markdown completo: basta para code spans de una linea.
+    Trocea por `` ` `` y por `|` en vez de recorrer cada caracter (H-36, T-16): los tramos pares
+    quedan fuera de codigo; una comilla sin pareja deja el resto dentro, como antes."""
+    fila = ln.strip().strip("|")
+    if "`" not in fila:
+        return [c.strip() for c in fila.split("|")]
+    celdas, actual = [], []
+    for n, tramo in enumerate(fila.split("`")):
+        if n:
+            actual.append("`")
+        if n % 2:
+            actual.append(tramo)
+            continue
+        partes = tramo.split("|")
+        actual.append(partes[0])
+        for parte in partes[1:]:
             celdas.append("".join(actual).strip())
-            actual = []
-        else:
-            actual.append(ch)
+            actual = [parte]
     celdas.append("".join(actual).strip())
     return celdas
 
@@ -711,7 +719,8 @@ def secciones_revision(texto):
     for m in _REVISION_HDR_RE.finditer(limpio):
         intento = int(m.group(1))
         resumen = (m.group(2) or "").strip()
-        fin = next((p for p in cabeceras if p > m.start()), len(limpio))
+        k = _bisect_right(cabeceras, m.start())   # H-36: siguiente cabecera por bisección
+        fin = cabeceras[k] if k < len(cabeceras) else len(limpio)
         cuerpo = limpio[m.end():fin]
         parrafo = []
         for ln in cuerpo.splitlines():
@@ -1019,11 +1028,26 @@ def _validar_ledger(tasks_p, sin_lint):
     lint = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ledger-lint.py")
     if not os.path.isfile(lint):
         return None
-    r = subprocess.run([sys.executable, lint, tasks_p],
-                       capture_output=True, text=True, encoding="utf-8", errors="replace")
-    if r.returncode != 0:
+    # H-38 (T-16): el MISMO lint en este intérprete (antes, un subproceso con su arranque de Python);
+    # se reproduce la salida de `ledger-lint.py <tasks>` para el mensaje y su veredicto (exit 1 con
+    # incoherencias). Si el módulo no carga, se vuelve al subproceso de siempre.
+    mod = _ledger_lint_mod()
+    if mod is not None and hasattr(mod, "lint"):
+        try:
+            errors, warnings = mod.lint(tasks_p)
+            salida = "".join(f"⚠️  {w}\n" for w in warnings) + "".join(f"❌ {e}\n" for e in errors)
+            salida += (f"ledger-lint: {len(errors)} incoherencias · {len(warnings)} avisos "
+                       f"({os.path.basename(tasks_p)})\n")
+            codigo, stderr = (1 if errors else 0), ""
+        except Exception as e:  # noqa: BLE001 — como un traceback del subproceso: ledger no validable
+            codigo, salida, stderr = 1, "", f"{type(e).__name__}: {e}\n"
+    else:
+        r = subprocess.run([sys.executable, lint, tasks_p],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+        codigo, salida, stderr = r.returncode, r.stdout, r.stderr
+    if codigo != 0:
         print("❌ ledger inválido — arregla tasks.md antes de despachar "
-              f"(ledger-lint exit {r.returncode}):\n{r.stdout}{r.stderr}",
+              f"(ledger-lint exit {codigo}):\n{salida}{stderr}",
               file=sys.stderr)
         return 2
     return None

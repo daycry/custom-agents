@@ -18,9 +18,9 @@ changelog: Fixed
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
 | Fase 2 | 6 | 6 | 100.0% |
-| Fase 3 | 3 | 4 | 75.0% |
+| Fase 3 | 4 | 4 | 100.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **15** | **21** | **71.4%** |
+| **TOTAL** | **16** | **21** | **76.2%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -404,7 +404,7 @@ GREEN fix1: `pytest tests/test_ledger_write.py -k "fix1 or h24"` → `4 passed`;
 
 ## Fase 3 — Rendimiento de procesos
 
-**Estado**: en-progreso
+**Estado**: completado
 
 ### T-13 — SessionStart en una pasada
 
@@ -462,13 +462,20 @@ GREEN: `pytest tests/test_panel_console_perf.py` → `7 passed` (H-32: firma por
 
 ### T-16 — Scripts de las puertas más rápidos
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: H-35 a H-39. `isdir` por patrón en scope-check; ledger-archive y ledger-lint sin bucles carácter a carácter; `sin_comentario` con atajo; lint en proceso en task-brief; clave de caché de la statusline.
-- **Archivos**: `agent-kits/shared/scope-check.py`, `agent-kits/shared/ledger-archive.py`, `agent-kits/shared/ledger-lint.py`, `skills/code-health/scripts/code-health.py`, `agent-kits/shared/task-brief.py`, `statusline/roadmap-statusline.sh`, sus tests.
+- **Archivos**: `agent-kits/shared/scope-check.py`, `agent-kits/shared/ledger-archive.py`, `agent-kits/shared/ledger-lint.py`, `skills/code-health/scripts/code-health.py`, `agent-kits/shared/task-brief.py`, `statusline/roadmap-statusline.sh`, sus tests (`agent-kits/shared/test_scope_check.py`, `agent-kits/shared/test_ledger_archive.py`, `skills/code-health/scripts/test_code_health.py`, `agent-kits/shared/test_task_brief.py`, `tests/test_statusline_cache.py`), `skills/jira-sync/scripts/jira-flow.py` (copia declarada del bloque `secciones_revision` en `copias.json`: cambia a la vez que la de ledger-lint y la de task-brief), `docs/observability.md`, `docs/en/observability.md` (E3: qué cubre la caché de la barra de estado) (añadidos por el implementer).
+- **Tiempo IA (ejec.)**: real 0,21h (medido)
 - **Verificación**: tiempos antes y después en `testing/perf.md`; mismas salidas sobre los ledgers del repo.
+- **Changelog**: Las puertas tardan menos con los mismos resultados: scope-check mira el disco una vez por patrón, el archivado de ledgers grandes y code-health ya no recorren cada carácter, el brief de una tarea valida el ledger sin lanzar otro Python y la barra de estado solo arranca Python cuando cambia el roadmap.
+- **Cerrada**: 2026-11-10
 
 **Criterios de aceptación**
-- [ ] Salidas idénticas; tiempos medidos más bajos.
+- [x] Salidas idénticas; tiempos medidos más bajos.
+
+RED: `test_scope_check.py -k h35 + test_ledger_archive.py -k h36 + test_code_health.py -k h37 + test_task_brief.py -k h38 + tests/test_statusline_cache.py` falló con 15 failed: 126 isdir para 4 patrones; bloques_revision enumera 126.502 caracteres; split_fila_md hace 1.981 llamadas nativas en una fila de ~2.000; sin_comentario indexa 232 veces una línea sin marcador; el brief lanza ledger-lint.py como subproceso; la statusline lanza Python al cambiar el coste y no reutiliza la caché en los 9 casos de forma · 2026-11-10.
+
+GREEN: los cinco ficheros con sus tests nuevos pasan (`test_scope_check.py` 32, `test_ledger_archive.py` 25, `test_code_health.py` 33, `test_task_brief.py` 94, `tests/test_statusline_cache.py` 27; equivalencias: `split_fila_md` y `bloques_revision` iguales a la versión anterior en todas las filas de tabla y secciones de los 68 ledgers del repo, y `sin_comentario` igual en más de 1.000 líneas reales de cinco ficheros), más `test_copias_declaradas.py` 31 (las tres copias de `secciones_revision` siguen idénticas), `test_scope_check_commit_selection.py` 22 + 2 skipped + 27 subtests, `…_deep.py` 4, `tests/test_ledger_lint.py` 9, `test_ledger_single_parser.py` 10, `test_ledger_write.py` 33 + 2 skipped, `test_jira_flow.py` 74, `test_audit_jira.py` 4, `test_review_jira_owner.py` 12, `test_audit_briefs.py` 11, `test_progress_report.py` 45, `tests/test_hooks_shell.py -k statusline` 14 passed. Medida (cada ejecución un proceso nuevo, calentamiento + 3, mediana; mismo SHA de salida antes y después): scope-check de esta iniciativa 1,69 → 0,94 s; ledger-archive en seco del ledger de 519 KB 2,70 → 1,16 s; ledger-lint del mismo 0,21 → 0,21 s (sin cambio apreciable: lo caro era el archivado); code-health del árbol del repo 11,79 → 6,59 s; task-brief de T-16 3 → 2 procesos lanzados y 1,12 → 1,12 s (el que queda es knowledge-find); barra de estado en 7 turnos con el coste cambiando 7 → 1 Python y 1,49 → 0,62 s por refresco. Decisiones: la barra de estado solo pinta en Bash lo que Python imprimiría igual (nombre ASCII sin comillas ni barra invertida, una sola clave, número posicional ≥ 0,0001 con el texto más corto, como lo escriben `JSON.stringify` y `repr`); el resto vuelve a Python en ese refresco. La primera versión limitaba la parte decimal a 15 cifras y un coste sumado en coma flotante (0,43000000000000005) caía siempre a Python: lo destapó la medida · 2026-11-10.
 
 ## Fase 4 — Consumo de tokens
 
