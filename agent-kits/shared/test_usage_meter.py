@@ -1403,3 +1403,40 @@ def test_fix2_d_un_transcript_ilegible_no_se_reintenta_hasta_que_cambia(entorno,
     _os.utime(roto, (futuro, futuro))
     um._migrar_cerrados(estado)
     assert llamadas == [1]
+
+
+# ------------------------------------- revisión intento 3 (fase 3): 5 (T-13)
+
+def _marcador_viejo(tdir, nombre="t.jsonl"):
+    return {"version": 2, "inicio": um._now_iso(), "ultimoCierre": um._now_iso(),
+            "transcriptDir": str(tdir), "offsets": {nombre: 10}}
+
+
+def test_fix3_5_un_transcript_que_desaparece_tras_el_error_se_poda(entorno):
+    """5: si el `stat` fallaba tras el error de lectura quedaba `poda_fallida=[clave, None]` y el
+    fichero, que ya no existe, no se podaba nunca. Un fichero que no existe se descarta, como siempre."""
+    _, tdir, _ = entorno
+    f = tdir / "t.jsonl"
+    _write(f, [_rec("a", inp=1)])
+    m = _marcador_viejo(tdir)
+    def desaparece(ruta, offset):
+        ruta.unlink()
+        raise OSError("se fue")
+    assert um._podar_offsets(m, str(tdir), desaparece) is True
+    assert m["offsets_podados"] is True and m["offsets"] == {} and "poda_fallida" not in m
+
+
+def test_fix3_5_un_error_pasajero_en_un_transcript_viejo_tiene_tope(entorno):
+    """5: un error pasajero (EMFILE, un bloqueo de Windows) en un transcript que ya no cambia dejaba el
+    marcador sin podar para siempre. Al tercer intento se poda conservando ese offset."""
+    import errno
+    _, tdir, _ = entorno
+    _write(tdir / "t.jsonl", [_rec("a", inp=1)])
+    m = _marcador_viejo(tdir)
+    def emfile(ruta, offset):
+        raise OSError(errno.EMFILE, "Too many open files")
+    assert um._podar_offsets(m, str(tdir), emfile) is False
+    assert um._podar_offsets(m, str(tdir), emfile) is False
+    assert um._podar_offsets(m, str(tdir), emfile) is True
+    assert m["offsets_podados"] is True and m["offsets"] == {"t.jsonl": 10}
+    assert "poda_fallida" not in m and "poda_intentos" not in m

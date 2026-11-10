@@ -291,6 +291,7 @@ def _ventana_descarta(ts_dt, inicio_dt):
         return False, True
 
 
+PODA_INTENTOS = 3   # intentos de poda de un marcador con transcripts ilegibles (revisión intento 3)
 _COLAS_BYTES = (4 * 1024, 64 * 1024)   # una línea mayor no se lee: se conserva su offset
 
 
@@ -386,18 +387,27 @@ def _podar_offsets(marcador, tdir, ts_previo=None, plan=None):
             previo = leer(ruta, offset)
         except (OSError, ValueError, OverflowError):
             try:
-                fallidos.append([clave, ruta.stat().st_mtime])
+                fallidos.append([clave, ruta.stat().st_mtime, offset])
             except OSError:
-                fallidos.append([clave, None])
+                pass   # intento 3 (5): ya no existe; se descarta su offset, como en el camino normal
             continue
         if previo is None or previo >= corte_dt:
             conservar[clave] = offset
     if fallidos:
-        # revisión intento 2 (D): no se poda ni se marca, y solo se reintenta cuando cambie el mtime
-        # de alguno de esos transcripts (antes, en cada start/close y para siempre)
-        marcador["poda_fallida"] = fallidos
-        return False
+        # revisión intento 2 (D): no se poda ni se marca, y solo se reintenta cuando cambie el mtime de
+        # alguno de esos transcripts. Intento 3 (5): como mucho PODA_INTENTOS veces; después se poda
+        # conservando el offset de los ilegibles (un error pasajero en un transcript viejo no deja el
+        # marcador sin podar para siempre).
+        intentos = marcador.get("poda_intentos", 0)
+        intentos = (intentos if isinstance(intentos, int) and not isinstance(intentos, bool) else 0) + 1
+        if intentos < PODA_INTENTOS:
+            marcador["poda_fallida"] = [f[:2] for f in fallidos]
+            marcador["poda_intentos"] = intentos
+            return False
+        for clave, _mtime, offset in fallidos:
+            conservar[clave] = offset
     marcador.pop("poda_fallida", None)
+    marcador.pop("poda_intentos", None)
     marcador["offsets"] = conservar
     marcador["offsets_podados"] = True
     return True
