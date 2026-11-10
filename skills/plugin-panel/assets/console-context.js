@@ -1,4 +1,4 @@
-import {$,el,icon,button,badge,provider,providers,busy,relative,time,empty,loading,panel,progress,markdown,observedSessionCount} from './console-dom.js'
+import {$,el,icon,button,badge,provider,providers,busy,relative,time,empty,loading,panel,progress,markdown,observedSessionCount,sessionCountLabel} from './console-dom.js'
 
 export function createContext(app){
  const state=app.state
@@ -22,7 +22,7 @@ export function createContext(app){
   const sessions=results[1].status==='fulfilled'?results[1].value.sessions:null
   const runtimes=results[2].status==='fulfilled'?results[2].value.runtimes:[]
   const inventory=results[3].status==='fulfilled'?results[3].value:null
-  const sessionCount=observedSessionCount(inventory,sessions)
+  const sessionCount=sessionCountLabel(inventory,sessions)
   if(sessions)state.sessions=sessions;if(runtimes)state.runtimes=runtimes
   $('nav-sessions-count').textContent=sessionCount??'—'
   if(portfolio?.freshness?.state==='refresh_failed')app.notice('La actualización de la cartera falló. Se conserva la lectura anterior con su fecha original.','warning')

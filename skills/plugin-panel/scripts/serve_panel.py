@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import hashlib
 import hmac
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
 import importlib.util
 import json
 import math
@@ -711,9 +712,30 @@ def _trim_timeline(body):
     return True
 
 
-class PanelServer(HTTPServer):
-    """Serial handlers bound concurrency; a stalled socket expires in three seconds."""
+class PanelServer(ThreadingMixIn, HTTPServer):
+    """Bounded threads (review attempt 1 of phase 3, A4): at most `MAX_WORKERS` requests at once, so a
+    slow read (a large plan, activity) no longer holds the others; the accept loop waits for a free
+    worker. POSTs and the review routes keep running one at a time under `escritura`: their owners
+    write state. Caches are guarded by their own locks (progress, portfolio, memory) or are plain dict
+    updates. A stalled socket expires in three seconds."""
     request_queue_size = 8
+    daemon_threads = True
+    block_on_close = False
+    MAX_WORKERS = 4
+
+    def process_request(self, request, client_address):
+        self._workers.acquire()
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._workers.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._workers.release()
 
     def get_request(self):
         socket, address = super().get_request()
@@ -1299,15 +1321,19 @@ class PanelHandler(BaseHTTPRequestHandler):
             else:
                 self._reply(200, body, 'application/json; charset=utf-8')
         elif self.server.review_scope is not None and route == 'api/review-summary':
-            self._reply(200, self.server.review_summary(), 'application/json; charset=utf-8')
+            with self.server.escritura:
+                body = self.server.review_summary()
+            self._reply(200, body, 'application/json; charset=utf-8')
         elif self.server.review_scope is not None and (current := REVIEW_CURRENT_API.fullmatch(route)) is not None:
-            body = self.server.review_current(current[1])
+            with self.server.escritura:
+                body = self.server.review_current(current[1])
             if body is None:
                 self._reply(404)
             else:
                 self._reply(200, body, 'application/json; charset=utf-8')
         elif (review := self._review_route(route, ('view', 'status'))) is not None:
-            code, body = self.server.review(review[1], review[0], None, deadline)
+            with self.server.escritura:
+                code, body = self.server.review(review[1], review[0], None, deadline)
             self._reply(code, body, 'application/json; charset=utf-8')
         else:
             self._reply(404)
@@ -1315,6 +1341,10 @@ class PanelHandler(BaseHTTPRequestHandler):
     do_HEAD = do_GET
 
     def do_POST(self):
+        with self.server.escritura:   # writers stay serialized (A4)
+            self._do_post()
+
+    def _do_post(self):
         deadline = time.monotonic() + BODY_TIMEOUT
         if not self._allowed(body=True): return
         route = self._route()
@@ -1462,6 +1492,9 @@ def create_server(project, inventory, *, port=0, review_selection=None, review_s
         server._snapshot = None; server._snapshot_at = 0
         server._snapshot_firma = None; server._snapshot_built = 0   # H-32: signature-cached, background recompute
         server._snapshot_lock = threading.Lock(); server._snapshot_hilo = None
+        server._workers = threading.BoundedSemaphore(PanelServer.MAX_WORKERS)
+        server.escritura = threading.RLock()
+        server.snapshot_inicial = False
         server._cartera = None; server._cartera_at = 0; server._cartera_built = 0; server._cartera_firma = None
         server._cartera_lock = threading.Lock(); server._cartera_hilo = None
         server._plans = {}
@@ -1484,6 +1517,11 @@ def create_server(project, inventory, *, port=0, review_selection=None, review_s
         except Exception:
             planes = []   # no portfolio yet: the first `api/cartera` answers `calculando` and starts the background thread
         server.plan_ids = {plan['id'] for plan in planes}
+        # A4: the first progress version is computed here, like the portfolio: no request waits for it.
+        server._snapshot_at = server._snapshot_built = time.monotonic()
+        server._snapshot_firma = _progress_firma(project)
+        server._snapshot = server._progress()
+        server.snapshot_inicial = True
         reviewable = set(review_initiatives(project)) if review_scope is not None else set()  # plans the panel can review
         bodies = builder.cuerpos_paginas(inventory, live=True, review_enabled=review_selection is not None,
                                          review_id=review_id, actividad='assets/panel-activity.js' in files,

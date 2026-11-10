@@ -55,6 +55,14 @@ export function observedSessionCount(inventory,managed){
  if(count)return count
  return inventory?.status==='ok'&&inventory.complete===true&&inventory.freshness?.state!=='refresh_failed'?0:null
 }
+// Review attempt 1 of phase 3 (B3): Home reads the cached inventory; until Sessions has asked for it the
+// external sessions are unknown, so the count is a lower bound («≥ N»), never a total.
+export function sessionCountLabel(inventory,managed){
+ const count=observedSessionCount(inventory,managed)
+ if(count===null||count===0)return count
+ const complete=inventory?.status==='ok'&&inventory.complete===true&&inventory.freshness?.state!=='refresh_failed'
+ return complete?count:'≥ '+count
+}
 export function loading(root,text='Preparando esta vista…'){root.replaceChildren(el('div',text,'loading'))}
 export function empty(root,title,description,symbol='box',actions=[],compact=false){
  const box=el('div',undefined,'empty-state'+(compact?' compact':''))

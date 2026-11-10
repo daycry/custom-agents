@@ -209,3 +209,51 @@ console.log(JSON.stringify({signal: !!signal, plazo: plazo ? plazo[1] : null, ab
     assert salida.returncode == 0, salida.stderr
     datos = json.loads(salida.stdout.strip().splitlines()[-1])
     assert datos == {'signal': True, 'plazo': 4000, 'aborted': True}, datos
+
+
+# ------------------------------------------------- revisión intento 1 (fase 3): T-15
+
+def test_fix1_b3_sin_consultar_sesiones_el_recuento_de_inicio_es_parcial():
+    """B3: Inicio lee `native-sessions/cached`; sin visitar Sesiones (`not_requested`) mostraba solo
+    las sesiones gestionadas como si fueran el total «incluidas externas». Ahora dice «≥ N»."""
+    node = shutil.which('node')
+    if node is None:
+        pytest.skip('node no disponible')
+    modulo = (ROOT / 'skills/plugin-panel/assets/console-dom.js').as_uri()
+    script = ("import {sessionCountLabel} from %r;\n"
+              "const managed=[{runtime:'codex',native_id:'a'},{runtime:'codex',native_id:'b'}];\n"
+              "console.log(JSON.stringify([\n"
+              " sessionCountLabel({status:'not_requested',complete:false,sessions:[]},managed),\n"
+              " sessionCountLabel({status:'ok',complete:true,sessions:[{runtime:'codex',id:'c'}],freshness:{state:'current'}},managed),\n"
+              " sessionCountLabel({status:'partial',complete:false,sessions:[{runtime:'codex',id:'c'}]},managed),\n"
+              " sessionCountLabel({status:'not_requested',complete:false,sessions:[]},[]),\n"
+              " sessionCountLabel({status:'ok',complete:true,sessions:[],freshness:{state:'current'}},[])]))\n") % modulo
+    salida = subprocess.run([node, '--input-type=module', '-e', script], capture_output=True, text=True,
+                            encoding='utf-8', timeout=30)
+    assert salida.returncode == 0, salida.stderr
+    assert json.loads(salida.stdout) == ['≥ 2', 3, '≥ 3', None, 0]
+    contexto = (ROOT / 'skills/plugin-panel/assets/console-context.js').read_text(encoding='utf-8')
+    assert 'sessionCountLabel(' in contexto
+
+
+def test_fix1_a4_una_ruta_lenta_no_bloquea_la_portada(service, tmp_path, monkeypatch):
+    """A4: el servidor era de un solo hilo: además del progreso, un plan grande o la primera
+    instantánea serializaban el resto. Ahora atiende con hilos acotados."""
+    ledger(tmp_path)
+    server, thread = _servidor(service, tmp_path)
+    try:
+        lento = threading.Event()
+        def plan_lento(ident):
+            lento.set(); time.sleep(4); return None
+        server.plan_ids = {'a' * 16}
+        monkeypatch.setattr(server, 'plan', plan_lento)
+        resultado = {}
+        hilo = threading.Thread(target=lambda: resultado.setdefault('plan', request(server, 'api/plan-' + 'a' * 16)[0]))
+        hilo.start()
+        assert lento.wait(timeout=5)
+        inicio = time.monotonic(); estado = request(server, '')[0]
+        assert estado == 200 and time.monotonic() - inicio < 2
+        hilo.join(timeout=10)
+        assert server.snapshot_inicial is True
+    finally:
+        _parar(server, thread)
