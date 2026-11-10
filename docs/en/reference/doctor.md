@@ -1,6 +1,6 @@
 # `/doctor`: reference notes
 
-> English mirror of [`docs/reference/doctor.md`](../../reference/doctor.md), condensed. `commands/doctor.md` only keeps a summary of the symbols and a pointer here, so these notes are not loaded on every invocation (audit H-44). The diagnosis is computed by `agent-kits/shared/doctor.py`; these notes explain how to read it.
+> English mirror of [`agent-kits/shared/doctor-reference.md`](../../../agent-kits/shared/doctor-reference.md) (the notes live there so they travel with the kit to every runtime), condensed. `commands/doctor.md` only keeps a summary of the symbols and a pointer here, so these notes are not loaded on every invocation (audit H-44). The diagnosis is computed by `agent-kits/shared/doctor.py`; these notes explain how to read it.
 
 ## Notes
 

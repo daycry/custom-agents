@@ -11,12 +11,12 @@ def read(rel):
 def test_command_keeps_only_the_summary_and_a_pointer():
     command = read('commands/doctor.md')
     assert len(command) <= 8000
-    assert 'docs/reference/doctor.md' in command
+    assert '$R/agent-kits/shared/doctor-reference.md' in command
     assert 'ℹ️' in command and 'No confundir con `/setup`' in command
 
 
 def test_notes_moved_with_their_content_and_have_an_english_mirror():
-    notes = read('docs/reference/doctor.md')
+    notes = read('agent-kits/shared/doctor-reference.md')
     for marker in ('Ocho bloques', 'Automatizaciones: configuración, no ejecución', 'Memoria de grafo',
                    'CA-14 de knowledge-services', 'La versión del plugin es sin red por diseño'):
         assert marker in notes, marker
