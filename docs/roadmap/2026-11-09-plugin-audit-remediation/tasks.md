@@ -531,7 +531,7 @@ GREEN fix3: `pytest tests/test_statusline_cache.py` → `45 passed` antes del te
 
 **Estado**: completado
 
-Medidas de tamaño antes y después (separadas del consumo observado, que no se midió): `testing/tokens.md`, borrador en el scratchpad de la sesión (`<scratchpad>/tokens/tokens.md`, ruta exacta en el informe de entrega; el orquestador lo copia a `testing/`).
+Medidas de tamaño antes y después (separadas del consumo observado, que no se midió): [`testing/tokens.md`](testing/tokens.md) (borrador del implementer en el scratchpad de la sesión; lo copió el orquestador).
 
 ### T-17 — Capacidades e integraciones una vez por ciclo
 
