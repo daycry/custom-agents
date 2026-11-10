@@ -223,32 +223,19 @@ def _contar_lineas_log(root, session_id):
 
 _SLUG_FECHA_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-")
 _INICIATIVA_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$")
+_USAGE_STATE_MAX = 256 * 1024
 
 
-def _iniciativa_al_capturar(root):
-    """Slug de la iniciativa en curso AL CERRAR (sin texto de conversación; stdlib, sin cargar los servicios
-    de lectura): la del marcador abierto del usage-meter más reciente y, si no hay, la `en-progreso` con el
-    ledger más reciente. Es la regla de `progress-report.vigente_entre` en miniatura; `replay` la usa en vez
-    de la vigente AL MATERIALIZAR, que puede ser otra (fase 4, fix2, gap 2). None si no se puede decir."""
-    roadmap = os.path.join(root, "docs", "roadmap")
+def _marcador_abierto_al_capturar(root):
+    """Slug de la iniciativa del marcador ABIERTO más reciente del usage-meter, o None. Es el paso (a) de la regla
+    única (`progress-report.vigente_entre`) y lo único que se decide al cerrar: sin recorrer `docs/roadmap` ni abrir
+    ledgers (la regla completa corre en `replay`, fuera del teardown). Un slug que no casa con `_INICIATIVA_RE`
+    (tilde, espacio…) no se guarda: `replay` aplica entonces la regla única."""
     try:
-        carpetas = [e for e in os.scandir(roadmap) if e.is_dir(follow_symlinks=False)][:200]
-    except OSError:
-        return None
-    activas = {}
-    for entry in carpetas:
-        ledger = os.path.join(entry.path, "tasks.md")
-        try:
-            with open(ledger, encoding="utf-8", errors="replace") as fh:
-                cabecera = fh.read(2048)
-            if re.search(r"(?m)^estado:[ \t]*en-progreso\s*$", cabecera):
-                activas[_SLUG_FECHA_RE.sub("", entry.name)] = os.stat(ledger).st_mtime
-        except OSError:
-            continue
-    if not activas:
-        return None
-    try:
-        with open(os.path.join(root, ".claude", "usage-state.json"), encoding="utf-8-sig") as fh:
+        path = os.path.join(root, ".claude", "usage-state.json")
+        if os.stat(path).st_size > _USAGE_STATE_MAX:
+            return None
+        with open(path, encoding="utf-8-sig") as fh:
             estado = json.load(fh)
         abiertos = []
         for clave, marca in (estado.items() if isinstance(estado, dict) else []):
@@ -256,15 +243,12 @@ def _iniciativa_al_capturar(root):
                 partes = [x for x in str(clave).replace("\\", "/").split("/") if x]
                 if partes[:2] == ["docs", "roadmap"]:
                     partes = partes[2:]
-                slug = _SLUG_FECHA_RE.sub("", partes[0]) if len(partes) >= 2 else None
-                if slug in activas:
-                    abiertos.append((str(marca.get("inicio") or ""), slug))
-        if abiertos:
-            return max(abiertos)[1]
-    except (OSError, ValueError, AttributeError):
-        pass
-    slug = max(activas, key=lambda k: (activas[k], k))
-    return slug if _INICIATIVA_RE.match(slug) else None
+                if len(partes) >= 2:
+                    abiertos.append((str(marca.get("inicio") or ""), _SLUG_FECHA_RE.sub("", partes[0])))
+        slug = max(abiertos)[1] if abiertos else None
+        return slug if slug and _INICIATIVA_RE.match(slug) else None
+    except (OSError, ValueError, AttributeError, TypeError):
+        return None
 
 
 def _capture_end(root, payload):
@@ -299,7 +283,7 @@ def _capture_end(root, payload):
         "plugin_version": _plugin_version(),
         "sequence": sequence,
     }
-    iniciativa = _iniciativa_al_capturar(root)
+    iniciativa = _marcador_abierto_al_capturar(root)
     if iniciativa:
         envelope["iniciativa"] = iniciativa
     dir_ = _journal_queue_dir(root)

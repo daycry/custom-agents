@@ -641,6 +641,21 @@ _REASON_RE = re.compile(r"^[a-z_]{1,40}$")
 _CAPTURED_AT_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
+_INICIATIVA_ENVELOPE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$")
+
+
+def _slug_capturado(env, resumen):
+    """Slug de la iniciativa que el envelope guardó al capturar (marcador abierto), o None. Un valor inválido (envelope
+    antiguo o manipulado) NO manda la sesión a dead-letter: se descarta con aviso y manda la regla única."""
+    ini = env.get("iniciativa")
+    if ini is None:
+        return None
+    if isinstance(ini, str) and _INICIATIVA_ENVELOPE_RE.match(ini):
+        return ini
+    resumen["avisos"].append("envelope con `iniciativa` inválida: se descarta y se aplica la regla única de iniciativa")
+    return None
+
+
 def _validar_envelope(payload):
     """`None` si el envelope es válido para materializar; si no, la causa (str) del dead-letter.
     Valida el envelope COMPLETO (gap 27/37/44 de la revisión intento 2: antes solo miraba
@@ -671,9 +686,6 @@ def _validar_envelope(payload):
         return "sequence inválido"
     if payload.get("hook_event_name") != "SessionEnd":
         return f"hook_event_name {payload.get('hook_event_name')!r} != SessionEnd"
-    ini = payload.get("iniciativa")
-    if ini is not None and (not isinstance(ini, str) or not re.match(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$", ini)):
-        return "iniciativa inválida"
     return None
 
 
@@ -835,7 +847,7 @@ def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=F
                 p, _e = escribir_sesion(root, sid, reason=env.get("reason"), transcript=transcript,
                                         fuente="hook", captured_at=env.get("captured_at"),
                                         ia=ia_efectiva, git_timeout=git_timeout,
-                                        iniciativa_capturada=env.get("iniciativa"))
+                                        iniciativa_capturada=_slug_capturado(env, resumen))
                 if p is None:
                     causa2 = "sin rastro del plugin al materializar (docs/roadmap, docs/knowledge o .claude/dev.json)"
                     try:

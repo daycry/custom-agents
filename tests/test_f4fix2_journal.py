@@ -61,21 +61,8 @@ def _scenario(tmp_path, age_hours, **kw):
     return project, envelope
 
 
-def test_f4fix2_2_the_envelope_records_the_initiative_active_at_capture(tmp_path):
-    project = tmp_path / 'p'
-    _ledger(project, '2026-11-01-alfa')
-    assert _capture_at(project, 0)['iniciativa'] == 'alfa'
-
-
-def test_f4fix2_2_replay_keeps_the_captured_initiative_at_0_2_and_14_hours(tmp_path):
-    for hours in (0, 2, 14):
-        sub = tmp_path / f'h{hours}'
-        sub.mkdir()
-        project, _ = _scenario(sub, hours)
-        entries = [p for p in (project / 'docs/knowledge/journal').glob('*.md') if p.name != 'README.md']
-        assert len(entries) == 1, hours
-        text = entries[0].read_text(encoding='utf-8')
-        assert 'iniciativa: "alfa"' in text and 'regla_iniciativa: "vigente"' in text, (hours, text)
+# The two end-to-end tests of the scan-at-capture design were replaced in fix3 (tests/test_f4fix3_journal.py):
+# the capture stores only the open marker and the single rule decides at replay.
 
 
 def test_f4fix2_2_an_old_envelope_without_initiative_uses_the_longer_threshold(tmp_path):

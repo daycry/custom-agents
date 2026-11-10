@@ -139,7 +139,10 @@ historial, el bloque de sesión, la memoria y la statusline: el marcador abierto
 meter (aunque la iniciativa esté al 100 %), si no la pendiente con el ledger más
 reciente y, si no, la más reciente; empates por nombre. Lee con el lector acotado las
 128 carpetas más recientes del roadmap (una activa más antigua queda fuera) y solo
-atribuye como historial las entradas con `regla_iniciativa: vigente`.
+atribuye como historial las entradas con `regla_iniciativa: vigente`. Al capturar el cierre solo se guarda en el sobre el
+slug del marcador abierto, si existe y es un nombre simple (sin recorrer el roadmap); `replay` lo usa tal cual y, sin él,
+aplica esta misma regla con un umbral de 24 h para la marca (un sobre antiguo con un slug inválido no va a dead-letter:
+se descarta con aviso). El arranque dice cuántas entradas omite por no estar atribuidas.
 El bloque de progreso y replay siguen separados. Esta vista no convierte el hook
 `SessionStart` entero en una operación de solo lectura.
 
