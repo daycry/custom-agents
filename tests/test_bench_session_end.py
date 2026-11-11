@@ -11,6 +11,8 @@ import os
 import subprocess
 import sys
 
+import pytest
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPT = os.path.join(ROOT, "scripts", "bench-session-end.py")
 
@@ -52,6 +54,8 @@ def test_bench_texto_por_defecto():
     assert r.returncode == 0 and "iterations=5" in r.stdout
 
 
+# serie: mide tiempo o contiende por un lock con procesos hermanos; falla bajo `-n auto` por la carga ajena (T-23, plugin-audit-2)
+@pytest.mark.serie
 def test_bench_mide_in_process_no_solo_subproceso(tmp_path):
     """Gap 71: la medida que se assertea es IN-PROCESS (`journal.capture_end` cronometrado
     directamente), no dominada por el arranque del intérprete — debe quedar muy por debajo de lo
@@ -65,6 +69,8 @@ def test_bench_mide_in_process_no_solo_subproceso(tmp_path):
     assert d["p50_ms"] < 20, f"p50_ms={d['p50_ms']} sugiere que se sigue midiendo el subproceso"
 
 
+# serie: mide tiempo o contiende por un lock con procesos hermanos; falla bajo `-n auto` por la carga ajena (T-23, plugin-audit-2)
+@pytest.mark.serie
 def test_bench_reporta_e2e_p50_informativo_sin_assertarlo(tmp_path):
     """Gap 71: `e2e_p50_ms` se reporta aparte (informativo, incluye el arranque de Python) y NUNCA
     entra en las aserciones de `--assert-p95-ms`/`--assert-p99-ms` (que siguen siendo in-process)."""

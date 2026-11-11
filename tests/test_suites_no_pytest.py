@@ -154,7 +154,9 @@ def test_los_tests_de_tiempo_van_en_un_paso_serie_aparte():
             if f.startswith("test_") and f.endswith(".py") and "pytest.mark.serie" in open(
                     os.path.join(base, f), encoding="utf-8").read():
                 marcados.append(f)
-    assert {"test_redact_fix3.py", "test_redact.py", "test_plan_review_summary.py"} <= set(marcados), marcados
+    esperados = {"test_redact_fix3.py", "test_redact.py", "test_plan_review_summary.py", "test_bench_session_end.py",
+                 "test_agent_activity_store.py"}
+    assert esperados <= set(marcados), (esperados - set(marcados), marcados)
     ini = open(os.path.join(ROOT, "pytest.ini"), encoding="utf-8").read() if os.path.isfile(
         os.path.join(ROOT, "pytest.ini")) else ""
     assert "serie:" in ini, "falta registrar el marcador `serie` en pytest.ini"

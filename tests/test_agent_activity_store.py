@@ -1345,6 +1345,8 @@ _BURST = ('import importlib.util,json,sys,time;'
     'time.sleep(max(0,float(sys.argv[5])-time.time()));print(json.dumps(m.record(sys.argv[2],e)))')
 
 
+# serie: mide tiempo o contiende por un lock con procesos hermanos; falla bajo `-n auto` por la carga ajena (T-23, plugin-audit-2)
+@pytest.mark.serie
 def test_d2_burst_of_eight_parallel_tool_events_on_a_full_ring_loses_none(api, project):
     boot(api, project)
     now = time.time()
@@ -1467,6 +1469,8 @@ _HAMMER = ('import importlib.util,json,sys,time;'
     'print(n)\n')
 
 
+# serie: mide tiempo o contiende por un lock con procesos hermanos; falla bajo `-n auto` por la carga ajena (T-23, plugin-audit-2)
+@pytest.mark.serie
 def test_2_1_lifecycle_signals_survive_sustained_tool_contention_on_a_full_ring(api, project):
     """Eight writers contend against an announced lifecycle intent on a full ring.
 
