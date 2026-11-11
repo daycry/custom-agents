@@ -148,15 +148,19 @@ def test_los_tests_de_tiempo_van_en_un_paso_serie_aparte():
 import glob
 
 
-def _llamadas(nodo):
-    return {c.func.id for c in ast.walk(nodo)
-            if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
+def _referencias(nodo):
+    """Nombres a los que apunta el código de `nodo`: llamadas (`f()`), referencias sueltas (`ejecutar(f)`,
+    `for f in (a, b)`) y atributos (`modulo.f()`, `objeto.metodo()`). Es una sobre-aproximación: un atributo
+    que se llama como un caso cuenta como alcance (menos avisos, nunca uno falso)."""
+    return ({n.id for n in ast.walk(nodo) if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)}
+            | {n.attr for n in ast.walk(nodo) if isinstance(n, ast.Attribute)})
 
 
 def casos_solo_desde_main(codigo):
-    """Funciones NO `test*` con `assert` propio que se alcanzan desde el bloque `__main__` y desde
-    ninguna función `test*`. Si el fichero no tiene `def test*` devuelve []: de esas suites-script se
-    ocupa `test_la_suite_script_pasa`. Cada nombre devuelto es un caso que pytest NO ejecuta."""
+    """Casos con `assert` propio que pytest NO ejecuta: funciones NO `test*` que se alcanzan desde el bloque
+    `__main__` (llamadas, referencias y atributos) y desde ninguna función `test*`, y `<__main__>` si el
+    propio bloque lleva un `assert` directo. Si el fichero no tiene `def test*` devuelve []: de esas
+    suites-script se ocupa `test_la_suite_script_pasa`."""
     arbol = ast.parse(codigo)
     fns = {n.name: n for n in ast.walk(arbol)
            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
@@ -172,13 +176,16 @@ def casos_solo_desde_main(codigo):
             if x in vistos or x not in fns:
                 continue
             vistos.add(x)
-            pend += _llamadas(fns[x])
+            pend += _referencias(fns[x])
         return vistos
 
-    desde_main = alcanza(set().union(*[_llamadas(g) for g in guardas]) if guardas else set())
-    desde_test = alcanza(tests)
-    return sorted(f for f in desde_main - desde_test if not f.startswith("test")
-                  and any(isinstance(a, ast.Assert) for a in ast.walk(fns[f])))
+    desde_main = alcanza(set().union(*[_referencias(g) for g in guardas]) if guardas else set())
+    desde_test = alcanza(set().union(*[_referencias(fns[t]) for t in tests]) | tests)
+    huecos = sorted(f for f in desde_main - desde_test if not f.startswith("test")
+                    and any(isinstance(a, ast.Assert) for a in ast.walk(fns[f])))
+    directo = any(isinstance(a, ast.Assert) for g in guardas for st in g.body for a in ast.walk(st)
+                  if not isinstance(st, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)))
+    return huecos + (["<__main__>"] if directo else [])
 
 
 def _ficheros_de_la_ci():
@@ -202,6 +209,41 @@ def test_el_detector_ve_un_caso_que_solo_cuelga_de_main():
     assert casos_solo_desde_main(envuelto) == []
     solo_script = _src("def main():", "    assert 1", "if __name__ == '__main__':", "    main()")
     assert casos_solo_desde_main(solo_script) == []
+
+
+@pytest.mark.parametrize("nombre,codigo,esperado", [
+    ("assert directo en el bloque __main__",
+     _src("def test_a():", "    assert 1", "if __name__ == '__main__':", "    assert 2", "    pytest.main()"),
+     ["<__main__>"]),
+    ("función pasada por referencia (sin llamarla en el bloque)",
+     _src("def test_a():", "    assert 1", "def caso():", "    assert 2", "def ejecutar(f):", "    f()",
+          "if __name__ == '__main__':", "    ejecutar(caso)"),
+     ["caso"]),
+    ("funciones en una tupla recorrida por el bloque",
+     _src("def test_a():", "    assert 1", "def caso_a():", "    assert 2", "def caso_b():", "    assert 3",
+          "if __name__ == '__main__':", "    for f in (caso_a, caso_b):", "        f()"),
+     ["caso_a", "caso_b"]),
+    ("llamada por atributo (modulo.caso())",
+     _src("import suite", "def test_a():", "    assert 1", "def caso():", "    assert 2",
+          "if __name__ == '__main__':", "    suite.caso()"),
+     ["caso"]),
+    ("método de clase llamado por atributo",
+     _src("def test_a():", "    assert 1", "class S:", "    def caso(self):", "        assert 2",
+          "if __name__ == '__main__':", "    S().caso()"),
+     ["caso"]),
+    ("la misma referencia colgando de un test no es un hueco",
+     _src("def caso():", "    assert 2", "def test_a():", "    ejecutar(caso)", "def ejecutar(f):", "    f()",
+          "if __name__ == '__main__':", "    ejecutar(caso)"),
+     []),
+    ("método llamado por atributo desde un test",
+     _src("class S:", "    def caso(self):", "        assert 2", "def test_a():", "    S().caso()",
+          "if __name__ == '__main__':", "    S().caso()"),
+     []),
+])
+def test_el_detector_ve_las_formas_que_antes_se_le_escapaban(nombre, codigo, esperado):
+    """T-23 fix2 (gap 6): asserts directos en `__main__`, funciones pasadas por referencia y llamadas por
+    atributo (`mod.f()`, `obj.metodo()`) también son casos que pytest no ejecuta."""
+    assert casos_solo_desde_main(codigo) == esperado, nombre
 
 
 def test_ningun_caso_de_la_ci_queda_solo_en_main():

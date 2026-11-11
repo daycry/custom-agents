@@ -242,35 +242,50 @@ def _patologicos(n=100000):
     ]
 
 
+RAZON_LINEAL_MAX = 6.5
+
+
 def _es_lineal(t_chico, t_grande):
-    """Entrada ×4: lineal ≈ ×4 (cuadrático ×16). Pasa si el caso grande cabe en 1,5 s (máquina rápida) o si la
-    razón con el pequeño es ≤ 8 (con suelo de ruido de 50 ms) y no pasa de 10 s (colgado)."""
-    return t_grande < 1.5 or (t_grande < 10 and t_grande <= 8 * max(t_chico, 0.05))
+    """Entrada ×4: lineal ≈ ×4 (n^1,5 ≈ ×8, cuadrático ×16). Pasa si la razón con el caso pequeño es ≤ 6,5 (con
+    suelo de ruido de 50 ms para el pequeño) y no pasa de 10 s (colgado). Sin atajo por tiempo absoluto: un caso
+    rápido NO exime de la razón (una ralentización de ×6,5 o más en un caso de 1 s no puede pasar por «rápido»).
+    Medido con calentamiento previo, el mejor de 2 en el pequeño y hasta 3 intentos en el grande: la razón máxima de los 23 patológicos fue
+    5,9 en Windows (una sola pasada, sin mejor-de-2) — ver el ledger de T-23 fix2 para Linux."""
+    return t_grande < 10 and t_grande <= RAZON_LINEAL_MAX * max(t_chico, 0.05)
 
 
 def test_el_criterio_de_linealidad_distingue_lineal_de_cuadratico():
-    """T-23 fix1 (gap 3): el umbral absoluto `< 1.5 s` para 1 MB mide la VELOCIDAD de la máquina (en esta
-    máquina `redactar` sostiene ~0,7 MB/s: 25 K → 0,30 s, 50 K → 0,60 s, 100 K → 1,52 s), no la complejidad. La
-    complejidad se mide con la razón entre dos tamaños: ×4 de entrada → ×4 si es lineal, ×16 si es cuadrático."""
+    """T-23 fix1 (gap 3): el umbral absoluto `< 1.5 s` para 1 MB mide la VELOCIDAD de la máquina, no la
+    complejidad: ×4 de entrada → ×4 si es lineal, ×16 si es cuadrático. T-23 fix2 (gap 5): razón ≤ 6,5 y sin
+    atajo por tiempo absoluto, para no aceptar n^1,5 (×8) ni una ralentización de ×7 en un caso rápido."""
     assert _es_lineal(0.30, 1.20)                 # lineal: ×4
-    assert _es_lineal(0.30, 1.52)                 # lineal con ruido y caché: ×5
+    assert _es_lineal(0.30, 1.80)                 # lineal con ruido y caché: ×6
     assert _es_lineal(0.01, 0.30)                 # por debajo del suelo de ruido (50 ms) no se mide razón
+    assert not _es_lineal(0.30, 2.40)             # n^1,5: ×8
+    assert not _es_lineal(0.20, 1.40)             # ×7 en un caso «rápido» (< 1,5 s): antes pasaba por el atajo absoluto
     assert not _es_lineal(0.30, 4.8)              # cuadrático: ×16
     assert not _es_lineal(0.30, 12.0)             # más de 10 s: se da por colgado aunque la razón sea baja
-    assert _es_lineal(0.2, 1.0)                   # rápido en absoluto: pasa siempre (< 1,5 s)
+
+
+def _medir(texto):
+    inicio = time.perf_counter()
+    redact.redactar(texto)
+    return time.perf_counter() - inicio
 
 
 # serie: mide tiempo de pared (< 1.5 s); bajo `-n auto` la carga ajena lo rompe (T-23, plugin-audit-2)
 @pytest.mark.serie
 def test_linear_cost_on_pathological_inputs():
     for chico, grande in zip(_patologicos(25000), _patologicos(100000)):
-        started = time.perf_counter()
-        redact.redactar(chico)
-        t_chico = time.perf_counter() - started
-        started = time.perf_counter()
-        salida = redact.redactar(grande)
-        t_grande = time.perf_counter() - started
+        _medir(chico)                                         # calentamiento: cachés de regex y de intérprete
+        t_chico = min(_medir(chico), _medir(chico))
+        t_grande = _medir(grande)
+        for _ in range(2):                                    # el ruido ajeno solo SUMA tiempo: se repite
+            if _es_lineal(t_chico, t_grande):                 # (hasta 3 veces, quedándose con la mejor) y un
+                break                                         # algoritmo superlinear falla las 3
+            t_grande = min(t_grande, _medir(grande))
         assert _es_lineal(t_chico, t_grande), (len(grande), grande[:40], round(t_chico, 2), round(t_grande, 2))
+        salida = redact.redactar(grande)
         assert redact.redactar(salida) == salida, grande[:40]
 
 
