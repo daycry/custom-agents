@@ -80,13 +80,18 @@ def _footprint():
 
 def test_f4fix2_5_the_published_figures_match_context_footprint_on_head():
     measured = _footprint()
-    tokens_md = Path(os.environ.get('F4FIX2_TOKENS_MD') or TESTING / 'tokens.md').read_text(encoding='utf-8')
+    # El registro fechado `docs/roadmap/2026-11-09-…/testing/tokens.md` NO se compara con HEAD: los registros de
+    # `docs/roadmap/` no se reescriben (CLAUDE.md) y fija las cifras del día en que se cerró; HEAD cambia con cada
+    # fase. Solo se contrasta si alguien lo pide a propósito (`F4FIX2_TOKENS_MD=<ruta de un registro vivo>`).
+    ruta_registro = os.environ.get('F4FIX2_TOKENS_MD')
+    tokens_md = Path(ruta_registro).read_text(encoding='utf-8') if ruta_registro else None
     spanish = (ROOT / 'docs/TOKEN-EFFICIENCY.md').read_text(encoding='utf-8')
     english = (ROOT / 'docs/en/TOKEN-EFFICIENCY.md').read_text(encoding='utf-8')
     es = lambda n: f'{n:,}'.replace(',', '.')
     en = lambda n: f'{n:,}'
-    for rel, size in measured.items():
-        assert es(size) in tokens_md, (rel, es(size), 'testing/tokens.md')
+    if tokens_md is not None:
+        for rel, size in measured.items():
+            assert es(size) in tokens_md, (rel, es(size), ruta_registro)
     for rel in ('commands/doctor.md', 'agent-kits/shared/doctor-reference.md', 'agent-kits/dev-cycle/references/phase2-planning.md',
                 'agent-kits/dev-cycle/references/phase2-plan-review.md', 'skills/adversarial-review/SKILL.md', 'agents/implementer.md'):
         assert es(measured[rel]) in spanish, (rel, es(measured[rel]), 'TOKEN-EFFICIENCY.md')
@@ -98,7 +103,18 @@ def test_f4fix2_5_the_published_figures_match_context_footprint_on_head():
     estimate = lambda rel: (len((ROOT / rel).read_bytes().decode('utf-8').replace('\r\n', '\n')) + 3) // 4
     saving = 15066 - estimate('commands/dev-cycle.md') - estimate('skills/quick-implement/SKILL.md')
     assert saving >= 6000
-    assert es(saving) in spanish and en(saving) in english and es(saving) in tokens_md
+    assert es(saving) in spanish and en(saving) in english
+    if tokens_md is not None:
+        assert es(saving) in tokens_md
+
+
+def test_f4fix2_5_does_not_read_the_closed_dated_record(monkeypatch, tmp_path):
+    """T-02 fix1 (gap 2): el registro cerrado conserva las cifras de su día. Con uno OBSOLETO en `testing/`
+    la comprobación contra HEAD de los docs vivos pasa igual (antes fallaba al primer tamaño distinto)."""
+    (tmp_path / 'tokens.md').write_text('cifras de otro día: 1 2 3', encoding='utf-8')
+    monkeypatch.setattr(sys.modules[__name__], 'TESTING', tmp_path)
+    monkeypatch.delenv('F4FIX2_TOKENS_MD', raising=False)
+    test_f4fix2_5_the_published_figures_match_context_footprint_on_head()
 
 
 def test_f4fix2_14_perf_md_links_to_tokens_md_and_it_exists():

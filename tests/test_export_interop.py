@@ -657,6 +657,25 @@ def _tests():
             and not inspect.signature(v).parameters]
 
 
+def _rutas_de_skill(texto):
+    return set(re.findall(r"skills/[a-z0-9-]+/SKILL\.md", texto))
+
+
+@pytest.mark.parametrize("agente", ["implementer", "qa"])
+def test_los_agentes_generados_conservan_la_ruta_skill_md_de_cada_skill(agente):
+    """T-02 fix1 (gap 9): el cuerpo de `implementer` y `qa` da la ruta `skills/<x>/SKILL.md` como vía que no
+    depende de la herramienta `Skill`; la traducción a Codex y OpenCode no puede perderla."""
+    fuente = open(os.path.join(ROOT, "agents", agente + ".md"), encoding="utf-8").read()
+    rutas = _rutas_de_skill(fuente)
+    assert rutas, f"agents/{agente}.md ya no da ninguna ruta skills/<x>/SKILL.md"
+    for generado in (f"interop/codex/agents/custom-agents-{agente}.toml",
+                     f"interop/opencode/agents/custom-agents-{agente}.md"):
+        texto = open(os.path.join(ROOT, generado), encoding="utf-8").read()
+        assert rutas <= _rutas_de_skill(texto), (generado, sorted(rutas - _rutas_de_skill(texto)))
+    # el detector no es decorativo: sin la ruta, el conjunto deja de incluirla
+    assert not rutas <= _rutas_de_skill(fuente.replace("SKILL.md", "SKILL"))
+
+
 if __name__ == "__main__":
     fallos = 0
     for nombre, fn in _tests():
