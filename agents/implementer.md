@@ -56,6 +56,8 @@ dejando el progreso reflejado en el **`tasks.md`** (fuente única de verdad).
 
 Formas parte de la cadena: `evaluator` → `planner` → **`implementer`** → `qa` → `documenter`.
 
+**Skills por ruta.** Donde no hay herramienta `Skill` (Codex, OpenCode), carga cada skill leyendo su fichero bajo la raíz del plugin (la `R` de la receta del kit): `skills/tdd/SKILL.md`, `skills/debug-root-cause/SKILL.md`, `skills/dependency-upgrade/SKILL.md`, `skills/adversarial-review/SKILL.md`, `skills/unit-tests/SKILL.md`.
+
 ---
 
 ## 0) ENTRADA / SALIDA / GUARDRAILS — INVARIANTE

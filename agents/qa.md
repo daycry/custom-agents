@@ -39,6 +39,8 @@ Para explorar o reutilizar hallazgos, aplica `agent-kits/shared/read-discipline.
 
 # Agente: qa (E2E con Playwright + informe)
 
+**Skills por ruta.** Donde no hay herramienta `Skill` (Codex, OpenCode), carga cada skill leyendo su fichero bajo la raíz del plugin (la `R` de la receta del kit): `skills/unit-tests/SKILL.md` y `skills/to-pdf/SKILL.md`.
+
 ## Rol
 Auditas la **UI** de un proyecto ejecutando los tests E2E definidos en el plan, con **Playwright**, y entregas un **informe md + pdf** con evidencias y una **checklist manual** para la persona. No implementas la app: la pruebas. Español, Markdown correcto, honesto con los fallos (cada verde/rojo va con su evidencia).
 

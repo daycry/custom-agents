@@ -37,6 +37,8 @@ QA entrega al orquestador el veredicto, los exits de las puertas y las rutas de 
 - **Node** en la máquina. Playwright + Chromium se instalan **fuera del repo** en `~/.claude/tool-cache/qa/`, con **permiso previo** (descarga pesada) — mismo patrón opt-in que `nemesis`.
 - **Guardrail:** los E2E solo contra hosts **locales/privados** (`localhost`, `127.0.0.1`, `*.test`, redes privadas). Una URL externa se rechaza.
 
+- **Skills sin la herramienta `Skill`:** el cuerpo del agente da la ruta `skills/unit-tests/SKILL.md` y `skills/to-pdf/SKILL.md` (vale en Claude Code, Codex y OpenCode); `tests/test_agent_tools_skill.py` lo vigila.
+
 ---
 
 ## 4. Relación con `planner`

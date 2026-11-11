@@ -113,6 +113,11 @@ Sus skills (`jira-sync`, `confluence-publish`) son opt-in y se invocan bajo dema
 **no** las precarga con el campo nativo `skills:` (≈15k tokens por arranque; regla token-diet de
 la regla 4 de `CONVENTIONS.md`).
 
+**Skills sin la herramienta `Skill`.** `Skill` es de Claude Code y `tools:` no la incluye a propósito: el cuerpo
+del agente da la ruta `skills/<x>/SKILL.md` de cada skill que ordena invocar (`tdd`, `debug-root-cause`,
+`dependency-upgrade`, `adversarial-review`, `unit-tests`), que vale en los tres runtimes; `tests/test_agent_tools_skill.py`
+lo vigila para todos los agentes. Añadir `Skill` a `tools:` queda sujeto a una prueba en sesión real (M-A).
+
 Aparte, el alcance del **diff completo** lo comprueba `agent-kits/shared/scope-check.py`
 (ficheros cambiados vs. campos `Archivos` del ledger; exit 0 obligatorio en su DoD y como puerta
 previa a la revisión de dos lentes en `/dev-cycle`). Y **exit 0 no basta**: si el script imprime

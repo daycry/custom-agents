@@ -79,10 +79,12 @@ Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +2
 
 - **Descripción**: El cuerpo de `implementer` ordena invocar `tdd`, `dependency-upgrade` y `debug-root-cause` y `qa` declara `to-pdf`, pero su `tools:` no incluye `Skill`, concepto solo de Claude Code. Solución común: el cuerpo da siempre la ruta `skills/<x>/SKILL.md` como vía que no depende de la herramienta (patrón de `nemesis`).
 - **Changelog**: Los agentes dicen dónde leer cada skill y funcionan igual en los tres runtimes.
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 3h · real —
-- **Tiempo IA (ejec.)**: est. 0.7h · real —
+- **Tiempo IA (ejec.)**: est. 0.7h · real 0.4h (estimado)
 - **Archivos**: `agents/implementer.md`, `agents/qa.md`, `tests/test_agent_tools_skill.py` (nuevo), `tests/test_export_interop.py`, `docs/agents/implementer.md`, `docs/agents/qa.md`, `evals/cases/agent-implementer.json`, `interop/**` (regenerado)
+- **Evidencia**: GREEN: `tests/test_agent_tools_skill.py` → `12 passed` (recorre `agents/*.md`; implementer y qa llevan ahora la ruta `skills/<x>/SKILL.md` de cada skill que ordenan invocar); `Skill` NO se añade a `tools:` (el criterio no depende de ella). Puertas de runtimes: `export-interop.py --check` → `88 ficheros al día`; `pytest -q` de las 5 suites de la cabecera + `test_agent_tools_skill.py` → `112 passed`; `node --test` opencode-plugin, codex-native-install y hook-runtime → verde; `installer.test.mjs` no termina en Windows en 900 s (carga de la máquina): verificado en Linux (ver nota del cierre de la fase).
+- **Pendiente (usuario)**: M-A (sesión real de Claude Code): comprobar si un agente sin `Skill` en `tools:` puede invocar una skill; en Codex y OpenCode, que sigue la skill leyendo `skills/tdd/SKILL.md` por su ruta. Hasta entonces el 2.º criterio queda sin marcar y la tarea `en-progreso`.
 - **Runtimes**: Claude: `Skill` en `tools:` opcional; Codex: agente sin `tools`, skill por `$custom-agents:X` (`docs/INTEROP.md:79`); OpenCode: `skill: allow` fijo (`scripts/export-interop.py:589`). La ruta del `SKILL.md` vale en los tres.
 - **Verificación**:
   - `pytest -q tests/test_agent_tools_skill.py` → `passed` (rojo antes: implementer y qa nombran skills sin ruta del `SKILL.md`)
@@ -91,8 +93,11 @@ Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +2
   - lectura (manual, sesión real; M-A) → en Claude Code se anota si un agente sin `Skill` puede invocar una skill; en Codex y OpenCode el agente sigue la skill leyendo `skills/tdd/SKILL.md` por su ruta
 
 **Criterios de aceptación**
-- [ ] Todo agente cuyo cuerpo ordena invocar una skill da la ruta de su `SKILL.md`; el test recorre `agents/*.md`.
+- [x] Todo agente cuyo cuerpo ordena invocar una skill da la ruta de su `SKILL.md`; el test recorre `agents/*.md`.
 - [ ] `Skill` en `tools:` solo se añade si una prueba en sesión real de Claude Code la necesita (anotada); el criterio no depende de ella.
+
+
+RED: `tests/test_agent_tools_skill.py::test_toda_skill_que_el_agente_ordena_invocar_lleva_su_ruta[implementer.md|qa.md]` falló con AssertionError: implementer.md ordena invocar [adversarial-review, debug-root-cause, dependency-upgrade, tdd, unit-tests] y qa.md [to-pdf, unit-tests] sin dar skills/<x>/SKILL.md · 2026-11-11.
 
 ### T-03 — Comando y skill confluence-pull con el mismo nombre (1.3)
 
@@ -112,6 +117,9 @@ Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +2
 - [ ] `commands/confluence-pull.md` no existe y `modules.json` no lo lista.
 - [ ] El linter da error si un nombre de comando coincide con el de una skill `user-invocable`.
 - [ ] Ninguna referencia viva al comando; los registros fechados no se reescriben.
+
+
+RED: `tests/test_lint_plugin.py::test_colision_comando_skill_es_error` falló con assert 0 == 1: el linter no marca la colision de commands/duplo.md con la skill invocable duplo (exit 0, 0 errores) · 2026-11-11.
 
 ### T-04 — Contradicciones de prosa en pm-cycle, dev-cycle y nemesis (1.4, 1.6, 1.7)
 
@@ -169,6 +177,9 @@ Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +2
 - [ ] Se deniegan `git checkout -- .`, `git restore .`, `git restore --worktree` y `git checkout -f`.
 - [ ] Siguen permitidos `git checkout main -- fichero` y `git checkout -b` (ya cubiertos).
 
+
+RED: `agent-kits/shared/test_guardrail_check.py -k restauracion` falló con 15 failed, 8 passed: git checkout -- ., checkout -f, restore ., restore --worktree... devuelven None (no se deniegan) · 2026-11-11.
+
 ### T-07 — code-health no termina sobre el repo completo (1.9)
 
 - **Descripción**: El auditor reporta timeout de 300 s con `code-health.py` sobre este repo. No lo reprodujo el orquestador: se mide primero qué lo hace lento (sin exclusiones de `worktrees`, `node_modules`, `interop`, `*.sqlite`, o comparación de shingles cuadrática) y se arregla la causa, con un tope de tiempo declarado.
@@ -187,6 +198,9 @@ Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +2
 - [ ] La causa queda medida (perfil de tiempo por fase) antes de cambiar nada.
 - [ ] Hay exclusiones por defecto de directorios generados y un tope por tiempo/ficheros con aviso, nunca un resultado inventado.
 - [ ] Mismos resultados sobre el corpus de pruebas existente.
+
+
+RED: `skills/code-health/scripts/test_code_health.py -k rendimiento` falló con 4 failed: ficheros() incluye .mypy_cache/.pytest_cache/worktrees; analizar() sin max_files/max_seconds (TypeError); CLI sin --max-files · 2026-11-11.
 
 ## Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev)
 
@@ -524,6 +538,9 @@ Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +2
 - [ ] El bucle solo ejecuta los ficheros que pytest NO recoge (sin `def test_`).
 - [ ] `-n auto` no rompe los tests que usan puertos, `os.chdir` o ficheros compartidos (los que fallen se marcan `xdist_group`/serie, con motivo).
 - [ ] Se publica `--durations` en el resumen de la CI.
+
+
+RED: `tests/test_suites_no_pytest.py::test_el_bucle_de_ci_solo_ejecuta_lo_que_pytest_no_recoge y ::test_la_ci_paraleliza_pytest_y_publica_durations` falló con AssertionError: el bucle itera todo tests/test_*.py (sin grep -L) y falta pip install pytest-xdist / -n auto / --durations en ci.yml · 2026-11-11.
 
 ### T-24 — Hooks: UserPromptSubmit asíncrono, un handler post-edición, carga perezosa (4.8)
 
