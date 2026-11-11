@@ -1216,3 +1216,9 @@ def test_colision_comando_skill_no_salta_si_la_skill_no_es_invocable(tmp_path):
     _comando_y_skill(tmp_path, 'false')
     code, out = run(str(tmp_path))
     assert 'colisión' not in out, out
+
+
+def test_suite_legada_main():
+    """T-23 fix1 (gap 1): los casos de `main()` solo colgaban de `__main__`; la CI ya no ejecuta scripts,
+    así que pytest los recoge por aquí (`test_ningun_caso_de_la_ci_queda_solo_en_main`)."""
+    main()

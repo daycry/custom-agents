@@ -527,3 +527,9 @@ def test_t21_sin_tdd_true_no_hay_aviso():
         with tempfile.TemporaryDirectory() as tmp:
             out = _ledger_tdd(tmp, tdd, "")
         assert "sin evidencia" not in out, (tdd, out)
+
+
+def test_suite_legada_main():
+    """T-23 fix1 (gap 1): los casos de `main()` solo colgaban de `__main__`; la CI ya no ejecuta scripts,
+    así que pytest los recoge por aquí (`test_ningun_caso_de_la_ci_queda_solo_en_main`)."""
+    main()

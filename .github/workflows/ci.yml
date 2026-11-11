@@ -41,24 +41,13 @@ jobs:
         # atada a las descriptions reales
         run: python evals/check.py
 
-      - name: Tests (suites del repo)
-        # bucle, no lista fija: cualquier tests/test_*.py SIN `def test` (script, que pytest no
-        # recoge) entra solo en la CI. Los que pytest ya recoge los corre el paso siguiente: antes se
-        # ejecutaban dos veces (T-23, plugin-audit-2)
-        run: |
-          for t in $(grep -LE '^\s*(async )?def test' tests/test_*.py); do
-            echo "── $t"
-            python "$t" || exit 1
-          done
-
       - name: Tests (pytest — tests/ + scripts shared + skills con suite propia + evals)
         # carpetas, no lista fija: cualquier test_*.py nuevo en tests/, en agent-kits/shared/, en
         # skills/*/scripts/ o en evals/ entra solo en la CI (review-lens-select vive junto a su skill)
-        # `tests` va PRIMERO y es lo que arregla el hueco del intento 2: el bucle de arriba ejecuta
-        # `python tests/test_X.py`, que en los ficheros SIN bloque `__main__` no ejecuta NADA, así
-        # que 68 casos de tests/ (test_export_skills, test_release, test_roadmap_index) no corrían
-        # en CI. Y al revés, las 8 suites de tests/ que son scripts (sin `def test_*`) pytest no las
-        # recoge: las ejecuta `tests/test_suites_no_pytest.py`, para que la puerta local sea la de CI.
+        # `tests` va PRIMERO. Los `tests/test_*.py` que son scripts (sin `def test_*`) los ejecuta
+        # `tests/test_suites_no_pytest.py` como subproceso, y las suites mixtas exponen su `main()`/`run()`
+        # en un `def test_suite_legada_*`: pytest es el UNICO ejecutor, asi que nada corre dos veces ni
+        # se queda sin correr (`test_ningun_caso_de_la_ci_queda_solo_en_main`; T-23 fix1, gaps 1 y 14).
         # `-n auto` (pytest-xdist) reparte los tests entre los núcleos del runner y `--durations=20`
         # publica en el resumen los 20 más lentos (T-23, plugin-audit-2).
         run: python -m pytest tests agent-kits/shared agent-kits/knowledge-curator skills/adversarial-review/scripts skills/code-health/scripts skills/dependency-upgrade/scripts skills/changelog-sync/scripts skills/unit-tests/scripts skills/api-contract/scripts skills/jira-sync/scripts skills/knowledge-services/scripts skills/knowledge-category-template/scripts skills/training-data-services/scripts skills/confluence-publish/scripts evals -q -n auto -m "not serie" --durations=20

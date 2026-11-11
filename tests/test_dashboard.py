@@ -641,12 +641,6 @@ def run():
         f"se esperaba un aviso de incoherencia para beta; avisos={warns}"
 
     _eval_variantes()
-    test_parser_lee_las_claves_de_procedencia()
-    test_procedencia_por_iniciativa_separa_medido_sin_medida_y_desconocido()
-    test_procedencia_ventana_compartida_no_duplica_tokens()
-    test_procedencia_en_el_total_de_cartera_y_en_el_informe()
-    test_procedencia_en_json_y_md()
-    test_vista_json_es_pura_y_coincide_con_el_json_de_la_cli()
     print(f"OK: {len(inits)} iniciativas, {len(warns)} aviso(s) esperado(s). Todo pasa.")
 
 
@@ -656,3 +650,9 @@ if __name__ == "__main__":
     except AssertionError as e:
         print(f"FALLO: {e}", file=sys.stderr)
         sys.exit(1)
+
+
+def test_suite_legada_run():
+    """T-23 fix1 (gap 1): los casos de `run()` solo colgaban de `__main__`; la CI ya no ejecuta scripts,
+    así que pytest los recoge por aquí (`test_ningun_caso_de_la_ci_queda_solo_en_main`)."""
+    run()

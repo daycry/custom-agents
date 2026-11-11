@@ -16,10 +16,10 @@ El hueco que cierra, medido con `pytest --collect-only`:
 
 Los dos lados se arreglan sin duplicar ningún caso:
   · aquí: un test de pytest por suite-script, que la ejecuta como subproceso y exige exit 0. Así
-    `pytest -q` cubre lo que cubre el bucle de CI.
+    `pytest -q` cubre lo que cubre la CI.
   · en `ci.yml`: se añade `tests` a las carpetas del paso pytest. Así CI cubre lo que cubre
-    `pytest -q`. El bucle se deja intacto (es la vía por la que estas suites imprimen su propio
-    resumen, y no molesta que se ejecuten dos veces).
+    `pytest -q`. Desde T-23 fix1 el bucle `for t in …; python "$t"` YA NO EXISTE: pytest es el único
+    ejecutor (antes las suites-script corrían dos veces, y las suites mixtas perdían su `main()`).
 
 La lista NO es fija: se descubre con AST cada vez, así que un `tests/test_*.py` nuevo entra solo —
 igual que el bucle de `ci.yml`, y por el mismo motivo.
@@ -109,25 +109,6 @@ def _yml_ci():
     return open(p, encoding="utf-8").read()
 
 
-def test_el_bucle_de_ci_solo_ejecuta_lo_que_pytest_no_recoge():
-    """T-23 (plugin-audit-2): el bucle `for t in ...; python "$t"` ejecutaba los ~23 `tests/test_*.py`
-    que pytest YA recoge (los corría dos veces). Ahora su lista sale de `grep -L` sobre `def test`:
-    el mismo criterio que `suites_no_pytest()` (AST), comprobado fichero a fichero."""
-    import re
-    yml = _yml_ci()
-    m = re.search(r"for t in (.+?); do", yml)
-    assert m, "el bucle de tests/ del ci.yml no se reconoce: actualiza este test"
-    lista = m.group(1)
-    assert "grep -L" in lista, f"el bucle itera todo tests/test_*.py: {lista}"
-    patron = re.search(r"grep -LE? ?(?:-E )?'([^']+)'", lista)
-    assert patron, f"el filtro del bucle no se reconoce: {lista}"
-    rx = re.compile(patron.group(1), re.M)
-    sin_def = [f for f in sorted(os.listdir(TESTS))
-               if f.startswith("test_") and f.endswith(".py")
-               and not rx.search(open(os.path.join(TESTS, f), encoding="utf-8").read())]
-    assert sin_def == SUITES, (sin_def, SUITES)
-
-
 def test_la_ci_paraleliza_pytest_y_publica_durations():
     """T-23: `pytest-xdist` instalado, `-n auto` y `--durations` en el paso pytest de la CI."""
     yml = _yml_ci()
@@ -160,6 +141,86 @@ def test_los_tests_de_tiempo_van_en_un_paso_serie_aparte():
     ini = open(os.path.join(ROOT, "pytest.ini"), encoding="utf-8").read() if os.path.isfile(
         os.path.join(ROOT, "pytest.ini")) else ""
     assert "serie:" in ini, "falta registrar el marcador `serie` en pytest.ini"
+
+
+# ── T-23 fix1 (gap 1): las suites MIXTAS (tienen algún `def test_*` Y casos que solo cuelgan de
+# `if __name__ == "__main__"`) no pueden dejar casos fuera de pytest ───────────────────────────────
+import glob
+
+
+def _llamadas(nodo):
+    return {c.func.id for c in ast.walk(nodo)
+            if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
+
+
+def casos_solo_desde_main(codigo):
+    """Funciones NO `test*` con `assert` propio que se alcanzan desde el bloque `__main__` y desde
+    ninguna función `test*`. Si el fichero no tiene `def test*` devuelve []: de esas suites-script se
+    ocupa `test_la_suite_script_pasa`. Cada nombre devuelto es un caso que pytest NO ejecuta."""
+    arbol = ast.parse(codigo)
+    fns = {n.name: n for n in ast.walk(arbol)
+           if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    tests = {n for n in fns if n.startswith("test")}
+    if not tests:
+        return []
+    guardas = [n for n in arbol.body if isinstance(n, ast.If) and "__main__" in ast.dump(n.test)]
+
+    def alcanza(inicio):
+        vistos, pend = set(), list(inicio)
+        while pend:
+            x = pend.pop()
+            if x in vistos or x not in fns:
+                continue
+            vistos.add(x)
+            pend += _llamadas(fns[x])
+        return vistos
+
+    desde_main = alcanza(set().union(*[_llamadas(g) for g in guardas]) if guardas else set())
+    desde_test = alcanza(tests)
+    return sorted(f for f in desde_main - desde_test if not f.startswith("test")
+                  and any(isinstance(a, ast.Assert) for a in ast.walk(fns[f])))
+
+
+def _ficheros_de_la_ci():
+    """Los `test_*.py` de las carpetas del paso pytest de `ci.yml` (las mismas que lista la CI)."""
+    carpetas = (["tests", os.path.join("agent-kits", "shared"), os.path.join("agent-kits", "knowledge-curator"),
+                 "evals"] + [os.path.relpath(d, ROOT) for d in sorted(glob.glob(os.path.join(ROOT, "skills", "*", "scripts")))])
+    for c in carpetas:
+        for f in sorted(glob.glob(os.path.join(ROOT, c, "test_*.py"))):
+            yield f
+
+
+def _src(*lineas):
+    return chr(10).join(lineas) + chr(10)
+
+
+def test_el_detector_ve_un_caso_que_solo_cuelga_de_main():
+    mixto = _src("def test_a():", "    assert 1", "def main():", "    assert 2",
+                 "if __name__ == '__main__':", "    main()")
+    assert casos_solo_desde_main(mixto) == ["main"]
+    envuelto = mixto + _src("def test_legado():", "    main()")
+    assert casos_solo_desde_main(envuelto) == []
+    solo_script = _src("def main():", "    assert 1", "if __name__ == '__main__':", "    main()")
+    assert casos_solo_desde_main(solo_script) == []
+
+
+def test_ningun_caso_de_la_ci_queda_solo_en_main():
+    """Gap 1 (T-23 fix1): el bucle de `ci.yml` ya no ejecuta los scripts; todo lo que corre la CI es
+    pytest. Una suite con `def test_*` cuyo `main()`/`run()` guarda casos propios los perdería en
+    silencio: cada uno ha de colgar de una función `test_*` (p. ej. `def test_suite_legada(): main()`)."""
+    huecos = {}
+    for f in _ficheros_de_la_ci():
+        solo_main = casos_solo_desde_main(open(f, encoding="utf-8").read())
+        if solo_main:
+            huecos[os.path.relpath(f, ROOT)] = solo_main
+    assert not huecos, huecos
+
+
+def test_el_bucle_de_ci_no_existe_y_nada_corre_dos_veces():
+    """Gap 14 (T-23 fix1): las suites-script las ejecuta `test_la_suite_script_pasa` bajo pytest; el
+    bucle `for t in ...; python "$t"` las corría una segunda vez. La CI no lo lleva."""
+    yml = _yml_ci()
+    assert 'python "$t"' not in yml and "for t in" not in yml, "el bucle de scripts sigue en la CI"
 
 
 def main():
