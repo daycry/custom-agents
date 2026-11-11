@@ -1,6 +1,6 @@
 ---
 name: custom-agents-roadmap-metrics
-description: "Informe real vs estimado del roadmap — compara horas y tokens estimados (evaluación/plan) contra los reales imputados en tasks.md, con desviaciones y un total de cartera. Solo lee; no modifica nada. Usa la skill roadmap-dashboard."
+description: "Informe real vs estimado del roadmap — compara horas y tokens estimados (evaluación/plan) contra los reales imputados en tasks.md, con desviaciones y un total de cartera. Lee los tasks.md y escribe un solo informe, docs/roadmap/metrics.md; no modifica ninguna iniciativa. Usa la skill roadmap-dashboard."
 ---
 <!-- GENERADO por scripts/export-interop.py desde commands/roadmap-metrics.md — no lo edites a mano.
      Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`. -->

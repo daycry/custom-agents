@@ -14,6 +14,18 @@
       }
     },
     {
+      "id": "plugin-panel-dashboard-proyecto-literal",
+      "prompt": "Abre el dashboard del proyecto para ver las sesiones y los planes.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "control_center.py"
+        ]
+      },
+      "notes": "T-05 (plugin-audit-2): el disparador es «dashboard del proyecto»; «dashboard» a secas choca con roadmap-dashboard."
+    },
+    {
       "id": "plugin-panel-extensions-literal",
       "prompt": "incluye extensiones propias de proyecto y usuario",
       "trigger": "literal",

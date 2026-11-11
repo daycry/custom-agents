@@ -4,7 +4,7 @@ description: >
   Abre una consola local común para proyectos: sesiones y chat nativos, planes y kanban,
   comentarios, actividad, memoria e integraciones. El inventario incluye extensiones propias
   de proyecto y usuario y admite exportación HTML/JSON.
-  Úsala cuando el usuario diga "dashboard", "panel de capacidades", "control panel del plugin",
+  Úsala cuando el usuario diga "dashboard del proyecto", "panel de capacidades", "control panel del plugin",
   "panel del roadmap", "kanban de los planes", "dashboard del roadmap",
   "explora el catálogo del plugin" o "sesiones del proyecto".
 ---

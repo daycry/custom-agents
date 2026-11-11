@@ -11,7 +11,7 @@
 
 Cierra el bucle del presupuesto: mientras `/pm-cycle` y `planner` **estiman** (horas, coste €,
 tokens), este comando muestra lo que **de verdad ha costado**, leyendo las horas `real` de cada
-`tasks.md`. Es de **solo lectura**.
+`tasks.md`. **Lee** las iniciativas sin tocarlas y escribe un único fichero: `docs/roadmap/metrics.md`.
 
 ## Pasos
 1. Fija la raíz (`docs/roadmap` por defecto, o **$ARGUMENTS**).

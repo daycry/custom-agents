@@ -38,13 +38,13 @@ changelog: Changed
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Defectos | 3 | 7 | 42.9% | 0 / 15h | 0 / 4.0h | 0 / 1.00h | 0 / 1090k |
+| Fase 1 — Defectos | 4 | 7 | 57.1% | 0 / 15h | 0 / 4.0h | 0 / 1.00h | 0 / 1090k |
 | Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev) | 0 | 4 | 0% | 0 / 32h | 0 / 7.9h | 0 / 1.98h | 0 / 2100k |
 | Fase 3 — Tokens | 0 | 11 | 0% | 0 / 30h | 0 / 8.2h | 0 / 2.05h | 0 / 2260k |
 | Fase 4 — Simplificación del código | 0 | 8 | 0% | 0 / 34.5h | 0 / 8.5h | 0 / 2.12h | 0 / 2470k |
 | Fase 5 — Alcance y entrenamiento | 0 | 5 | 0% | 0 / 26h | 0 / 6.5h | 0 / 1.62h | 0 / 1800k |
 | Fase 6 — Higiene del roadmap | 0 | 2 | 0% | 0 / 7h | 0 / 1.7h | 0 / 0.42h | 0 / 500k |
-| **TOTAL** | **3** | **37** | **8.1%** | **0 / 144.5h** | **0 / 36.8h** | **0 / 9.20h** | **0 / 10220k** |
+| **TOTAL** | **4** | **37** | **10.8%** | **0 / 144.5h** | **0 / 36.8h** | **0 / 9.20h** | **0 / 10220k** |
 
 Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +20 % está en el plan); tokens al precio de `.claude/rates.json`.
 
@@ -149,10 +149,13 @@ TDD n/a: prosa de dos comandos y un agente, sin código testeable; la puerta es 
 
 - **Descripción**: `/roadmap-metrics` y `/roadmap-brief` se declaran «solo lectura» pero escriben (`docs/roadmap/metrics.md`, `/tmp/roadmap.json`, `/tmp/metrics.md`; `/tmp` no existe en Windows nativo). La description de `plugin-panel` dispara con «dashboard» a secas, que choca con `roadmap-dashboard`.
 - **Changelog**: Los comandos de informe dicen qué escriben y usan un temporal portable; plugin-panel solo se activa con disparadores con sujeto.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-11-11
 - **Tiempo humano**: est. 1.5h · real —
-- **Tiempo IA (ejec.)**: est. 0.4h · real —
+- **Tiempo IA (ejec.)**: est. 0.4h · real 0.2h (estimado)
 - **Archivos**: `commands/roadmap-metrics.md`, `commands/roadmap-brief.md`, `skills/plugin-panel/SKILL.md`, `evals/cases/command-roadmap-metrics.json`, `evals/cases/command-roadmap-brief.json`, `evals/cases/skill-plugin-panel.json`, `docs/agents/ROLES.md`, `interop/**` (regenerado)
+TDD n/a: prosa de descriptions y de dos comandos; la puerta determinista es evals/check.py (caso nuevo) + lint_plugin.py.
+- **Evidencia**: Prosa de descriptions, con puertas deterministas: `python evals/check.py` â†’ `59 ficheros Â· 227 casos (145 positivos, 82 negativos, 1 en contra) â€¦ 0 errores` (caso nuevo literal `plugin-panel-dashboard-proyecto-literal`: Â«dashboard del proyectoÂ»); `python scripts/lint_plugin.py` â†’ `10 agentes Â· 0 errores Â· 16 avisos` (los mismos de antes; sin aviso de disparador literal duplicado ni de ruta `/tmp`). `git grep "/tmp" -- commands` â†’ vacÃ­o; el brief usa `tempfile.mkdtemp(prefix="roadmap-brief-")` (portable, Windows incluido). Descriptions: `roadmap-metrics` Â«escribe un solo informe, docs/roadmap/metrics.mdÂ»; `roadmap-brief` Â«escribe docs/roadmap/brief.md (y brief.pdf si se pide)Â»; `plugin-panel` dispara con Â«dashboard del proyectoÂ», no Â«dashboardÂ» a secas (â‰¤ 1.024 caracteres). Puertas de runtimes: `export-interop.py --check` â†’ `88 ficheros al dÃ­a`; las 5 suites pytest de la cabecera + `test_agent_tools_skill.py` â†’ `112 passed`.
 - **Runtimes**: Descriptions comunes; cada `description` de skill ≤ 1.024 caracteres (límite de OpenCode); el temporal portable vale en los tres.
 - **Verificación**:
   - `python evals/check.py` → exit 0 (≥ 2 positivos y 1 negativo siguen casando con la description real)
@@ -160,9 +163,9 @@ TDD n/a: prosa de dos comandos y un agente, sin código testeable; la puerta es 
   - puertas de runtimes (cabecera) → verde
 
 **Criterios de aceptación**
-- [ ] Las descriptions describen exactamente lo que se escribe.
-- [ ] El brief usa un directorio temporal obtenido del sistema (no `/tmp`).
-- [ ] `plugin-panel` sin el disparador «dashboard» pelado; su caso de evals se actualiza.
+- [x] Las descriptions describen exactamente lo que se escribe.
+- [x] El brief usa un directorio temporal obtenido del sistema (no `/tmp`).
+- [x] `plugin-panel` sin el disparador «dashboard» pelado; su caso de evals se actualiza.
 
 ### T-06 — Guardarraíl: restauraciones destructivas sin denegar (1.8)
 

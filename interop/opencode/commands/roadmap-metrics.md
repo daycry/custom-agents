@@ -1,5 +1,5 @@
 ---
-description: "Informe real vs estimado del roadmap — compara horas y tokens estimados (evaluación/plan) contra los reales imputados en tasks.md, con desviaciones y un total de cartera. Solo lee; no modifica nada. Usa la skill roadmap-dashboard."
+description: "Informe real vs estimado del roadmap — compara horas y tokens estimados (evaluación/plan) contra los reales imputados en tasks.md, con desviaciones y un total de cartera. Lee los tasks.md y escribe un solo informe, docs/roadmap/metrics.md; no modifica ninguna iniciativa. Usa la skill roadmap-dashboard."
 ---
 <!-- GENERADO por scripts/export-interop.py desde commands/roadmap-metrics.md — no lo edites a mano.
      Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`. -->
@@ -13,7 +13,7 @@ description: "Informe real vs estimado del roadmap — compara horas y tokens es
 
 Cierra el bucle del presupuesto: mientras `/pm-cycle` y `planner` **estiman** (horas, coste €,
 tokens), este comando muestra lo que **de verdad ha costado**, leyendo las horas `real` de cada
-`tasks.md`. Es de **solo lectura**.
+`tasks.md`. **Lee** las iniciativas sin tocarlas y escribe un único fichero: `docs/roadmap/metrics.md`.
 
 ## Pasos
 1. Fija la raíz (`docs/roadmap` por defecto, o **$ARGUMENTS**).
