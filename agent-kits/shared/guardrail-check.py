@@ -49,6 +49,8 @@ Reglas (cada una desactivable en `.claude/dev.json` → `"guardrails": {…}`):
                  sandbox (envoltorios nice/sudo/xargs, scripts propios y configs editadas a mano
                  quedan fuera: ADR-023, ADR-007);
                  `git checkout|switch main|master` → deny solo si la rama actual es una feature;
+                 `git checkout -f`, `checkout|restore .`, `restore --worktree|-W`, `switch --discard-changes` → deny
+                 (descartan cambios sin comitear; `checkout main -- <fichero>` y `checkout -b` siguen);
                  `rm -rf` sobre `/`, `~`, `.git`, `.` → deny; refspec `+rama` en push = force;
                  se analizan también las cadenas de `sh -c "…"`/`bash -c '…'`.
                  Misma regla, órdenes con efecto fuera del repo: `npm|pnpm|yarn publish`,
@@ -756,6 +758,38 @@ def _razon_clean(args):
     return None
 
 
+_ARBOL_ENTERO = (".", ":/", ":(top)")
+
+
+def _razon_restauracion(sub, args):
+    """`git checkout|switch|restore` que DESCARTA cambios sin comitear (T-06, plugin-audit-2).
+
+    Deniega: `checkout -f|--force`, `switch -f|--force|--discard-changes`, `checkout [--] .` y
+    `restore .` (el árbol entero), `restore --worktree|-W`. NO toca `git checkout main -- <fichero>`,
+    `checkout -b`, `restore --staged` ni `restore <fichero>`: restauran un fichero o no descartan nada
+    del árbol (la regla de P4 sobre ficheros con cambios previos sigue siendo prosa del implementer).
+    """
+    if "--" in args:
+        k = args.index("--")
+        antes, rutas = args[:k], args[k + 1:]
+    else:
+        antes, rutas = args, [t for t in args if not t.startswith("-")]
+    opciones = [t for t in antes if t.startswith("-")]
+    msg = (f"`git {sub}` que descarta cambios sin comitear bloqueado: pueden no ser tuyos — "
+           "revierte solo lo de tu intento (`git diff <foto> -- <ficheros> | git apply -R`).")
+    if sub == "checkout" and any(_cluster(t, "f") or _prefijo(t, "--force") for t in opciones):
+        return msg
+    if sub == "switch" and any(_cluster(t, "f") or _prefijo(t, "--force", "--discard-changes") for t in opciones):
+        return msg
+    if sub in ("checkout", "restore") and any(t in _ARBOL_ENTERO for t in rutas):
+        solo_indice = sub == "restore" and any(_prefijo(t, "--staged") or _cluster(t, "S") for t in opciones)             and not any(_prefijo(t, "--worktree") or _cluster(t, "W") for t in opciones)
+        if not solo_indice:
+            return msg
+    if sub == "restore" and any(_prefijo(t, "--worktree") or _cluster(t, "W") for t in opciones):
+        return msg
+    return None
+
+
 def check_git(command, branch, _depth=0, _env=None):
     """Razón de deny o None. `branch` = rama actual (None si no hay git).
     Recursivo SOLO sobre lo que una shell ejecutaría (`sh -c "git push --force"`, `bash -c '…'`,
@@ -827,9 +861,14 @@ def check_git(command, branch, _depth=0, _env=None):
         if i >= 0 and any(_cluster(t, "d") or _prefijo(t, "--stdin") for t in toks[i + 1:]):
             return ("`git update-ref -d|--stdin` bloqueado: borra o reescribe referencias sin las comprobaciones "
                     "de `git branch` — que lo haga el usuario.")
-        for sub in ("checkout", "switch"):
+        for sub in ("checkout", "switch", "restore"):
             i = _es_git(toks, sub)
             if i >= 0:
+                razon = _razon_restauracion(sub, toks[i + 1:])
+                if razon:
+                    return razon
+                if sub == "restore":
+                    continue
                 if "--" in toks[i + 1:]:
                     continue          # `git checkout main -- fichero` restaura ficheros, no cambia de rama
                 args = [t for t in toks[i + 1:] if not t.startswith("-")]

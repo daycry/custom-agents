@@ -680,3 +680,40 @@ def test_fix3b_commit_gpgsign_solo_con_valor_verdadero(cmd):
 def test_fix3b_commit_gpgsign_verdadero_permitido(cmd):
     assert decide(bash(cmd)) is None, cmd
 
+
+
+# ------------------------------ restauraciones destructivas (T-06, plugin-audit-2) ----
+@pytest.mark.parametrize("cmd", [
+    "git checkout -- .",
+    "git checkout .",
+    "git checkout HEAD -- .",
+    "git checkout -f",
+    "git checkout --force main-fix",
+    "git checkout -qf",
+    "git switch --discard-changes otra",
+    "git restore .",
+    "git restore -- .",
+    "git restore --source=HEAD~1 .",
+    "git restore --worktree src/a.py",
+    "git restore -W src/a.py",
+    "git restore --staged --worktree src/a.py",
+    "git -C sub restore .",
+    "sh -c 'git restore .'",
+])
+def test_restauracion_destructiva_se_deniega(cmd):
+    razon = decide(bash(cmd), branch="feature/x")
+    assert razon and "descarta" in razon, (cmd, razon)
+
+
+@pytest.mark.parametrize("cmd", [
+    "git checkout main -- src/a.py",
+    "git checkout -b feature/y",
+    "git checkout -B feature/y",
+    "git restore --staged src/a.py",
+    "git restore src/a.py",
+    "git checkout feature/otra",
+    "git restore --help",
+    "git status",
+])
+def test_restauracion_acotada_o_de_ramas_sigue_permitida(cmd):
+    assert decide(bash(cmd), branch="feature/x") is None, cmd
