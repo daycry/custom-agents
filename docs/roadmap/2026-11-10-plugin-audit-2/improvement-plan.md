@@ -19,7 +19,7 @@ generacion:
   tarifa_verificada_el: 2026-10-20
   avisos: ["CALIBRATION: filas marcadas (estimado) fuera de la mediana (x8)"]
 plan: plugin-audit-2
-estado: borrador
+estado: aprobado
 creado: 2026-11-10
 tasks: tasks.md
 analysis: analysis.md

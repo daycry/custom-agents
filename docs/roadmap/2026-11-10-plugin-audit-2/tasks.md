@@ -20,7 +20,7 @@ generacion:
   avisos: ["CALIBRATION: filas marcadas (estimado) fuera de la mediana (x8)"]
   # ventana compartida con improvement-plan.md
 tasks: plugin-audit-2
-estado: borrador
+estado: en-progreso
 creado: 2026-11-10
 verificacion: obligatoria
 changelog: Changed
@@ -28,7 +28,7 @@ changelog: Changed
 
 # Segunda auditoría del plugin: defectos, retirada, tokens, código, alcance e higiene
 
-> Ledger canónico de progreso. Fuente única. Autorización: NO autorizada: el plan sigue en `borrador` y el usuario pidió el plan, no implementarlo. Decisiones del 2026-11-10 en el plan; no queda ninguna pendiente: la única puerta es la condición de T-32 sobre el veredicto de T-31.
+> Ledger canónico de progreso. Fuente única. Autorización: el usuario autorizó la ejecución del plan el 2026-11-11 («continua con la implementación de los planes»), en la rama `feat/plugin-audit-2` desde `fb3bb37` (v3.3.0). Decisiones del 2026-11-10 en el plan; no queda ninguna pendiente: la única puerta es la condición de T-32 sobre el veredicto de T-31.
 
 [Plan](improvement-plan.md) · [Análisis](analysis.md)
 
