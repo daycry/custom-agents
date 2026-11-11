@@ -124,6 +124,11 @@ adding the instruction to pass the kit line to every dispatch. The plan asked fo
 wider margin and it fell from 6,158 to 6,051; the deviation is recorded in the
 initiative ledger.
 
+Later change (initiative [plugin-audit-2](../roadmap/2026-11-10-plugin-audit-2/tasks.md), same size method):
+`agents/implementer.md` becomes 29,280 characters (+330: it gives the
+`skills/<x>/SKILL.md` path of every skill it orders to invoke, T-02) and the quick-path
+saving 6,012 (−39: `dev-cycle` names a single implementer, T-04).
+
 ## Tool results and handoffs
 
 Keep full logs and exit codes while showing concise summaries and relevant
