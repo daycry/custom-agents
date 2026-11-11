@@ -93,7 +93,7 @@ haces TÚ, igual que la puerta go/no-go):
    marcada; en CLI/VS Code, la misma información como **lista numerada** en texto y una pregunta
    («¿1, 2, 3 o una variante?»). Una opción por bloque; nada de volcar `design.md` entero.
 3. **Pasada 2.** Re-invoca **`architect`** con `elegida: O<n>` (o `variante: <texto>` → vuelve a la pasada 1
-   con la opción nueva). Fija `opcion_elegida`, escribe el ADR `propuesta`, enlaza `design:` en la spec y
+   con la opción nueva). Fija `opcion_elegida`, propone el ADR como candidato (`knowledge-curation.py propose`; elegir diseño no aprueba memoria, la aprueba el curator), enlaza `design:` en la spec y
    pasa `design.md` a `aprobado`. `/dev-cycle` lo recogerá en su Fase 2 y `planner` respetará la opción.
 
 Sigue siendo rol PM: no se crea plan aquí.

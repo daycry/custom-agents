@@ -80,13 +80,13 @@ la línea `Kit activo: SHAREDKIT=…` del contexto de sesión, tal cual y si exi
 Ejecuta `execution-profile.py --project <raíz del proyecto> --json` desde el
 `agent-kits/shared/` del mismo bundle. Consume sus flags efectivos (prevalecen sobre los toggles de dev.json), no los
 recalcules: `blocked: true`/exit 2 impide despachar. En `perfil: lite`, despacha
-cada tarea en secuencia, sin paralelismo, al `implementer` nativo (ID en `agent-kits/shared/native-roles.json`;
-`implementer` con el bundle copiado; el hilo principal no tiene guardia) con el brief de
+cada tarea en secuencia, sin paralelismo, al `implementer` nativo (ID en `agent-kits/shared/native-roles.json`; con el bundle
+copiado, el agente `implementer` homónimo; nunca el hilo principal, que no tiene guardia) con el brief de
 `task-brief.py` como prompt; no abras `phase3-subagents.md`. Su exit 2 no entrega brief y exige ajustar la tarea. El writer es obligatorio y los
 revisores frescos se despachan secuencialmente; invoca `adversarial-review` con
 ese perfil. TDD, QA, cobertura y Knowledge Gate conservan todas sus puertas.
 El perfil
-normal conserva sus defaults y el fallback parcial de `ledger-write.md`.
+normal conserva sus defaults y el fallback parcial de `ledger-write.md`, y implementa con el mismo `implementer` (flujo clásico: una sola ejecución; con `subagentes: true`, uno fresco por tarea).
 
 ## Fase 0 — Preparación
 1. Deriva un `<slug>` corto en kebab-case del objetivo y fija/crea la carpeta `docs/roadmap/<fecha>-<slug>/` (reutilízala si ya existe).

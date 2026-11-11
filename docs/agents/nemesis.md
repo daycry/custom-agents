@@ -85,7 +85,7 @@ Análisis estático del código en **8 dimensiones**, lanzando agentes especiali
 7. Auditoría de código generado por IA
 8. Mapeo de compliance (PCI, HIPAA, SOC2, GDPR)
 
-El flujo interno es: **GATHER** (detecta stack, puntos de entrada y fronteras de confianza) → **ANALYZE** (8 especialistas en un solo mensaje paralelo) → **RECOMMEND** (agrega scores, encadena rutas de ataque, mapea compliance) → **EXECUTE** (informe estructurado con remediación priorizada). Incluye supresión de falsos positivos consciente del framework y modelado de amenazas STRIDE.
+El flujo interno es: **GATHER** (detecta stack, puntos de entrada y fronteras de confianza) → **ANALYZE** (8 especialistas en un solo mensaje paralelo; **en serie** cuando nemesis no puede despachar subagentes —lanzado desde `/dev-cycle`, que no anida, o sin la herramienta `Agent`—: los recorre él uno a uno y lo declara en el informe) → **RECOMMEND** (agrega scores, encadena rutas de ataque, mapea compliance) → **EXECUTE** (informe estructurado con remediación priorizada). Incluye supresión de falsos positivos consciente del framework y modelado de amenazas STRIDE.
 
 La skill se apoya en una amplia biblioteca de referencias en `skills/cybersecurity/references/`: patrones por lenguaje (Python, JS/TS, Java, Go, Rust, Ruby, PHP, C/C++, C#, Swift/Kotlin, Shell), patrones IaC (Terraform, Docker, Kubernetes, GitHub Actions), taxonomía de vulnerabilidades, matriz de compliance, threat intelligence, rúbrica de scoring y reglas de supresión de falsos positivos.
 
