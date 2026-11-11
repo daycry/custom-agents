@@ -740,3 +740,109 @@ def test_fix1_gap18_con_el_plazo_vencido_los_duplicados_no_se_dan_como_cero(tmp_
     assert r["duplicados"]["pct"] is None and r["resumen"]["duplicado_pct"] is None
     texto = ch.md(r)
     assert "n/d" in texto and "None" not in texto
+
+
+# ---- T-07 fix2 (intento 2: gaps 2, 3 y 4) ----
+def test_fix2_gap2_dos_parciales_con_distinta_cobertura_no_son_comparables(tmp_path):
+    root = _repo_grande(tmp_path, n=30)
+    p10 = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10, max_files=10)
+    p10b = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10, max_files=10)
+    p12 = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10, max_files=12)
+    assert p10["parcial"] and p12["parcial"] and p10b["parcial"]
+    comp = ch.comparar(p12, p10)
+    assert comp and all(c["tendencia"].startswith("no comparable") for c in comp), comp
+    # cobertura idéntica (mismos ficheros y líneas): comparable aunque ambos sean parciales
+    assert not any(c["tendencia"].startswith("no comparable") for c in ch.comparar(p10b, p10))
+
+
+def test_fix2_gap2_la_cli_avisa_cuando_los_dos_son_parciales_con_distinta_cobertura(tmp_path):
+    root = _repo_grande(tmp_path, n=30)
+    rc, js, _ = run(str(root), "--json", "--max-files", "10")
+    base = tmp_path / "base.json"
+    base.write_text(js, encoding="utf-8")
+    rc, out, _ = run(str(root), "--json", "--max-files", "12", "--baseline", str(base))
+    r = json.loads(out)
+    assert rc == 0 and all(c["tendencia"].startswith("no comparable") for c in r["baseline"])
+    assert any("baseline" in a and "cobertura" in a for a in r["avisos"]), r["avisos"]
+
+
+def _repo_con_todos(tmp_path, ficheros=1, por_fichero=1, git_commit=True):
+    root = tmp_path / "todos2"
+    (root / "src").mkdir(parents=True)
+    for i in range(ficheros):
+        cuerpo = "".join(f"# TODO: pendiente {i}-{k}\nx{k} = {k}\n" for k in range(por_fichero))
+        (root / "src" / f"t{i:02d}.py").write_text(cuerpo, encoding="utf-8")
+    env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@x", "GIT_COMMITTER_NAME": "t",
+           "GIT_COMMITTER_EMAIL": "t@x"}
+    subprocess.run([GIT, "-C", str(root), "init", "-q"], check=True, env=env)
+    if git_commit:
+        subprocess.run([GIT, "-C", str(root), "add", "-A"], check=True, env=env)
+        subprocess.run([GIT, "-C", str(root), "commit", "-q", "-m", "base"], check=True, env=env)
+    return root
+
+
+@pytest.mark.skipif(GIT is None, reason="sin git")
+@pytest.mark.parametrize("fallo", [OSError(206, "línea de comandos demasiado larga"),
+                                   subprocess.TimeoutExpired("git", 1)])
+def test_fix2_gap3_un_blame_cortado_o_con_oserror_marca_parcial_y_avisa(tmp_path, monkeypatch, fallo):
+    root = _repo_con_todos(tmp_path, ficheros=2, por_fichero=3)
+    original = subprocess.run
+
+    def roto(cmd, *a, **kw):
+        if "blame" in cmd:
+            raise fallo
+        return original(cmd, *a, **kw)
+    monkeypatch.setattr(ch.subprocess, "run", roto)
+    r = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10)
+    assert r["marcadores"]["total"] == 6 and r["marcadores"]["edad_parcial"] == 6, r["marcadores"]
+    assert r["parcial"] is True and any("antigüedad" in a for a in r["avisos"]), r["avisos"]
+
+
+@pytest.mark.skipif(GIT is None, reason="sin git")
+def test_fix2_gap3_un_fichero_sin_seguimiento_no_es_un_informe_parcial(tmp_path):
+    """`git blame` sale con error en un fichero sin versionar: no es un corte por tiempo ni por la línea de comandos."""
+    root = _repo_con_todos(tmp_path, ficheros=1, por_fichero=1)
+    (root / "src" / "nuevo.py").write_text("# TODO: sin versionar\nx = 1\n", encoding="utf-8")
+    r = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10)
+    assert r["marcadores"]["total"] == 2 and r["marcadores"]["edad_parcial"] == 0
+    assert sorted(t["edad_dias"] is None for t in r["marcadores"]["top"]) == [False, True]
+    assert r["parcial"] is False, r["avisos"]
+
+
+@pytest.mark.skipif(GIT is None, reason="sin git")
+def test_fix2_gap3_los_L_del_blame_se_trocean_y_todas_las_edades_se_calculan(tmp_path, monkeypatch):
+    root = _repo_con_todos(tmp_path, ficheros=1, por_fichero=450)
+    original, llamadas = ch.git, []
+
+    def espia(r, *a, **kw):
+        if a and a[0] == "blame":
+            llamadas.append(a)
+        return original(r, *a, **kw)
+    monkeypatch.setattr(ch, "git", espia)
+    r = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 450)
+    assert len(llamadas) > 1, len(llamadas)
+    assert max(sum(1 for t in a if t == "-L") for a in llamadas) <= ch.BLAME_L_POR_LLAMADA
+    assert max(sum(len(t) + 1 for t in a) for a in llamadas) < 12000     # holgado bajo los 32 K de Windows
+    assert r["marcadores"]["total"] == 450 and r["marcadores"]["edad_parcial"] == 0
+    assert all(t["edad_dias"] is not None for t in r["marcadores"]["top"])
+    assert not any("antigüedad" in a for a in r["avisos"]), r["avisos"]
+
+
+def test_fix2_gap4_sin_tope_por_ventana_el_plazo_acota_tambien_el_doble_bucle():
+    """150 copias de 300 líneas, `max_occ=0`: 11 K pares × 293 ventanas = 3,3 M iteraciones en UNA pasada por
+    ventana; el plazo solo se miraba cada 512 ventanas, es decir, nunca."""
+    cod = {f"f{i:03d}.py": [(k, f"x{k} = a + {k}") for k in range(300)] for i in range(150)}
+    t0 = time.monotonic()
+    d = ch.duplicados(cod, 8, 10, plazo=time.monotonic() + 0.3, max_occ=0, max_pares=0)
+    dur = time.monotonic() - t0
+    assert d["parcial"] is True and dur < 1.5, (dur, d["parcial"])
+
+
+def test_fix2_gap4_los_pares_del_mismo_fichero_cuentan_para_el_tope():
+    """Un fichero con 3000 líneas idénticas: 1 ventana con 3000 ocurrencias del MISMO fichero (4,5 M pares que
+    nunca se retienen). El tope de pares tiene que cortar este trabajo también."""
+    cod = {"a.py": [(k, "x = 1") for k in range(3000)]}
+    t0 = time.monotonic()
+    d = ch.duplicados(cod, 8, 10, max_occ=0, max_pares=100)
+    dur = time.monotonic() - t0
+    assert d["pares_tope"] is True and d["parcial"] is True and dur < 1.0, (dur, d)

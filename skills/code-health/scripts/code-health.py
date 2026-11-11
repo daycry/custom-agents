@@ -373,7 +373,10 @@ def duplicados(cod, window, top, plazo=None, max_occ=MAX_OCURRENCIAS_DEFAULT, ma
             idx[h].append((rel, k))
     pares = defaultdict(set)          # (relA, relB) → {kA * _DESPLAZA + kB}
     n_pares = 0
+    n_mismo = 0                       # pares del MISMO fichero: no se retienen pero cuestan y cuentan para el tope
+    n_iter = 0
     pares_tope = False
+    plazo_vencido = False
     emparejadas = 0
     for n_h, (h, occ) in enumerate(idx.items()):
         if n_h % 512 == 0 and _agotado(plazo):
@@ -389,7 +392,16 @@ def duplicados(cod, window, top, plazo=None, max_occ=MAX_OCURRENCIAS_DEFAULT, ma
         for a in range(len(occ)):
             for b in range(a + 1, len(occ)):
                 (ra, ka), (rb, kb) = occ[a], occ[b]
+                n_iter += 1
+                if n_iter % 4096 == 0 and _agotado(plazo):
+                    parcial = sin_tiempo = True
+                    plazo_vencido = True
+                    break
                 if ra == rb:
+                    n_mismo += 1
+                    if max_pares and n_pares + n_mismo >= max_pares:
+                        pares_tope = parcial = True
+                        break
                     continue
                 if (rb, kb) < (ra, ka):
                     ra, ka, rb, kb = rb, kb, ra, ka
@@ -397,14 +409,14 @@ def duplicados(cod, window, top, plazo=None, max_occ=MAX_OCURRENCIAS_DEFAULT, ma
                 clave = ka * _DESPLAZA + kb
                 if clave in conj:
                     continue
-                if max_pares and n_pares >= max_pares:
+                if max_pares and n_pares + n_mismo >= max_pares:
                     pares_tope = parcial = True
                     break
                 conj.add(clave)
                 n_pares += 1
-            if pares_tope:
+            if pares_tope or plazo_vencido:
                 break
-        if pares_tope:
+        if pares_tope or plazo_vencido:
             break
     bloques = []
     cubiertas = defaultdict(set)
@@ -510,12 +522,19 @@ def tamano(src, umbral, top):
 
 # ------------------------------------------------------------------ git: hotspots y antigüedad
 
-def git(root, *args, timeout=GIT_TIMEOUT):
+def git(root, *args, timeout=GIT_TIMEOUT, estado=None):
+    """Salida de `git`, o None si falla. Con `estado` (lista) se anota POR QUÉ: `cortado` (plazo vencido,
+    `OSError` —p. ej. línea de comandos demasiado larga en Windows—) o `error` (git salió con código ≠ 0, como
+    `blame` de un fichero sin versionar). Solo `cortado` deja un informe incompleto."""
     try:
         r = subprocess.run(["git", "-C", root, *args], capture_output=True, text=True, encoding="utf-8", errors="replace",
                            timeout=timeout, check=False)
     except (OSError, subprocess.SubprocessError):
+        if estado is not None:
+            estado.append("cortado")
         return None
+    if r.returncode != 0 and estado is not None:
+        estado.append("error")
     return r.stdout if r.returncode == 0 else None
 
 
@@ -585,35 +604,48 @@ def edad_dias(root, rel, linea, hoy):
 _BLAME_CABECERA = re.compile(r"^([0-9a-f]{40}) \d+ (\d+)(?: \d+)?$")
 
 
-def edades_dias(root, rel, lineas, hoy, plazo=None):
-    """{línea: edad en días} de varias líneas de UN fichero con un solo `git blame` (varios `-L`; antes, un
-    subproceso por línea: 10 = 4,6 s). Con `plazo`, el subproceso no puede pasarse del tiempo que queda."""
-    if not lineas:
-        return {}
-    args = ["blame", "--porcelain"]
-    for n in lineas:
-        args += ["-L", f"{n},{n}"]
-    args += ["--", rel]
-    limite = GIT_TIMEOUT if plazo is None else max(1.0, min(GIT_TIMEOUT, plazo - time.monotonic()))
-    out = git(root, *args, timeout=limite)
-    if not out:
-        return {}
-    sha_de, tiempos, cur = {}, {}, None
-    for ln in out.splitlines():
-        m = _BLAME_CABECERA.match(ln)
-        if m:
-            cur = m.group(1)
-            sha_de[int(m.group(2))] = cur
-        elif cur and ln.startswith("author-time "):
-            try:
-                tiempos[cur] = int(ln.split()[1])
-            except (IndexError, ValueError):
-                pass
+BLAME_L_POR_LLAMADA = 200      # `-L n,n` por subproceso: ~3 KB de argumentos, muy bajo los 32 K de Windows
+
+
+def edades_dias(root, rel, lineas, hoy, plazo=None, perdidas=None):
+    """{línea: edad en días} de varias líneas de UN fichero con `git blame` (varios `-L` por llamada, en
+    trozos de `BLAME_L_POR_LLAMADA`; antes, un subproceso por línea: 10 = 4,6 s). Con `plazo`, ningún
+    subproceso puede pasarse del tiempo que queda. Si un trozo se CORTA (plazo, `OSError`) o el plazo vence
+    entre trozos, sus líneas se suman a `perdidas[0]` (lista de un entero) para que el informe se declare
+    parcial; un `git blame` con error (fichero sin versionar) deja esas edades en blanco sin más."""
     res = {}
-    for n, sha in sha_de.items():
-        if sha in tiempos:
-            fecha = _dt.datetime.fromtimestamp(tiempos[sha], _dt.timezone.utc).date()
-            res[n] = max(0, (hoy - fecha).days)
+    for ini in range(0, len(lineas), BLAME_L_POR_LLAMADA):
+        trozo = lineas[ini:ini + BLAME_L_POR_LLAMADA]
+        if _agotado(plazo):
+            if perdidas is not None:
+                perdidas[0] += len(lineas) - ini
+            break
+        args = ["blame", "--porcelain"]
+        for n in trozo:
+            args += ["-L", f"{n},{n}"]
+        args += ["--", rel]
+        limite = GIT_TIMEOUT if plazo is None else max(1.0, min(GIT_TIMEOUT, plazo - time.monotonic()))
+        estado = []
+        out = git(root, *args, timeout=limite, estado=estado)
+        if "cortado" in estado and perdidas is not None:
+            perdidas[0] += len(trozo)
+        if not out:
+            continue
+        sha_de, tiempos, cur = {}, {}, None
+        for ln in out.splitlines():
+            m = _BLAME_CABECERA.match(ln)
+            if m:
+                cur = m.group(1)
+                sha_de[int(m.group(2))] = cur
+            elif cur and ln.startswith("author-time "):
+                try:
+                    tiempos[cur] = int(ln.split()[1])
+                except (IndexError, ValueError):
+                    pass
+        for n, sha in sha_de.items():
+            if sha in tiempos:
+                fecha = _dt.datetime.fromtimestamp(tiempos[sha], _dt.timezone.utc).date()
+                res[n] = max(0, (hoy - fecha).days)
     return res
 
 
@@ -643,7 +675,9 @@ def marcadores(root, src, con_git, top, plazo=None):
             if _agotado(plazo):
                 edad_parcial += len(pares_)         # sin tiempo: la edad queda sin calcular, no inventada
                 continue
-            edades = edades_dias(root, rel, [n for n, _ in pares_], hoy, plazo)
+            perdidas = [0]
+            edades = edades_dias(root, rel, [n for n, _ in pares_], hoy, plazo, perdidas)
+            edad_parcial += perdidas[0]             # blame cortado (plazo, OSError): sin calcular, no inventada
             for n, it in pares_:
                 it["edad_dias"] = edades.get(n)
     items.sort(key=lambda t: (-(t["edad_dias"] if t["edad_dias"] is not None else -1), t["fichero"]))
@@ -734,8 +768,9 @@ def analizar(root, langs, window, min_lines, exclude_tests, since, top, exclude_
         avisos.append("git no disponible o la ruta no es un repositorio: hotspots omitidos y TODO sin antigüedad")
     tod = marcadores(root, src, con_git, top, plazo)
     if tod.get("edad_parcial"):
-        avisos.append(f"tope de tiempo ({max_seconds} s) en la antigüedad de los TODO: {tod['edad_parcial']} de "
-                      f"{tod['total']} sin calcular (`git blame`); el informe es PARCIAL — sube `--max-seconds`")
+        avisos.append(f"{tod['edad_parcial']} de {tod['total']} TODO sin antigüedad: `git blame` se cortó por el tope de "
+                      f"tiempo ({max_seconds or 'sin tope'} s) o por un error del sistema (p. ej. línea de comandos "
+                      "demasiado larga); el informe es PARCIAL — sube `--max-seconds` o revisa `git`")
         parcial = True
     ev = excluidos_versionados(root, exclude_paths, langs) if con_git else None
     if ev and ev["total"]:
@@ -767,14 +802,22 @@ METRICAS = [("duplicado_pct", "% duplicado"), ("bloques_duplicados", "bloques du
             ("lineas", "líneas de código")]
 
 
-NO_COMPARABLE = "no comparable (uno de los dos informes es parcial)"
+NO_COMPARABLE = "no comparable (los informes no cubren lo mismo: parcial contra completo, o parciales con distinta cobertura)"
+
+
+def _cobertura(r):
+    """Qué cubrió el informe: ficheros y líneas de código medidos (un informe parcial cubre otro conjunto)."""
+    res = r.get("resumen") or {}
+    return (res.get("ficheros"), res.get("lineas"))
 
 
 def comparar(actual, base):
     """Tendencia por métrica. Un informe PARCIAL (tope de ficheros, de tiempo, de pares…) cubre otro
-    conjunto que uno completo: compararlos daría «↓ mejora»/«↑ empeora» falsos, en los dos sentidos."""
+    conjunto que uno completo, y dos parciales cubren conjuntos distintos salvo que midan lo mismo: sin
+    cobertura idéntica (ficheros y líneas), compararlos daría «↓ mejora»/«↑ empeora» falsos."""
     out = []
-    incomparable = bool(actual.get("parcial")) != bool(base.get("parcial"))
+    pa, pb = bool(actual.get("parcial")), bool(base.get("parcial"))
+    incomparable = pa != pb or (pa and pb and _cobertura(actual) != _cobertura(base))
     for k, label in METRICAS:
         a, b = actual["resumen"].get(k), (base.get("resumen") or {}).get(k)
         if incomparable:
@@ -899,8 +942,12 @@ def main(argv=None):
         r["baseline"] = comparar(r, base)
         r["baseline_fecha"] = base.get("fecha")
         if any(c["tendencia"] == NO_COMPARABLE for c in r["baseline"]):
-            r["avisos"].append("baseline: " + ("este informe" if r["parcial"] else "el baseline") + " es PARCIAL y el otro "
-                               "completo (informe parcial = otro conjunto de ficheros): las tendencias salen «no comparable»; repite los dos con los mismos topes")
+            if bool(r["parcial"]) != bool(base.get("parcial")):
+                r["avisos"].append("baseline: " + ("este informe" if r["parcial"] else "el baseline") + " es PARCIAL y el otro "
+                                   "completo (informe parcial = otro conjunto de ficheros): las tendencias salen «no comparable»; repite los dos con los mismos topes")
+            else:
+                r["avisos"].append("baseline: los dos informes son PARCIALES con distinta cobertura (ficheros o líneas "
+                                   "medidos): las tendencias salen «no comparable»; repite los dos con los mismos topes")
     print(json.dumps(r, ensure_ascii=False, indent=2) if a.json else md(r), end="" if not a.json else "\n")
     return 0
 
