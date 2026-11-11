@@ -217,7 +217,7 @@ test('native adapter identifies its runtime independently of consumer payload', 
       if(process.argv[2]==='session-journal.sh') fs.writeFileSync('end-argv.json',JSON.stringify(process.argv.slice(2)));`);
     const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
     ctx.emit({ type: 'session.execution.succeeded', data: { sessionID: 'runtime-test', runtime: 'claude' } });
-    await until(() => existsSync(join(dir, 'end-argv.json')));
+    await until(() => existsSync(join(dir, 'end-argv.json')) && readFileSync(join(dir, 'end-argv.json'), 'utf8').trim() !== ''); // el hijo crea el fichero y lo escribe después (T-23 fix1)
     assert.deepEqual(JSON.parse(readFileSync(join(dir, 'end-argv.json'), 'utf8')), ['session-journal.sh', '--runtime=opencode']);
   } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
 });
@@ -253,7 +253,7 @@ test('catalog stream events drive capture without changing native payload transl
     await new Promise(resolve => setTimeout(resolve, 100));
     assert.equal(existsSync(join(dir,'stream-args.json')), false);
     ctx.emit({type:'own.completed', data:{sessionID:'catalog'}});
-    await until(() => existsSync(join(dir,'stream-args.json')));
+    await until(() => existsSync(join(dir,'stream-args.json')) && readFileSync(join(dir,'stream-args.json'), 'utf8').trim() !== '');
     assert.deepEqual(JSON.parse(readFileSync(join(dir,'stream-args.json'),'utf8')), ['session-journal.sh','--runtime=opencode']);
   } finally { await cleanup?.(); rmSync(dir,{recursive:true,force:true}); }
 });
