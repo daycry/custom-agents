@@ -133,8 +133,8 @@ registrada en el ledger de la iniciativa.
 
 Variación posterior (iniciativa [plugin-audit-2](roadmap/2026-11-10-plugin-audit-2/tasks.md), mismo método de
 tamaño): `agents/implementer.md` pasa a 29.280 caracteres (+330: da la ruta
-`skills/<x>/SKILL.md` de cada skill que ordena invocar, T-02) y el ahorro de la vía
-rápida a 6.012 (−39: `dev-cycle` nombra un solo implementador, T-04).
+`skills/<x>/SKILL.md` de cada skill que ordena invocar, T-02). El ahorro de la vía
+rápida pasa a 6.012 (−39: `dev-cycle` nombra un solo implementador, T-04).
 
 ## Evitar contexto de poco valor durante la ejecución
 
