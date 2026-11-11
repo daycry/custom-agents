@@ -230,26 +230,48 @@ def test_non_regression_list_of_intento_3(texto, secreto):
 
 
 # ---- linear cost and idempotence on pathological inputs (up to ~1 MB) ------------------------------
-def _patologicos():
-    b, n = "\\", 100000
+def _patologicos(n=100000):
+    b = "\\"
     return [
         "a&" * n, "a" * n * 2, '"' * n, ('"' + b) * n, "x'" * n, "curl -" + "v" * n * 2,
         "curl -u " + "a" * n * 2, "curl " * n, ("sudo " * n) + "/a/mysql -pX", ("A=1 " * n) + "mysql -pX",
         "--x mysql " * n, "/" * n * 2 + "mysql", ("a&" * n) + " " + ("&a" * n), "curl " + "-u a:b " * n,
-        '"' + ("a" + b) * n, ('"a" ' * n) + "x", ("curl -" + "v" * 50 + " ") * 4000,
+        '"' + ("a" + b) * n, ('"a" ' * n) + "x", ("curl -" + "v" * 50 + " ") * (n // 25),
         "sh -c \"" + "'a' " * n + "\"", "ssh h '" + '"x" ' * n + "'", "it's " * n + "mysql -pX",
-        ("curl \"-u a:" + b + '"' + "x " ) * 20000, "'" + '"' * n, "\"$(curl -u a:X)\" " * 30000,
+        ("curl \"-u a:" + b + '"' + "x " ) * (n // 5), "'" + '"' * n, "\"$(curl -u a:X)\" " * (3 * n // 10),
     ]
+
+
+def _es_lineal(t_chico, t_grande):
+    """Entrada ×4: lineal ≈ ×4 (cuadrático ×16). Pasa si el caso grande cabe en 1,5 s (máquina rápida) o si la
+    razón con el pequeño es ≤ 8 (con suelo de ruido de 50 ms) y no pasa de 10 s (colgado)."""
+    return t_grande < 1.5 or (t_grande < 10 and t_grande <= 8 * max(t_chico, 0.05))
+
+
+def test_el_criterio_de_linealidad_distingue_lineal_de_cuadratico():
+    """T-23 fix1 (gap 3): el umbral absoluto `< 1.5 s` para 1 MB mide la VELOCIDAD de la máquina (en esta
+    máquina `redactar` sostiene ~0,7 MB/s: 25 K → 0,30 s, 50 K → 0,60 s, 100 K → 1,52 s), no la complejidad. La
+    complejidad se mide con la razón entre dos tamaños: ×4 de entrada → ×4 si es lineal, ×16 si es cuadrático."""
+    assert _es_lineal(0.30, 1.20)                 # lineal: ×4
+    assert _es_lineal(0.30, 1.52)                 # lineal con ruido y caché: ×5
+    assert _es_lineal(0.01, 0.30)                 # por debajo del suelo de ruido (50 ms) no se mide razón
+    assert not _es_lineal(0.30, 4.8)              # cuadrático: ×16
+    assert not _es_lineal(0.30, 12.0)             # más de 10 s: se da por colgado aunque la razón sea baja
+    assert _es_lineal(0.2, 1.0)                   # rápido en absoluto: pasa siempre (< 1,5 s)
 
 
 # serie: mide tiempo de pared (< 1.5 s); bajo `-n auto` la carga ajena lo rompe (T-23, plugin-audit-2)
 @pytest.mark.serie
 def test_linear_cost_on_pathological_inputs():
-    for texto in _patologicos():
+    for chico, grande in zip(_patologicos(25000), _patologicos(100000)):
         started = time.perf_counter()
-        salida = redact.redactar(texto)
-        assert time.perf_counter() - started < 1.5, (len(texto), texto[:40])
-        assert redact.redactar(salida) == salida, texto[:40]
+        redact.redactar(chico)
+        t_chico = time.perf_counter() - started
+        started = time.perf_counter()
+        salida = redact.redactar(grande)
+        t_grande = time.perf_counter() - started
+        assert _es_lineal(t_chico, t_grande), (len(grande), grande[:40], round(t_chico, 2), round(t_grande, 2))
+        assert redact.redactar(salida) == salida, grande[:40]
 
 
 def test_quoted_prose_without_options_avoids_nested_command_scans(monkeypatch):

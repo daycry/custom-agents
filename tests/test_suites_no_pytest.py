@@ -223,6 +223,16 @@ def test_el_bucle_de_ci_no_existe_y_nada_corre_dos_veces():
     assert 'python "$t"' not in yml and "for t in" not in yml, "el bucle de scripts sigue en la CI"
 
 
+def test_los_tests_de_tiempo_de_pared_de_redact_estan_marcados_serie():
+    """T-23 fix1 (gap 3): `test_bounded_memory_inputs_redact_without_superlinear_delay` mide `< 1.5 s` con un
+    subproceso por caso; bajo `-n auto` (4 procesos en 1 GiB) `curl_args` y `mysql_args` tardaron 1,72 s y 1,60 s.
+    Es un test de tiempo de pared: va al paso serie como los demás."""
+    codigo = open(os.path.join(ROOT, "agent-kits", "shared", "test_redact.py"), encoding="utf-8").read()
+    i = codigo.index("def test_bounded_memory_inputs_redact_without_superlinear_delay")
+    previas = codigo[:i].rstrip().split(chr(10))[-4:]
+    assert any("pytest.mark.serie" in l for l in previas), previas
+
+
 def main():
     return pytest.main([os.path.abspath(__file__), "-q"])
 

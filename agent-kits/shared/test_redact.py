@@ -50,6 +50,8 @@ def test_solo_stdlib():
         assert prohibido not in src
 
 
+# serie: mide tiempo de pared (< 1.5 s por caso); bajo `-n auto` curl_args y mysql_args tardaron 1,72 s y 1,60 s (T-23 fix1)
+@pytest.mark.serie
 @pytest.mark.parametrize('case', ['pem', 'assignment', 'quoted_json', 'show', 'prefixed_assignment',
                                   'curl_args', 'mysql_args'])
 def test_bounded_memory_inputs_redact_without_superlinear_delay(tmp_path, case):
