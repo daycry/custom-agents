@@ -32,7 +32,7 @@ python3 "$CHSKILL/scripts/code-health.py" <ruta> [--json] [--exclude-tests] [--e
 
 `--exclude-path` (repetible, aditivo, default sin exclusiones) saca del informe un prefijo relativo a la raíz — usarlo para carpetas GENERADAS como `interop/` (`export-interop.py`), que duplican por construcción el fichero del que se generaron.
 
-**Topes** (`--max-files`, default 3000; `--max-seconds`, default 100; `0` = sin tope): si se alcanzan, el informe sale **parcial** (`parcial: true` en el JSON + aviso de cabecera con lo que se analizó) — nunca se rellena con datos inventados; acota con `--exclude-path`/`--langs`. Las carpetas ocultas (`.pytest_cache`, `.mypy_cache`, `.tox`…) y `worktrees/`, `site-packages/` no se analizan.
+**Topes** (`--max-files`, default 3000; `--max-seconds`, default 100; `0` = sin tope): si se alcanzan, el informe sale **parcial** (`parcial: true` en el JSON + aviso de cabecera con lo que se analizó) — nunca se rellena con datos inventados; acota con `--exclude-path`/`--langs`. Además, el emparejado de duplicados es cuadrático por ventana de líneas: una ventana que aparece más de 50 veces (copias casi idénticas, plantillas, código generado) solo empareja sus 50 primeras ocurrencias y el informe sale parcial (`recortadas` en `duplicados`). Las carpetas ocultas (`.pytest_cache`, `.mypy_cache`, `.tox`…) y `worktrees/`, `site-packages/` no se analizan.
 
 ## Cuándo NO usarla
 

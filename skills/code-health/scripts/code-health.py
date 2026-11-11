@@ -59,6 +59,11 @@ EXCLUDE_DIRS = {"vendor", "node_modules", "dist", "build", ".git", "__pycache__"
 # alcanzan, el informe es PARCIAL y lo dice (`parcial: true` + aviso); nunca se completa con datos inventados.
 MAX_FICHEROS_DEFAULT = 3000
 MAX_SEGUNDOS_DEFAULT = 100
+# Ocurrencias que se emparejan por ventana de líneas: el emparejado es cuadrático por ventana, y con
+# ficheros casi idénticos (copias generadas, plantillas) una sola ventana aparece miles de veces (120
+# ficheros iguales agotaban 1 GiB). Por encima del tope solo se emparejan las primeras (orden de ruta):
+# memoria acotada y el informe se declara PARCIAL (el % duplicado es entonces un mínimo).
+MAX_OCURRENCIAS_DEFAULT = 50
 # Subconjunto de EXCLUDE_DIRS que es código de terceros o salida de build: si git los versiona,
 # el informe lo avisa (sin analizarlos). Fuera quedan .git y las carpetas de editor.
 VENDOR_BUILD_DIRS = {"vendor", "node_modules", "dist", "build", "target", ".next", "coverage",
@@ -315,11 +320,14 @@ def _agotado(plazo):
     return plazo is not None and time.monotonic() > plazo
 
 
-def duplicados(cod, window, top, plazo=None):
+def duplicados(cod, window, top, plazo=None, max_occ=MAX_OCURRENCIAS_DEFAULT):
     """cod: {rel: [(nº, norm)]}. Shingles de `window` líneas → pares entre ficheros distintos.
-    `plazo` (time.monotonic) corta el emparejado: el resultado lleva `parcial: True`."""
+    `plazo` (time.monotonic) corta el emparejado y `max_occ` acota las ocurrencias que se emparejan por
+    ventana (0 = sin tope): en ambos casos el resultado lleva `parcial: True` (`recortadas` = ventanas
+    que superaron el tope)."""
     idx = defaultdict(list)
     parcial = False
+    recortadas = 0
     for rel, ls in cod.items():
         if _agotado(plazo):
             parcial = True
@@ -333,6 +341,10 @@ def duplicados(cod, window, top, plazo=None):
         if n_h % 512 == 0 and _agotado(plazo):
             parcial = True
             break
+        if max_occ and len(occ) > max_occ:
+            occ = occ[:max_occ]
+            recortadas += 1
+            parcial = True
         for a in range(len(occ)):
             for b in range(a + 1, len(occ)):
                 (ra, ka), (rb, kb) = occ[a], occ[b]
@@ -361,7 +373,8 @@ def duplicados(cod, window, top, plazo=None):
     dup = sum(len(v) for v in cubiertas.values())
     bloques.sort(key=lambda x: (-x["lineas"], x["a"], x["b"]))
     return {"bloques": len(bloques), "lineas_codigo": total, "lineas_duplicadas": dup,
-            "pct": round(100.0 * dup / total, 1) if total else 0.0, "top": bloques[:top], "parcial": parcial}
+            "pct": round(100.0 * dup / total, 1) if total else 0.0, "top": bloques[:top], "parcial": parcial,
+            "recortadas": recortadas}
 
 
 # ------------------------------------------------------------------ 2. tamaño / complejidad
@@ -565,7 +578,11 @@ def analizar(root, langs, window, min_lines, exclude_tests, since, top, exclude_
             src.append((rel, lines, ext))
             cod[rel] = lineas_codigo(lines, ext)
     dup = duplicados(cod, window, top, plazo)
-    if dup.get("parcial") and not any("tope de tiempo" in a for a in avisos):
+    if dup.get("recortadas"):
+        avisos.append(f"{dup['recortadas']} ventanas de {window} líneas aparecen más de {MAX_OCURRENCIAS_DEFAULT} "
+                      "veces (copias casi idénticas, plantillas o código generado): solo se emparejan las primeras "
+                      "ocurrencias; el % duplicado es un mínimo (informe PARCIAL) — excluye lo generado con `--exclude-path`")
+    elif dup.get("parcial") and not any("tope de tiempo" in a for a in avisos):
         avisos.append(f"tope de tiempo ({max_seconds} s) en la búsqueda de duplicados: el % duplicado es un "
                       "mínimo (informe PARCIAL) — acota con `--exclude-path`/`--langs` o sube `--max-seconds`")
     parcial = parcial or bool(dup.get("parcial"))

@@ -511,12 +511,31 @@ def test_h37_sin_comentario_igual_que_antes_en_el_codigo_del_repo():
 
 
 # ------------------------- rendimiento (T-07, plugin-audit-2) -------------------------
+OPS = ["+", "-", "*", "/", "%", "&", "|", "^", "<<", ">>"]
+
+
 def _repo_grande(tmp_path, n=120):
+    """n ficheros DISTINTOS (secuencias de operadores pseudoaleatorias por fichero: la normalización
+    reduce los identificadores y los números, así que solo los operadores distinguen unas líneas de otras)."""
     root = tmp_path / "grande"
     (root / "src").mkdir(parents=True)
     for i in range(n):
-        (root / "src" / f"m{i:03d}.py").write_text(
-            "\n".join(f"def f{i}_{k}(x):\n    return x + {k}  # {i}" for k in range(40)) + "\n", encoding="utf-8")
+        estado, lineas = i * 7919 + 13, []
+        for k in range(40):
+            estado = (estado * 1103515245 + 12345) % 2147483648
+            lineas.append(f"x{k} = a {OPS[(estado >> 8) % 10]} b {OPS[(estado >> 16) % 10]} {k}")
+        (root / "src" / f"m{i:03d}.py").write_text(chr(10).join(lineas) + chr(10), encoding="utf-8")
+    return root
+
+
+def _repo_clonado(tmp_path, n):
+    """n ficheros IDÉNTICOS: cada ventana de líneas aparece n × 37 veces (el caso que hacía explotar el
+    emparejado, cuadrático por ventana: 120 ficheros agotaban 1 GiB)."""
+    root = tmp_path / "clonado"
+    (root / "src").mkdir(parents=True)
+    for i in range(n):
+        (root / "src" / f"c{i:03d}.py").write_text(
+            chr(10).join(f"x{k} = a + b * {k}" if k % 2 else f"y{k} = a - b" for k in range(40)) + chr(10), encoding="utf-8")
     return root
 
 
@@ -557,3 +576,15 @@ def test_rendimiento_la_cli_acepta_los_topes(tmp_path):
     assert p.returncode == 0, p.stderr
     r = json.loads(p.stdout)
     assert r["resumen"]["ficheros"] == 10 and r["parcial"] is True
+
+
+def test_rendimiento_las_ventanas_repetidas_no_explotan_y_se_declaran(tmp_path):
+    """Tope de ocurrencias por ventana: con 8 ficheros idénticos cada ventana sale > 50 veces; solo se
+    emparejan las 50 primeras (memoria acotada) y el informe se declara PARCIAL, nunca un % inventado."""
+    root = _repo_clonado(tmp_path, 8)
+    cod = {rel: ch.lineas_codigo(ch.leer(p), e) for rel, p, e in ch.ficheros(str(root), {"py"}, False)}
+    d = ch.duplicados(cod, 8, 10, max_occ=20)
+    assert d["recortadas"] > 0 and d["parcial"] is True
+    r = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10)
+    assert r["parcial"] is True and any("ocurrencias" in a for a in r["avisos"]), r["avisos"]
+    assert r["resumen"]["duplicado_pct"] > 0
