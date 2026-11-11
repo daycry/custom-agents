@@ -147,6 +147,8 @@ def test_deadline_expired_gives_partial_never_another_state(o, monkeypatch):
     assert summary(o, [a], deadline=0)['status'] == 'unavailable'
 
 
+# serie: falló bajo `-n auto` con la suite completa (carga ajena) y pasa aislado; depende del orden de las lecturas (T-23, plugin-audit-2)
+@pytest.mark.serie
 def test_state_changed_during_read(o, monkeypatch):
     a = review(o, 'one', 'approve')
     other = plan(o, 'late')

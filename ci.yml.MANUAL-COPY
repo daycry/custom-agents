@@ -28,7 +28,7 @@ jobs:
           node-version: "22"
 
       - name: Instalar pytest
-        run: pip install pytest pyyaml
+        run: pip install pytest pyyaml pytest-xdist
 
       - name: Linter del plugin
         run: python scripts/lint_plugin.py
@@ -42,9 +42,11 @@ jobs:
         run: python evals/check.py
 
       - name: Tests (suites del repo)
-        # bucle, no lista fija: cualquier tests/test_*.py nuevo entra solo en la CI
+        # bucle, no lista fija: cualquier tests/test_*.py SIN `def test` (script, que pytest no
+        # recoge) entra solo en la CI. Los que pytest ya recoge los corre el paso siguiente: antes se
+        # ejecutaban dos veces (T-23, plugin-audit-2)
         run: |
-          for t in tests/test_*.py; do
+          for t in $(grep -LE '^\s*(async )?def test' tests/test_*.py); do
             echo "── $t"
             python "$t" || exit 1
           done
@@ -57,7 +59,14 @@ jobs:
         # que 68 casos de tests/ (test_export_skills, test_release, test_roadmap_index) no corrían
         # en CI. Y al revés, las 8 suites de tests/ que son scripts (sin `def test_*`) pytest no las
         # recoge: las ejecuta `tests/test_suites_no_pytest.py`, para que la puerta local sea la de CI.
-        run: python -m pytest tests agent-kits/shared agent-kits/knowledge-curator skills/adversarial-review/scripts skills/code-health/scripts skills/dependency-upgrade/scripts skills/changelog-sync/scripts skills/unit-tests/scripts skills/api-contract/scripts skills/jira-sync/scripts skills/knowledge-services/scripts skills/knowledge-category-template/scripts skills/training-data-services/scripts skills/confluence-publish/scripts evals -q
+        # `-n auto` (pytest-xdist) reparte los tests entre los núcleos del runner y `--durations=20`
+        # publica en el resumen los 20 más lentos (T-23, plugin-audit-2).
+        run: python -m pytest tests agent-kits/shared agent-kits/knowledge-curator skills/adversarial-review/scripts skills/code-health/scripts skills/dependency-upgrade/scripts skills/changelog-sync/scripts skills/unit-tests/scripts skills/api-contract/scripts skills/jira-sync/scripts skills/knowledge-services/scripts skills/knowledge-category-template/scripts skills/training-data-services/scripts skills/confluence-publish/scripts evals -q -n auto -m "not serie" --durations=20
+
+      - name: Tests (pytest — los marcados `serie`, sin xdist)
+        # los de tiempo de pared (`< 1.5 s`) y orden de lecturas fallan bajo `-n auto` por la carga ajena;
+        # llevan `@pytest.mark.serie` y corren aquí uno a uno (T-23, plugin-audit-2)
+        run: python -m pytest tests agent-kits/shared agent-kits/knowledge-curator skills/adversarial-review/scripts skills/code-health/scripts skills/dependency-upgrade/scripts skills/changelog-sync/scripts skills/unit-tests/scripts skills/api-contract/scripts skills/jira-sync/scripts skills/knowledge-services/scripts skills/knowledge-category-template/scripts skills/training-data-services/scripts skills/confluence-publish/scripts evals -q -m serie
 
       - name: "Bench captura de SessionEnd (CA-02: p95 ≤ 100 ms / p99 ≤ 300 ms)"
         # session-end-durable-capture: mide journal.py capture-end end-to-end (30 iteraciones, el

@@ -242,6 +242,8 @@ def _patologicos():
     ]
 
 
+# serie: mide tiempo de pared (< 1.5 s); bajo `-n auto` la carga ajena lo rompe (T-23, plugin-audit-2)
+@pytest.mark.serie
 def test_linear_cost_on_pathological_inputs():
     for texto in _patologicos():
         started = time.perf_counter()

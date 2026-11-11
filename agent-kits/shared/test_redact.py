@@ -643,6 +643,8 @@ def test_2_3_rutas_imagenes_y_opciones_ajenas_no_se_tocan(limpio):
     assert redact.redactar(limpio) == limpio
 
 
+# serie: mide tiempo de pared (< 1.5 s); bajo `-n auto` la carga ajena lo rompe (T-23, plugin-audit-2)
+@pytest.mark.serie
 def test_2_2_lineal_con_muchas_comillas_y_operadores():
     for texto in (('curl "a&b" -u x:y ' * 2000) + ("'" * 5000) + ('&|;' * 5000), 'curl -u x:y ' * 30000,
                   'mysql ' * 60000, '/a/mysql ' * 40000, 'sudo -x ' * 45000 + '/a/mysql -pX'):

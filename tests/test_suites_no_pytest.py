@@ -102,6 +102,64 @@ def test_el_paso_pytest_de_ci_incluye_la_carpeta_tests():
     assert sin_main, "todos los tests/ tienen bloque __main__: revisa este test"
 
 
+def _yml_ci():
+    p = os.path.join(ROOT, "ci.yml.MANUAL-COPY")
+    if not os.path.isfile(p):
+        pytest.skip("sin ci.yml.MANUAL-COPY")
+    return open(p, encoding="utf-8").read()
+
+
+def test_el_bucle_de_ci_solo_ejecuta_lo_que_pytest_no_recoge():
+    """T-23 (plugin-audit-2): el bucle `for t in ...; python "$t"` ejecutaba los ~23 `tests/test_*.py`
+    que pytest YA recoge (los corría dos veces). Ahora su lista sale de `grep -L` sobre `def test`:
+    el mismo criterio que `suites_no_pytest()` (AST), comprobado fichero a fichero."""
+    import re
+    yml = _yml_ci()
+    m = re.search(r"for t in (.+?); do", yml)
+    assert m, "el bucle de tests/ del ci.yml no se reconoce: actualiza este test"
+    lista = m.group(1)
+    assert "grep -L" in lista, f"el bucle itera todo tests/test_*.py: {lista}"
+    patron = re.search(r"grep -LE? ?(?:-E )?'([^']+)'", lista)
+    assert patron, f"el filtro del bucle no se reconoce: {lista}"
+    rx = re.compile(patron.group(1), re.M)
+    sin_def = [f for f in sorted(os.listdir(TESTS))
+               if f.startswith("test_") and f.endswith(".py")
+               and not rx.search(open(os.path.join(TESTS, f), encoding="utf-8").read())]
+    assert sin_def == SUITES, (sin_def, SUITES)
+
+
+def test_la_ci_paraleliza_pytest_y_publica_durations():
+    """T-23: `pytest-xdist` instalado, `-n auto` y `--durations` en el paso pytest de la CI."""
+    yml = _yml_ci()
+    assert "pytest-xdist" in yml, "falta `pip install pytest-xdist` en la CI"
+    linea = next((l for l in yml.splitlines() if "python -m pytest" in l), "")
+    assert "-n auto" in linea, linea
+    assert "--durations" in linea, linea
+
+
+def test_los_tests_de_tiempo_van_en_un_paso_serie_aparte():
+    """T-23: `-n auto` reparte los tests entre núcleos y los de TIEMPO de pared (`< 1.5 s`) o de marca de
+    fichero fallan por la carga ajena (medido en Linux, 4 CPU: 3 fallos en la suite completa). Esos tests
+    llevan `@pytest.mark.serie`: el paso paralelo los excluye y un paso aparte los ejecuta SIN xdist."""
+    yml = _yml_ci()
+    lineas = [l for l in yml.splitlines() if "python -m pytest" in l]
+    paralela = [l for l in lineas if "-n auto" in l]
+    serie = [l for l in lineas if "-m serie" in l]
+    assert len(paralela) == 1 and "-m \"not serie\"" in paralela[0], lineas
+    assert len(serie) == 1 and "-n " not in serie[0], lineas
+    marcados = []
+    for carpeta in ("tests", os.path.join("agent-kits", "shared")):
+        base = os.path.join(ROOT, carpeta)
+        for f in sorted(os.listdir(base)):
+            if f.startswith("test_") and f.endswith(".py") and "pytest.mark.serie" in open(
+                    os.path.join(base, f), encoding="utf-8").read():
+                marcados.append(f)
+    assert {"test_redact_fix3.py", "test_redact.py", "test_plan_review_summary.py"} <= set(marcados), marcados
+    ini = open(os.path.join(ROOT, "pytest.ini"), encoding="utf-8").read() if os.path.isfile(
+        os.path.join(ROOT, "pytest.ini")) else ""
+    assert "serie:" in ini, "falta registrar el marcador `serie` en pytest.ini"
+
+
 def main():
     return pytest.main([os.path.abspath(__file__), "-q"])
 
