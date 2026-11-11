@@ -33,7 +33,7 @@ Conocimiento del proyecto: [categorías propias, plantillas, aportaciones humana
 [![SDD](https://img.shields.io/badge/metodolog%C3%ADa-Spec--Driven-2ea44f.svg)](docs/FLOWS.md)
 [![Agentes](https://img.shields.io/badge/agentes-10-0ea5e9.svg)](docs/README.md)
 [![Skills](https://img.shields.io/badge/skills-34-0ea5e9.svg)](docs/README.md)
-[![Comandos](https://img.shields.io/badge/comandos-16-0ea5e9.svg)](docs/README.md)
+[![Comandos](https://img.shields.io/badge/comandos-15-0ea5e9.svg)](docs/README.md)
 [![Skills portables](https://img.shields.io/badge/skills%20portables-AGENTS.md%20%C2%B7%20Cursor-0ea5e9.svg)](docs/INSTALL.md#usar-las-skills-fuera-de-claude-code-paquete-portable)
 
 De la idea al código probado y documentado: `requisitos → presupuesto → plan → implementación → revisión adversarial → E2E → docs`, con **puertas de control** en cada paso, **coste real medido en tokens** y aprendizaje que calibra las siguientes estimaciones. Diez agentes, dieciséis comandos, autosuficiente (sin dependencias de otros plugins) — y funciona en **tres runtimes**: Claude Code, Codex y OpenCode.
@@ -120,7 +120,7 @@ npx @daycry/custom-agents            # menú interactivo; marca los runtimes que
 
 | Runtime | Instalación | Qué obtienes |
 |---|---|---|
-| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (o el instalador) | Todo: 10 agentes, 16 comandos, 34 skills, hooks y statusline |
+| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (o el instalador) | Todo: 10 agentes, 15 comandos, 34 skills, hooks y statusline |
 | **Codex** | `codex plugin marketplace add daycry/custom-agents` (o el instalador) | Skills, agentes como `.toml`, adaptadores de comandos generados (`$custom-agents:custom-agents-<nombre>`), hooks de sesión |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agentes, comandos y adaptador de hooks |
 
@@ -249,7 +249,6 @@ flowchart LR
 | `/roadmap-brief` | Resumen ejecutivo en Markdown; PDF opcional. |
 | `/spec-drift` | ¿El código sigue cumpliendo las specs implementadas? |
 | `/retro` | Cierra el bucle: desviaciones + causas → `CALIBRATION.md`. |
-| `/confluence-pull` | Confluence → `docs/` local (PM sin git). |
 | `/plugin-catalog` | Abre la consola común de proyectos con sesiones/chat nativos, planes y kanban, o exporta un inventario de capacidades. |
 | `/work-context` | Guías pertinentes y extensiones seleccionadas explícitamente para la tarea. |
 | `/work-resume` | Ledger actual e historial de sesión seleccionado en un dossier acotado de solo lectura. [Selección y límites](docs/WORK-RESUME.md). |

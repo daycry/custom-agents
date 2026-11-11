@@ -26,9 +26,7 @@
         "confluence-publish",
         "confluence-pull"
       ],
-      "commands": [
-        "confluence-pull"
-      ],
+      "commands": [],
       "requires": []
     },
     "content": {

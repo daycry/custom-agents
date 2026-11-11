@@ -270,8 +270,8 @@ no una afirmación general de que «Confluence está sincronizado».
 ### Un caso cotidiano
 
 Un responsable mejora las instrucciones de uso directamente en Confluence. El
-proyecto local todavía conserva la versión anterior. `/confluence-pull`, mediante
-la skill del mismo nombre, permite revisar e incorporar la diferencia.
+proyecto local todavía conserva la versión anterior. La skill `confluence-pull`
+permite revisar e incorporar la diferencia.
 
 ```text
 Revisa los cambios de Confluence del portal y compáralos con nuestros documentos.

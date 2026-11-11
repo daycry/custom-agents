@@ -52,7 +52,8 @@ def test_all_commands_have_one_distinct_native_adapter_and_no_personal_prompt_pr
         for path in (ROOT / 'skills').glob('*/SKILL.md')
     }
     assert len(adapter_names) == len(commands) and not adapter_names.intersection(canonical_names)
-    assert 'confluence-pull' in canonical_names and 'custom-agents-confluence-pull' in adapter_names
+    # T-03 (plugin-audit-2): `confluence-pull` solo existe como skill; su comando duplicado se retiró
+    assert 'confluence-pull' in canonical_names and 'custom-agents-confluence-pull' not in adapter_names
 
 
 def test_retire_only_owned_personal_prompt_exports(tmp_path, capsys):

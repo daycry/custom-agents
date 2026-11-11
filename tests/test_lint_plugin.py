@@ -1191,3 +1191,28 @@ def test_repository_descriptions_fit_six_hundred():
         if len(data.get('description', '')) > 600:
             oversized.append((str(path.relative_to(ROOT)), len(data['description'])))
     assert not oversized, oversized
+
+
+def _comando_y_skill(tmp, invocable):
+    make_plugin(str(tmp), {'alpha': AGENT_OK.format(name='alpha')})
+    os.makedirs(os.path.join(str(tmp), 'commands'))
+    open(os.path.join(str(tmp), 'commands', 'duplo.md'), 'w', encoding='utf-8').write(
+        '---\ndescription: Hace algo con el comando. Úsalo cuando el usuario diga "haz duplo".\n---\n# /duplo\n')
+    os.makedirs(os.path.join(str(tmp), 'skills', 'duplo'))
+    open(os.path.join(str(tmp), 'skills', 'duplo', 'SKILL.md'), 'w', encoding='utf-8').write(
+        '---\nname: duplo\ndescription: Hace algo con la skill. Úsala cuando el usuario diga "haz duplo".\n'
+        f'user-invocable: {invocable}\n---\n# duplo\n')
+
+
+def test_colision_comando_skill_es_error(tmp_path):
+    """T-03 (plugin-audit-2): un comando y una skill `user-invocable` con el mismo nombre chocan en
+    Claude Code (`/duplo` dos veces): el linter lo da como ERROR."""
+    _comando_y_skill(tmp_path, 'true')
+    code, out = run(str(tmp_path))
+    assert code == 1 and 'colisión' in out and 'duplo' in out, out
+
+
+def test_colision_comando_skill_no_salta_si_la_skill_no_es_invocable(tmp_path):
+    _comando_y_skill(tmp_path, 'false')
+    code, out = run(str(tmp_path))
+    assert 'colisión' not in out, out

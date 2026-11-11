@@ -33,7 +33,7 @@ Project knowledge: [custom categories, project-owned templates, human/agent cont
 [![SDD](https://img.shields.io/badge/methodology-Spec--Driven-2ea44f.svg)](docs/en/FLOWS.md)
 [![Agents](https://img.shields.io/badge/agents-10-0ea5e9.svg)](docs/en/README.md)
 [![Skills](https://img.shields.io/badge/skills-34-0ea5e9.svg)](docs/en/README.md)
-[![Commands](https://img.shields.io/badge/commands-16-0ea5e9.svg)](docs/en/README.md)
+[![Commands](https://img.shields.io/badge/commands-15-0ea5e9.svg)](docs/en/README.md)
 [![Portable skills](https://img.shields.io/badge/portable%20skills-AGENTS.md%20%C2%B7%20Cursor-0ea5e9.svg)](docs/en/INSTALL.md#using-the-skills-outside-claude-code-portable-package)
 
 From idea to tested, documented code: `requirements → budget → plan → implementation → adversarial review → E2E → docs`, with **control gates** at every step, **real cost measured in tokens**, and learning that calibrates the next estimates. Ten agents, sixteen commands, self-contained (no dependencies on other plugins) — and it runs in **three runtimes**: Claude Code, Codex and OpenCode.
@@ -139,7 +139,7 @@ npx @daycry/custom-agents            # interactive menu; marks the runtimes it d
 
 | Runtime | Install | What you get |
 |---|---|---|
-| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 10 agents, 16 commands, 34 skills, hooks, status line |
+| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 10 agents, 15 commands, 34 skills, hooks, status line |
 | **Codex** | `codex plugin marketplace add daycry/custom-agents` (or the installer) | Skills, agents as `.toml`, generated command adapters (`$custom-agents:custom-agents-<name>`), session hooks |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agents, commands, hook adapter |
 
@@ -268,7 +268,6 @@ flowchart LR
 | `/roadmap-brief` | Executive one-pager in Markdown; optional PDF. |
 | `/spec-drift` | Does the code still honor the implemented specs? |
 | `/retro` | Closes the loop: deviations + causes → `CALIBRATION.md`. |
-| `/confluence-pull` | Confluence → local `docs/` (PM without git). |
 | `/plugin-catalog` | Open the shared project console for native sessions/chat, plans and kanban, or export a capability inventory. |
 | `/work-context` | Relevant guides and explicitly selected extensions for the task. |
 | `/work-resume` | Current ledger and selected session history in a bounded read-only dossier. [Selection and limits](docs/en/WORK-RESUME.md). |

@@ -655,6 +655,31 @@ def _lint_namespacing(commands_dir, skills_dir):
     return warnings
 
 
+def _lint_colision_comando_skill(commands_dir, skills_dir):
+    """ERROR si un comando y una skill invocable por el usuario se llaman igual (T-03, plugin-audit-2).
+
+    En Claude Code ambos producen `/<nombre>`: la colisión es propia del runtime (Codex ya antepone
+    `custom-agents-` al adaptador del comando). Una skill es invocable salvo `user-invocable: false`.
+    """
+    errors = []
+    if not (os.path.isdir(commands_dir) and os.path.isdir(skills_dir)):
+        return errors
+    comandos = {f[:-3] for f in os.listdir(commands_dir) if f.endswith(".md")}
+    for nombre in sorted(comandos):
+        ruta = os.path.join(skills_dir, nombre, "SKILL.md")
+        if not os.path.isfile(ruta):
+            continue
+        with open(ruta, encoding="utf-8") as fh:
+            texto = fh.read().replace(chr(13) + chr(10), chr(10))
+        fin = texto.find(chr(10) + "---", 3) if texto.startswith("---") else -1
+        marca = re.search(r"^user-invocable:\s*(\S+)", texto[:fin] if fin > 0 else "", re.M)
+        if not (marca and marca.group(1).strip("'\"").lower() == "false"):
+            errors.append(
+                f"command `{nombre}`: colisión con la skill invocable `{nombre}` (`/{nombre}` dos veces en "
+                f"Claude Code) — borra el comando o marca la skill `user-invocable: false`")
+    return errors
+
+
 def _lint_estructura_global(root, commands_dir, skills_dir, errors, warnings):
     # --- hooks/hooks.json: JSON válido + commands que existen (ejecutable = aviso) ---
     h_err, h_warn = lint_hooks(root)
@@ -665,6 +690,7 @@ def _lint_estructura_global(root, commands_dir, skills_dir, errors, warnings):
     errors.extend(lint_knowledge_index(root))
 
     warnings.extend(_lint_namespacing(commands_dir, skills_dir))
+    errors.extend(_lint_colision_comando_skill(commands_dir, skills_dir))
 
     # --- Copias manuales de workflows: <x>.yml.MANUAL-COPY vs .github/workflows/<x>.yml ---
     warnings.extend(lint_manual_copies(root))

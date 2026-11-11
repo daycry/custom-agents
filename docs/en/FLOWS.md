@@ -49,7 +49,7 @@ flowchart TD
     PM(["👤 PM / product"]) --> S0["/setup"]
     PM --> P1["/pm-cycle<br/>defines and budgets"]
     PM --> P2["/pm-backlog<br/>prioritizes portfolio"]
-    PM --> P3["/confluence-pull<br/>docs without git"]
+    PM --> P3["skill confluence-pull<br/>docs without git"]
     DEV(["👩‍💻 Dev / team"]) --> D1["/dev-cycle<br/>builds"]
     DEV --> D2["/retro<br/>learns"]
     DEV --> D3["/work-resume<br/>current ledger + selected history"]

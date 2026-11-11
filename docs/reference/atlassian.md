@@ -191,7 +191,7 @@ que lo soporten, una vista previa y un recibo separado.
 
 ## W-12. Traer cambios de Confluence a docs
 
-**Entrada:** `/confluence-pull` o petición equivalente, módulo disponible y mapa
+**Entrada:** la skill `confluence-pull` o petición equivalente, módulo disponible y mapa
 previo. **Skill:** `confluence-pull`. **Tools:** lectura remota y escritura local
 controlada. **No publica páginas durante el pull.**
 

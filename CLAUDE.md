@@ -91,7 +91,6 @@ Invocan a los agentes **por nombre** y con puertas de control sobre la carpeta d
 | `/pm-backlog` · `/roadmap-status` · `/roadmap-metrics` · `/roadmap-live` · `/roadmap-brief` | Cartera y visibilidad (solo lectura): backlog priorizado · dashboard · real vs estimado + coste de proceso medido · Jira en vivo · one-pager PDF. |
 | `/spec-drift [slug]` | Gobernanza: deriva spec↔código de las specs `implementada` (vigente/derivado/no-verificable con evidencia) → `docs/roadmap/DRIFT.md`. Solo lectura; la corrección va por /pm-cycle. |
 | `/retro <slug>` | Cierre de aprendizaje: real vs estimado + causas + **ratio tokens/hora medido** → `docs/roadmap/CALIBRATION.md` (lo leen evaluator y usage-meter). Muestra las **candidatas a lección** del journal (`journal.py candidatas`, nacen `propuesta`) y es la **puerta** del cierre de `/dev-cycle` (`retro-gate.py`: sin `retro.md` + fila no hay cierre). |
-| `/confluence-pull` | Confluence → `docs/` local (PM sin git). |
 
 **Revisión adversarial (skill `adversarial-review`, fuente única del método; la invocan /dev-cycle Fase 3 y quick-implement, y se usa a demanda):** lentes en paralelo con contexto fresco despachadas al agente `reviewer` (solo lectura; fallback a subagente genérico) — A: conformidad con spec/plan/constitución (salida estructurada por criterio ✓/✗, gaps con cita); B: solo defectos de corrección; C: seguridad del diff, **condicional** (`review-lens-select.py`: rutas/líneas sensibles; `dev.json` `revision.lenteSeguridad`); **D: rendimiento del diff, también condicional** (mismo script por heurística de rutas + patrones N+1, `await`/regex en bucle, `sleep` bloqueante; `dev.json` `revision.lenteRendimiento`). Bucle reviewer→implementer acotado a 3 (el contador y el worklog `[revisión]` por intento son del orquestador); traza «Revisión de dos lentes — intento N» en el ledger; comentario en Jira opt-in.
 
@@ -100,7 +99,7 @@ Invocan a los agentes **por nombre** y con puertas de control sobre la carpeta d
 | Skill | Para qué (usuarios) |
 |---|---|
 | `jira-sync` | Plan → Jira (issue por tarea o por fase, tipo por jerarquía, idempotente); worklog al completar (IA+supervisión, tope jornada + banco, `worklog.py`); publica el resultado del revisor. Opt-in `.claude/jira.json`. (planner, implementer, /dev-cycle) |
-| `confluence-publish` / `confluence-pull` | Espejo `docs/` ↔ Confluence, opt-in, idempotente por manifiesto; nunca `docs/security-scan/`. (evaluator, planner, qa, documenter / comando) |
+| `confluence-publish` / `confluence-pull` | Espejo `docs/` ↔ Confluence, opt-in, idempotente por manifiesto; nunca `docs/security-scan/`. (evaluator, planner, qa, documenter; `confluence-pull` es solo skill, sin comando propio) |
 | `research-first` | Compara soluciones existentes antes de integraciones o nuevas herramientas; fuentes originales y límites explícitos. (analyst, architect) |
 | `plugin-panel` | Consola local común y panel estático del bundle y las extensiones de proyecto/usuario; JSON determinista, metadatos redactados y modo servido informativo de progreso (`build_panel.py --serve`, distinto de la consola); disponibilidad sin verificar. (/plugin-catalog) |
 | `stack-practices` | Guías por versión para CodeIgniter 4, Laravel, Symfony, Next.js, React, Python, .NET/C#, C y Go; estado, persistencia, concurrencia y pruebas. (architect, planner, implementer, reviewer, qa) |
