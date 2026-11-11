@@ -467,7 +467,7 @@
       "id": "docstring_uso_exit",
       "mecanismo": "no-codigo",
       "no_codigo": true,
-      "que_es": "Cola del docstring de cabecera con las secciones `Uso:` (linea de invocacion) y `Exit:` (codigos de salida) que exige la convencion de scripts del repo. El texto NO coincide y los rangos tienen tamanos distintos -en `code-health.py` el `Uso:` ocupa cuatro lineas y en `deps-inventory.py` una-: lo replicado es la PLANTILLA de documentacion, no logica. NO se compara ni se unifica.",
+      "que_es": "Cola del docstring de cabecera con las secciones `Uso:` (linea de invocacion) y `Exit:` (codigos de salida) que exige la convencion de scripts del repo. El texto NO coincide y los rangos tienen tamanos distintos -en `code-health.py` el `Uso:` ocupa cinco lineas y en `deps-inventory.py` una-: lo replicado es la PLANTILLA de documentacion, no logica. NO se compara ni se unifica.",
       "canonico": null,
       "contiene": [
         "Uso:",
@@ -476,7 +476,7 @@
       "copias": [
         {
           "ruta": "skills/code-health/scripts/code-health.py",
-          "rango": "26-30"
+          "rango": "26-31"
         },
         {
           "ruta": "skills/dependency-upgrade/scripts/deps-inventory.py",
