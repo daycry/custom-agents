@@ -779,15 +779,9 @@ def test_pathspec_que_abarca_el_arbol_entero_se_deniega(cmd):
     "git restore --staged ':/'",
     "git restore -S ./",
     "git restore src/a.py",
-    "git restore ../hermana/a.py",
     "git restore docs/",
-    "git restore 'src/*.py'",
     "git restore ./src",
-    "git restore :src/a.py",
-    "git restore ':(top)src/a.py'",
-    "git restore ':/src'",
-    "git restore ':!src/a.py' docs/b.md",
-    "git restore " + _q(_RAIZ.replace(chr(92), "/") + "/src/a.py"),
+    "git restore src/a.py docs/b.md",
     "git restore --pathspec-file-nul",
     "git restore --patch",
     "git checkout -bfeature/y",
@@ -809,3 +803,83 @@ def test_pathspec_acotado_y_ramas_con_f_en_el_nombre_siguen_permitidas(cmd):
 def test_la_fuerza_en_un_cluster_se_sigue_denegando(cmd):
     razon = decide(bash(cmd), branch="feature/x")
     assert razon and "descarta" in razon, (cmd, razon)
+
+
+# ---- T-06 fix2 (gap 1): lista de PERMITIDOS para el pathspec de checkout/restore ----
+# Diseño: solo se permite una ruta relativa literal (sin magia `:`, sin `*?[`, sin `$`/backtick/`~`
+# inicial) que, normalizada, queda dentro del proyecto sin ser el directorio actual, un ancestro ni la raíz.
+@pytest.mark.parametrize("cmd", [
+    "git restore ':'",
+    "git restore '?*'",
+    "git restore '?'",
+    'git restore "$(git rev-parse --show-toplevel)"',
+    "git restore ~+",
+    "git restore ~",
+    "git restore ~/x.py",
+    'git restore "$CLAUDE_PROJECT_DIR"',
+    'git restore "$(realpath .)"',
+    "git restore `pwd`",
+    "git restore . --",
+    "git restore -- .",
+    "git restore a.py ..",
+    "git restore 'src/*.py'",
+    "git restore 'src/a[12].py'",
+    "git restore :src/a.py",
+    "git restore ':(top)src/a.py'",
+    "git restore ':/src'",
+    "git restore ':!src/a.py' docs/b.md",
+    "git restore ''",
+    "git restore " + _q(_RAIZ.replace(chr(92), "/") + "/src/a.py"),
+    "git restore ../hermana/a.py",
+    "git checkout -- ':'",
+    "git checkout HEAD -- '?*'",
+    "git checkout -- 'src/*.py'",
+    'git checkout -- "$(git rev-parse --show-toplevel)"',
+    "git checkout HEAD -- ~+",
+    'git checkout -- "$CLAUDE_PROJECT_DIR"',
+    "git checkout ':'",
+    "git checkout ~+",
+])
+def test_fix2_pathspec_no_literal_se_deniega(cmd):
+    razon = decide(bash(cmd), branch="feature/x")
+    assert razon and "descarta" in razon, (cmd, razon)
+
+
+@pytest.mark.parametrize("cmd", [
+    "git checkout feature/otra",
+    "git checkout HEAD~1",
+    "git checkout origin/main",
+    "git checkout -",
+    "git checkout -b feature/y",
+    "git checkout -B feature/y origin/main",
+    "git checkout -bfeature/y",
+    'git checkout -b feature/y "$(git rev-parse HEAD)"',
+    "git checkout main -- src/a.py",
+    "git checkout -- src/a.py docs/b.md",
+    "git restore src/a.py",
+    "git restore -- src/a.py",
+    "git restore src/a.py --",
+    "git restore --source=HEAD~1 src/a.py",
+    "git restore --staged ':'",
+    "git restore --staged '*'",
+    "git restore --staged .",
+    "git restore -S '?*'",
+    "git restore --staged ~+",
+    "git restore --patch",
+])
+def test_fix2_formas_acotadas_siguen_permitidas(cmd):
+    assert decide(bash(cmd), branch="feature/x") is None, cmd
+
+
+def test_fix2_ruta_que_sale_del_directorio_actual_pero_queda_en_el_proyecto(tmp_path, monkeypatch):
+    """`../otro.py` desde un subdirectorio: dentro del proyecto y no es la raíz → permitido; `..` (la raíz),
+    `../..` (fuera del proyecto) y `.` (el directorio actual) → denegados."""
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    monkeypatch.chdir(sub)
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
+    assert decide(bash("git restore ../otro.py"), branch="feature/x") is None
+    assert decide(bash("git restore ../docs/"), branch="feature/x") is None
+    for malo in ("..", "../", "../..", "../../x.py", ".", "../sub", "sub/.."):
+        razon = decide(bash("git restore " + malo), branch="feature/x")
+        assert razon and "descarta" in razon, (malo, razon)
