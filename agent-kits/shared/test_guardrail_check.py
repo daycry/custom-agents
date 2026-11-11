@@ -717,3 +717,95 @@ def test_restauracion_destructiva_se_deniega(cmd):
 ])
 def test_restauracion_acotada_o_de_ramas_sigue_permitida(cmd):
     assert decide(bash(cmd), branch="feature/x") is None, cmd
+
+
+# ---- T-06 fix1 (gaps 4 y 16): cualquier pathspec que abarque el árbol entero, normalizado ----
+_RAIZ = os.getcwd()
+
+
+def _q(ruta):
+    return chr(39) + ruta + chr(39)
+
+_ARBOL_ENTERO_FORMAS = [
+    "git restore ./",
+    "git restore ./.",
+    "git restore src/..",
+    "git restore ..",
+    "git restore ../",
+    "git restore ../..",
+    "git restore '*'",
+    "git restore '**'",
+    "git restore '**/*'",
+    "git restore ./*",
+    "git restore ':/*'",
+    "git restore ':/.'",
+    "git restore ':/'",
+    "git restore ':(top)'",
+    "git restore ':(top)*'",
+    "git restore ':(glob)**'",
+    "git restore ':(top,glob)**/*'",
+    "git restore ':!src/a.py'",
+    "git restore ':^src/a.py' ':!docs'",
+    'git restore "$PWD"',
+    'git restore "${PWD}"',
+    'git restore "$PWD"/.',
+    "git restore '$(pwd)'",
+    "git restore /",
+    "git restore " + _q(_RAIZ.replace(chr(92), "/")),
+    "git restore " + _q(_RAIZ.replace(chr(92), "/") + "/"),
+    "git restore " + _q(_RAIZ.replace(chr(92), "/") + "/*"),
+    "git restore --source=HEAD~1 ':/'",
+    "git restore --pathspec-from-file=lista.txt",
+    "git restore --pathspec-from-file lista.txt",
+    "git restore --pathspec-from",
+    "git checkout -- ./",
+    "git checkout HEAD -- '*'",
+    "git checkout HEAD -- src/..",
+    "git checkout -- ':/*'",
+    "git checkout --pathspec-from-file=lista.txt",
+    "git -C sub restore './'",
+]
+
+
+@pytest.mark.parametrize("cmd", _ARBOL_ENTERO_FORMAS)
+def test_pathspec_que_abarca_el_arbol_entero_se_deniega(cmd):
+    razon = decide(bash(cmd), branch="feature/x")
+    assert razon and "descarta" in razon, (cmd, razon)
+
+
+@pytest.mark.parametrize("cmd", [
+    "git checkout main -- src/a.py",
+    "git restore --staged .",
+    "git restore --staged ':/'",
+    "git restore -S ./",
+    "git restore src/a.py",
+    "git restore ../hermana/a.py",
+    "git restore docs/",
+    "git restore 'src/*.py'",
+    "git restore ./src",
+    "git restore :src/a.py",
+    "git restore ':(top)src/a.py'",
+    "git restore ':/src'",
+    "git restore ':!src/a.py' docs/b.md",
+    "git restore " + _q(_RAIZ.replace(chr(92), "/") + "/src/a.py"),
+    "git restore --pathspec-file-nul",
+    "git restore --patch",
+    "git checkout -bfeature/y",
+    "git checkout -Bfeature/y",
+    "git switch -cfeature/y",
+    "git switch -Cfeature/y",
+    "git checkout -qbfeature/y",
+])
+def test_pathspec_acotado_y_ramas_con_f_en_el_nombre_siguen_permitidas(cmd):
+    assert decide(bash(cmd), branch="feature/x") is None, cmd
+
+
+@pytest.mark.parametrize("cmd", [
+    "git checkout -fb feature/y",
+    "git checkout -qf",
+    "git switch -fc feature/y",
+    "git checkout --force main-fix",
+])
+def test_la_fuerza_en_un_cluster_se_sigue_denegando(cmd):
+    razon = decide(bash(cmd), branch="feature/x")
+    assert razon and "descarta" in razon, (cmd, razon)

@@ -758,16 +758,130 @@ def _razon_clean(args):
     return None
 
 
-_ARBOL_ENTERO = (".", ":/", ":(top)")
+def _cluster_con_fuerza(token, con_valor):
+    """`-abc` con la opción corta `f` DE VERDAD: se recorre de izquierda a derecha y una letra que
+    consume valor (`b`/`B` en checkout, `c`/`C` en switch) se lleva el RESTO del clúster, así que el
+    `f` de `-bfeature` es parte de un nombre de rama, no la opción de fuerza (T-06 fix1, gap 16)."""
+    if not re.fullmatch(r"-[a-zA-Z0-9]+", token):
+        # `-bfeature/y`: el clúster real acaba donde empieza el valor; mira solo la parte letra-dígito inicial
+        m = re.match(r"-([a-zA-Z0-9]+)", token)
+        if not m or token.startswith("--"):
+            return False
+        token = "-" + m.group(1)
+    for ch in token[1:]:
+        if ch in con_valor:
+            return False
+        if ch == "f":
+            return True
+    return False
+
+
+def _sin_barra_final(texto):
+    return texto.rstrip("/") or "/"
+
+
+def _rutas_de_referencia():
+    """Raíces contra las que se compara una ruta absoluta: el directorio actual y el del proyecto."""
+    raices = [os.getcwd()]
+    pdir = os.environ.get("CLAUDE_PROJECT_DIR")
+    if pdir:
+        raices.append(pdir)
+    return raices
+
+
+def _clave_abs(ruta):
+    """Ruta absoluta en forma comparable: `/` como separador, `C:/x` y `/c/x` unificados, minúsculas."""
+    r = ruta.replace("\\", "/")
+    m = re.match(r"^([A-Za-z]):(/.*)?$", r)
+    if m:
+        r = "/" + m.group(1) + (m.group(2) or "")
+    return posixpath.normpath(r).lower() if r.startswith("/") else r.lower()
+
+
+def _solo_comodines(texto):
+    comps = [c for c in texto.split("/") if c not in ("", ".")]
+    return all(re.fullmatch(r"\*+", c) for c in comps)
+
+
+def _parte_pathspec(token):
+    """`(patrón, top, excluye)` de un pathspec con su magia (`:/`, `:(top,glob)`, `:!`, `:^`)."""
+    if token.startswith(":("):
+        m = re.match(r":\(([^)]*)\)(.*)$", token, re.S)
+        if m:
+            magias = {x.strip().lower() for x in m.group(1).split(",")}
+            return m.group(2), "top" in magias, "exclude" in magias
+        return token, False, False
+    if token.startswith(":") and len(token) > 1:
+        i, top, excluye = 1, False, False
+        while i < len(token) and token[i] in "/!^":
+            top, excluye = top or token[i] == "/", excluye or token[i] in "!^"
+            i += 1
+        if i < len(token) and token[i] == ":":
+            i += 1
+        return token[i:], top, excluye
+    return token, False, False
+
+
+_VAR_PWD = re.compile(r"^(?:\$\{PWD\}|\$PWD|\$\(\s*pwd\s*\)|`\s*pwd\s*`)(.*)$", re.S)
+
+
+def _abarca_el_arbol(token):
+    """¿Este pathspec abarca TODO el árbol (o más)? Normalizado, no literal (T-06 fix1, gap 4):
+    `.`, `./`, `src/..`, `..` (sale del directorio actual), `*`/`**`/`**/*`, `:/`, `:/*`, `:(top)`,
+    `:(glob)**`, `$PWD`/`${PWD}`/`$(pwd)`, o una ruta absoluta igual o ANTERIOR al directorio actual
+    o al del proyecto. Un pathspec solo de exclusión (`:!x`) también lo abarca: es «todo menos x»."""
+    patron, top, _ = _parte_pathspec(token)
+    patron = patron.replace("\\", "/")
+    m = _VAR_PWD.match(patron)
+    if m:
+        patron = _clave_abs(os.getcwd()) + m.group(1)
+        absoluta = True
+    else:
+        absoluta = patron.startswith("/") or bool(re.match(r"^[A-Za-z]:(/|$)", patron))
+    if absoluta:
+        comps = [c for c in patron.replace("\\", "/").split("/")]
+        while comps and (comps[-1] == "" or re.fullmatch(r"\*+", comps[-1])):
+            comps.pop()
+        base = _clave_abs("/".join(comps) or "/")
+        return any(r == base or r.startswith(_sin_barra_final(base) + "/") or base == "/"
+                   for r in map(_clave_abs, _rutas_de_referencia()))
+    if _solo_comodines(patron):
+        return True
+    norm = posixpath.normpath(patron)
+    if norm == ".":
+        return True
+    comps = [c for c in norm.split("/") if c != "."]
+    if comps and comps[0] == "..":
+        # `..` sale del directorio actual (quizá de la raíz): abarca el árbol si lo que queda es nada o comodines
+        resto = [c for c in comps if c != ".."]
+        return not resto or all(re.fullmatch(r"\*+", c) for c in resto)
+    return False
+
+
+def _pathspecs_arbol_entero(rutas):
+    """¿Alguna de `rutas` abarca el árbol entero? Si TODAS son exclusiones también (todo menos x)."""
+    reales = []
+    excl = 0
+    for t in rutas:
+        _, _, excluye = _parte_pathspec(t)
+        if excluye:
+            excl += 1
+        else:
+            reales.append(t)
+    if excl and not reales:
+        return True
+    return any(_abarca_el_arbol(t) for t in reales)
 
 
 def _razon_restauracion(sub, args):
     """`git checkout|switch|restore` que DESCARTA cambios sin comitear (T-06, plugin-audit-2).
 
-    Deniega: `checkout -f|--force`, `switch -f|--force|--discard-changes`, `checkout [--] .` y
-    `restore .` (el árbol entero), `restore --worktree|-W`. NO toca `git checkout main -- <fichero>`,
-    `checkout -b`, `restore --staged` ni `restore <fichero>`: restauran un fichero o no descartan nada
-    del árbol (la regla de P4 sobre ficheros con cambios previos sigue siendo prosa del implementer).
+    Deniega: `checkout -f|--force`, `switch -f|--force|--discard-changes`, `checkout|restore` con un
+    pathspec que abarque el árbol entero (normalizado: `.`, `./`, `..`, `*`, `:/`, `:(top)`, `:(glob)**`,
+    `$PWD`, ruta absoluta de la raíz, solo exclusiones), `--pathspec-from-file` (su contenido no se ve)
+    y `restore --worktree|-W`. NO toca `git checkout main -- <fichero>`, `checkout -b`, `restore --staged`
+    ni `restore <fichero>`: restauran un fichero o no descartan nada del árbol (la regla de P4 sobre
+    ficheros con cambios previos sigue siendo prosa del implementer).
     """
     if "--" in args:
         k = args.index("--")
@@ -777,14 +891,17 @@ def _razon_restauracion(sub, args):
     opciones = [t for t in antes if t.startswith("-")]
     msg = (f"`git {sub}` que descarta cambios sin comitear bloqueado: pueden no ser tuyos — "
            "revierte solo lo de tu intento (`git diff <foto> -- <ficheros> | git apply -R`).")
-    if sub == "checkout" and any(_cluster(t, "f") or _prefijo(t, "--force") for t in opciones):
+    if sub == "checkout" and any(_cluster_con_fuerza(t, "bB") or _prefijo(t, "--force") for t in opciones):
         return msg
-    if sub == "switch" and any(_cluster(t, "f") or _prefijo(t, "--force", "--discard-changes") for t in opciones):
+    if sub == "switch" and any(_cluster_con_fuerza(t, "cC") or _prefijo(t, "--force", "--discard-changes")
+                               for t in opciones):
         return msg
-    if sub in ("checkout", "restore") and any(t in _ARBOL_ENTERO for t in rutas):
-        solo_indice = sub == "restore" and any(_prefijo(t, "--staged") or _cluster(t, "S") for t in opciones)             and not any(_prefijo(t, "--worktree") or _cluster(t, "W") for t in opciones)
+    if sub in ("checkout", "restore"):
+        solo_indice = sub == "restore" and any(_prefijo(t, "--staged") or _cluster(t, "S") for t in opciones) \
+            and not any(_prefijo(t, "--worktree") or _cluster(t, "W") for t in opciones)
         if not solo_indice:
-            return msg
+            if any(_prefijo(t, "--pathspec-from-file") for t in opciones) or _pathspecs_arbol_entero(rutas):
+                return msg
     if sub == "restore" and any(_prefijo(t, "--worktree") or _cluster(t, "W") for t in opciones):
         return msg
     return None
