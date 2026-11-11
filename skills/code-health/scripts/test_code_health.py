@@ -588,3 +588,155 @@ def test_rendimiento_las_ventanas_repetidas_no_explotan_y_se_declaran(tmp_path):
     r = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10)
     assert r["parcial"] is True and any("ocurrencias" in a for a in r["avisos"]), r["avisos"]
     assert r["resumen"]["duplicado_pct"] > 0
+
+
+
+# ------------------------- T-07 fix1 (revisión intento 1, gaps 5-7, 12, 13, 17, 18) -------------------------
+import time
+import tracemalloc
+
+
+def _clon_de_plantilla(tmp_path, copias, lineas):
+    root = tmp_path / "plantilla"
+    (root / "src").mkdir(parents=True)
+    estado, filas = 4242, []
+    for k in range(lineas):          # secuencia pseudoaleatoria de operadores: las ventanas de 8 líneas son distintas
+        estado = (estado * 1103515245 + 12345) % 2147483648
+        filas.append(f"x{k} = a {OPS[(estado >> 8) % 10]} b {OPS[(estado >> 16) % 10]} {k}")
+    cuerpo = chr(10).join(filas) + chr(10)
+    for i in range(copias):
+        (root / "src" / f"p{i:03d}.py").write_text(cuerpo, encoding="utf-8")
+    return root
+
+
+def _cod(root):
+    return {rel: ch.lineas_codigo(ch.leer(p), e) for rel, p, e in ch.ficheros(str(root), {"py"}, False)}
+
+
+def test_fix1_gap5_baseline_parcial_contra_completo_no_es_comparable_en_los_dos_sentidos(tmp_path):
+    root = _repo_grande(tmp_path, n=30)
+    completo = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10)
+    parcial = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10, max_files=10)
+    assert parcial["parcial"] is True and completo["parcial"] is False
+    for actual, base in ((parcial, completo), (completo, parcial)):
+        comp = ch.comparar(actual, base)
+        assert comp and all(c["tendencia"].startswith("no comparable") for c in comp), comp
+    assert not any(c["tendencia"].startswith("no comparable") for c in ch.comparar(completo, completo))
+
+
+def test_fix1_gap5_la_cli_avisa_de_la_comparacion_parcial(tmp_path):
+    root = _repo_grande(tmp_path, n=30)
+    rc, js_parcial, _ = run(str(root), "--json", "--max-files", "10")
+    base = tmp_path / "base.json"
+    base.write_text(js_parcial, encoding="utf-8")
+    rc, out, _ = run(str(root), "--json", "--baseline", str(base))
+    r = json.loads(out)
+    assert rc == 0 and all(c["tendencia"].startswith("no comparable") for c in r["baseline"])
+    assert any("baseline" in a and "parcial" in a for a in r["avisos"]), r["avisos"]
+
+
+def test_fix1_gap6_la_memoria_del_emparejado_esta_acotada_con_copias_de_una_plantilla(tmp_path):
+    """60 copias de una plantilla de 500 líneas: 493 ventanas × C(50,2) pares = 604 K pares en un `set` de
+    tuplas (75 MiB medidos). Con el tope total de pares la memoria no crece y el informe se declara parcial."""
+    root = _clon_de_plantilla(tmp_path, 60, 500)
+    cod = _cod(root)
+    tracemalloc.start()
+    d = ch.duplicados(cod, 8, 10)
+    _, pico = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    assert pico < 40 * 1024 * 1024, f"pico {pico / 1048576:.1f} MiB"
+    assert d["parcial"] is True and d["pares_tope"] is True and d["pares"] <= ch.MAX_PARES_DEFAULT, d
+
+
+def test_fix1_gap6_el_tope_de_pares_es_un_parametro_y_el_aviso_lo_cita(tmp_path):
+    root = _clon_de_plantilla(tmp_path, 20, 60)
+    d = ch.duplicados(_cod(root), 8, 10, max_occ=0, max_pares=100)
+    assert d["pares_tope"] is True and d["pares"] <= 100 and d["parcial"] is True
+    r = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10, max_pares=100)
+    assert r["parcial"] is True and any("100 pares" in a for a in r["avisos"]), r["avisos"]
+
+
+@pytest.mark.skipif(GIT is None, reason="sin git")
+def test_fix1_gap7_git_blame_respeta_el_plazo_y_lo_declara(tmp_path, monkeypatch):
+    root = tmp_path / "todos"
+    (root / "src").mkdir(parents=True)
+    for i in range(12):
+        (root / "src" / f"t{i:02d}.py").write_text(f"x = {i}\n# TODO: pendiente {i}\n", encoding="utf-8")
+    env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@x", "GIT_COMMITTER_NAME": "t",
+           "GIT_COMMITTER_EMAIL": "t@x"}
+    subprocess.run([GIT, "-C", str(root), "init", "-q"], check=True, env=env)
+    subprocess.run([GIT, "-C", str(root), "add", "-A"], check=True, env=env)
+    subprocess.run([GIT, "-C", str(root), "commit", "-q", "-m", "base"], check=True, env=env)
+    original, blames = ch.git, []
+
+    def lento(r, *a, **kw):
+        if a and a[0] == "blame":
+            blames.append(a)
+            time.sleep(0.5)
+        return original(r, *a, **kw)
+    monkeypatch.setattr(ch, "git", lento)
+    t0 = time.monotonic()
+    r = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10, max_seconds=3.0)
+    dur = time.monotonic() - t0
+    assert len(blames) < 12, len(blames)
+    assert dur < 5.5, dur   # sin plazo serían 12 × 0,5 s
+    assert r["parcial"] is True and any("antigüedad" in a for a in r["avisos"]), r["avisos"]
+    assert r["marcadores"]["total"] == 12 and r["marcadores"]["edad_parcial"] > 0
+
+
+def test_fix1_gap12_la_cli_permite_quitar_o_cambiar_el_tope_por_ventana(tmp_path):
+    root = _clon_de_plantilla(tmp_path, 60, 40)
+    rc, out, _ = run(str(root), "--json")
+    assert rc == 0 and json.loads(out)["duplicados"]["recortadas"] > 0
+    rc, out, _ = run(str(root), "--json", "--max-occ", "0")
+    r = json.loads(out)
+    assert rc == 0 and r["duplicados"]["recortadas"] == 0 and r["duplicados"]["pct"] > 0, r["duplicados"]
+    rc, out, _ = run(str(root), "--json", "--max-occ", "7")
+    r = json.loads(out)
+    assert any("más de 7 veces" in a for a in r["avisos"]), r["avisos"]      # gap 18: el aviso cita el tope REAL
+
+
+@pytest.mark.skipif(GIT is None, reason="sin git")
+def test_fix1_gap13_las_carpetas_ocultas_versionadas_se_cuentan_y_avisan(tmp_path):
+    root = fixture(tmp_path)
+    env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@x",
+           "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@x"}
+    (root / ".oculta" / "src").mkdir(parents=True)
+    (root / ".oculta" / "src" / "z.py").write_text("def z():\n    return 1\n", encoding="utf-8")
+    (root / ".oculta" / "notas.txt").write_text("no es código\n", encoding="utf-8")
+    subprocess.run([GIT, "-C", str(root), "add", "-A"], check=True, env=env)
+    subprocess.run([GIT, "-C", str(root), "commit", "-q", "-m", "oculta"], check=True, env=env)
+    r = analiza(root)
+    assert r["excluidos_versionados"]["por_directorio"].get(".oculta/") == 1, r["excluidos_versionados"]
+    assert any("`.oculta/`" in a for a in r["avisos"]), r["avisos"]
+    assert not any(f["fichero"].startswith(".oculta/") for f in r["tamano"]["top_ficheros"])
+
+
+def test_fix1_gap17_un_fichero_enorme_se_omite_y_lineas_codigo_respeta_el_plazo(tmp_path):
+    root = tmp_path / "enorme"
+    (root / "src").mkdir(parents=True)
+    (root / "src" / "pequeno.py").write_text("x = 1\n", encoding="utf-8")
+    (root / "src" / "enorme.py").write_text("y = 2\n" + "z = 3\n" * 50000, encoding="utf-8")
+    r = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10, max_bytes=10000)
+    assert r["resumen"]["ficheros"] == 1 and r["parcial"] is True
+    assert any("enorme.py" in a and "bytes" in a for a in r["avisos"]), r["avisos"]
+    with pytest.raises(ch.PlazoAgotado):
+        ch.lineas_codigo(["x = 1"] * 10000, "py", plazo=time.monotonic() - 1)
+    r2 = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10, max_seconds=1e-9)
+    assert r2["parcial"] is True
+
+
+def test_fix1_gap18_el_tope_por_ventana_no_pierde_la_duplicacion_entre_ficheros():
+    """Las 50 primeras ocurrencias eran todas del fichero `a` (el mismo bloque repetido): el par a↔b se perdía."""
+    a = [(i, f"L{i % 8}") for i in range(800)]
+    b = [(i, f"L{i % 8}") for i in range(8)]
+    d = ch.duplicados({"a": a, "b": b}, 8, 10, max_occ=50)
+    assert d["bloques"] >= 1 and any(x["b"].startswith("b:") for x in d["top"]), d
+
+
+def test_fix1_gap18_con_el_plazo_vencido_los_duplicados_no_se_dan_como_cero(tmp_path):
+    root = _repo_grande(tmp_path, n=20)
+    r = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10, max_seconds=1e-9)
+    assert r["duplicados"]["pct"] is None and r["resumen"]["duplicado_pct"] is None
+    texto = ch.md(r)
+    assert "n/d" in texto and "None" not in texto

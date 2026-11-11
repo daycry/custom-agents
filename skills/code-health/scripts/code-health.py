@@ -26,7 +26,8 @@ sin analizarlos (`excluidos_versionados` en el JSON; null sin git).
 Uso:
   code-health.py <ruta> [--json] [--min-lines 6] [--langs py,js,ts,…] [--window 8]
                         [--exclude-tests] [--exclude-path PREFIJO ...] [--since 90]
-                        [--baseline informe.json] [--top 10]
+                        [--baseline informe.json] [--top 10] [--max-files N] [--max-seconds S]
+                        [--max-occ N] [--max-pairs N] [--max-bytes N]
 Exit: 0 siempre (informe emitido) · 2 error de uso (ruta inexistente, baseline ilegible).
 
 `--exclude-path` (repetible, aditivo, default sin exclusiones): prefijo relativo a la raíz (p.ej.
@@ -64,6 +65,17 @@ MAX_SEGUNDOS_DEFAULT = 100
 # ficheros iguales agotaban 1 GiB). Por encima del tope solo se emparejan las primeras (orden de ruta):
 # memoria acotada y el informe se declara PARCIAL (el % duplicado es entonces un mínimo).
 MAX_OCURRENCIAS_DEFAULT = 50
+# Tope TOTAL de pares de líneas duplicadas que se retienen (T-07 fix1, gap 6): con el tope por ventana la
+# memoria seguía siendo Σ min(ocurrencias, 50)² pares (60 copias de una plantilla de 500 líneas = 604 K pares,
+# 75 MiB). Cada par es un entero en un `set`; al llegar al tope se deja de emparejar y el informe es PARCIAL.
+MAX_PARES_DEFAULT = 100000
+# Un fichero de código por encima de este tamaño (bundles minificados, volcados, generados) se omite con aviso:
+# leerlo y normalizarlo no se interrumpía (T-07 fix1, gap 17). 0 = sin tope.
+MAX_BYTES_DEFAULT = 2000000
+
+
+class PlazoAgotado(Exception):
+    """El plazo del análisis (`--max-seconds`) se agotó en mitad de una lectura o de una normalización."""
 # Subconjunto de EXCLUDE_DIRS que es código de terceros o salida de build: si git los versiona,
 # el informe lo avisa (sin analizarlos). Fuera quedan .git y las carpetas de editor.
 VENDOR_BUILD_DIRS = {"vendor", "node_modules", "dist", "build", "target", ".next", "coverage",
@@ -294,11 +306,14 @@ def normaliza(line):
     return re.sub(r"\s+", "", line)
 
 
-def lineas_codigo(lines, ext):
-    """[(nº línea 1-based, normalizada)] de las líneas de código no vacías ni comentario."""
+def lineas_codigo(lines, ext, plazo=None):
+    """[(nº línea 1-based, normalizada)] de las líneas de código no vacías ni comentario. Con `plazo`
+    (time.monotonic) se interrumpe con `PlazoAgotado` cada 2.048 líneas: un fichero enorme no retiene el análisis."""
     marker = LANG[ext]["comment"]
     out = []
     for i, raw in enumerate(lines, 1):
+        if plazo is not None and i % 2048 == 0 and time.monotonic() > plazo:
+            raise PlazoAgotado()
         s = sin_comentario(raw, marker).strip()
         if not s or s in "{}()[];" or s.startswith(("/*", "*", "*/")):
             continue
@@ -320,29 +335,55 @@ def _agotado(plazo):
     return plazo is not None and time.monotonic() > plazo
 
 
-def duplicados(cod, window, top, plazo=None, max_occ=MAX_OCURRENCIAS_DEFAULT):
+def _diversas(occ, n):
+    """Hasta `n` ocurrencias eligiendo PRIMERO una por fichero (en orden) y rellenando con las repetidas:
+    las `n` primeras podían ser todas del mismo fichero y se perdía la duplicación entre ficheros (gap 18)."""
+    vistos, elegidas, resto = set(), [], []
+    for o in occ:
+        if o[0] not in vistos:
+            vistos.add(o[0])
+            elegidas.append(o)
+        else:
+            resto.append(o)
+    if len(elegidas) < n:
+        elegidas += resto[:n - len(elegidas)]
+    return elegidas[:n]
+
+
+_DESPLAZA = 1 << 32      # clave de par = ka * _DESPLAZA + kb (un entero por par en vez de una tupla)
+
+
+def duplicados(cod, window, top, plazo=None, max_occ=MAX_OCURRENCIAS_DEFAULT, max_pares=MAX_PARES_DEFAULT):
     """cod: {rel: [(nº, norm)]}. Shingles de `window` líneas → pares entre ficheros distintos.
-    `plazo` (time.monotonic) corta el emparejado y `max_occ` acota las ocurrencias que se emparejan por
-    ventana (0 = sin tope): en ambos casos el resultado lleva `parcial: True` (`recortadas` = ventanas
-    que superaron el tope)."""
+    `plazo` (time.monotonic) corta el emparejado; `max_occ` acota las ocurrencias que se emparejan por
+    ventana (0 = sin tope; se eligen de ficheros distintos primero) y `max_pares` el total de pares
+    retenidos (0 = sin tope). En los tres casos el resultado lleva `parcial: True`. Si el plazo ya había
+    vencido antes de emparejar nada, `pct` es None (sin medir), no un 0 % presentado como mínimo."""
     idx = defaultdict(list)
     parcial = False
+    sin_tiempo = False
     recortadas = 0
+    if _agotado(plazo):
+        parcial = sin_tiempo = True       # plazo ya vencido: nada que medir
     for rel, ls in cod.items():
         if _agotado(plazo):
-            parcial = True
+            parcial = sin_tiempo = True
             break
         for k, h in enumerate(shingles([n for _, n in ls], window)):
             idx[h].append((rel, k))
-    pares = defaultdict(set)          # (relA, relB) → {(kA, kB)}
+    pares = defaultdict(set)          # (relA, relB) → {kA * _DESPLAZA + kB}
+    n_pares = 0
+    pares_tope = False
+    emparejadas = 0
     for n_h, (h, occ) in enumerate(idx.items()):
+        if n_h % 512 == 0 and _agotado(plazo):
+            parcial = sin_tiempo = True
+            break
         if len(occ) < 2:
             continue
-        if n_h % 512 == 0 and _agotado(plazo):
-            parcial = True
-            break
+        emparejadas += 1
         if max_occ and len(occ) > max_occ:
-            occ = occ[:max_occ]
+            occ = _diversas(occ, max_occ)
             recortadas += 1
             parcial = True
         for a in range(len(occ)):
@@ -352,16 +393,28 @@ def duplicados(cod, window, top, plazo=None, max_occ=MAX_OCURRENCIAS_DEFAULT):
                     continue
                 if (rb, kb) < (ra, ka):
                     ra, ka, rb, kb = rb, kb, ra, ka
-                pares[(ra, rb)].add((ka, kb))
+                conj = pares[(ra, rb)]
+                clave = ka * _DESPLAZA + kb
+                if clave in conj:
+                    continue
+                if max_pares and n_pares >= max_pares:
+                    pares_tope = parcial = True
+                    break
+                conj.add(clave)
+                n_pares += 1
+            if pares_tope:
+                break
+        if pares_tope:
+            break
     bloques = []
     cubiertas = defaultdict(set)
     for (ra, rb), ks in pares.items():
         ks = sorted(ks)
         i = 0
         while i < len(ks):
-            ka, kb = ks[i]
+            ka, kb = divmod(ks[i], _DESPLAZA)
             j = i
-            while j + 1 < len(ks) and ks[j + 1] == (ks[j][0] + 1, ks[j][1] + 1):
+            while j + 1 < len(ks) and ks[j + 1] == ks[j] + _DESPLAZA + 1:
                 j += 1
             n = window + (j - i)
             for t in range(n):
@@ -372,9 +425,11 @@ def duplicados(cod, window, top, plazo=None, max_occ=MAX_OCURRENCIAS_DEFAULT):
     total = sum(len(v) for v in cod.values())
     dup = sum(len(v) for v in cubiertas.values())
     bloques.sort(key=lambda x: (-x["lineas"], x["a"], x["b"]))
+    sin_medir = sin_tiempo and emparejadas == 0
     return {"bloques": len(bloques), "lineas_codigo": total, "lineas_duplicadas": dup,
-            "pct": round(100.0 * dup / total, 1) if total else 0.0, "top": bloques[:top], "parcial": parcial,
-            "recortadas": recortadas}
+            "pct": None if sin_medir else (round(100.0 * dup / total, 1) if total else 0.0),
+            "top": bloques[:top], "parcial": parcial, "recortadas": recortadas,
+            "pares": n_pares, "pares_tope": pares_tope, "sin_medir": sin_medir}
 
 
 # ------------------------------------------------------------------ 2. tamaño / complejidad
@@ -455,10 +510,10 @@ def tamano(src, umbral, top):
 
 # ------------------------------------------------------------------ git: hotspots y antigüedad
 
-def git(root, *args):
+def git(root, *args, timeout=GIT_TIMEOUT):
     try:
         r = subprocess.run(["git", "-C", root, *args], capture_output=True, text=True, encoding="utf-8", errors="replace",
-                           timeout=GIT_TIMEOUT, check=False)
+                           timeout=timeout, check=False)
     except (OSError, subprocess.SubprocessError):
         return None
     return r.stdout if r.returncode == 0 else None
@@ -468,23 +523,28 @@ def hay_git(root):
     return git(root, "rev-parse", "--is-inside-work-tree") is not None
 
 
-def excluidos_versionados(root, exclude_paths=()):
+def excluidos_versionados(root, exclude_paths=(), langs=None):
     """Ficheros VERSIONADOS en git (cualquier extensión) bajo un directorio de terceros o de build
     que el análisis excluye por defecto (`VENDOR_BUILD_DIRS`): código incrustado o artefactos
     commiteados que ninguna medida ve. Solo se cuentan, agrupados por el prefijo hasta el primer
     directorio excluido; no se analizan. Las rutas bajo `--exclude-path` no cuentan (exclusión
-    deliberada). None sin git."""
+    deliberada). Las carpetas OCULTAS versionadas (`.claude/`, `.github/`…) también salen del análisis: se
+    cuentan solo los ficheros de código (extensión de `langs`; por defecto, la de cualquier lenguaje soportado).
+    None sin git."""
     out = git(root, "ls-files", "-z")
     if out is None:
         return None
     prefijos = [p.strip().strip("/\\").replace(os.sep, "/") for p in exclude_paths if p.strip()]
     por_dir = defaultdict(int)
+    codigo = set(langs) if langs else set(LANG)
     for rel in out.split("\0"):
         if not rel or (prefijos and _bajo_prefijo(rel, prefijos)):
             continue
         partes = rel.split("/")[:-1]
+        nombre = rel.rsplit("/", 1)[-1]
+        ext = nombre.rsplit(".", 1)[-1].lower() if "." in nombre else ""
         for i, parte in enumerate(partes):
-            if parte in VENDOR_BUILD_DIRS:
+            if parte in VENDOR_BUILD_DIRS or (parte.startswith(".") and ext in codigo):
                 por_dir["/".join(partes[:i + 1]) + "/"] += 1
                 break
     return {"total": sum(por_dir.values()), "por_directorio": dict(sorted(por_dir.items()))}
@@ -522,7 +582,42 @@ def edad_dias(root, rel, linea, hoy):
     return max(0, (hoy - fecha).days)
 
 
-def marcadores(root, src, con_git, top):
+_BLAME_CABECERA = re.compile(r"^([0-9a-f]{40}) \d+ (\d+)(?: \d+)?$")
+
+
+def edades_dias(root, rel, lineas, hoy, plazo=None):
+    """{línea: edad en días} de varias líneas de UN fichero con un solo `git blame` (varios `-L`; antes, un
+    subproceso por línea: 10 = 4,6 s). Con `plazo`, el subproceso no puede pasarse del tiempo que queda."""
+    if not lineas:
+        return {}
+    args = ["blame", "--porcelain"]
+    for n in lineas:
+        args += ["-L", f"{n},{n}"]
+    args += ["--", rel]
+    limite = GIT_TIMEOUT if plazo is None else max(1.0, min(GIT_TIMEOUT, plazo - time.monotonic()))
+    out = git(root, *args, timeout=limite)
+    if not out:
+        return {}
+    sha_de, tiempos, cur = {}, {}, None
+    for ln in out.splitlines():
+        m = _BLAME_CABECERA.match(ln)
+        if m:
+            cur = m.group(1)
+            sha_de[int(m.group(2))] = cur
+        elif cur and ln.startswith("author-time "):
+            try:
+                tiempos[cur] = int(ln.split()[1])
+            except (IndexError, ValueError):
+                pass
+    res = {}
+    for n, sha in sha_de.items():
+        if sha in tiempos:
+            fecha = _dt.datetime.fromtimestamp(tiempos[sha], _dt.timezone.utc).date()
+            res[n] = max(0, (hoy - fecha).days)
+    return res
+
+
+def marcadores(root, src, con_git, top, plazo=None):
     hoy = _dt.date.today()
     items = []
     for rel, lines, _ in src:
@@ -536,11 +631,21 @@ def marcadores(root, src, con_git, top):
             tipo = _tipo_marcador(raw)
             if not tipo:
                 continue
-            item = {"fichero": f"{rel}:{i}", "tipo": tipo,
-                    "texto": raw.strip()[:90], "edad_dias": None}
-            if con_git:
-                item["edad_dias"] = edad_dias(root, rel, i, hoy)
-            items.append(item)
+            items.append({"fichero": f"{rel}:{i}", "tipo": tipo,
+                          "texto": raw.strip()[:90], "edad_dias": None})
+    edad_parcial = 0
+    if con_git:
+        por_fichero = defaultdict(list)
+        for it in items:
+            rel, _, n = it["fichero"].rpartition(":")
+            por_fichero[rel].append((int(n), it))
+        for rel, pares_ in por_fichero.items():
+            if _agotado(plazo):
+                edad_parcial += len(pares_)         # sin tiempo: la edad queda sin calcular, no inventada
+                continue
+            edades = edades_dias(root, rel, [n for n, _ in pares_], hoy, plazo)
+            for n, it in pares_:
+                it["edad_dias"] = edades.get(n)
     items.sort(key=lambda t: (-(t["edad_dias"] if t["edad_dias"] is not None else -1), t["fichero"]))
     por_tipo = defaultdict(int)
     for t in items:
@@ -548,14 +653,17 @@ def marcadores(root, src, con_git, top):
     con_edad = [t["edad_dias"] for t in items if t["edad_dias"] is not None]
     return {"total": len(items), "por_tipo": dict(sorted(por_tipo.items())),
             "edad_max_dias": max(con_edad) if con_edad else None,
-            "antiguedad": "git" if con_git else "no disponible (sin git)", "top": items[:top]}
+            "antiguedad": "git" if con_git else "no disponible (sin git)", "edad_parcial": edad_parcial,
+            "top": items[:top]}
 
 
 # ------------------------------------------------------------------ informe
 
 def analizar(root, langs, window, min_lines, exclude_tests, since, top, exclude_paths=(),
-             max_files=0, max_seconds=0):
-    """`max_files`/`max_seconds` (0 = sin tope) acotan el análisis; al alcanzarlos el informe es parcial."""
+             max_files=0, max_seconds=0, max_occ=MAX_OCURRENCIAS_DEFAULT, max_pares=MAX_PARES_DEFAULT,
+             max_bytes=0):
+    """`max_files`/`max_seconds`/`max_bytes` (0 = sin tope) acotan el análisis; al alcanzarlos el informe es
+    parcial. `max_occ` y `max_pares` acotan el emparejado de duplicados (memoria)."""
     avisos = []
     plazo = time.monotonic() + max_seconds if max_seconds else None
     parcial = False
@@ -567,22 +675,49 @@ def analizar(root, langs, window, min_lines, exclude_tests, since, top, exclude_
         parcial = True
     src = []
     cod = {}
+    grandes = []
+    cortado = False
     for rel, p, ext in lista:
         if _agotado(plazo):
-            avisos.append(f"tope de tiempo ({max_seconds} s): se analizan {len(src)} de {len(lista)} ficheros; "
-                          "el informe es PARCIAL — acota con `--exclude-path`/`--langs` o sube `--max-seconds`")
-            parcial = True
+            cortado = True
             break
+        if max_bytes:
+            try:
+                tam_b = os.path.getsize(p)
+            except OSError:
+                tam_b = 0
+            if tam_b > max_bytes:
+                grandes.append((rel, tam_b))
+                continue
         lines = leer(p)
         if lines is not None:
+            try:
+                cod[rel] = lineas_codigo(lines, ext, plazo)
+            except PlazoAgotado:
+                cortado = True
+                break
             src.append((rel, lines, ext))
-            cod[rel] = lineas_codigo(lines, ext)
-    dup = duplicados(cod, window, top, plazo)
+    if cortado:
+        avisos.append(f"tope de tiempo ({max_seconds} s): se analizan {len(src)} de {len(lista)} ficheros; "
+                      "el informe es PARCIAL — acota con `--exclude-path`/`--langs` o sube `--max-seconds`")
+        parcial = True
+    if grandes:
+        muestra = ", ".join(f"`{r}` ({t} bytes)" for r, t in grandes[:3]) + (", …" if len(grandes) > 3 else "")
+        avisos.append(f"{len(grandes)} ficheros superan {max_bytes} bytes y se omiten ({muestra}): bundles, volcados o "
+                      "código generado; el informe es PARCIAL — exclúyelos con `--exclude-path` o sube `--max-bytes`")
+        parcial = True
+    dup = duplicados(cod, window, top, plazo, max_occ, max_pares)
     if dup.get("recortadas"):
-        avisos.append(f"{dup['recortadas']} ventanas de {window} líneas aparecen más de {MAX_OCURRENCIAS_DEFAULT} "
+        avisos.append(f"{dup['recortadas']} ventanas de {window} líneas aparecen más de {max_occ} "
                       "veces (copias casi idénticas, plantillas o código generado): solo se emparejan las primeras "
-                      "ocurrencias; el % duplicado es un mínimo (informe PARCIAL) — excluye lo generado con `--exclude-path`")
-    elif dup.get("parcial") and not any("tope de tiempo" in a for a in avisos):
+                      "ocurrencias (de ficheros distintos primero); el % duplicado es un mínimo (informe PARCIAL) — "
+                      "excluye lo generado con `--exclude-path` o cambia `--max-occ`")
+    if dup.get("pares_tope"):
+        avisos.append(f"tope de {max_pares} pares de líneas duplicadas (memoria acotada): se deja de emparejar y el "
+                      "% duplicado es un mínimo (informe PARCIAL) — excluye lo generado con `--exclude-path` o sube `--max-pairs`")
+    if dup.get("sin_medir"):
+        avisos.append("el plazo se agotó antes de buscar duplicados: el % duplicado queda SIN MEDIR (n/d), no es 0 %")
+    elif dup.get("parcial") and not dup.get("recortadas") and not dup.get("pares_tope") and not any("tope de tiempo" in a for a in avisos):
         avisos.append(f"tope de tiempo ({max_seconds} s) en la búsqueda de duplicados: el % duplicado es un "
                       "mínimo (informe PARCIAL) — acota con `--exclude-path`/`--langs` o sube `--max-seconds`")
     parcial = parcial or bool(dup.get("parcial"))
@@ -597,13 +732,17 @@ def analizar(root, langs, window, min_lines, exclude_tests, since, top, exclude_
             con_git = False
     if not con_git:
         avisos.append("git no disponible o la ruta no es un repositorio: hotspots omitidos y TODO sin antigüedad")
-    tod = marcadores(root, src, con_git, top)
-    ev = excluidos_versionados(root, exclude_paths) if con_git else None
+    tod = marcadores(root, src, con_git, top, plazo)
+    if tod.get("edad_parcial"):
+        avisos.append(f"tope de tiempo ({max_seconds} s) en la antigüedad de los TODO: {tod['edad_parcial']} de "
+                      f"{tod['total']} sin calcular (`git blame`); el informe es PARCIAL — sube `--max-seconds`")
+        parcial = True
+    ev = excluidos_versionados(root, exclude_paths, langs) if con_git else None
     if ev and ev["total"]:
         dirs = sorted(ev["por_directorio"].items(), key=lambda kv: (-kv[1], kv[0]))
         lista_dirs = ", ".join(f"`{d}` ({n})" for d, n in dirs[:5]) + (", …" if len(dirs) > 5 else "")
-        avisos.append(f"{ev['total']} ficheros versionados en git bajo directorios de terceros o de build "
-                      f"que el análisis excluye: {lista_dirs}. Código incrustado o artefactos commiteados "
+        avisos.append(f"{ev['total']} ficheros versionados en git bajo directorios de terceros, de build u "
+                      f"ocultos que el análisis excluye: {lista_dirs}. Código incrustado o artefactos commiteados "
                       "que ninguna medida ve; no se analizan")
     prefijos_norm = sorted({p.strip().strip("/\\").replace(os.sep, "/")
                             for p in exclude_paths if p.strip()})
@@ -628,10 +767,19 @@ METRICAS = [("duplicado_pct", "% duplicado"), ("bloques_duplicados", "bloques du
             ("lineas", "líneas de código")]
 
 
+NO_COMPARABLE = "no comparable (uno de los dos informes es parcial)"
+
+
 def comparar(actual, base):
+    """Tendencia por métrica. Un informe PARCIAL (tope de ficheros, de tiempo, de pares…) cubre otro
+    conjunto que uno completo: compararlos daría «↓ mejora»/«↑ empeora» falsos, en los dos sentidos."""
     out = []
+    incomparable = bool(actual.get("parcial")) != bool(base.get("parcial"))
     for k, label in METRICAS:
         a, b = actual["resumen"].get(k), (base.get("resumen") or {}).get(k)
+        if incomparable:
+            out.append({"metrica": label, "antes": b, "ahora": a, "tendencia": NO_COMPARABLE})
+            continue
         if a is None or b is None:
             out.append({"metrica": label, "antes": b, "ahora": a, "tendencia": "n/d"})
             continue
@@ -643,10 +791,14 @@ def comparar(actual, base):
     return out
 
 
+def _pct(v):
+    return "n/d" if v is None else f"{v} %"
+
+
 def md(r):
     s, top = r["resumen"], []
     L = [f"# Salud del código — `{r['ruta']}` ({r['fecha']})", "",
-         f"**{s['ficheros']} ficheros · {s['lineas']} líneas de código** · duplicado **{s['duplicado_pct']} %** "
+         f"**{s['ficheros']} ficheros · {s['lineas']} líneas de código** · duplicado **{_pct(s['duplicado_pct'])}** "
          f"({s['bloques_duplicados']} bloques) · funciones largas **{s['funciones_largas']}** "
          f"(> {r['tamano']['umbral_funcion']} líneas) · anidamiento máx. **{s['anidamiento_max']}** · "
          f"TODO/FIXME/HACK **{s['todos']}**"
@@ -664,7 +816,7 @@ def md(r):
         L += ["", "## Comparación con baseline", "", "| Métrica | Antes | Ahora | Tendencia |", "|---|---|---|---|"]
         L += [f"| {c['metrica']} | {c['antes']} | {c['ahora']} | {c['tendencia']} |" for c in r["baseline"]]
     d = r["duplicados"]
-    L += ["", f"## 1. Duplicados — {d['pct']} % de {d['lineas_codigo']} líneas ({d['bloques']} bloques entre ficheros distintos)", ""]
+    L += ["", f"## 1. Duplicados — {_pct(d['pct'])} de {d['lineas_codigo']} líneas ({d['bloques']} bloques entre ficheros distintos)", ""]
     if d["top"]:
         L += ["| Líneas | Fichero A | Fichero B |", "|---|---|---|"]
         L += [f"| {b['lineas']} | `{b['a']}` | `{b['b']}` |" for b in d["top"]]
@@ -717,6 +869,13 @@ def main(argv=None):
     p.add_argument("--max-files", type=int, default=MAX_FICHEROS_DEFAULT,
                    help=f"tope de ficheros a analizar (default {MAX_FICHEROS_DEFAULT}; 0 = sin tope); al alcanzarlo "
                         "el informe es parcial y lo avisa")
+    p.add_argument("--max-occ", type=int, default=MAX_OCURRENCIAS_DEFAULT,
+                   help=f"ocurrencias que se emparejan por ventana de líneas (default {MAX_OCURRENCIAS_DEFAULT}; 0 = sin "
+                        "tope: más memoria y tiempo con plantillas o código generado)")
+    p.add_argument("--max-pairs", type=int, default=MAX_PARES_DEFAULT,
+                   help=f"tope TOTAL de pares duplicados retenidos (default {MAX_PARES_DEFAULT}; 0 = sin tope); informe parcial al alcanzarlo")
+    p.add_argument("--max-bytes", type=int, default=MAX_BYTES_DEFAULT,
+                   help=f"se omite (con aviso) todo fichero de código mayor que esto (default {MAX_BYTES_DEFAULT}; 0 = sin tope)")
     p.add_argument("--max-seconds", type=float, default=MAX_SEGUNDOS_DEFAULT,
                    help=f"tope de segundos del análisis (default {MAX_SEGUNDOS_DEFAULT}; 0 = sin tope); informe parcial si se agota")
     a = p.parse_args(argv)
@@ -734,10 +893,14 @@ def main(argv=None):
             return 2
     langs = {x.strip().lower().lstrip(".") for x in a.langs.split(",") if x.strip()} & set(LANG)
     r = analizar(a.ruta, langs, max(2, a.window), max(1, a.min_lines), a.exclude_tests, a.since, a.top,
-                 exclude_paths=a.exclude_path, max_files=a.max_files, max_seconds=a.max_seconds)
+                 exclude_paths=a.exclude_path, max_files=a.max_files, max_seconds=a.max_seconds, max_occ=max(0, a.max_occ),
+                 max_pares=max(0, a.max_pairs), max_bytes=max(0, a.max_bytes))
     if base is not None:
         r["baseline"] = comparar(r, base)
         r["baseline_fecha"] = base.get("fecha")
+        if any(c["tendencia"] == NO_COMPARABLE for c in r["baseline"]):
+            r["avisos"].append("baseline: " + ("este informe" if r["parcial"] else "el baseline") + " es PARCIAL y el otro "
+                               "completo (informe parcial = otro conjunto de ficheros): las tendencias salen «no comparable»; repite los dos con los mismos topes")
     print(json.dumps(r, ensure_ascii=False, indent=2) if a.json else md(r), end="" if not a.json else "\n")
     return 0
 
