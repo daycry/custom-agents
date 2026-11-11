@@ -508,3 +508,52 @@ def test_h37_sin_comentario_igual_que_antes_en_el_codigo_del_repo():
                 assert ch.sin_comentario(line, marker) == referencia(line, marker), (rel, line[:80])
                 vistas += 1
     assert vistas > 1000
+
+
+# ------------------------- rendimiento (T-07, plugin-audit-2) -------------------------
+def _repo_grande(tmp_path, n=120):
+    root = tmp_path / "grande"
+    (root / "src").mkdir(parents=True)
+    for i in range(n):
+        (root / "src" / f"m{i:03d}.py").write_text(
+            "\n".join(f"def f{i}_{k}(x):\n    return x + {k}  # {i}" for k in range(40)) + "\n", encoding="utf-8")
+    return root
+
+
+def test_rendimiento_las_carpetas_ocultas_no_se_analizan(tmp_path):
+    """`.pytest_cache`, `.mypy_cache`, `.tox`… son salida de herramientas: en este repo eran 7.204 de
+    7.644 ficheros (3,4 M de líneas) y el informe no terminaba. Fuera por defecto."""
+    root = _repo_grande(tmp_path, n=3)
+    for oculta in (".pytest_cache", ".mypy_cache", "worktrees"):
+        (root / oculta / "x").mkdir(parents=True)
+        (root / oculta / "x" / "z.py").write_text("def z():\n    return 1\n", encoding="utf-8")
+    rels = [rel for rel, _p, _e in ch.ficheros(str(root), {"py"}, False)]
+    assert rels == ["src/m000.py", "src/m001.py", "src/m002.py"], rels
+
+
+def test_rendimiento_el_tope_de_ficheros_avisa_y_no_inventa(tmp_path):
+    root = _repo_grande(tmp_path, n=120)
+    r = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10, max_files=50)
+    assert r["resumen"]["ficheros"] == 50
+    assert r["parcial"] is True
+    assert any("50 de 120" in a for a in r["avisos"]), r["avisos"]
+    # sin tope, el mismo repo se analiza entero y no es parcial
+    entero = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10)
+    assert entero["resumen"]["ficheros"] == 120 and entero["parcial"] is False
+
+
+def test_rendimiento_el_tope_de_tiempo_corta_y_lo_dice(tmp_path):
+    root = _repo_grande(tmp_path, n=120)
+    r = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10, max_seconds=1e-9)
+    assert r["parcial"] is True
+    assert any("tiempo" in a for a in r["avisos"]), r["avisos"]
+    assert r["resumen"]["ficheros"] < 120
+
+
+def test_rendimiento_la_cli_acepta_los_topes(tmp_path):
+    root = _repo_grande(tmp_path, n=30)
+    p = subprocess.run([sys.executable, SCRIPT, str(root), "--json", "--max-files", "10", "--max-seconds", "60"],
+                       capture_output=True, text=True, encoding="utf-8")
+    assert p.returncode == 0, p.stderr
+    r = json.loads(p.stdout)
+    assert r["resumen"]["ficheros"] == 10 and r["parcial"] is True

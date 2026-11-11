@@ -38,13 +38,13 @@ changelog: Changed
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Defectos | 5 | 7 | 71.4% | 0 / 15h | 0 / 4.0h | 0 / 1.00h | 0 / 1090k |
+| Fase 1 — Defectos | 6 | 7 | 85.7% | 0 / 15h | 0 / 4.0h | 0 / 1.00h | 0 / 1090k |
 | Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev) | 0 | 4 | 0% | 0 / 32h | 0 / 7.9h | 0 / 1.98h | 0 / 2100k |
 | Fase 3 — Tokens | 0 | 11 | 0% | 0 / 30h | 0 / 8.2h | 0 / 2.05h | 0 / 2260k |
 | Fase 4 — Simplificación del código | 0 | 8 | 0% | 0 / 34.5h | 0 / 8.5h | 0 / 2.12h | 0 / 2470k |
 | Fase 5 — Alcance y entrenamiento | 0 | 5 | 0% | 0 / 26h | 0 / 6.5h | 0 / 1.62h | 0 / 1800k |
 | Fase 6 — Higiene del roadmap | 0 | 2 | 0% | 0 / 7h | 0 / 1.7h | 0 / 0.42h | 0 / 500k |
-| **TOTAL** | **5** | **37** | **13.5%** | **0 / 144.5h** | **0 / 36.8h** | **0 / 9.20h** | **0 / 10220k** |
+| **TOTAL** | **6** | **37** | **16.2%** | **0 / 144.5h** | **0 / 36.8h** | **0 / 9.20h** | **0 / 10220k** |
 
 Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +20 % está en el plan); tokens al precio de `.claude/rates.json`.
 
@@ -194,10 +194,12 @@ RED: `agent-kits/shared/test_guardrail_check.py -k restauracion` falló con 15 f
 
 - **Descripción**: El auditor reporta timeout de 300 s con `code-health.py` sobre este repo. No lo reprodujo el orquestador: se mide primero qué lo hace lento (sin exclusiones de `worktrees`, `node_modules`, `interop`, `*.sqlite`, o comparación de shingles cuadrática) y se arregla la causa, con un tope de tiempo declarado.
 - **Changelog**: code-health termina en un tiempo acotado sobre repos grandes y excluye directorios generados.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-11-11
 - **Tiempo humano**: est. 3h · real —
-- **Tiempo IA (ejec.)**: est. 1h · real —
+- **Tiempo IA (ejec.)**: est. 1h · real 0.8h (estimado)
 - **Archivos**: `skills/code-health/scripts/code-health.py`, `skills/code-health/scripts/test_code_health.py`, `skills/code-health/SKILL.md`
+- **Evidencia**: MEDIDA ANTES (perfil por fase sobre este repo, Windows/OneDrive; `testing/` es de qa y el guardarraíl lo veta, por eso consta aquí): `ficheros()` 3,5 s → **7.644 ficheros, 7.204 de ellos bajo `.pytest_cache`** (carpeta oculta con salida de herramientas, 3,46 M de líneas); `leer()` **446,6 s**; `lineas_codigo()` 64,3 s; `duplicados()` > 89 s y sin terminar (el perfil se cortó a los 600 s). La causa es la entrada, no un algoritmo cuadrático: `ficheros()` solo excluía `.git*` y un conjunto fijo, así que cualquier carpeta oculta de herramientas (o `worktrees/`) entraba. DESPUÉS: carpetas ocultas (`.*`), `worktrees/` y `site-packages/` fuera por defecto; topes `--max-files` (3000) y `--max-seconds` (100) con informe PARCIAL declarado (`parcial: true` + aviso con lo analizado, nunca datos inventados; `0` = sin tope). `python skills/code-health/scripts/code-health.py . --json` → exit 0 en **37 s**, 439 ficheros, 149.509 líneas, `parcial: false`. GREEN: `pytest -q skills/code-health/scripts/test_code_health.py` → `37 passed` (los 33 anteriores intactos + 4 de `-k rendimiento`; mismos resultados sobre el corpus existente). Puertas: `lint_plugin.py` 0 errores, `evals/check.py` 0 errores, `export-interop.py --check` → `88 ficheros al día`, `test_copias_declaradas` + `test_skill_size` → `68 passed`. La causa no se reprodujo como timeout de 300 s porque aquí el perfil se cortó antes; la medida demuestra que sin la exclusión el informe no cabe en el tope.
 - **Runtimes**: Sin diferencia: script Python de skill.
 - **Verificación**:
   - `pytest -q skills/code-health/scripts/test_code_health.py -k rendimiento` → `passed` (rojo antes: un fixture con muchos ficheros supera el tope)
@@ -205,9 +207,9 @@ RED: `agent-kits/shared/test_guardrail_check.py -k restauracion` falló con 15 f
   - puertas de runtimes (cabecera) → verde
 
 **Criterios de aceptación**
-- [ ] La causa queda medida (perfil de tiempo por fase) antes de cambiar nada.
-- [ ] Hay exclusiones por defecto de directorios generados y un tope por tiempo/ficheros con aviso, nunca un resultado inventado.
-- [ ] Mismos resultados sobre el corpus de pruebas existente.
+- [x] La causa queda medida (perfil de tiempo por fase) antes de cambiar nada.
+- [x] Hay exclusiones por defecto de directorios generados y un tope por tiempo/ficheros con aviso, nunca un resultado inventado.
+- [x] Mismos resultados sobre el corpus de pruebas existente.
 
 
 RED: `skills/code-health/scripts/test_code_health.py -k rendimiento` falló con 4 failed: ficheros() incluye .mypy_cache/.pytest_cache/worktrees; analizar() sin max_files/max_seconds (TypeError); CLI sin --max-files · 2026-11-11.

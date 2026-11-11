@@ -27,10 +27,12 @@ Resolución de rutas (regla 5 de CONVENTIONS — nunca rutas fijas):
 
 ```bash
 R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$PWD/$M" ] && R="$PWD"; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; CHSKILL="${R:+$R/skills/code-health}"
-python3 "$CHSKILL/scripts/code-health.py" <ruta> [--json] [--exclude-tests] [--exclude-path PREFIJO ...] [--baseline informe.json]
+python3 "$CHSKILL/scripts/code-health.py" <ruta> [--json] [--exclude-tests] [--exclude-path PREFIJO ...] [--baseline informe.json] [--max-files N] [--max-seconds S]
 ```
 
 `--exclude-path` (repetible, aditivo, default sin exclusiones) saca del informe un prefijo relativo a la raíz — usarlo para carpetas GENERADAS como `interop/` (`export-interop.py`), que duplican por construcción el fichero del que se generaron.
+
+**Topes** (`--max-files`, default 3000; `--max-seconds`, default 100; `0` = sin tope): si se alcanzan, el informe sale **parcial** (`parcial: true` en el JSON + aviso de cabecera con lo que se analizó) — nunca se rellena con datos inventados; acota con `--exclude-path`/`--langs`. Las carpetas ocultas (`.pytest_cache`, `.mypy_cache`, `.tox`…) y `worktrees/`, `site-packages/` no se analizan.
 
 ## Cuándo NO usarla
 
@@ -52,7 +54,7 @@ python3 "$CHSKILL/scripts/code-health.py" <ruta> [--json] [--exclude-tests] [--e
 | 4 | **TODO/FIXME/HACK/XXX** | Regex por línea (la palabra seguida de `:`/`-` o abriendo el comentario — `(` NO es separador, así «TODO (ADRs, …» en prosa castellana no cuenta; tampoco cuentan las líneas que enumeran varios marcadores entre backticks, ni las que encadenan 2+ marcadores distintos separados solo por `/`, `,`, `\|` o espacios («TODO/FIXME/HACK en el código»), ni el propio fichero del detector — por ruta en ejecución o por firma de contenido si es otra copia del mismo script) + `git blame -L` para la antigüedad en días | Un TODO de 400 días es deuda olvidada o decisión no tomada: pregúntalo, no lo ignores. Sin git: solo recuento. **Escribe `TODO:` con dos puntos** (o `TODO(autor):`) si quieres que un marcador en castellano cuente: sin `:`/`-`/`(` justo tras la palabra («TODO en producción esto falla») se trata como prosa y NO se cuenta — límite conocido, no un bug |
 
 Extensiones por defecto: `py js ts tsx jsx php go java rb cs kt rs` (`--langs`). Siempre fuera:
-`vendor/ node_modules/ dist/ build/ .git/ __pycache__/ target/`; con `--exclude-tests` también
+`vendor/ node_modules/ dist/ build/ .git/ __pycache__/ target/` y toda carpeta oculta (`.*`); con `--exclude-tests` también
 `tests/`, `test_*.py`, `*.spec.*`/`*.test.*`. Con git, los ficheros **versionados** bajo esos
 directorios de terceros o de build (código incrustado, artefactos commiteados) se **cuentan** por
 directorio en un aviso de cabecera y en `excluidos_versionados` del JSON, sin analizarlos: decide si
@@ -111,5 +113,5 @@ cobertura de tests (`qa`), no detecta vulnerabilidades ni dependencias inseguras
 
 | Fichero | Qué es |
 |---|---|
-| `scripts/code-health.py` | El informe (MD/JSON, `--baseline`, `--exclude-tests`, `--exclude-path`, `--langs`, `--window`, `--min-lines`, `--since`, `--top`); exit 0 · 2 uso |
+| `scripts/code-health.py` | El informe (MD/JSON, `--baseline`, `--exclude-tests`, `--exclude-path`, `--langs`, `--window`, `--min-lines`, `--since`, `--top`, `--max-files`, `--max-seconds`); exit 0 · 2 uso |
 | Tests (junto al script; no viajan en el paquete portable) | 31 casos con fixture multi-lenguaje (py/js/php) generada en tmp y git real si está: `python3 -m pytest -q skills/code-health/scripts` |

@@ -34,6 +34,7 @@ Exit: 0 siempre (informe emitido) · 2 error de uso (ruta inexistente, baseline 
 `export-interop.py`) que duplican por construcción el fichero del que se generaron.
 """
 import argparse
+import time
 import datetime as _dt
 import json
 import math
@@ -50,7 +51,14 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 
 LANGS_DEFAULT = "py,js,ts,tsx,jsx,php,go,java,rb,cs,kt,rs"
 EXCLUDE_DIRS = {"vendor", "node_modules", "dist", "build", ".git", "__pycache__", ".venv", "venv",
-                "target", ".next", "coverage", ".idea", ".vscode"}
+                "target", ".next", "coverage", ".idea", ".vscode", "worktrees", "site-packages"}
+# Toda carpeta oculta (`.pytest_cache`, `.mypy_cache`, `.tox`, `.ruff_cache`…) es salida de herramientas o
+# de editor, no código del proyecto: se salta SIEMPRE (T-07, plugin-audit-2; en este repo `.pytest_cache`
+# eran 7.204 de 7.644 ficheros y el informe no terminaba).
+# Topes por defecto de la CLI (0 = sin tope): ficheros y segundos de la parte de análisis. Si se
+# alcanzan, el informe es PARCIAL y lo dice (`parcial: true` + aviso); nunca se completa con datos inventados.
+MAX_FICHEROS_DEFAULT = 3000
+MAX_SEGUNDOS_DEFAULT = 100
 # Subconjunto de EXCLUDE_DIRS que es código de terceros o salida de build: si git los versiona,
 # el informe lo avisa (sin analizarlos). Fuera quedan .git y las carpetas de editor.
 VENDOR_BUILD_DIRS = {"vendor", "node_modules", "dist", "build", "target", ".next", "coverage",
@@ -220,7 +228,7 @@ def ficheros(root, langs, exclude_tests, exclude_paths=()):
     prefijos = [p.strip().strip("/\\").replace(os.sep, "/") for p in exclude_paths if p.strip()]
     out = []
     for dp, dns, fns in os.walk(root):
-        dns[:] = sorted(d for d in dns if d not in EXCLUDE_DIRS and not d.startswith(".git"))
+        dns[:] = sorted(d for d in dns if d not in EXCLUDE_DIRS and not d.startswith("."))
         for fn in sorted(fns):
             ext = fn.rsplit(".", 1)[-1].lower() if "." in fn else ""
             if ext not in langs:
@@ -303,16 +311,28 @@ def shingles(unidades, window):
 # --8<-- fin shingles (ventana deslizante) COMPARTIDOS
 
 
-def duplicados(cod, window, top):
-    """cod: {rel: [(nº, norm)]}. Shingles de `window` líneas → pares entre ficheros distintos."""
+def _agotado(plazo):
+    return plazo is not None and time.monotonic() > plazo
+
+
+def duplicados(cod, window, top, plazo=None):
+    """cod: {rel: [(nº, norm)]}. Shingles de `window` líneas → pares entre ficheros distintos.
+    `plazo` (time.monotonic) corta el emparejado: el resultado lleva `parcial: True`."""
     idx = defaultdict(list)
+    parcial = False
     for rel, ls in cod.items():
+        if _agotado(plazo):
+            parcial = True
+            break
         for k, h in enumerate(shingles([n for _, n in ls], window)):
             idx[h].append((rel, k))
     pares = defaultdict(set)          # (relA, relB) → {(kA, kB)}
-    for h, occ in idx.items():
+    for n_h, (h, occ) in enumerate(idx.items()):
         if len(occ) < 2:
             continue
+        if n_h % 512 == 0 and _agotado(plazo):
+            parcial = True
+            break
         for a in range(len(occ)):
             for b in range(a + 1, len(occ)):
                 (ra, ka), (rb, kb) = occ[a], occ[b]
@@ -341,7 +361,7 @@ def duplicados(cod, window, top):
     dup = sum(len(v) for v in cubiertas.values())
     bloques.sort(key=lambda x: (-x["lineas"], x["a"], x["b"]))
     return {"bloques": len(bloques), "lineas_codigo": total, "lineas_duplicadas": dup,
-            "pct": round(100.0 * dup / total, 1) if total else 0.0, "top": bloques[:top]}
+            "pct": round(100.0 * dup / total, 1) if total else 0.0, "top": bloques[:top], "parcial": parcial}
 
 
 # ------------------------------------------------------------------ 2. tamaño / complejidad
@@ -520,16 +540,35 @@ def marcadores(root, src, con_git, top):
 
 # ------------------------------------------------------------------ informe
 
-def analizar(root, langs, window, min_lines, exclude_tests, since, top, exclude_paths=()):
+def analizar(root, langs, window, min_lines, exclude_tests, since, top, exclude_paths=(),
+             max_files=0, max_seconds=0):
+    """`max_files`/`max_seconds` (0 = sin tope) acotan el análisis; al alcanzarlos el informe es parcial."""
     avisos = []
+    plazo = time.monotonic() + max_seconds if max_seconds else None
+    parcial = False
     lista = ficheros(root, langs, exclude_tests, exclude_paths)
+    if max_files and len(lista) > max_files:
+        avisos.append(f"tope de ficheros: se analizan {max_files} de {len(lista)} (orden alfabético de ruta); "
+                      "el informe es PARCIAL — acota con `--exclude-path`/`--langs` o sube `--max-files`")
+        lista = lista[:max_files]
+        parcial = True
     src = []
+    cod = {}
     for rel, p, ext in lista:
+        if _agotado(plazo):
+            avisos.append(f"tope de tiempo ({max_seconds} s): se analizan {len(src)} de {len(lista)} ficheros; "
+                          "el informe es PARCIAL — acota con `--exclude-path`/`--langs` o sube `--max-seconds`")
+            parcial = True
+            break
         lines = leer(p)
         if lines is not None:
             src.append((rel, lines, ext))
-    cod = {rel: lineas_codigo(lines, ext) for rel, lines, ext in src}
-    dup = duplicados(cod, window, top)
+            cod[rel] = lineas_codigo(lines, ext)
+    dup = duplicados(cod, window, top, plazo)
+    if dup.get("parcial") and not any("tope de tiempo" in a for a in avisos):
+        avisos.append(f"tope de tiempo ({max_seconds} s) en la búsqueda de duplicados: el % duplicado es un "
+                      "mínimo (informe PARCIAL) — acota con `--exclude-path`/`--langs` o sube `--max-seconds`")
+    parcial = parcial or bool(dup.get("parcial"))
     tam = tamano(src, min_lines * 5, top)
     con_git = hay_git(root)
     hs = None
@@ -562,7 +601,7 @@ def analizar(root, langs, window, min_lines, exclude_tests, since, top, exclude_
                         "hotspots": hs["ficheros_cambiados"] if hs else None,
                         "todos": tod["total"], "todo_edad_max_dias": tod["edad_max_dias"]},
             "duplicados": dup, "tamano": tam, "hotspots": hs, "marcadores": tod,
-            "excluidos_versionados": ev, "avisos": avisos}
+            "excluidos_versionados": ev, "avisos": avisos, "parcial": parcial}
 
 
 # Métricas comparables con --baseline: (clave del resumen, «menos es mejor»)
@@ -658,6 +697,11 @@ def main(argv=None):
     p.add_argument("--since", type=int, default=90, help="días de git log para hotspots")
     p.add_argument("--baseline", help="informe --json anterior con el que comparar")
     p.add_argument("--top", type=int, default=10)
+    p.add_argument("--max-files", type=int, default=MAX_FICHEROS_DEFAULT,
+                   help=f"tope de ficheros a analizar (default {MAX_FICHEROS_DEFAULT}; 0 = sin tope); al alcanzarlo "
+                        "el informe es parcial y lo avisa")
+    p.add_argument("--max-seconds", type=float, default=MAX_SEGUNDOS_DEFAULT,
+                   help=f"tope de segundos del análisis (default {MAX_SEGUNDOS_DEFAULT}; 0 = sin tope); informe parcial si se agota")
     a = p.parse_args(argv)
     if not os.path.isdir(a.ruta):
         print(f"code-health: la ruta no existe o no es un directorio: {a.ruta}", file=sys.stderr)
@@ -673,7 +717,7 @@ def main(argv=None):
             return 2
     langs = {x.strip().lower().lstrip(".") for x in a.langs.split(",") if x.strip()} & set(LANG)
     r = analizar(a.ruta, langs, max(2, a.window), max(1, a.min_lines), a.exclude_tests, a.since, a.top,
-                 exclude_paths=a.exclude_path)
+                 exclude_paths=a.exclude_path, max_files=a.max_files, max_seconds=a.max_seconds)
     if base is not None:
         r["baseline"] = comparar(r, base)
         r["baseline_fecha"] = base.get("fecha")
