@@ -665,14 +665,21 @@ def _lint_colision_comando_skill(commands_dir, skills_dir):
     if not (os.path.isdir(commands_dir) and os.path.isdir(skills_dir)):
         return errors
     comandos = {f[:-3] for f in os.listdir(commands_dir) if f.endswith(".md")}
-    for nombre in sorted(comandos):
-        ruta = os.path.join(skills_dir, nombre, "SKILL.md")
+    # Lo que se invoca es el `name:` del frontmatter (carpeta si falta), no el nombre de la carpeta; y un
+    # BOM no puede esconder el frontmatter (T-03 fix1, gap 15).
+    for carpeta in sorted(os.listdir(skills_dir)):
+        ruta = os.path.join(skills_dir, carpeta, "SKILL.md")
         if not os.path.isfile(ruta):
             continue
-        with open(ruta, encoding="utf-8") as fh:
+        with open(ruta, encoding="utf-8-sig") as fh:
             texto = fh.read().replace(chr(13) + chr(10), chr(10))
         fin = texto.find(chr(10) + "---", 3) if texto.startswith("---") else -1
-        marca = re.search(r"^user-invocable:\s*(\S+)", texto[:fin] if fin > 0 else "", re.M)
+        cabecera = texto[:fin] if fin > 0 else ""
+        m_nombre = re.search(r"^name:\s*(\S+)", cabecera, re.M)
+        nombre = m_nombre.group(1).strip("'\"") if m_nombre else carpeta
+        if nombre not in comandos:
+            continue
+        marca = re.search(r"^user-invocable:\s*(\S+)", cabecera, re.M)
         if not (marca and marca.group(1).strip("'\"").lower() == "false"):
             errors.append(
                 f"command `{nombre}`: colisión con la skill invocable `{nombre}` (`/{nombre}` dos veces en "

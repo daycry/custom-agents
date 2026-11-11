@@ -1218,6 +1218,44 @@ def test_colision_comando_skill_no_salta_si_la_skill_no_es_invocable(tmp_path):
     assert 'colisión' not in out, out
 
 
+def _skill(tmp, carpeta, texto, bom=False):
+    os.makedirs(os.path.join(str(tmp), 'skills', carpeta), exist_ok=True)
+    with open(os.path.join(str(tmp), 'skills', carpeta, 'SKILL.md'), 'wb') as fh:
+        fh.write((b'\xef\xbb\xbf' if bom else b'') + texto.encode('utf-8'))
+
+
+def _comando(tmp, nombre):
+    make_plugin(str(tmp), {'alpha': AGENT_OK.format(name='alpha')})
+    os.makedirs(os.path.join(str(tmp), 'commands'), exist_ok=True)
+    open(os.path.join(str(tmp), 'commands', nombre + '.md'), 'w', encoding='utf-8').write(
+        '---\ndescription: Hace algo con el comando. Úsalo cuando el usuario diga "haz duplo".\n---\n# /' + nombre + '\n')
+
+
+def test_colision_comando_skill_se_busca_por_name_y_no_por_carpeta(tmp_path):
+    """T-03 fix1 (gap 15): lo que se invoca es el `name:` de la skill; una carpeta con otro nombre
+    que declara `name: duplo` choca con `/duplo` igual."""
+    _comando(tmp_path, 'duplo')
+    _skill(tmp_path, 'otra-carpeta', '---\nname: duplo\ndescription: Hace algo. Úsala cuando digan "duplo".\n---\n# x\n')
+    code, out = run(str(tmp_path))
+    assert code == 1 and 'colisión' in out and 'duplo' in out, out
+
+
+def test_colision_comando_skill_no_salta_si_name_es_otro_aunque_la_carpeta_coincida(tmp_path):
+    _comando(tmp_path, 'duplo')
+    _skill(tmp_path, 'duplo', '---\nname: distinta\ndescription: Hace algo. Úsala cuando digan "distinta".\n---\n# x\n')
+    code, out = run(str(tmp_path))
+    assert 'colisión' not in out, out
+
+
+def test_colision_comando_skill_con_bom_y_user_invocable_false_no_cuenta_como_invocable(tmp_path):
+    """T-03 fix1 (gap 15): un `SKILL.md` con BOM no tenía frontmatter para el linter y se daba por invocable."""
+    _comando(tmp_path, 'duplo')
+    _skill(tmp_path, 'duplo', '---\nname: duplo\ndescription: Hace algo. Úsala cuando digan "duplo".\n'
+           'user-invocable: false\n---\n# x\n', bom=True)
+    code, out = run(str(tmp_path))
+    assert 'colisión' not in out, out
+
+
 def test_suite_legada_main():
     """T-23 fix1 (gap 1): los casos de `main()` solo colgaban de `__main__`; la CI ya no ejecuta scripts,
     así que pytest los recoge por aquí (`test_ningun_caso_de_la_ci_queda_solo_en_main`)."""
