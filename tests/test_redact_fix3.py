@@ -287,7 +287,7 @@ class SinSuelo(Exception):
 
 
 def _validas(muestras, esperado):
-    return [m for m in muestras if m >= esperado / 2]
+    return [m for m in muestras if m >= esperado / 8]
 
 
 def _medir(funcion, generador, n0=1500, suelo=None):
@@ -325,7 +325,7 @@ def _medir(funcion, generador, n0=1500, suelo=None):
                 return float("inf"), min(tc), t, salida
             rg.append(_cpu(_referencia_lineal, grande, repeticiones)[0])
         # el ruido ajeno solo SUMA tiempo: el mínimo de las muestras es el mejor estimador del coste propio.
-        # Una muestra por debajo de la mitad de lo esperado no es una medida (el reloj de CPU de Windows
+        # Una muestra por debajo de 1/8 de lo esperado no es una medida (el reloj de CPU de Windows
         # se carga por ticks y bajo carga puede devolver 0 para una llamada de 0,1 s): se descarta.
         vtc, vtg = _validas(tc, suelo), _validas(tg, CRECIMIENTO * suelo)
         vrc, vrg = _validas(rc, suelo / 2), _validas(rg, CRECIMIENTO * suelo / 2)
@@ -397,7 +397,7 @@ def test_sin_suelo_alcanzado_no_se_aprueba_por_razon():
 @pytest.mark.serie
 def test_una_muestra_de_cpu_a_cero_no_da_una_razon_disparatada(monkeypatch):
     """El reloj de CPU de Windows carga por ticks y bajo carga puede devolver 0 para una llamada de 0,1 s
-    (visto: razón 5,6e7 en una pasada). Las muestras muy por debajo de lo esperado se descartan: una función
+    (visto: razón 5,6e7 en una pasada). Las muestras por debajo de 1/8 de lo esperado se descartan: una función
     lineal con las muestras pequeñas de la primera ronda a 0 sigue dando una razón ≈ 1."""
     real, llamadas = _cpu, [0]
 
@@ -415,7 +415,7 @@ def test_una_muestra_de_cpu_a_cero_no_da_una_razon_disparatada(monkeypatch):
 
 
 def test_las_muestras_invalidas_se_descartan():
-    assert _validas([0.0, 0.2, 0.04], 0.1) == [0.2]
+    assert _validas([0.0, 0.2, 0.01], 0.1) == [0.2]
     assert _validas([0.0, 0.0], 0.1) == []
 
 
