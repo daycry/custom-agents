@@ -84,5 +84,6 @@ The Spanish delivery PDF combines the explained guide, graphical diagrams,
 examples and technical appendices for department leads. Markdown remains the
 maintainable source. Advanced contracts are linked from each chapter; they are
 optional reading for administrators rather than prerequisites for the everyday
-workflows. External services, accounts, permissions and MCP connections must be
+workflows. Maintainers regenerate the editions with `python scripts/build-handbook.py`,
+which uses the already installed Node, Puppeteer, markdown-it and Mermaid and downloads nothing. External services, accounts, permissions and MCP connections must be
 configured and verified separately. Mentioning one does not install or authorize it.

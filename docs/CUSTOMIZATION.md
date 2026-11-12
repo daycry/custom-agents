@@ -85,3 +85,5 @@ El manual enseña a leer estas diferencias sin tener que interpretar registros t
 El PDF reúne la guía explicada, sus diagramas, los ejemplos y una referencia avanzada.
 Los capítulos Markdown son la fuente que se mantiene. Los administradores pueden
 consultar los [contratos y detalles técnicos](reference/product.md) cuando los necesiten.
+Quien mantiene el repositorio regenera las ediciones con `python scripts/build-handbook.py`,
+que usa Node, Puppeteer, markdown-it y Mermaid ya instalados y no descarga nada.

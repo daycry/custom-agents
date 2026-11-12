@@ -23,6 +23,45 @@ SOURCES=('docs/CUSTOMIZATION.md',)+tuple('docs/guides/'+name+'.md' for name in C
     'docs/examples/memory/categories/meetings.json','docs/examples/memory/categories/faq.json',
     'docs/examples/memory/categories/mixed.json')
 SHA=re.compile('[a-f0-9]{64}')
+GUIDES=(('subscription-efficiency','guia-uso-eficiente-claude-codex','Aprovechar la capacidad de Claude y Codex'),
+        ('quality-playbook','guia-resultados-calidad-custom-agents','Obtener mejores resultados con custom-agents'))
+
+
+def editions():
+    """Single maintained definition for all three builders and integrity gates."""
+    return ({'pdf':PDF,'title':'Manual operativo de custom-agents','sources':SOURCES,'require_workflows':True},)+tuple(
+        {'pdf':'output/pdf/'+pdf+'.pdf','title':title,'sources':('docs/guides/'+source+'.md',),'require_workflows':False}
+        for source,pdf,title in GUIDES)
+
+
+def mermaid_blocks(text):
+    """Closed top-level Mermaid fences; longer literal code fences are respected.
+
+    Handbook graphs must be unindented top-level fences, not Markdown list or
+    blockquote containers. Unsupported graph containers fail before rendering.
+    This bounded authoring subset is shared by the builder and stdlib checker;
+    renderer receipts still independently reject any Markdown-it disagreement.
+    """
+    active=None;content=[];blocks=[]
+    normalized=text.replace('\r\n','\n').replace('\r','\n')
+    for line in re.split(r'(?<=\n)',normalized):
+        if active:
+            marker,length,info=active
+            if re.fullmatch(r' {0,3}'+re.escape(marker)+'{'+str(length)+r',}[ \t]*\n?',line):
+                if info=='mermaid':blocks.append(''.join(content).strip()+'\n')
+                active=None;content=[]
+            elif info=='mermaid':content.append(line)
+            continue
+        match=re.fullmatch(r'( {0,3})(`{3,}|~{3,})([^\n]*)\n?',line)
+        if match:
+            indent,marker,info=match.groups();info=info.strip()
+            if marker[0]=='`' and '`' in info:continue
+            if info=='mermaid' and indent:raise ValueError('unsupported_mermaid_container')
+            active=(marker[0],len(marker),info);content=[]
+        elif re.match(r'^[ \t]*(?:(?:[-*+]|\d+[.)]|>)[ \t]+)?(?:`{3,}|~{3,})mermaid[ \t]*\n?$',line):
+            raise ValueError('unsupported_mermaid_container')
+    if active and active[2]=='mermaid':raise ValueError('unclosed_mermaid_fence')
+    return blocks
 
 def read(root,name,maximum):
     path=root/name
@@ -39,29 +78,34 @@ def unique(items):
         result[key]=value
     return result
 
-def check(root):
+def _check_edition(root,edition):
     root=Path(root).resolve();issues=[]
+    pdf_name=edition['pdf'];names=edition['sources'];manifest_name=pdf_name[:-4]+'.manifest.json'
     try:
-        manifest=json.loads(read(root,MANIFEST,256*1024),object_pairs_hook=unique)
-        if type(manifest) is not dict or manifest.get('schema_version')!=1 or manifest.get('pdf')!=PDF or manifest.get('source_hash_method')!='sha256-utf8-lf':
+        manifest=json.loads(read(root,manifest_name,256*1024),object_pairs_hook=unique)
+        if type(manifest) is not dict or manifest.get('schema_version')!=1 or manifest.get('pdf')!=pdf_name or manifest.get('source_hash_method')!='sha256-utf8-lf':
             return ['invalid_manifest']
         sources=manifest.get('sources')
         if type(sources) is not dict:return ['invalid_manifest']
-        if set(sources)!=set(SOURCES):issues.append('source_set_mismatch')
-        pdf=read(root,PDF,32*1024*1024)
+        if set(sources)!=set(names):issues.append('source_set_mismatch')
+        pdf=read(root,pdf_name,32*1024*1024)
         if not pdf.startswith(b'%PDF-') or hashlib.sha256(pdf).hexdigest()!=manifest.get('pdf_sha256'):issues.append('pdf_changed')
         expected_diagrams={};workflows=[]
         # Never read paths supplied by the manifest. Only the maintained allowlist.
-        for name in SOURCES:
+        for name in names:
             try:
                 data=read(root,name,512*1024).replace(b'\r\n',b'\n')
                 if hashlib.sha256(data).hexdigest()!=sources.get(name):issues.append('source_changed:'+name)
                 text=data.decode('utf-8')
-                for index,match in enumerate(re.finditer(r'^```mermaid\s*\n(.*?)^```',text,re.M|re.S),1):
-                    expected_diagrams[(name,index)]=hashlib.sha256((match[1].strip()+'\n').encode()).hexdigest()
+                for index,code in enumerate(mermaid_blocks(text),1):
+                    expected_diagrams[(name,index)]=hashlib.sha256(code.encode()).hexdigest()
                 if name.startswith('docs/guides/'):
                     workflows.extend(int(n) for n in re.findall(r'^## W-(\d+)[.] ',text,re.M))
-            except (OSError,ValueError):issues.append('source_unavailable:'+name)
+            except ValueError as error:
+                code=str(error)
+                if code not in ('unsupported_mermaid_container','unclosed_mermaid_fence'):code='source_unavailable'
+                issues.append(code+':'+name)
+            except OSError:issues.append('source_unavailable:'+name)
         actual={};rows=manifest.get('diagrams')
         if type(rows) is not list or len(rows)>128:issues.append('diagram_mismatch')
         else:
@@ -73,10 +117,19 @@ def check(root):
                     issues.append('diagram_mismatch');break
                 actual[key]=row.get('sha256')
             if actual!=expected_diagrams:issues.append('diagram_mismatch')
-        if not workflows or sorted(workflows)!=list(range(1,len(workflows)+1)) or type(manifest.get('workflows')) is not int or manifest['workflows']!=len(workflows):
+        if (edition['require_workflows'] and not workflows or sorted(workflows)!=list(range(1,len(workflows)+1)) or
+                type(manifest.get('workflows')) is not int or manifest['workflows']!=len(workflows)):
             issues.append('workflow_mismatch')
     except (OSError,ValueError,TypeError,RecursionError):return ['handbook_unavailable']
     return list(dict.fromkeys(issues))
+
+
+def check(root):
+    issues=[]
+    for edition in editions():
+        prefix='' if edition['pdf']==PDF else Path(edition['pdf']).stem+':'
+        issues.extend(prefix+issue for issue in _check_edition(root,edition))
+    return issues
 
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)

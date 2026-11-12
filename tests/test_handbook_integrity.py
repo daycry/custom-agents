@@ -3,6 +3,7 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import pytest
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -26,11 +27,16 @@ def fixture(tmp_path):
                   'source':'docs/guides/core-workflows.md','index':1,'sha256':hashlib.sha256(b'flowchart TD\n    A[Start] --> B[Done]\n').hexdigest(),
                   'png_sha256':'1'*64}]}
     path=tmp_path/module.MANIFEST;path.write_text(json.dumps(manifest),encoding='utf-8')
+    for source,pdf in [
+        ('docs/guides/subscription-efficiency.md','output/pdf/guia-uso-eficiente-claude-codex.pdf'),
+        ('docs/guides/quality-playbook.md','output/pdf/guia-resultados-calidad-custom-agents.pdf')]:
+        guide_fixture(tmp_path,source,pdf)
     return module,path,manifest
 
 def test_lf_source_hashes_accept_equivalent_windows_worktrees(tmp_path):
     module,_,_=fixture(tmp_path)
     assert module.check(tmp_path)==[]
+
 
 def test_changed_source_or_pdf_cannot_reuse_the_previous_receipt(tmp_path):
     module,_,_=fixture(tmp_path)
@@ -68,3 +74,48 @@ def test_handbook_gate_reports_invalid_receipts_and_missing_sources(tmp_path,cap
     assert module.check(tmp_path)==['handbook_unavailable']
     path.write_text('{}',encoding='utf-8')
     assert module.check(tmp_path)==['invalid_manifest']
+
+
+def guide_fixture(tmp_path,source,pdf):
+    source_path=tmp_path/source;source_path.parent.mkdir(parents=True,exist_ok=True);source_path.write_bytes(b'# Guide\n')
+    path=tmp_path/pdf;path.write_bytes(b'%PDF-1.7\nGuide\n%%EOF\n')
+    path.with_suffix('.manifest.json').write_text(json.dumps({'schema_version':1,'pdf':pdf,
+        'source_hash_method':'sha256-utf8-lf','pdf_sha256':hashlib.sha256(path.read_bytes()).hexdigest(),
+        'sources':{source:hashlib.sha256(source_path.read_bytes()).hexdigest()},'workflows':0,'diagrams':[]}),encoding='utf-8')
+
+
+@pytest.mark.parametrize('source,pdf',[
+    ('docs/guides/subscription-efficiency.md','output/pdf/guia-uso-eficiente-claude-codex.pdf'),
+    ('docs/guides/quality-playbook.md','output/pdf/guia-resultados-calidad-custom-agents.pdf'),
+])
+@pytest.mark.parametrize('mutation',['source','pdf','missing_manifest'])
+def test_CLAUDE_TOOL_2_checker_rejects_drift_in_either_extra_edition(tmp_path,source,pdf,mutation):
+    module,_,_=fixture(tmp_path)
+    for other_source,other_pdf in [
+        ('docs/guides/subscription-efficiency.md','output/pdf/guia-uso-eficiente-claude-codex.pdf'),
+        ('docs/guides/quality-playbook.md','output/pdf/guia-resultados-calidad-custom-agents.pdf')]:
+        guide_fixture(tmp_path,other_source,other_pdf)
+    assert module.check(tmp_path)==[]
+    if mutation=='source':(tmp_path/source).write_text('# Changed',encoding='utf-8')
+    elif mutation=='pdf':(tmp_path/pdf).write_bytes(b'%PDF-changed')
+    else:(tmp_path/pdf).with_suffix('.manifest.json').unlink()
+    issues=module.check(tmp_path)
+    assert issues and any(Path(pdf).stem in issue for issue in issues)
+
+
+@pytest.mark.parametrize('separator',['\x0b','\x0c','\x1c','\x1d','\x1e','\x85','\u2028','\u2029'])
+def test_CLAUDE_FENCE_F1_non_commonmark_separator_cannot_close_outer_literal(separator):
+    text='```text\nfoo'+separator+'```\n```mermaid\ngraph TD\n```\n```'
+    assert api().mermaid_blocks(text)==[]
+
+
+@pytest.mark.parametrize('separator',['\x0b','\x0c','\x1c','\x1d','\x1e','\x85','\u2028','\u2029'])
+def test_CLAUDE_FENCE_F1_non_line_separator_bytes_remain_in_graph_body(separator):
+    code='flowchart LR\n A["foo'+separator+'bar"] --> B\n'
+    assert api().mermaid_blocks('```mermaid\n'+code+'```\n')==[code]
+
+
+@pytest.mark.parametrize('line_end',['\n','\r\n','\r'])
+def test_CLAUDE_FENCE_F1_commonmark_line_endings_normalize_to_lf(line_end):
+    text=line_end.join(['```mermaid','flowchart LR',' A --> B','```',''])
+    assert api().mermaid_blocks(text)==['flowchart LR\n A --> B\n']
