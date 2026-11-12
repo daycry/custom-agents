@@ -262,8 +262,14 @@ def ficheros(root, langs, exclude_tests, exclude_paths=()):
 
 def leer(path):
     try:
-        with open(path, encoding="utf-8", errors="replace") as fh:
-            return fh.read().splitlines()
+        # Numeración como git: solo el LF separa líneas (`str.splitlines` también parte por el salto de página,
+        # los separadores de archivo/grupo, U+2028 y un CR suelto; el `fichero:línea` y el `blame` quedaban
+        # desfasados; T-07 fix4).
+        with open(path, encoding="utf-8", errors="replace", newline="") as fh:
+            lineas = fh.read().split("\n")
+        if lineas and lineas[-1] == "":
+            lineas.pop()
+        return [ln[:-1] if ln.endswith("\r") else ln for ln in lineas]
     except OSError:
         return None
 

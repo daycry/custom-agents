@@ -875,22 +875,57 @@ def test_fix3_gap6_un_informe_completo_declara_motivos_vacios(tmp_path):
 
 
 @pytest.mark.skipif(GIT is None, reason="sin git")
-def test_fix3_gap7_un_blame_con_error_se_reintenta_por_linea_y_lo_que_queda_marca_parcial(tmp_path):
-    """Un `\x0c` parte la línea para Python (`splitlines`) pero no para git: el número de línea de un TODO
-    posterior queda fuera de rango y TODO el trozo de `-L` fallaba. Se reintenta por línea: el TODO válido
-    conserva su edad y el que sigue sin edad marca el informe parcial con aviso."""
+def _repo_con_salto_de_pagina(tmp_path):
     root = tmp_path / "ff"
     (root / "src").mkdir(parents=True)
-    (root / "src" / "a.py").write_text("# TODO: a\nx = 1\x0c\n# TODO: b\n", encoding="utf-8", newline="\n")
+    (root / "src" / "a.py").write_bytes(("# TODO: a\n" + "x = 1\x0c\n# TODO: b\ny = 2\x1c\n# TODO: c\n").encode())
     env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@x", "GIT_COMMITTER_NAME": "t",
            "GIT_COMMITTER_EMAIL": "t@x"}
     subprocess.run([GIT, "-C", str(root), "init", "-q"], check=True, env=env)
     subprocess.run([GIT, "-C", str(root), "add", "-A"], check=True, env=env)
     subprocess.run([GIT, "-C", str(root), "commit", "-q", "-m", "base"], check=True, env=env)
+    return root
+
+
+@pytest.mark.skipif(GIT is None, reason="sin git")
+def test_fix4_gap5_la_numeracion_de_lineas_es_la_de_git_aunque_haya_x0c_o_x1c(tmp_path):
+    """Un salto de pagina o un separador de archivo es salto de linea para `str.splitlines` pero NO para
+    git: los TODO se numeran como git (solo por LF), con `fichero:linea` correcto y su edad real."""
+    root = _repo_con_salto_de_pagina(tmp_path)
     r = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10)
     m = r["marcadores"]
-    assert m["total"] == 2, m
     edades = {t["fichero"]: t["edad_dias"] for t in m["top"]}
-    assert edades["src/a.py:1"] is not None, edades
-    assert m["edad_parcial"] == 1, m
+    assert sorted(edades) == ["src/a.py:1", "src/a.py:3", "src/a.py:5"], edades
+    assert all(e is not None for e in edades.values()) and m["edad_parcial"] == 0, m
+
+
+def test_fix4_gap5_leer_numera_como_git(tmp_path):
+    ff, cr, lf = chr(12), chr(13), chr(10)
+    f = tmp_path / "x.txt"
+    f.write_bytes(("a" + ff + "b" + lf + "c" + cr + lf + "d" + cr + "e" + lf).encode())
+    assert ch.leer(str(f)) == ["a" + ff + "b", "c", "d" + cr + "e"]
+    f.write_bytes(("uno" + lf + "dos").encode())
+    assert ch.leer(str(f)) == ["uno", "dos"]
+
+
+@pytest.mark.skipif(GIT is None, reason="sin git")
+def test_fix3_gap7_un_blame_con_error_se_reintenta_por_linea_y_lo_que_queda_marca_parcial(tmp_path, monkeypatch):
+    """Un trozo de `blame` con error se reintenta línea a línea: la línea que sí se puede medir conserva
+    su edad y la que sigue sin edad marca el informe parcial con aviso."""
+    root = _repo_con_salto_de_pagina(tmp_path)
+    original = ch.git
+
+    def roto(root_, *args, **kw):
+        if args and args[0] == "blame":
+            if args.count("-L") > 1 or "5,5" in args:
+                if "estado" in kw and kw["estado"] is not None:
+                    kw["estado"].append("error")
+                return None
+        return original(root_, *args, **kw)
+    monkeypatch.setattr(ch, "git", roto)
+    r = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10)
+    m = r["marcadores"]
+    edades = {t["fichero"]: t["edad_dias"] for t in m["top"]}
+    assert edades["src/a.py:1"] is not None and edades["src/a.py:3"] is not None, edades
+    assert edades["src/a.py:5"] is None and m["edad_parcial"] == 1, m
     assert r["parcial"] is True and any("antigüedad" in a for a in r["avisos"]), r["avisos"]
