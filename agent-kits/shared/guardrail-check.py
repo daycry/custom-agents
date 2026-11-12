@@ -266,14 +266,20 @@ def _segmentos(command):
     """Literal shell words and command boundaries, retaining quoted punctuation as data.
 
     No expansion, substitution or execution. Newlines outside quotes separate commands;
-    escaped newlines continue the same command. Invalid quoting cannot execute as given.
+    escaped newlines continue the same command. Devuelve `(segmentos, incompleta)`: si la orden no
+    se puede tokenizar entera (escape final o comilla sin cerrar) el último segmento se conserva con
+    lo leído hasta ahí y `incompleta` es True; nada se descarta en silencio (T-06 fix3, gap 1).
+    Los paréntesis sin comillas separan órdenes: `(cd x && git restore f)` y `$(git restore .)`.
     """
     out, cur, word = [], [], []
     quote, started, i = None, False, 0
+    incompleta = False
     while i < len(command):
         char = command[i]
         if char == "\\" and quote is None and i + 1 == len(command):
-            return out  # Keep already complete commands; this final word is incomplete.
+            word.append(char)        # escape final: la orden está incompleta
+            started, incompleta = True, True
+            break
         if char == "\\" and quote != "'" and i + 1 < len(command):
             following = command[i + 1]
             if following == "\n":
@@ -295,11 +301,11 @@ def _segmentos(command):
             newline = command.find("\n", i)
             i = len(command) if newline < 0 else newline
             continue
-        elif char in " \t\r\n;&|":
+        elif char in " \t\r\n;&|()":
             if started:
                 cur.append("".join(word))
                 word, started = [], False
-            if char in "\n;&|" and cur:
+            if char in "\n;&|()" and cur:
                 out.append(cur)
                 cur = []
         else:
@@ -307,12 +313,12 @@ def _segmentos(command):
             started = True
         i += 1
     if quote:
-        return out
+        incompleta = True
     if started:
         cur.append("".join(word))
     if cur:
         out.append(cur)
-    return out
+    return out, incompleta
 
 
 _ASSIGNMENT_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)=(.*)\Z", re.DOTALL)
@@ -429,6 +435,39 @@ def _git_invocation(toks):
         if config is not None and config.split("=", 1)[0].lower() == "core.hookspath":
             hooks_override = True
     return (i if i < len(toks) else -1), hooks_override
+
+
+_CAMBIA_DIR = frozenset(("cd", "pushd", "popd", "chdir"))
+_GIT_DESTRUCTIVOS = frozenset(("checkout", "switch", "restore", "reset", "clean", "stash", "branch",
+                               "update-ref", "push"))
+
+
+def _git_cambia_base(toks):
+    """¿La invocación cambia el directorio/árbol que git usa? `git -C`, `--work-tree`, `--git-dir`
+    (T-06 fix3, gap 3). Solo mira las opciones globales, antes del subcomando."""
+    if not toks or _program_name(toks[0]) != "git":
+        return False
+    i = 1
+    while i < len(toks) and toks[i].startswith("-"):
+        o = toks[i]
+        if o in ("-C", "--work-tree", "--git-dir") or o.startswith(("--work-tree=", "--git-dir=")) \
+                or (o.startswith("-C") and not o.startswith("--")):
+            return True
+        i += 2 if o in _GIT_GLOBAL_VALUES else 1
+    return False
+
+
+def _envoltorio_cambia_dir(toks):
+    """`env -C dir …` / `env --chdir=dir …` delante del programa (gap 3)."""
+    if not toks or _program_name(toks[0]) != "env":
+        return False
+    for t in toks[1:]:
+        if not t.startswith("-"):
+            continue
+        if t == "--chdir" or t.startswith("--chdir=") or \
+                (not t.startswith("--") and "C" in t):
+            return True
+    return False
 
 
 def _es_git(toks, sub):
@@ -814,7 +853,20 @@ def _pathspec_permitido(token):
     return destino.startswith(raiz.rstrip("/") + "/")
 
 
-def _razon_restauracion(sub, args):
+def _valor_separado_de_source(t):
+    """`--source X` / `-s X` / `-Ws X`: la opción consume el token SIGUIENTE como valor (gap 8)."""
+    if t.startswith("--"):
+        return "=" not in t and len(t) >= 4 and "--source".startswith(t)
+    if re.fullmatch(r"-[a-zA-Z]+", t):
+        for idx, ch in enumerate(t[1:], 1):
+            if ch == "s":
+                return idx == len(t) - 1
+            if ch == "U":
+                return False
+    return False
+
+
+def _razon_restauracion(sub, args, base_cambiada=False):
     """`git checkout|switch|restore` que DESCARTA cambios sin comitear (T-06, plugin-audit-2).
 
     Deniega: `checkout -f|--force`, `switch -f|--force|--discard-changes`, `--pathspec-from-file` (su
@@ -831,8 +883,16 @@ def _razon_restauracion(sub, args):
         antes, rutas = args[:k], args[k + 1:]
     else:
         antes, rutas = args, []
-    opciones = [t for t in antes if t.startswith("-")]
-    sueltos = [t for t in antes if not t.startswith("-")]
+    opciones, sueltos, k = [], [], 0
+    while k < len(antes):
+        t = antes[k]
+        if t.startswith("-"):
+            opciones.append(t)
+            if sub == "restore" and _valor_separado_de_source(t):
+                k += 1                      # el valor de `-s`/`--source` NO es un pathspec (gap 8)
+        else:
+            sueltos.append(t)
+        k += 1
     if sub == "restore":
         rutas = sueltos + rutas                 # en restore todo lo que no es opción es pathspec
     elif "--" not in args and not any(re.match(r"-[a-zA-Z]*[bB]", t) and not t.startswith("--")
@@ -851,11 +911,15 @@ def _razon_restauracion(sub, args):
         if not solo_indice:
             if any(_prefijo(t, "--pathspec-from-file") for t in opciones):
                 return msg
+            if base_cambiada and rutas:
+                return (f"`git {sub}` que descarta cambios sin comitear bloqueado: la orden cambia la base "
+                        "(`git -C`, `--work-tree`, `--git-dir`, `env -C`, `cd`/`pushd`) y el guardarraíl "
+                        "valida la ruta contra el directorio actual — ejecuta la orden desde ese directorio.")
             malo = next((t for t in rutas if not _pathspec_permitido(t)), None)
             if malo is not None:
                 return (f"`git {sub}` que descarta cambios sin comitear bloqueado: el pathspec `{malo}` no es "
-                        "una ruta relativa literal dentro del directorio actual (sin `:`, comodines, `$`, "
-                        "backtick ni `~`, sin ser el propio directorio ni la raíz) — nombra el fichero "
+                        "una ruta relativa literal dentro del proyecto (sin `:`, comodines, `$`, "
+                        "backtick ni `~`, sin ser el propio directorio, un ancestro ni la raíz) — nombra el fichero "
                         "exacto o revierte con `git diff <foto> -- <ficheros> | git apply -R`.")
     if sub == "restore" and any(_prefijo(t, "--worktree") or _cluster(t, "W") for t in opciones):
         return msg
@@ -869,8 +933,18 @@ def check_git(command, branch, _depth=0, _env=None):
     if _depth > 3:
         return None
     exportados = set()      # variables sensibles exportadas en segmentos anteriores de la MISMA orden
-    for toks in _segmentos(command):
+    base_cambiada = False   # un `cd`/`pushd` anterior en la MISMA orden (gap 3)
+    segmentos, incompleta = _segmentos(command)
+    for n, toks in enumerate(segmentos):
+        crudo = toks
         toks, bindings = _literal_invocation(toks, _env)
+        if incompleta and n == len(segmentos) - 1:
+            j, _ho = _git_invocation(toks)
+            if j >= 0 and toks[j] in _GIT_DESTRUCTIVOS:
+                return (f"`git {toks[j]}` bloqueado: orden incompleta (escape final o comilla sin cerrar) — "
+                        "el guardarraíl no puede saber qué ruta o rama nombra; escríbela entera.")
+        if _envoltorio_cambia_dir(crudo):
+            base_cambiada = True
         if toks and toks[0] in _EXPORTADORES:
             exportados |= {t.split("=", 1)[0] for t in toks[1:] if _env_sensible(t.split("=", 1)[0])}
         elif not toks:
@@ -936,7 +1010,8 @@ def check_git(command, branch, _depth=0, _env=None):
         for sub in ("checkout", "switch", "restore"):
             i = _es_git(toks, sub)
             if i >= 0:
-                razon = _razon_restauracion(sub, toks[i + 1:])
+                razon = _razon_restauracion(sub, toks[i + 1:],
+                                            base_cambiada or _git_cambia_base(toks))
                 if razon:
                     return razon
                 if sub == "restore":
@@ -949,6 +1024,8 @@ def check_git(command, branch, _depth=0, _env=None):
                         and branch and branch not in MAIN_BRANCHES and branch != "HEAD":
                     return (f"`git {sub} {args[0]}` bloqueado: estás en la rama de trabajo «{branch}» "
                             f"y el implementer no sale de ella — la integración la dirige /dev-cycle (Fase 6).")
+        if crudo and _program_name(crudo[0]) in _CAMBIA_DIR:
+            base_cambiada = True
         if toks and os.path.basename(toks[0]) == "rm":
             flags = [t for t in toks[1:] if t.startswith("-")]
             targets = [t for t in toks[1:] if not t.startswith("-")]

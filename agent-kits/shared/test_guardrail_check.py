@@ -883,3 +883,67 @@ def test_fix2_ruta_que_sale_del_directorio_actual_pero_queda_en_el_proyecto(tmp_
     for malo in ("..", "../", "../..", "../../x.py", ".", "../sub", "sub/.."):
         razon = decide(bash("git restore " + malo), branch="feature/x")
         assert razon and "descarta" in razon, (malo, razon)
+
+
+# ------------------------------------------- fix3 (plugin-audit-2, fase 1, intento 3) ----
+INCOMPLETAS = ["git checkout .\\", "git restore .\\", "git checkout HEAD -- .\\",
+               'git restore "src/a.py', "git checkout -- 'src/a.py", "git reset --hard HEAD\\",
+               "echo ok; git restore ./\\"]
+
+
+@pytest.mark.parametrize("cmd", INCOMPLETAS)
+def test_fix3_gap1_orden_git_incompleta_falla_cerrado(cmd):
+    razon = decide(bash(cmd), branch="feature/x")
+    assert razon, cmd
+
+
+@pytest.mark.parametrize("cmd", INCOMPLETAS)
+def test_fix3_gap1_orden_git_incompleta_de_punta_a_punta_por_el_hook(cmd, tmp_path):
+    code, out, _ = run_cli(json.dumps(bash(cmd)), str(tmp_path), {"CLAUDE_AGENT_NAME": "implementer"})
+    assert code == 0
+    d = json.loads(out)["hookSpecificOutput"]
+    assert d["permissionDecision"] == "deny", (cmd, out)
+
+
+@pytest.mark.parametrize("cmd", ["echo hola\\", 'echo "sin cerrar', "ls src\\", "git status\\", 'git log "x'])
+def test_fix3_gap1_orden_incompleta_sin_git_destructivo_no_se_deniega(cmd):
+    assert decide(bash(cmd), branch="feature/x") is None, cmd
+
+
+@pytest.mark.parametrize("cmd", [
+    "git -C .. restore proj", "git -C ../x checkout -- a.py", "git --work-tree=.. restore a.py",
+    "git --git-dir=../.git restore a.py", "env -C .. git restore a.py", "env --chdir=.. git restore a.py",
+    "cd .. && git restore proj", "cd .. ; git restore proj", "pushd .. && git restore proj",
+    "(cd .. && git restore f)", "cd .. || git restore f",
+])
+def test_fix3_gap3_cambio_de_base_deniega_restauracion(cmd):
+    razon = decide(bash(cmd), branch="feature/x")
+    assert razon and "base" in razon, (cmd, razon)
+
+
+@pytest.mark.parametrize("cmd", [
+    "git -C .. status", "git -C ../x log --oneline", "git -C .. diff HEAD", "cd sub && git status",
+    "pushd sub && git diff", "(cd sub && git log)", "env -C sub ls", "git -C .. restore --staged f",
+    "git restore f",
+])
+def test_fix3_gap3_cambio_de_base_no_rompe_lo_no_destructivo(cmd):
+    assert decide(bash(cmd), branch="feature/x") is None, cmd
+
+
+def test_fix3_gap4_mensaje_dice_dentro_del_proyecto():
+    razon = decide(bash("git restore ."), branch="feature/x")
+    assert razon and "dentro del proyecto" in razon and "dentro del directorio actual" not in razon
+
+
+@pytest.mark.parametrize("cmd", [
+    'git restore --source "$BASE" src/a.py', "git restore -s HEAD~1 src/a.py",
+    "git restore --source HEAD src/a.py", "git restore src/a.py --source HEAD", "git restore -qs HEAD src/a.py",
+])
+def test_fix3_gap8_valor_de_source_no_es_pathspec(cmd):
+    assert decide(bash(cmd), branch="feature/x") is None, cmd
+
+
+def test_fix3_gap8_el_pathspec_sigue_validandose_con_source():
+    for cmd in ('git restore --source "$BASE" .', 'git restore -s HEAD ":/"', 'git restore --source HEAD "$X"'):
+        razon = decide(bash(cmd), branch="feature/x")
+        assert razon and "descarta" in razon, (cmd, razon)
