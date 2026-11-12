@@ -10,6 +10,7 @@ import importlib.util
 import itertools
 import os
 import re
+import sys
 import time
 from pathlib import Path
 
@@ -230,96 +231,174 @@ def test_non_regression_list_of_intento_3(texto, secreto):
 
 
 # ---- linear cost and idempotence on pathological inputs (up to ~1 MB) ------------------------------
+_B = "\\"
+# Un generador por caso patológico: `generador(n)` devuelve la entrada de tamaño ~n (T-23 fix4: el tamaño se
+# adapta por caso hasta superar el suelo de CPU, así que cada caso se genera a la medida).
+_GENERADORES = [
+    lambda n: "a&" * n, lambda n: "a" * n * 2, lambda n: '"' * n, lambda n: ('"' + _B) * n,
+    lambda n: "x'" * n, lambda n: "curl -" + "v" * n * 2, lambda n: "curl -u " + "a" * n * 2,
+    lambda n: "curl " * n, lambda n: ("sudo " * n) + "/a/mysql -pX", lambda n: ("A=1 " * n) + "mysql -pX",
+    lambda n: "--x mysql " * n, lambda n: "/" * n * 2 + "mysql", lambda n: ("a&" * n) + " " + ("&a" * n),
+    lambda n: "curl " + "-u a:b " * n, lambda n: '"' + ("a" + _B) * n, lambda n: ('"a" ' * n) + "x",
+    lambda n: ("curl -" + "v" * 50 + " ") * (n // 25), lambda n: "sh -c \"" + "'a' " * n + "\"",
+    lambda n: "ssh h '" + '"x" ' * n + "'", lambda n: "it's " * n + "mysql -pX",
+    lambda n: ("curl \"-u a:" + _B + '"' + "x ") * (n // 5), lambda n: "'" + '"' * n,
+    lambda n: "\"$(curl -u a:X)\" " * (3 * n // 10),
+]
+
+
 def _patologicos(n=100000):
-    b = "\\"
-    return [
-        "a&" * n, "a" * n * 2, '"' * n, ('"' + b) * n, "x'" * n, "curl -" + "v" * n * 2,
-        "curl -u " + "a" * n * 2, "curl " * n, ("sudo " * n) + "/a/mysql -pX", ("A=1 " * n) + "mysql -pX",
-        "--x mysql " * n, "/" * n * 2 + "mysql", ("a&" * n) + " " + ("&a" * n), "curl " + "-u a:b " * n,
-        '"' + ("a" + b) * n, ('"a" ' * n) + "x", ("curl -" + "v" * 50 + " ") * (n // 25),
-        "sh -c \"" + "'a' " * n + "\"", "ssh h '" + '"x" ' * n + "'", "it's " * n + "mysql -pX",
-        ("curl \"-u a:" + b + '"' + "x " ) * (n // 5), "'" + '"' * n, "\"$(curl -u a:X)\" " * (3 * n // 10),
-    ]
+    return [g(n) for g in _GENERADORES]
 
 
-CRECIMIENTO = 8              # la entrada grande es ×8 la pequeña
-RAZON_LINEAL_MAX = 16        # lineal ≈ 8, n^1,5 ≈ 22,6, cuadrático ≈ 64: el tope es el doble del lineal
-SUELO_RUIDO = 0.05           # s de CPU: por debajo, el reloj (15,6 ms en Windows) no distingue razones
+CRECIMIENTO = 16             # la entrada grande es ×16 la pequeña
+RAZON_RELATIVA_MAX = 2.5     # razón de redact / razón de la referencia lineal: lineal ≈ 1, n^1,5 ≈ 4, cuadrático ≈ 16
+SUELO_CPU = 0.1 if os.name == "nt" else 0.05   # s de CPU del caso pequeño (el reloj de Windows tiene 15,6 ms de resolución)
+TOPE_CARACTERES = 1_000_000  # tope de tamaño del caso pequeño (el grande es ×16: ≤ 16 MB)
+RONDAS = 3                   # rondas de 2 muestras: la siguiente solo se toma si la anterior dio rojo
+TOPE_CPU_GRANDE = 10.0       # s: un caso grande que tarde más se da por colgado (cuadrático o peor)
+TOPE_CPU_CRECIMIENTO = 30.0  # s de CPU totales gastados en hallar el tamaño que supera el suelo
 
 
-def _es_lineal(t_chico, t_grande, suelo=SUELO_RUIDO):
-    """La puerta protege la ausencia de retroceso CATASTRÓFICO (cuadrático o peor), no el tiempo de pared:
-    se mide tiempo de CPU (`time.process_time`, inmune a la carga ajena que reparte el planificador), con la
-    mediana de 3 por tamaño, y la entrada crece ×8 (lineal ≈ 8, n^1,5 ≈ 22,6, cuadrático ≈ 64). Pasa si la
-    razón con el caso pequeño (con un suelo de ruido) es ≤ 16 y no pasa de 10 s (colgado)."""
-    return t_grande < 10 and t_grande <= RAZON_LINEAL_MAX * max(t_chico, suelo)
+def _es_lineal(razon_relativa):
+    """La puerta protege la ausencia de retroceso CATASTRÓFICO (cuadrático o peor), no el tiempo de pared.
+    Se autocalibra: en la misma pasada se mide una función de referencia LINEAL sobre la misma entrada, y
+    se compara `razón_redact / razón_referencia` (la carga ajena afecta igual a las dos). Pasa si es ≤ 2,5."""
+    return razon_relativa <= RAZON_RELATIVA_MAX
 
 
-def test_el_criterio_de_linealidad_distingue_lineal_de_cuadratico():
-    assert _es_lineal(0.30, 2.40)                 # lineal: ×8
-    assert _es_lineal(0.30, 4.20)                 # lineal con ruido y caché: ×14
-    assert _es_lineal(0.01, 0.70)                 # por debajo del suelo de ruido (50 ms) no se mide razón
-    assert not _es_lineal(0.20, 4.5)              # n^1,5: ×22,6
-    assert not _es_lineal(0.10, 6.4)              # cuadrático: ×64
-    assert not _es_lineal(0.30, 12.0)             # más de 10 s: se da por colgado aunque la razón sea baja
-
-
-def _cpu(funcion, entrada):
+def _cpu(funcion, *args):
     inicio = time.process_time()
-    salida = funcion(entrada)
+    salida = funcion(*args)
     return time.process_time() - inicio, salida
 
 
-def _mediana3(funcion, entrada):
-    """(mediana del tiempo de CPU de 3 ejecuciones, salida de la ÚLTIMA ejecución: no se recalcula)."""
-    tiempos, salida = [], None
-    for _ in range(3):
-        t, salida = _cpu(funcion, entrada)
-        tiempos.append(t)
-    return sorted(tiempos)[1], salida
-
-
-def _lineal_de_verdad(n):
+def _referencia_lineal(entrada, repeticiones):
+    """Función de referencia lineal en la longitud de la entrada (un recorrido por carácter)."""
     acc = 0
-    for i in range(n):
-        acc += i ^ 3
+    for _ in range(repeticiones):
+        for c in entrada:
+            acc += ord(c)
     return acc
 
 
-def _cuadratica_de_verdad(n):
+class SinSuelo(Exception):
+    """El caso pequeño no superó el suelo de CPU dentro de los topes: no se puede medir una razón."""
+
+
+def _medir(funcion, generador, n0=1500, suelo=None):
+    """Mide `funcion` con una entrada pequeña (tamaño adaptado hasta superar `SUELO_CPU`) y otra ×16.
+    Devuelve `(razon_relativa, t_chico, t_grande, salida_grande)`; `razon_relativa` es `None` si se llegó al
+    tope de tamaño sin superar el suelo (la función es inocua a ese tamaño: no hay razón que medir) y se
+    lanza `SinSuelo` si el tope de CPU del crecimiento se agota antes. Un grande por encima de
+    `TOPE_CPU_GRANDE` s devuelve una razón infinita (colgado)."""
+    suelo = SUELO_CPU if suelo is None else suelo
+    n, gastado = n0, 0.0
+    while True:
+        chico = generador(n)
+        funcion(chico)                                        # calentamiento: cachés de regex y de intérprete
+        t, _ = _cpu(funcion, chico)
+        gastado += t
+        if t >= suelo:
+            break
+        if len(chico) * 2 > TOPE_CARACTERES:
+            return None, t, None, None
+        if gastado >= TOPE_CPU_CRECIMIENTO:
+            raise SinSuelo(f"el caso pequeño no supera {suelo} s de CPU tras gastar {gastado:.1f} s")
+        n *= 2
+    grande = generador(n * CRECIMIENTO)
+    repeticiones = 1
+    while _cpu(_referencia_lineal, chico, repeticiones)[0] < suelo / 2 and repeticiones < 4096:
+        repeticiones *= 2
+    tc, tg, rc, rg, salida = [], [], [], [], None
+    for _ronda in range(RONDAS):
+        for _ in range(2):                                    # intercaladas: comparten la carga del momento
+            rc.append(_cpu(_referencia_lineal, chico, repeticiones)[0])
+            tc.append(_cpu(funcion, chico)[0])
+            t, salida = _cpu(funcion, grande)
+            tg.append(t)
+            if t > TOPE_CPU_GRANDE:
+                return float("inf"), min(tc), t, salida
+            rg.append(_cpu(_referencia_lineal, grande, repeticiones)[0])
+        # el ruido ajeno solo SUMA tiempo: el mínimo de las muestras es el mejor estimador del coste propio
+        relativa = (min(tg) / max(min(tc), 1e-9)) / (min(rg) / max(min(rc), 1e-9))
+        if _es_lineal(relativa):
+            break                  # lo superlineal de verdad sale rojo en TODAS las rondas: solo se repite el rojo
+    return relativa, min(tc), min(tg), salida
+
+
+def test_el_criterio_de_linealidad_distingue_lineal_de_cuadratico():
+    assert _es_lineal(1.0) and _es_lineal(1.8)    # lineal ≈ 1, con ruido
+    assert not _es_lineal(2.8)                    # n^1,5 (×8; ×16 da 4)
+    assert not _es_lineal(16.0)                   # cuadrático
+    assert not _es_lineal(float("inf"))           # colgado
+
+
+def _lineal_de_verdad(entrada):
     acc = 0
+    for _ in range(10):
+        for c in entrada:
+            acc += ord(c) ^ 3
+    return acc
+
+
+def _n_a_la_1_5(entrada):
+    acc, n = 0, len(entrada)
     for i in range(n):
-        for j in range(n):
+        for j in range(int(n ** 0.5)):
             acc += i ^ j
     return acc
 
 
+def _regex_cuadratica(entrada):
+    return re.compile(r"x*y").search(entrada)               # retroceso: O(n²) sobre "xxxx…"
+
+
 @pytest.mark.serie
 def test_la_puerta_deja_pasar_una_funcion_lineal_real():
-    n = 600_000
-    t_chico, _ = _mediana3(_lineal_de_verdad, n)
-    t_grande, _ = _mediana3(_lineal_de_verdad, n * CRECIMIENTO)
-    assert _es_lineal(t_chico, t_grande), (round(t_chico, 3), round(t_grande, 3))
+    relativa, tc, tg, _ = _medir(_lineal_de_verdad, lambda n: "x" * (n * 4))
+    assert relativa is not None and _es_lineal(relativa), (relativa, tc, tg)
 
 
 @pytest.mark.serie
-def test_la_puerta_rechaza_una_funcion_cuadratica_real():
-    """Una función cuadrática de verdad (doble bucle), medida con el mismo reloj, entrada ×8: razón ≈ 64."""
-    n = 800
-    t_chico, _ = _mediana3(_cuadratica_de_verdad, n)
-    t_grande, _ = _cpu(_cuadratica_de_verdad, n * CRECIMIENTO)       # una sola: ya es ~40 M de iteraciones
-    assert not _es_lineal(t_chico, t_grande), (round(t_chico, 3), round(t_grande, 3))
+def test_la_puerta_rechaza_un_n_a_la_1_5_real():
+    relativa, tc, tg, _ = _medir(_n_a_la_1_5, lambda n: "x" * (n // 4))
+    assert relativa is not None and not _es_lineal(relativa), (relativa, tc, tg)
 
 
-# serie: mide tiempo de CPU (inmune a la carga ajena, pero 15,6 ms de resolución en Windows); T-23 fix3
 @pytest.mark.serie
-def test_linear_cost_on_pathological_inputs():
-    for chico, grande in zip(_patologicos(100000 // CRECIMIENTO), _patologicos(100000)):
-        redact.redactar(chico)                                # calentamiento: cachés de regex y de intérprete
-        t_chico, _ = _mediana3(redact.redactar, chico)
-        t_grande, salida = _mediana3(redact.redactar, grande)
-        assert _es_lineal(t_chico, t_grande), (len(grande), grande[:40], round(t_chico, 3), round(t_grande, 3))
-        assert redact.redactar(salida) == salida, grande[:40]  # idempotencia sobre la salida ya medida
+def test_la_puerta_rechaza_la_regex_cuadratica_que_antes_quedaba_bajo_el_suelo():
+    """`re.compile(r"x*y").search("x"*N)` con N pequeño tardaba < 50 ms y la puerta anterior no comparaba
+    razones (`tc=0.0000 tg=0.4062` pasaba): ahora el tamaño crece hasta superar el suelo y la razón sale ≈ 8."""
+    relativa, tc, tg, _ = _medir(_regex_cuadratica, lambda n: "x" * n, n0=500, suelo=0.03)
+    assert relativa is not None and not _es_lineal(relativa), (relativa, tc, tg)
+    assert tc >= 0.03
+
+
+def test_sin_suelo_alcanzado_no_se_aprueba_por_razon():
+    """Una función inocua que no supera el suelo con el tope de tamaño devuelve `None` (no una razón
+    inventada) y una que gasta el tope de CPU antes de llegar lanza `SinSuelo`."""
+    relativa, t, _, _ = _medir(lambda s: len(s), lambda n: "x" * n)
+    assert relativa is None and t < SUELO_CPU
+
+
+def test_sin_suelo_por_tope_de_cpu_falla_con_motivo(monkeypatch):
+    monkeypatch.setattr(sys.modules[__name__], "TOPE_CPU_CRECIMIENTO", 0.0)
+    with pytest.raises(SinSuelo, match="no supera"):
+        _medir(lambda s: len(s), lambda n: "x" * n)
+
+
+# serie: mide tiempo de CPU; T-23 fix4 (autocalibrada con una referencia lineal y tamaño adaptativo)
+@pytest.mark.serie
+@pytest.mark.parametrize("k", range(23))
+def test_linear_cost_on_pathological_inputs(k):
+    generador = _GENERADORES[k]
+    relativa, tc, tg, salida = _medir(redact.redactar, generador)
+    if relativa is None:
+        assert tc < SUELO_CPU                                 # inocuo incluso al tamaño tope
+        return
+    assert _es_lineal(relativa), (k, generador(40)[:40], round(relativa, 2), round(tc, 3), round(tg, 3))
+    assert redact.redactar(salida) == salida, k               # idempotencia sobre la salida ya medida
 
 
 def test_quoted_prose_without_options_avoids_nested_command_scans(monkeypatch):

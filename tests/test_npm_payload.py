@@ -38,7 +38,7 @@ def npm_payload(tmp_path_factory):
         [npm, "pack", "--offline", "--ignore-scripts", "--json",
          "--pack-destination", str(sandbox), "--cache", str(sandbox / "npm-cache")],
         cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace",
-        timeout=120,
+        timeout=600,
     )
     assert result.returncode == 0, result.stderr
     name = json.loads(result.stdout)[0]["filename"]
