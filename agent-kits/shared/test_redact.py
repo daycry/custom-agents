@@ -645,14 +645,15 @@ def test_2_3_rutas_imagenes_y_opciones_ajenas_no_se_tocan(limpio):
     assert redact.redactar(limpio) == limpio
 
 
-# serie: mide tiempo de pared (< 1.5 s); bajo `-n auto` la carga ajena lo rompe (T-23, plugin-audit-2)
+# serie: mide tiempo de CPU; el cuadrático tardaba ~18 s en la máquina de desarrollo y el tope (8 s) separa eso de
+# una máquina lenta (2,2 s en un contenedor sobre Docker Desktop, donde el tope de pared de 1,5 s fallaba; T-23 fix4)
 @pytest.mark.serie
 def test_2_2_lineal_con_muchas_comillas_y_operadores():
     for texto in (('curl "a&b" -u x:y ' * 2000) + ("'" * 5000) + ('&|;' * 5000), 'curl -u x:y ' * 30000,
                   'mysql ' * 60000, '/a/mysql ' * 40000, 'sudo -x ' * 45000 + '/a/mysql -pX'):
-        started = time.perf_counter()  # cuadratico antes de precalcular la posicion de comando: ~18 s
+        started = time.process_time()  # cuadratico antes de precalcular la posicion de comando: ~18 s
         salida = redact.redactar(texto)
-        assert time.perf_counter() - started < 1.5 and "x:y" not in salida and "-pX" not in salida
+        assert time.process_time() - started < 8.0 and "x:y" not in salida and "-pX" not in salida
 
 
 def test_2_2_idem_en_el_respaldo_de_journal():
