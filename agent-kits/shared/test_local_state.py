@@ -30,6 +30,7 @@ def owner():
         lambda deadline: need(time.monotonic() < deadline, 'deadline_expired'), maximum=4096)
 
 
+@pytest.mark.serie
 def test_exclusive_leaf_never_overwrites(tmp_path):
     io = owner()
     path = tmp_path / 'state.json'

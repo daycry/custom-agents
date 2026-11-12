@@ -16,6 +16,10 @@ import types
 
 import pytest
 
+# serie: usan el almacén real con su plazo de pared de 1,3 s (hooks) y fallan bajo `-n auto` en un contenedor lento
+# (deadline_exceeded, T-23 fix4); pasan en serie: corren en el paso `-m serie`.
+pytestmark = pytest.mark.serie
+
 ROOT = Path(__file__).resolve().parents[1]
 # No hyphen-glued user in the corpus: CA-41 as amended in spec.md on 2026-10-20 (user decision, C-3/A-4) exempts it.
 USER = 'jdoeprivacy'

@@ -19,6 +19,10 @@ import time
 
 import pytest
 
+# serie: usan el almacén real con su plazo de pared de 1,3 s (hooks) y fallan bajo `-n auto` en un contenedor lento
+# (deadline_exceeded, T-23 fix4); pasan en serie: corren en el paso `-m serie`.
+pytestmark = pytest.mark.serie
+
 SHARED = Path(__file__).resolve().parents[1] / 'agent-kits' / 'shared'
 INF = float('inf')
 

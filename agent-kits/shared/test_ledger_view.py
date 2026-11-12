@@ -357,6 +357,7 @@ def test_un_guion_seguido_de_un_numero_no_es_un_rango():
 
 # --- fix2 de la Fase 2: cota agregada de la expansión de rangos (I2-3) ------------------------------------------------
 
+@pytest.mark.serie
 def test_cinco_mil_filas_con_un_rango_enorme_se_proyectan_en_menos_de_2_s():
     """I2-3 (caso adversario de la revisión): 5.000 filas `T-1..T-499` dentro de 256 KB no bloquean la proyección."""
     import time
