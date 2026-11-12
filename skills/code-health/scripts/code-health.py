@@ -260,6 +260,17 @@ def ficheros(root, langs, exclude_tests, exclude_paths=()):
     return out
 
 
+def cr_suelto(path):
+    """¿El fichero tiene un CR (`\r`) que no precede a un LF (`\n`), es decir, un separador solo CR (Mac clásico)? Git y
+    `leer` solo parten por LF: un fichero así queda en UNA línea y sus TODO/duplicados se colapsan (T-07 fix5, gap 8)."""
+    try:
+        with open(path, "rb") as fh:
+            datos = fh.read()
+    except OSError:
+        return False
+    return re.search(rb"\r(?!\n)", datos) is not None
+
+
 def leer(path):
     try:
         # Numeración como git: solo el LF separa líneas (`str.splitlines` también parte por el salto de página,
@@ -742,6 +753,7 @@ def analizar(root, langs, window, min_lines, exclude_tests, since, top, exclude_
     src = []
     cod = {}
     grandes = []
+    solo_cr = []
     cortado = False
     for rel, p, ext in lista:
         if _agotado(plazo):
@@ -757,6 +769,8 @@ def analizar(root, langs, window, min_lines, exclude_tests, since, top, exclude_
                 continue
         lines = leer(p)
         if lines is not None:
+            if cr_suelto(p):
+                solo_cr.append(rel)
             try:
                 cod[rel] = lineas_codigo(lines, ext, plazo)
             except PlazoAgotado:
@@ -774,6 +788,13 @@ def analizar(root, langs, window, min_lines, exclude_tests, since, top, exclude_
                       "código generado; el informe es PARCIAL — exclúyelos con `--exclude-path` o sube `--max-bytes`")
         parcial = True
         motivos.add("max-bytes")
+    if solo_cr:
+        muestra = ", ".join(f"`{r}`" for r in solo_cr[:3]) + (", …" if len(solo_cr) > 3 else "")
+        avisos.append(f"{len(solo_cr)} ficheros con separador de línea solo CR ({muestra}): git y este informe parten "
+                      "por LF, así que cada uno cuenta como UNA línea (TODO y duplicados colapsados); el informe es "
+                      "PARCIAL — conviértelos a LF o exclúyelos con `--exclude-path`")
+        parcial = True
+        motivos.add("separador-cr")
     dup = duplicados(cod, window, top, plazo, max_occ, max_pares)
     if dup.get("recortadas"):
         motivos.add("max-occ")
