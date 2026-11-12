@@ -656,6 +656,7 @@ def test_fix1_gap6_el_tope_de_pares_es_un_parametro_y_el_aviso_lo_cita(tmp_path)
     assert r["parcial"] is True and any("100 pares" in a for a in r["avisos"]), r["avisos"]
 
 
+@pytest.mark.serie
 @pytest.mark.skipif(GIT is None, reason="sin git")
 def test_fix1_gap7_git_blame_respeta_el_plazo_y_lo_declara(tmp_path, monkeypatch):
     root = tmp_path / "todos"
@@ -828,6 +829,7 @@ def test_fix2_gap3_los_L_del_blame_se_trocean_y_todas_las_edades_se_calculan(tmp
     assert not any("antigüedad" in a for a in r["avisos"]), r["avisos"]
 
 
+@pytest.mark.serie
 def test_fix2_gap4_sin_tope_por_ventana_el_plazo_acota_tambien_el_doble_bucle():
     """150 copias de 300 líneas, `max_occ=0`: 11 K pares × 293 ventanas = 3,3 M iteraciones en UNA pasada por
     ventana; el plazo solo se miraba cada 512 ventanas, es decir, nunca."""
@@ -838,6 +840,7 @@ def test_fix2_gap4_sin_tope_por_ventana_el_plazo_acota_tambien_el_doble_bucle():
     assert d["parcial"] is True and dur < 1.5, (dur, d["parcial"])
 
 
+@pytest.mark.serie
 def test_fix2_gap4_los_pares_del_mismo_fichero_cuentan_para_el_tope():
     """Un fichero con 3000 líneas idénticas: 1 ventana con 3000 ocurrencias del MISMO fichero (4,5 M pares que
     nunca se retienen). El tope de pares tiene que cortar este trabajo también."""
