@@ -253,8 +253,10 @@ def _patologicos(n=100000):
 
 CRECIMIENTO = 16             # la entrada grande es ×16 la pequeña
 RAZON_RELATIVA_MAX = 2.5     # razón de redact / razón de la referencia lineal: lineal ≈ 1, n^1,5 ≈ 4, cuadrático ≈ 16
-SUELO_CPU = 0.1 if os.name == "nt" else 0.05   # s de CPU del caso pequeño (el reloj de Windows tiene 15,6 ms de resolución)
+SUELO_CPU = 0.1 if os.name == "nt" else 0.02   # s de CPU del caso pequeño (el reloj de Windows tiene 15,6 ms de resolución;
+#                                               en Linux 0,02 s: la puerta costaba ~9 s por caso con 0,05 s, T-23 fix5)
 TOPE_CARACTERES = 1_000_000  # tope de tamaño del caso pequeño (el grande es ×16: ≤ 16 MB)
+SUELO_DEMO = 0.03 if os.name == "nt" else 0.01   # suelo de las demostraciones de la propia puerta (funciones sintéticas)
 RONDAS = 4                   # rondas de 2 muestras: la siguiente solo se toma si la anterior dio rojo
 PAUSA_RONDAS = 5.0           # s entre rondas: una ráfaga de carga ajena no cubre todas (T-23 fix4: 1 de 5 pasadas)
 TOPE_CPU_GRANDE = 10.0       # s: un caso grande que tarde más se da por colgado (cuadrático o peor)
@@ -320,7 +322,8 @@ def _medir(funcion, generador, n0=1500, suelo=None, pausa=None):
     for ronda in range(RONDAS):
         if ronda:
             time.sleep(pausa)
-        for _ in range(2):                                    # intercaladas: comparten la carga del momento
+        for _ in range(1 if ronda == 0 else 2):               # 1 muestra la primera ronda (casi todas dan verde);
+            #                                                 # 2 en las de repetición, intercaladas: comparten la carga
             rc.append(_cpu(_referencia_lineal, chico, repeticiones)[0])
             tc.append(_cpu(funcion, chico)[0])
             t, salida = _cpu(funcion, grande)
@@ -372,13 +375,13 @@ def _regex_cuadratica(entrada):
 
 @pytest.mark.serie
 def test_la_puerta_deja_pasar_una_funcion_lineal_real():
-    relativa, tc, tg, _ = _medir(_lineal_de_verdad, lambda n: "x" * (n * 4))
+    relativa, tc, tg, _ = _medir(_lineal_de_verdad, lambda n: "x" * (n * 4), suelo=SUELO_DEMO)
     assert relativa is not None and _es_lineal(relativa), (relativa, tc, tg)
 
 
 @pytest.mark.serie
 def test_la_puerta_rechaza_un_n_a_la_1_5_real():
-    relativa, tc, tg, _ = _medir(_n_a_la_1_5, lambda n: "x" * (n // 4), pausa=0)
+    relativa, tc, tg, _ = _medir(_n_a_la_1_5, lambda n: "x" * (n // 4), suelo=SUELO_DEMO, pausa=0)
     assert relativa is not None and not _es_lineal(relativa), (relativa, tc, tg)
 
 
@@ -386,9 +389,10 @@ def test_la_puerta_rechaza_un_n_a_la_1_5_real():
 def test_la_puerta_rechaza_la_regex_cuadratica_que_antes_quedaba_bajo_el_suelo():
     """`re.compile(r"x*y").search("x"*N)` con N pequeño tardaba < 50 ms y la puerta anterior no comparaba
     razones (`tc=0.0000 tg=0.4062` pasaba): ahora el tamaño crece hasta superar el suelo y la razón sale ≈ 8."""
-    relativa, tc, tg, _ = _medir(_regex_cuadratica, lambda n: "x" * n, n0=500, suelo=0.03, pausa=0)
+    relativa, tc, tg, _ = _medir(_regex_cuadratica, lambda n: "x" * n, n0=500, suelo=SUELO_DEMO, pausa=0)
     assert relativa is not None and not _es_lineal(relativa), (relativa, tc, tg)
-    assert tc >= 0.03 / 8                                   # el tamaño creció hasta un caso medible (≥ 1/8 del suelo)
+    # (sin `tc >= suelo/8`: `_medir` solo devuelve muestras de al menos ese valor, la aserción no podía fallar)
+    assert tg > tc                                          # el grande cuesta de verdad más que el pequeño
 
 
 def test_sin_suelo_alcanzado_no_se_aprueba_por_razon():
@@ -414,7 +418,7 @@ def test_una_muestra_de_cpu_a_cero_no_da_una_razon_disparatada(monkeypatch):
         return t, salida
     monkeypatch.setattr(sys.modules[__name__], "_cpu", falso)
     # suelo bajo: el caso supera el suelo a la primera (sin doblar) y el índice de llamadas es estable
-    relativa, _tc, _tg, _ = _medir(_lineal_de_verdad, lambda n: "x" * (n * 70), suelo=0.01, pausa=0)
+    relativa, _tc, _tg, _ = _medir(_lineal_de_verdad, lambda n: "x" * (n * 10), suelo=0.01, pausa=0)
     # el objetivo es que el cero NO dispare la razón (antes 5,6e7); la linealidad fina la mide la puerta
     assert llamadas[0] >= 3 and relativa < 20, (llamadas, relativa)
 
@@ -437,7 +441,11 @@ def test_linear_cost_on_pathological_inputs(k):
     generador = _GENERADORES[k]
     relativa, tc, tg, salida = _medir(redact.redactar, generador)
     if relativa is None:
-        assert tc < SUELO_CPU                                 # inocuo incluso al tamaño tope
+        # inocuo incluso al tamaño tope: por construcción el caso pequeño (el tope, ~1 M de caracteres) no superó el
+        # suelo, así que no hay razón que medir. La propiedad que SÍ puede fallar aquí es la idempotencia.
+        tope = generador(TOPE_CARACTERES // 2)
+        una = redact.redactar(tope)
+        assert redact.redactar(una) == una, k
         return
     assert _es_lineal(relativa), (k, generador(40)[:40], round(relativa, 2), round(tc, 3), round(tg, 3))
     assert redact.redactar(salida) == salida, k               # idempotencia sobre la salida ya medida

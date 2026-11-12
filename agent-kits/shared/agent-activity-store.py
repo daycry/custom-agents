@@ -33,8 +33,23 @@ IGNORE = b'*\n'
 # writer (byte 1 of `.lock`, `StateIO.intent`/`priority`). Lifecycle signals (synchronous) keep 100 ms and 1 s;
 # Codex MCP keeps a single attempt (P-EI-3). The ring is read and validated before the lock and reused only if
 # its signature is unchanged: a hold with a full 500-event ring went from p50 ~68 / p90 ~84 ms to ~23 / ~37 ms.
+
+
+def _deadline_scale():
+    """Multiplicador de los plazos de pared (1..60) que un test puede inyectar con
+    `CUSTOM_AGENTS_ACTIVITY_DEADLINE_SCALE`; sin la variable (o con un valor no numérico/menor que 1) valen los
+    plazos del diseño. Sirve para que la suite no dependa del reloj de la máquina; no relaja los hooks reales."""
+    try:
+        scale = float(os.environ.get('CUSTOM_AGENTS_ACTIVITY_DEADLINE_SCALE', '1'))
+    except ValueError:
+        return 1.0
+    return min(scale, 60.0) if scale >= 1.0 else 1.0
+
+
+DEADLINE_SCALE = _deadline_scale()
 TOOL_LOCK_WAIT = 1.0
-TOOL_DEADLINE = 1.3
+TOOL_DEADLINE = 1.3 * DEADLINE_SCALE
+LIFECYCLE_DEADLINE = 1.0 * DEADLINE_SCALE   # señales de ciclo de vida, Codex MCP (un intento) y recuento de tamaño
 
 
 def _mkdir_private(path, **kwargs):
@@ -671,7 +686,7 @@ def record(project, entry):
     try:
         started, io = time.monotonic(), _io(MAX_EVENTS_FILE)
         entry = _entry(entry)
-        deadline = started + (1 if entry['nowait'] else TOOL_DEADLINE)
+        deadline = started + (LIFECYCLE_DEADLINE if entry['nowait'] else TOOL_DEADLINE)
         root = _root(project, io)
         config_signature = _enabled(root, io)
         state = root / '.claude' / 'agent-activity'
@@ -699,7 +714,7 @@ def record(project, entry):
 def count_oversize(project):
     """An input over MAX_INPUT was not parsed: only an identity-less counter changes. Never initializes."""
     try:
-        deadline, io = time.monotonic() + 1, _io(MAX_EVENTS_FILE)
+        deadline, io = time.monotonic() + LIFECYCLE_DEADLINE, _io(MAX_EVENTS_FILE)
         root = _root(project, io)
         config_signature = _enabled(root, io)
         state = root / '.claude' / 'agent-activity'
@@ -720,7 +735,7 @@ def count_oversize(project):
 def capture(project, *, runtime, payload):
     """Receive a native declaration; return an observable status without free text."""
     try:
-        deadline, io = time.monotonic() + 1, _io(MAX_EVENTS_FILE)
+        deadline, io = time.monotonic() + LIFECYCLE_DEADLINE, _io(MAX_EVENTS_FILE)
         root = _root(project, io)
         if _is_tool_event(runtime, payload):
             _need(runtime in ('claude', 'codex', 'opencode') and payload.get('hook_event_name') != 'PreToolUse', 'unsupported_event')
