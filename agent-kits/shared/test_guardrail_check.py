@@ -905,8 +905,8 @@ def test_fix3_gap1_orden_git_incompleta_de_punta_a_punta_por_el_hook(cmd, tmp_pa
     assert d["permissionDecision"] == "deny", (cmd, out)
 
 
-@pytest.mark.parametrize("cmd", ["echo hola\\", 'echo "sin cerrar', "ls src\\", "git status\\", 'git log "x'])
-def test_fix3_gap1_orden_incompleta_sin_git_destructivo_no_se_deniega(cmd):
+@pytest.mark.parametrize("cmd", ["echo hola\\", 'echo "sin cerrar', "ls src\\"])
+def test_fix3_gap1_orden_incompleta_sin_git_ni_cambio_de_base_no_se_deniega(cmd):
     assert decide(bash(cmd), branch="feature/x") is None, cmd
 
 
@@ -1025,3 +1025,85 @@ def test_fix4_gap4_cd_al_propio_directorio_no_cuenta(tmp_path, monkeypatch):
         razon = decide(bash(cmd), branch="feature/x")
         assert razon and "base" in razon, (cmd, razon)
     assert "descarta" in (decide(bash(f'cd "{propio}" && git restore .'), branch="feature/x") or "")
+
+
+# ------------------------------------------- fix5 (plugin-audit-2, fase 1, intento 5) ----
+@pytest.mark.parametrize("cmd", ["git status\\", 'git log "x', "git status <<EOF\nx", "echo $(git log"])
+def test_fix5_invariante_de_cierre_orden_incompleta_con_git_se_deniega_entera(cmd):
+    """Diseño 1: si al terminar de tokenizar queda algo abierto y la orden contiene `git`, se deniega ENTERA
+    (ya no se mira solo el último segmento)."""
+    razon = decide(bash(cmd), branch="feature/x")
+    assert razon and "incompleta" in razon, (cmd, razon)
+
+
+def test_fix5_invariante_de_cierre_con_cambio_de_base():
+    assert "incompleta" in (decide(bash('cd .. && echo "x'), branch="feature/x") or "")
+
+
+FIX5_BAD = [
+    "echo $((1<<2))\ngit restore .", "x=$(( 1 << 3 ))\ngit restore .", "(( y = 1<<2 ))\ngit restore .",
+    'cat <<<"hola"\ngit restore .', "cat <<< hola\ngit restore .", "cat <<\EOF\nx\nEOF\ngit restore .",
+    'cat <<E"OF"\nx\nEOF\ngit restore .', "cat <<EOF\n$(git restore .)\nEOF",
+    "cat <<EOF\n`git restore .`\nEOF", "env bash <<EOF\ngit restore .\nEOF",
+    "bash <<EOF 2>&1\ngit restore .\nEOF", "bash <<EOF | tee log\ngit restore .\nEOF",
+    "cat <<EOF | bash; true\ngit restore .\nEOF", 'eval "$(cat <<\'EOF\'\ngit restore .\nEOF\n)"',
+    ". /dev/stdin <<EOF\ngit restore .\nEOF", "cat <<EOF; git restore .\nbody",
+    'git commit -m "$(cat <<\'EOF\'\nodd " q\nEOF\n)"\ngit restore .', 'echo "$(git restore .)"',
+    'echo "`git restore .`"', "echo `git restore .`",
+]
+
+
+@pytest.mark.parametrize("cmd", FIX5_BAD)
+def test_fix5_gaps_1_2_3_6_heredoc_aritmetica_y_sustituciones(cmd):
+    assert decide(bash(cmd), branch="feature/x"), cmd
+
+
+@pytest.mark.parametrize("cmd", [
+    "git commit -m \"$(cat <<'EOF'\nodd \" q\nEOF\n)\"", "git add . && git commit -F - <<'EOF'\ndon't\nEOF",
+    "cat <<'EOF'\n$(git restore .)\nEOF", "echo $((1<<2))\ngit status", "git commit -F - <<EOF\ndon't\nEOF",
+    "echo cd; git restore src/a.py", "git restore src/cd", "git commit -m 'cd' && git restore src/a.py",
+])
+def test_fix5_lo_legitimo_sigue_permitido(cmd):
+    assert decide(bash(cmd), branch="feature/x") is None, cmd
+
+
+def test_fix5_gap7_cd_solo_cuenta_en_posicion_de_programa():
+    def base(c):
+        return gc._cambia_base_en(gc._segmentos(c)[0])
+    assert base("echo cd; git restore src/a.py") is False
+    assert base("git restore src/cd") is False
+    assert base("git commit -m env") is False
+    assert base("echo git -C ..") is False
+    assert base("A=1 cd ..") is True
+    assert base("sudo env -C .. git status") is True
+
+
+def test_fix5_gap4_el_analisis_es_acotado_y_lineal(tmp_path, monkeypatch):
+    """El `realpath` del destino se calcula UNA vez por destino distinto y con tope: 1.500 `cd dN` no
+    pueden hacer 1.500 llamadas al sistema de ficheros."""
+    llamadas = []
+    real = os.path.realpath
+    monkeypatch.setattr(os.path, "realpath", lambda p, *a, **k: (llamadas.append(p), real(p, *a, **k))[1])
+    monkeypatch.chdir(tmp_path)
+    gc.check_git("; ".join(f"cd d{i}" for i in range(1500)) + "; git status", "feature/x")
+    assert len(llamadas) <= 200, len(llamadas)
+    llamadas.clear()
+    gc.check_git("; ".join(["cd ."] * 1500) + "; git status", "feature/x")
+    assert len(llamadas) <= 8, len(llamadas)
+
+
+def test_fix5_gap4_tope_de_entrada_deniega_si_hay_git_o_base():
+    grande = "echo " + " ".join(["cd ."] * 6000) + "; git push --force origin master"
+    assert len(grande) > 30000
+    assert gc.check_git(grande, "feature/x")
+    assert gc.check_git("echo " + " ".join(["x"] * 6000), "feature/x") is None
+    assert "larga" in (gc.check_git("echo " + " ".join(["git"] * 6000), "feature/x") or "")
+
+
+def test_fix5_el_anidamiento_profundo_falla_cerrado_no_con_una_excepcion():
+    anidada = "echo " + "$(" * 200 + "git restore ." + ")" * 200
+    assert gc.check_git(anidada, "feature/x")
+    profundo = "git push --force"
+    for _ in range(6):
+        profundo = "bash -c " + repr(profundo)
+    assert gc.check_git(profundo, "feature/x")

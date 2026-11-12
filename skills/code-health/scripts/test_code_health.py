@@ -932,3 +932,26 @@ def test_fix3_gap7_un_blame_con_error_se_reintenta_por_linea_y_lo_que_queda_marc
     assert edades["src/a.py:1"] is not None and edades["src/a.py:3"] is not None, edades
     assert edades["src/a.py:5"] is None and m["edad_parcial"] == 1, m
     assert r["parcial"] is True and any("antigüedad" in a for a in r["avisos"]), r["avisos"]
+
+
+def test_fix5_gap8_un_fichero_con_separador_solo_cr_marca_el_informe_parcial_con_aviso(tmp_path):
+    """Un fichero con saltos de línea solo CR (Mac clásico) queda en UNA línea para git y para `leer`: los
+    TODO se colapsan. Ya no es silencioso: `parcial: true`, motivo `separador-cr` y aviso con el fichero."""
+    root = tmp_path / "r"
+    (root / "src").mkdir(parents=True)
+    cr = chr(13)
+    (root / "src" / "mac.py").write_bytes(("# TODO: uno" + cr + "x = 1" + cr + "# TODO: dos" + cr + "y = 2" + cr).encode())
+    (root / "src" / "ok.py").write_text("# TODO: tres\nz = 3\n", encoding="utf-8")
+    r = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10)
+    assert r["parcial"] is True
+    assert "separador-cr" in r["parcial_motivos"], r["parcial_motivos"]
+    assert any("src/mac.py" in a and "CR" in a for a in r["avisos"]), r["avisos"]
+
+
+def test_fix5_gap8_crlf_y_lf_no_son_parciales(tmp_path):
+    root = tmp_path / "r"
+    (root / "src").mkdir(parents=True)
+    (root / "src" / "w.py").write_bytes(b"# TODO: uno\r\nx = 1\r\n")
+    (root / "src" / "l.py").write_bytes(b"# TODO: dos\nx = 1\n")
+    r = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10)
+    assert "separador-cr" not in r["parcial_motivos"], r["parcial_motivos"]

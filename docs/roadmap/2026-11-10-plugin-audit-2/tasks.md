@@ -38,13 +38,13 @@ changelog: Changed
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Defectos | 7 | 8 | 87.5% | 0 / 16h | 0 / 5.0h | 0 / 1.25h | 0 / 1090k |
+| Fase 1 — Defectos | 5 | 8 | 62.5% | 0 / 16h | 0 / 5.0h | 0 / 1.25h | 0 / 1090k |
 | Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev) | 0 | 4 | 0% | 0 / 32h | 0 / 7.9h | 0 / 1.98h | 0 / 2100k |
 | Fase 3 — Tokens | 0 | 11 | 0% | 0 / 30h | 0 / 8.2h | 0 / 2.05h | 0 / 2260k |
-| Fase 4 — Simplificación del código | 1 | 8 | 12.5% | 0 / 34.5h | 0 / 8.5h | 0 / 2.12h | 0 / 2470k |
+| Fase 4 — Simplificación del código | 0 | 8 | 0.0% | 0 / 34.5h | 0 / 8.5h | 0 / 2.12h | 0 / 2470k |
 | Fase 5 — Alcance y entrenamiento | 0 | 5 | 0% | 0 / 26h | 0 / 6.5h | 0 / 1.62h | 0 / 1800k |
 | Fase 6 — Higiene del roadmap | 0 | 2 | 0% | 0 / 7h | 0 / 1.7h | 0 / 0.42h | 0 / 500k |
-| **TOTAL** | **8** | **38** | **21.1%** | **0 / 145.5h** | **0 / 37.8h** | **0 / 9.45h** | **0 / 10220k** |
+| **TOTAL** | **5** | **38** | **13.2%** | **0 / 145.5h** | **0 / 37.8h** | **0 / 9.45h** | **0 / 10220k** |
 
 Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +20 % está en el plan); tokens al precio de `.claude/rates.json`.
 
@@ -198,11 +198,11 @@ TDD n/a: prosa de descriptions y de dos comandos; la puerta determinista es eval
 
 - **Descripción**: `guardrail-check.py` solo trata `git checkout`/`switch` como cambio de rama; `git checkout -- .`, `git restore .` y `checkout -f` pasan (deuda de F1 de la iniciativa anterior). Se añaden pocas reglas (descartan trabajo sin commit) con tests que fallan primero, sin tocar el alcance por rol (ADR-007).
 - **Changelog**: El guardarraíl del implementer también deniega git checkout -- ., git restore . y checkout -f.
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Cerrada**: 2026-11-11
 - **Tiempo humano**: est. 2h · real —
 - **Tiempo IA (ejec.)**: est. 0.5h · real 0.4h (estimado)
-- **Archivos**: `agent-kits/shared/guardrail-check.py`, `agent-kits/shared/test_guardrail_check.py`, `tests/test_native_guardrail_dispatch.py`, `docs/agents/implementer.md`, `docs/CONVENTIONS.md`
+- **Archivos**: `agent-kits/shared/guardrail-check.py`, `agent-kits/shared/test_guardrail_check.py`, `agent-kits/shared/test_guardrail_differential.py` (fix5), `tests/test_native_guardrail_dispatch.py`, `docs/agents/implementer.md`, `docs/CONVENTIONS.md`
 - **Evidencia**: GREEN: `pytest -q agent-kits/shared/test_guardrail_check.py -k restauracion` → `23 passed` (15 denegaciones + 8 permitidos: `git checkout main -- <fichero>`, `checkout -b|-B`, `restore --staged`, `restore <fichero>`, `checkout <rama>`); suite completa del guardarraíl → `414 passed`. Se deniegan `git checkout -f|--force`, `checkout [--] .`, `git restore .`, `restore --worktree|-W`, `switch -f|--discard-changes` (también con `-C`, `sh -c '…'`); el mensaje dice «descarta cambios sin comitear» y apunta a `git diff <foto> -- <ficheros> | git apply -R`. `restore --staged .` (solo índice) no se deniega. Runtimes: `pytest -q tests/test_native_guardrail_dispatch.py tests/test_native_prefilter_parity.py tests/test_native_role_context.py` → `33 passed`; `node --test tests/native-guard-adapter.test.mjs` → `pass 3`; `node --test tests/hook-guard-prefilter.test.mjs` → `pass 23`; `export-interop.py --check` → `88 ficheros al día` (el guardarraíl lo sirve un único script). Alcance: `docs/CONVENTIONS.md` no describe las reglas de git del guardarraíl, no se toca; la lista de denegaciones vive en `docs/agents/implementer.md` (actualizada) y en el docstring del script.
 - **Runtimes**: Una sola política (`guardrail-check.py`); `native-guardrail.py` la sirve a Codex y OpenCode (`tests/native-guard-adapter.test.mjs`).
 - **Verificación**:
@@ -241,11 +241,15 @@ RED: `agent-kits/shared/test_guardrail_check.py -k fix4` falló antes del códig
 
 GREEN: `pytest -q agent-kits/shared/test_guardrail_check.py` → todo passed (606 antes de la tarea + los 39 de fix4; cifra final en la tabla de la réplica Linux de T-23). Diseño aplicado: (1) `_segmentos` reconoce `<<DELIM`, `<<-DELIM`, `<<'DELIM'` y `<<"DELIM"` (no `<<<`) y, al llegar al salto de línea de la orden, salta el cuerpo hasta la línea del delimitador (`_saltar_heredocs`): el cuerpo es datos; un heredoc sin cierre marca `incompleta` (la regla del gap 1 del intento 3 deniega entonces cualquier `git` destructivo del último segmento). Única extensión al diseño, para no abrir un hueco nuevo: si la orden que lleva el heredoc es una shell (`bash <<EOF`, `sh <<'EOF'`), su cuerpo SÍ se ejecuta y se añade como segmento `bash -c <cuerpo>` para que se analice. (2) `_cambia_base_en(segmentos)` mira CADA token de CADA segmento (no solo el primero) y marca cambio de base ante `cd|pushd|popd|chdir`, `env -C|--chdir` o `git -C|--work-tree|--git-dir` en cualquier posición; `check_git` lo calcula una vez por orden y lo pasa por el parámetro `_base` a la recursión de `bash -c`/`sh -c`/`eval`, que lo hereda. Excepción (gap 4): un `cd`/`chdir` cuyo destino, resuelto con `realpath` contra el directorio de trabajo del hook (también la forma `/c/…` de Git Bash en Windows), es el propio directorio no cuenta; un destino que no se puede resolver sin ejecutar (`$X`, `~`, `-`, backtick, comodines) o `cd` sin argumento sí cuenta. `docs/agents/implementer.md` describe los dos cambios. Las sondas de los revisores (`vf/probe.py`, repo `m`) reproducen lo mismo: las formas con cambio de base deniegan y las de `-C <dir> status|log|diff` y `restore --staged` siguen permitidas.
 
+**fix5 (revisión de dos lentes, intento 5: gaps 1, 2, 3, 4, 6, 7 y 10)** — clave de medición `plugin-audit-2/T-06-fix5`. Diseño fijado por el orquestador (puntos 1-8). Se añade a `Archivos`: `agent-kits/shared/test_guardrail_differential.py` (corpus diferencial contra bash real, punto 6 y prueba de punta a punta por el lanzador, punto 5).
+
+RED: `agent-kits/shared/test_guardrail_check.py -k fix5` falló antes del código con `31 failed` · 2026-11-12 (heredoc aritmético `$((1<<2))`/`(( … ))`, here-string `<<<`, delimitador `<<\EOF`/`<<E"OF"`, `env bash <<EOF`, `bash <<EOF 2>&1`, `| tee`, `| bash; true`, `eval "$(cat <<'EOF' …)"`, `. /dev/stdin <<EOF`, `$(…)` y backticks en cuerpo sin comillas y dentro de `"…"`, comilla doble impar del gap 6, `git status\` incompleto con git sin deniego, tope de entrada y anidamiento profundo) y `agent-kits/shared/test_guardrail_differential.py -k "bad_ or legit"` con `67 failed` (el corpus diferencial: las sondas de las lentes A, B, C y D de los intentos 4 y 5 salían ALLOW); la propiedad «si el guardarraíl permite, bash no toca el centinela» falló con `AssertionError` y 100+ órdenes que bash real SÍ ejecutó (`restore`, `push --force`, `reset --hard`, `checkout -- .`) tras un ALLOW; `-k payload` (lanzador `run-hook.mjs` con el payload de 30 KB `echo cd .`×6000 + `git push --force`) falló con `KeyError: 'hookSpecificOutput'` (el lanzador no emite deny: plazo agotado, `role guard unavailable`).
+
 ### T-07 — code-health no termina sobre el repo completo (1.9)
 
 - **Descripción**: El auditor reporta timeout de 300 s con `code-health.py` sobre este repo. No lo reprodujo el orquestador: se mide primero qué lo hace lento (sin exclusiones de `worktrees`, `node_modules`, `interop`, `*.sqlite`, o comparación de shingles cuadrática) y se arregla la causa, con un tope de tiempo declarado.
 - **Changelog**: code-health termina en un tiempo acotado sobre repos grandes y excluye directorios generados.
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Cerrada**: 2026-11-11
 - **Tiempo humano**: est. 3h · real —
 - **Tiempo IA (ejec.)**: est. 1h · real 0.8h (estimado)
@@ -292,6 +296,10 @@ GREEN: `pytest -q skills/code-health/scripts` → `59 passed`. Gap 6: el informe
 RED: `skills/code-health/scripts/test_code_health.py -k "fix4 or gap7"` falló con `3 failed, 1 passed` · 2026-11-12: `AssertionError: {'src/a.py:1': 0, 'src/a.py:4': 0, 'src/a.py:7': None}` (un `\x0c` y un `\x1c` en una línea desplazaban la numeración de `str.splitlines` frente a la de git: los TODO salían como `:4` y `:7` en vez de `:3` y `:5`, con la edad de otra línea o ninguna), `['a', 'b', 'c', 'd', 'e'] != ['a\x0cb', 'c', 'd\re']` en `leer()` y `KeyError: 'src/a.py:3'` en el test de reintento por línea.
 
 GREEN: `pytest -q skills/code-health/scripts` → `61 passed`. `leer()` abre con `newline=""` y separa solo por `\n` (quita un `\r` final por línea y la línea vacía final), como git. El test fix3 del gap 7 (que fijaba la numeración antigua con el `\x0c`) se reescribe sobre la numeración nueva y el reintento por línea se prueba ahora con un `blame` que falla a propósito (`monkeypatch` de `ch.git`); `test_fix4_gap5_*` fija la numeración (`:1`, `:3`, `:5`, edad real en las tres y `edad_parcial == 0`) y la lectura.
+
+**fix5 (revisión de dos lentes, intento 5: gap 8)** — clave de medición `plugin-audit-2/T-07-fix5`. Sin ficheros nuevos en `Archivos`.
+
+RED: `skills/code-health/scripts/test_code_health.py -k fix5` falló antes del código con `1 failed, 1 passed` · 2026-11-12: `assert r["parcial"] is True` → `False` (un fichero con separador solo CR queda en una línea, con los TODO colapsados, sin aviso).
 
 ### T-38 — Manual PDF regenerable y al día (decidido por el usuario el 2026-11-12)
 
@@ -643,7 +651,7 @@ GREEN: `python scripts/build-handbook.py --edition 2026-11-12` regeneró las tre
 
 - **Descripción**: La CI tarda 875 s: pytest en serie (749 s) y suites que son script y test corren dos veces (23 por recuento rápido, 27 según el análisis: se fija el número real). Se añade `pytest -n auto`, se quita el bucle donde pytest ya recoge el fichero y se publica `--durations`. Adelantable al inicio. Tras T-08 la CI pierde ≈11,8 K líneas de test de Kwipu y Graphiti.
 - **Changelog**: La CI es unas 2,5 veces más rápida al paralelizar pytest y no repetir suites.
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Cerrada**: 2026-11-11
 - **Tiempo humano**: est. 2h · real —
 - **Tiempo IA (ejec.)**: est. 0.5h · real 0.55h (medido; ventana compartida con T-02..T-07)
