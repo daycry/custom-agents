@@ -280,15 +280,13 @@ def test_el_centinela_detecta_lo_que_bash_ejecuta(plantilla_repo, tmp_path):
 
 
 @necesita_bash
-def test_paridad_cada_bad_cambia_el_centinela_en_bash_real(plantilla_repo, tmp_path):
-    sin_efecto = []
-    for n, plantilla in enumerate(p for p in BAD if p not in SIN_PARIDAD):
-        orden = _expandir(plantilla, D_RESTORE, "/nada")
-        # las sondas que ya contienen `-C ..`/`cd ..` actúan en `outer`; el centinela las ve igual
-        antes, despues, _ = _ejecutar_en_bash(plantilla_repo, tmp_path / f"p{n}", orden)
-        if antes == despues:
-            sin_efecto.append(plantilla)
-    assert not sin_efecto, f"el corpus tiene BAD que bash NO ejecuta (no prueban nada): {sin_efecto}"
+@pytest.mark.parametrize("plantilla", [p for p in BAD if p not in SIN_PARIDAD],
+                         ids=[_id(p) for p in BAD if p not in SIN_PARIDAD])
+def test_paridad_cada_bad_cambia_el_centinela_en_bash_real(plantilla, plantilla_repo, tmp_path):
+    """Si bash NO ejecuta el efecto, la entrada del corpus no prueba nada: se exige que lo ejecute."""
+    orden = _expandir(plantilla, D_RESTORE, "/nada")
+    antes, despues, _ = _ejecutar_en_bash(plantilla_repo, tmp_path, orden)
+    assert antes != despues, f"bash NO ejecutó el efecto de {orden!r}"
 
 
 @necesita_bash

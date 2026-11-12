@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import time
@@ -11,9 +12,12 @@ from types import SimpleNamespace
 
 import pytest
 
-# serie: usan el almacén real con su plazo de pared de 1,3 s (hooks) y fallan bajo `-n auto` en un contenedor lento
-# (deadline_exceeded, T-23 fix4); pasan en serie: corren en el paso `-m serie`.
-pytestmark = pytest.mark.serie
+# T-23 fix5: el plazo de pared de 1,3 s del almacén ya no se mide contra el reloj de la máquina: la suite lo INYECTA
+# (`CUSTOM_AGENTS_ACTIVITY_DEADLINE_SCALE`, que heredan también los subprocesos) y el fichero corre en el paso
+# paralelo. Solo `test_la_suite_..._sin_serie` y el de la escala miran el plazo real.
+@pytest.fixture(autouse=True)
+def _plazos_inyectados(monkeypatch):
+    monkeypatch.setenv('CUSTOM_AGENTS_ACTIVITY_DEADLINE_SCALE', '20')
 
 SHARED = Path(__file__).resolve().parents[1] / 'agent-kits' / 'shared'
 
@@ -1519,3 +1523,23 @@ def test_2_1_lifecycle_signals_survive_sustained_tool_contention_on_a_full_ring(
             holder.kill()
             holder.communicate(timeout=10)
             raise
+
+
+def test_los_plazos_de_pared_se_pueden_inyectar_por_entorno(monkeypatch):
+    monkeypatch.delenv('CUSTOM_AGENTS_ACTIVITY_DEADLINE_SCALE', raising=False)
+    real = load('agent-activity-store')
+    assert (real.TOOL_DEADLINE, real.LIFECYCLE_DEADLINE, real.TOOL_LOCK_WAIT) == (1.3, 1.0, 1.0)
+    monkeypatch.setenv('CUSTOM_AGENTS_ACTIVITY_DEADLINE_SCALE', '20')
+    escalado = load('agent-activity-store')
+    assert escalado.TOOL_DEADLINE == pytest.approx(26.0) and escalado.LIFECYCLE_DEADLINE == pytest.approx(20.0)
+    for valor, esperado in (('', 1.0), ('abc', 1.0), ('0.5', 1.0), ('nan', 1.0), ('-3', 1.0), ('inf', 60.0), ('1e9', 60.0)):
+        monkeypatch.setenv('CUSTOM_AGENTS_ACTIVITY_DEADLINE_SCALE', valor)
+        assert load('agent-activity-store').LIFECYCLE_DEADLINE == esperado, valor
+
+
+def test_los_ficheros_de_actividad_y_consola_no_corren_enteros_en_serie():
+    """T-23 fix5 (gap 5): 1.000 tests de estos dos ficheros en el paso serie lo llevaron de 60 s a 586 s. Solo un
+    test concreto con plazo de pared real puede llevar `@pytest.mark.serie`, no el fichero entero."""
+    for nombre in ('test_agent_activity_store.py', 'test_console_encoding.py'):
+        texto = (Path(__file__).parent / nombre).read_text(encoding='utf-8')
+        assert not re.search(r'^pytestmark\s*=.*serie', texto, re.M), nombre
