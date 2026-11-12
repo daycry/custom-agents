@@ -242,51 +242,84 @@ def _patologicos(n=100000):
     ]
 
 
-RAZON_LINEAL_MAX = 6.5
+CRECIMIENTO = 8              # la entrada grande es ×8 la pequeña
+RAZON_LINEAL_MAX = 16        # lineal ≈ 8, n^1,5 ≈ 22,6, cuadrático ≈ 64: el tope es el doble del lineal
+SUELO_RUIDO = 0.05           # s de CPU: por debajo, el reloj (15,6 ms en Windows) no distingue razones
 
 
-def _es_lineal(t_chico, t_grande):
-    """Entrada ×4: lineal ≈ ×4 (n^1,5 ≈ ×8, cuadrático ×16). Pasa si la razón con el caso pequeño es ≤ 6,5 (con
-    suelo de ruido de 50 ms para el pequeño) y no pasa de 10 s (colgado). Sin atajo por tiempo absoluto: un caso
-    rápido NO exime de la razón (una ralentización de ×6,5 o más en un caso de 1 s no puede pasar por «rápido»).
-    Medido con calentamiento previo, el mejor de 2 en el pequeño y hasta 3 intentos en el grande: la razón máxima de los 23 patológicos fue
-    5,9 en Windows (una sola pasada, sin mejor-de-2) — ver el ledger de T-23 fix2 para Linux."""
-    return t_grande < 10 and t_grande <= RAZON_LINEAL_MAX * max(t_chico, 0.05)
+def _es_lineal(t_chico, t_grande, suelo=SUELO_RUIDO):
+    """La puerta protege la ausencia de retroceso CATASTRÓFICO (cuadrático o peor), no el tiempo de pared:
+    se mide tiempo de CPU (`time.process_time`, inmune a la carga ajena que reparte el planificador), con la
+    mediana de 3 por tamaño, y la entrada crece ×8 (lineal ≈ 8, n^1,5 ≈ 22,6, cuadrático ≈ 64). Pasa si la
+    razón con el caso pequeño (con un suelo de ruido) es ≤ 16 y no pasa de 10 s (colgado)."""
+    return t_grande < 10 and t_grande <= RAZON_LINEAL_MAX * max(t_chico, suelo)
 
 
 def test_el_criterio_de_linealidad_distingue_lineal_de_cuadratico():
-    """T-23 fix1 (gap 3): el umbral absoluto `< 1.5 s` para 1 MB mide la VELOCIDAD de la máquina, no la
-    complejidad: ×4 de entrada → ×4 si es lineal, ×16 si es cuadrático. T-23 fix2 (gap 5): razón ≤ 6,5 y sin
-    atajo por tiempo absoluto, para no aceptar n^1,5 (×8) ni una ralentización de ×7 en un caso rápido."""
-    assert _es_lineal(0.30, 1.20)                 # lineal: ×4
-    assert _es_lineal(0.30, 1.80)                 # lineal con ruido y caché: ×6
-    assert _es_lineal(0.01, 0.30)                 # por debajo del suelo de ruido (50 ms) no se mide razón
-    assert not _es_lineal(0.30, 2.40)             # n^1,5: ×8
-    assert not _es_lineal(0.20, 1.40)             # ×7 en un caso «rápido» (< 1,5 s): antes pasaba por el atajo absoluto
-    assert not _es_lineal(0.30, 4.8)              # cuadrático: ×16
+    assert _es_lineal(0.30, 2.40)                 # lineal: ×8
+    assert _es_lineal(0.30, 4.20)                 # lineal con ruido y caché: ×14
+    assert _es_lineal(0.01, 0.70)                 # por debajo del suelo de ruido (50 ms) no se mide razón
+    assert not _es_lineal(0.20, 4.5)              # n^1,5: ×22,6
+    assert not _es_lineal(0.10, 6.4)              # cuadrático: ×64
     assert not _es_lineal(0.30, 12.0)             # más de 10 s: se da por colgado aunque la razón sea baja
 
 
-def _medir(texto):
-    inicio = time.perf_counter()
-    redact.redactar(texto)
-    return time.perf_counter() - inicio
+def _cpu(funcion, entrada):
+    inicio = time.process_time()
+    salida = funcion(entrada)
+    return time.process_time() - inicio, salida
 
 
-# serie: mide tiempo de pared (< 1.5 s); bajo `-n auto` la carga ajena lo rompe (T-23, plugin-audit-2)
+def _mediana3(funcion, entrada):
+    """(mediana del tiempo de CPU de 3 ejecuciones, salida de la ÚLTIMA ejecución: no se recalcula)."""
+    tiempos, salida = [], None
+    for _ in range(3):
+        t, salida = _cpu(funcion, entrada)
+        tiempos.append(t)
+    return sorted(tiempos)[1], salida
+
+
+def _lineal_de_verdad(n):
+    acc = 0
+    for i in range(n):
+        acc += i ^ 3
+    return acc
+
+
+def _cuadratica_de_verdad(n):
+    acc = 0
+    for i in range(n):
+        for j in range(n):
+            acc += i ^ j
+    return acc
+
+
+@pytest.mark.serie
+def test_la_puerta_deja_pasar_una_funcion_lineal_real():
+    n = 600_000
+    t_chico, _ = _mediana3(_lineal_de_verdad, n)
+    t_grande, _ = _mediana3(_lineal_de_verdad, n * CRECIMIENTO)
+    assert _es_lineal(t_chico, t_grande), (round(t_chico, 3), round(t_grande, 3))
+
+
+@pytest.mark.serie
+def test_la_puerta_rechaza_una_funcion_cuadratica_real():
+    """Una función cuadrática de verdad (doble bucle), medida con el mismo reloj, entrada ×8: razón ≈ 64."""
+    n = 800
+    t_chico, _ = _mediana3(_cuadratica_de_verdad, n)
+    t_grande, _ = _cpu(_cuadratica_de_verdad, n * CRECIMIENTO)       # una sola: ya es ~40 M de iteraciones
+    assert not _es_lineal(t_chico, t_grande), (round(t_chico, 3), round(t_grande, 3))
+
+
+# serie: mide tiempo de CPU (inmune a la carga ajena, pero 15,6 ms de resolución en Windows); T-23 fix3
 @pytest.mark.serie
 def test_linear_cost_on_pathological_inputs():
-    for chico, grande in zip(_patologicos(25000), _patologicos(100000)):
-        _medir(chico)                                         # calentamiento: cachés de regex y de intérprete
-        t_chico = min(_medir(chico), _medir(chico))
-        t_grande = _medir(grande)
-        for _ in range(2):                                    # el ruido ajeno solo SUMA tiempo: se repite
-            if _es_lineal(t_chico, t_grande):                 # (hasta 3 veces, quedándose con la mejor) y un
-                break                                         # algoritmo superlinear falla las 3
-            t_grande = min(t_grande, _medir(grande))
-        assert _es_lineal(t_chico, t_grande), (len(grande), grande[:40], round(t_chico, 2), round(t_grande, 2))
-        salida = redact.redactar(grande)
-        assert redact.redactar(salida) == salida, grande[:40]
+    for chico, grande in zip(_patologicos(100000 // CRECIMIENTO), _patologicos(100000)):
+        redact.redactar(chico)                                # calentamiento: cachés de regex y de intérprete
+        t_chico, _ = _mediana3(redact.redactar, chico)
+        t_grande, salida = _mediana3(redact.redactar, grande)
+        assert _es_lineal(t_chico, t_grande), (len(grande), grande[:40], round(t_chico, 3), round(t_grande, 3))
+        assert redact.redactar(salida) == salida, grande[:40]  # idempotencia sobre la salida ya medida
 
 
 def test_quoted_prose_without_options_avoids_nested_command_scans(monkeypatch):
