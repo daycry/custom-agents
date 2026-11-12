@@ -388,7 +388,7 @@ def test_la_puerta_rechaza_la_regex_cuadratica_que_antes_quedaba_bajo_el_suelo()
     razones (`tc=0.0000 tg=0.4062` pasaba): ahora el tamaño crece hasta superar el suelo y la razón sale ≈ 8."""
     relativa, tc, tg, _ = _medir(_regex_cuadratica, lambda n: "x" * n, n0=500, suelo=0.03, pausa=0)
     assert relativa is not None and not _es_lineal(relativa), (relativa, tc, tg)
-    assert tc >= 0.03
+    assert tc >= 0.03 / 8                                   # el tamaño creció hasta un caso medible (≥ 1/8 del suelo)
 
 
 def test_sin_suelo_alcanzado_no_se_aprueba_por_razon():

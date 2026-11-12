@@ -84,7 +84,7 @@ def test_bounded_memory_inputs_redact_without_superlinear_delay(tmp_path, case):
 script,fixture,case,root=sys.argv[1:]
 spec=importlib.util.spec_from_file_location('owned_redactor',script)
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
-started=time.monotonic()
+started=time.process_time()   # CPU, no pared: la carga ajena no cambia el veredicto (T-23 fix4)
 if case=='show':
     result=module.query(root,operation='show',id='ADR-001')
     assert result['selected']['id']=='ADR-001' and len(result['selected']['texto'])<=12000
@@ -92,7 +92,7 @@ if case=='show':
 else:
     text=pathlib.Path(fixture).read_text(encoding='utf8')
     assert module.redactar(text)==text
-print(round(time.monotonic()-started,4))
+print(round(time.process_time()-started,4))
 '''
     script = str(Path(HERE) / ('knowledge-view.py' if case == 'show' else 'redact.py'))
     try:

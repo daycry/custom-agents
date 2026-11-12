@@ -66,7 +66,11 @@ def test_bench_mide_in_process_no_solo_subproceso(tmp_path):
     r = run("--iterations", "10", "--json")
     assert r.returncode == 0, r.stderr
     d = json.loads(r.stdout)
-    assert d["p50_ms"] < 20, f"p50_ms={d['p50_ms']} sugiere que se sigue midiendo el subproceso"
+    # Relativo, no absoluto (T-23 fix4): `< 20 ms` mide la velocidad del disco (31 ms en Windows, 58 ms en un
+    # contenedor sobre Docker Desktop, 14 ms en el runner) y no la propiedad. Si se midiera el subproceso, la
+    # mediana in-process se parecería a la e2e (arranque del intérprete incluido); in-process queda ≥ 3 veces
+    # por debajo en las tres máquinas medidas (35×, 7×, 30×).
+    assert d["p50_ms"] * 3 < d["e2e_p50_ms"],         f"p50_ms={d['p50_ms']} frente a e2e_p50_ms={d['e2e_p50_ms']} sugiere que se sigue midiendo el subproceso"
 
 
 # serie: mide tiempo o contiende por un lock con procesos hermanos; falla bajo `-n auto` por la carga ajena (T-23, plugin-audit-2)
