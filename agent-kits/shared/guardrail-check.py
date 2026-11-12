@@ -262,6 +262,29 @@ def current_branch(project_dir, timeout=5):
     return b or None
 
 
+_HEREDOC_RE = re.compile(r"(-?)[ \t]*(?:'([^']*)'|\"([^\"]*)\"|([^\s;&|()<>'\"]+))")
+
+
+def _saltar_heredocs(command, pos, pendientes):
+    """Salta el cuerpo de cada heredoc pendiente (desde `pos`, primera línea tras la orden) hasta la
+    línea que solo contiene el delimitador (con `<<-`, sin tabuladores iniciales). Devuelve
+    `(nueva_pos, cuerpos, cerrado)`: el cuerpo es DATOS, no órdenes (T-06 fix4, gap 1)."""
+    cuerpos = []
+    for delim, guion in pendientes:
+        lineas = []
+        while True:
+            if pos >= len(command):
+                return pos, cuerpos + ["\n".join(lineas)], False
+            fin = command.find("\n", pos)
+            linea = command[pos:] if fin < 0 else command[pos:fin]
+            pos = len(command) if fin < 0 else fin + 1
+            if (linea.lstrip("\t") if guion else linea) == delim:
+                break
+            lineas.append(linea)
+        cuerpos.append("\n".join(lineas))
+    return pos, cuerpos, True
+
+
 def _segmentos(command):
     """Literal shell words and command boundaries, retaining quoted punctuation as data.
 
@@ -274,8 +297,29 @@ def _segmentos(command):
     out, cur, word = [], [], []
     quote, started, i = None, False, 0
     incompleta = False
+    pendientes = []          # heredocs abiertos en la línea actual: (delimitador, `<<-`)
     while i < len(command):
         char = command[i]
+        if char == "\n" and quote is None and pendientes:
+            if started:
+                cur.append("".join(word))
+                word, started = [], False
+            shell = bool(cur) and _program_name(cur[0]) in _SHELLS
+            if cur:
+                out.append(cur)
+                cur = []
+            i, cuerpos, cerrado = _saltar_heredocs(command, i + 1, pendientes)
+            pendientes = []
+            if shell:       # `bash <<EOF … EOF`: el cuerpo SÍ lo ejecuta una shell
+                out.extend(["bash", "-c", c] for c in cuerpos)
+            if not cerrado:
+                incompleta = True
+                break
+            continue
+        if char == "<" and quote is None and command.startswith("<<", i) and not command.startswith("<<<", i):
+            m = _HEREDOC_RE.match(command, i + 2)
+            if m:
+                pendientes.append((m.group(2) or m.group(3) or m.group(4), bool(m.group(1))))
         if char == "\\" and quote is None and i + 1 == len(command):
             word.append(char)        # escape final: la orden está incompleta
             started, incompleta = True, True
@@ -312,7 +356,7 @@ def _segmentos(command):
             word.append(char)
             started = True
         i += 1
-    if quote:
+    if quote or pendientes:     # comilla sin cerrar o heredoc cuya línea no llegó a terminar
         incompleta = True
     if started:
         cur.append("".join(word))
@@ -467,6 +511,45 @@ def _envoltorio_cambia_dir(toks):
         if t == "--chdir" or t.startswith("--chdir=") or \
                 (not t.startswith("--") and "C" in t):
             return True
+    return False
+
+
+def _destino_es_el_propio_directorio(destino):
+    """¿El destino de un `cd`, resuelto, es el directorio de trabajo del hook? (gap 4). Lo que no se
+    puede resolver sin ejecutar (`$X`, `~`, backtick, `-`) cuenta como cambio de base."""
+    if not destino or any(c in destino for c in "$`~*?[") or destino == "-":
+        return False
+    d = destino.replace("\\", "/") if os.name == "nt" else destino
+    m = re.match(r"/([A-Za-z])(/.*)?\Z", d) if os.name == "nt" else None
+    if m:
+        d = m.group(1).upper() + ":" + (m.group(2) or "/")
+    try:
+        cwd = os.getcwd()
+        return os.path.normcase(os.path.realpath(os.path.join(cwd, d))) == os.path.normcase(os.path.realpath(cwd))
+    except OSError:
+        return False
+
+
+def _cd_cambia_base(toks, idx):
+    """`cd|pushd|popd|chdir` en `toks[idx]`: cambia la base salvo `cd <propio directorio>` (gap 4)."""
+    if _program_name(toks[idx]) not in ("cd", "chdir"):
+        return True                      # pushd/popd: la pila de directorios no se resuelve aquí
+    args = toks[idx + 1:]
+    k = 0
+    while k < len(args) and args[k] in ("-L", "-P", "-e", "-@", "--"):
+        k += 1
+    return not (k < len(args) and _destino_es_el_propio_directorio(args[k]))
+
+
+def _cambia_base_en(segmentos):
+    """¿Alguna parte de la orden cambia el directorio/árbol de git? Se mira CADA token del segmento,
+    no solo el primero: `command cd ..`, `{ cd ..; … }`, `if …; then cd ..; fi`, `time cd`, `! cd`,
+    `A=1 env -C ..` (T-06 fix4, gaps 3 y 4)."""
+    for toks in segmentos:
+        for idx, t in enumerate(toks):
+            nombre = _program_name(t)
+            if (nombre in _CAMBIA_DIR and _cd_cambia_base(toks, idx))                     or (nombre == "env" and _envoltorio_cambia_dir(toks[idx:]))                     or (nombre == "git" and _git_cambia_base(toks[idx:])):
+                return True
     return False
 
 
@@ -926,15 +1009,17 @@ def _razon_restauracion(sub, args, base_cambiada=False):
     return None
 
 
-def check_git(command, branch, _depth=0, _env=None):
+def check_git(command, branch, _depth=0, _env=None, _base=False):
     """Razón de deny o None. `branch` = rama actual (None si no hay git).
     Recursivo SOLO sobre lo que una shell ejecutaría (`sh -c "git push --force"`, `bash -c '…'`,
     `eval "…"`); un mensaje de commit con «rm -rf .» dentro es texto y no se analiza."""
     if _depth > 3:
         return None
     exportados = set()      # variables sensibles exportadas en segmentos anteriores de la MISMA orden
-    base_cambiada = False   # un `cd`/`pushd` anterior en la MISMA orden (gap 3)
     segmentos, incompleta = _segmentos(command)
+    # La base cambia si CUALQUIER punto de la orden la cambia (o la heredó el `bash -c`/`eval` que la
+    # contiene): el guardarraíl valida rutas contra el directorio actual, no contra el efectivo.
+    base_cambiada = _base or _cambia_base_en(segmentos)
     for n, toks in enumerate(segmentos):
         crudo = toks
         toks, bindings = _literal_invocation(toks, _env)
@@ -943,8 +1028,6 @@ def check_git(command, branch, _depth=0, _env=None):
             if j >= 0 and toks[j] in _GIT_DESTRUCTIVOS:
                 return (f"`git {toks[j]}` bloqueado: orden incompleta (escape final o comilla sin cerrar) — "
                         "el guardarraíl no puede saber qué ruta o rama nombra; escríbela entera.")
-        if _envoltorio_cambia_dir(crudo):
-            base_cambiada = True
         if toks and toks[0] in _EXPORTADORES:
             exportados |= {t.split("=", 1)[0] for t in toks[1:] if _env_sensible(t.split("=", 1)[0])}
         elif not toks:
@@ -955,7 +1038,7 @@ def check_git(command, branch, _depth=0, _env=None):
         # arbitrarios (`git commit -m "rm -rf . en el mensaje"` es texto, no un comando; regresión
         # cazada en la revisión, intento 2).
         for sub in _subcomandos_shell(toks):
-            razon = check_git(sub, branch, _depth + 1, bindings)
+            razon = check_git(sub, branch, _depth + 1, bindings, base_cambiada)
             if razon:
                 return razon
         razon = check_ordenes_externas(toks)
@@ -1011,7 +1094,7 @@ def check_git(command, branch, _depth=0, _env=None):
             i = _es_git(toks, sub)
             if i >= 0:
                 razon = _razon_restauracion(sub, toks[i + 1:],
-                                            base_cambiada or _git_cambia_base(toks))
+                                            base_cambiada)
                 if razon:
                     return razon
                 if sub == "restore":
@@ -1024,8 +1107,6 @@ def check_git(command, branch, _depth=0, _env=None):
                         and branch and branch not in MAIN_BRANCHES and branch != "HEAD":
                     return (f"`git {sub} {args[0]}` bloqueado: estás en la rama de trabajo «{branch}» "
                             f"y el implementer no sale de ella — la integración la dirige /dev-cycle (Fase 6).")
-        if crudo and _program_name(crudo[0]) in _CAMBIA_DIR:
-            base_cambiada = True
         if toks and os.path.basename(toks[0]) == "rm":
             flags = [t for t in toks[1:] if t.startswith("-")]
             targets = [t for t in toks[1:] if not t.startswith("-")]

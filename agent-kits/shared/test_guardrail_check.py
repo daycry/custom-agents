@@ -947,3 +947,81 @@ def test_fix3_gap8_el_pathspec_sigue_validandose_con_source():
     for cmd in ('git restore --source "$BASE" .', 'git restore -s HEAD ":/"', 'git restore --source HEAD "$X"'):
         razon = decide(bash(cmd), branch="feature/x")
         assert razon and "descarta" in razon, (cmd, razon)
+
+
+# ------------------------------------------- fix4 (plugin-audit-2, fase 1, intento 4) ----
+HEREDOC_OCULTA = [
+    "cat <<EOF\nit's\nEOF\ngit restore .", "git commit -F - <<'EOF'\ndon't\nEOF\ngit checkout .",
+    'cat <<"EOF"\nit\'s "x\nEOF\ngit restore .', "cat <<-EOF\n\tit's\n\tEOF\ngit restore .",
+    "cat <<EOF >f\nit's\nEOF\necho ok; git checkout HEAD -- .", "bash <<EOF\ngit restore .\nEOF",
+    "sh <<'EOF'\ngit checkout .\nEOF",
+]
+
+
+@pytest.mark.parametrize("cmd", HEREDOC_OCULTA)
+def test_fix4_gap1_heredoc_no_traga_lo_que_sigue(cmd):
+    razon = decide(bash(cmd), branch="feature/x")
+    assert razon and "descarta" in razon, (cmd, razon)
+
+
+@pytest.mark.parametrize("cmd", HEREDOC_OCULTA[:2])
+def test_fix4_gap1_heredoc_de_punta_a_punta_por_el_hook(cmd, tmp_path):
+    code, out, _ = run_cli(json.dumps(bash(cmd)), str(tmp_path), {"CLAUDE_AGENT_NAME": "implementer"})
+    assert code == 0
+    assert json.loads(out)["hookSpecificOutput"]["permissionDecision"] == "deny", (cmd, out)
+
+
+@pytest.mark.parametrize("cmd", [
+    "git commit -F - <<'EOF'\ngit restore . y it's texto\nEOF", "cat <<EOF\ngit checkout .\nEOF",
+    "cat <<-EOF\n\tgit reset --hard\n\tEOF\necho hecho", "git commit -F - <<EOF\ndon't\nEOF\ngit status",
+    "cat <<EOF\nrm -rf /\nEOF", "git log <<< 'git restore .'", "echo a <<EOF\nx\nEOF\ngit restore src/a.py",
+])
+def test_fix4_gap1_el_cuerpo_del_heredoc_son_datos(cmd):
+    assert decide(bash(cmd), branch="feature/x") is None, cmd
+
+
+@pytest.mark.parametrize("cmd", ["cat <<EOF\ngit restore .", "git commit -m x <<EOF\nit's", "cat <<EOF\nuna\nlinea"])
+def test_fix4_gap1_heredoc_sin_cierre_marca_la_orden_incompleta(cmd):
+    _segs, incompleta = gc._segmentos(cmd)
+    assert incompleta, cmd
+
+
+def test_fix4_gap1_heredoc_sin_cierre_con_git_destructivo_falla_cerrado():
+    razon = decide(bash("git checkout feature/x <<EOF\nx"), branch="feature/x")
+    assert razon and "incompleta" in razon
+
+
+BASE_EN_CUALQUIER_PUNTO = [
+    "A=1 env -C .. git restore proj", "command cd .. && git restore proj", "builtin cd .. && git restore proj",
+    "{ cd ..; git restore proj; }", "if true; then cd ..; fi; git restore proj", "time cd .. ; git restore proj",
+    "! cd ..; git restore proj", "cd .. && bash -c 'git restore proj'", "cd .. && eval 'git restore proj'",
+    "cd .. && sh -c \"git checkout -- proj\"", "for d in x; do cd ..; git restore proj; done",
+    "git restore proj && cd .. && git restore proj", "cd ..\ngit restore proj", "popd && git restore proj",
+    "cd && git restore proj", "cd - && git restore proj", "cd $X && git restore a.py",
+]
+
+
+@pytest.mark.parametrize("cmd", BASE_EN_CUALQUIER_PUNTO)
+def test_fix4_gap3_cambio_de_base_en_cualquier_punto(cmd):
+    razon = decide(bash(cmd), branch="feature/x")
+    assert razon and "base" in razon, (cmd, razon)
+
+
+def test_fix4_gap3_bash_c_hereda_el_cambio_de_base_del_exterior():
+    razon = decide(bash("cd .. && bash -c 'git restore proj'"), branch="feature/x")
+    assert razon and "base" in razon
+
+
+def test_fix4_gap4_cd_al_propio_directorio_no_cuenta(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
+    propio = str(tmp_path)
+    for cmd in (f'cd "{propio}" && git checkout feature/x', f'cd "{propio}" && git restore src/a.py',
+                f"cd '{propio}'; git restore src/a.py", "cd . && git restore src/a.py",
+                f"cd {propio.replace(chr(92), '/')} && git restore src/a.py"):
+        assert decide(bash(cmd), branch="feature/x") is None, cmd
+    for cmd in ("cd sub && git restore a.py", f'cd "{propio}/.." && git restore src/a.py',
+                f'cd "{propio}" && cd .. && git restore a.py'):
+        razon = decide(bash(cmd), branch="feature/x")
+        assert razon and "base" in razon, (cmd, razon)
+    assert "descarta" in (decide(bash(f'cd "{propio}" && git restore .'), branch="feature/x") or "")
