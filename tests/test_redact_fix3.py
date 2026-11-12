@@ -255,7 +255,8 @@ CRECIMIENTO = 16             # la entrada grande es ×16 la pequeña
 RAZON_RELATIVA_MAX = 2.5     # razón de redact / razón de la referencia lineal: lineal ≈ 1, n^1,5 ≈ 4, cuadrático ≈ 16
 SUELO_CPU = 0.1 if os.name == "nt" else 0.05   # s de CPU del caso pequeño (el reloj de Windows tiene 15,6 ms de resolución)
 TOPE_CARACTERES = 1_000_000  # tope de tamaño del caso pequeño (el grande es ×16: ≤ 16 MB)
-RONDAS = 3                   # rondas de 2 muestras: la siguiente solo se toma si la anterior dio rojo
+RONDAS = 4                   # rondas de 2 muestras: la siguiente solo se toma si la anterior dio rojo
+PAUSA_RONDAS = 5.0           # s entre rondas: una ráfaga de carga ajena no cubre todas (T-23 fix4: 1 de 5 pasadas)
 TOPE_CPU_GRANDE = 10.0       # s: un caso grande que tarde más se da por colgado (cuadrático o peor)
 TOPE_CPU_CRECIMIENTO = 30.0  # s de CPU totales gastados en hallar el tamaño que supera el suelo
 
@@ -290,13 +291,14 @@ def _validas(muestras, esperado):
     return [m for m in muestras if m >= esperado / 8]
 
 
-def _medir(funcion, generador, n0=1500, suelo=None):
+def _medir(funcion, generador, n0=1500, suelo=None, pausa=None):
     """Mide `funcion` con una entrada pequeña (tamaño adaptado hasta superar `SUELO_CPU`) y otra ×16.
     Devuelve `(razon_relativa, t_chico, t_grande, salida_grande)`; `razon_relativa` es `None` si se llegó al
     tope de tamaño sin superar el suelo (la función es inocua a ese tamaño: no hay razón que medir) y se
     lanza `SinSuelo` si el tope de CPU del crecimiento se agota antes. Un grande por encima de
     `TOPE_CPU_GRANDE` s devuelve una razón infinita (colgado)."""
     suelo = SUELO_CPU if suelo is None else suelo
+    pausa = PAUSA_RONDAS if pausa is None else pausa
     n, gastado = n0, 0.0
     while True:
         chico = generador(n)
@@ -315,7 +317,9 @@ def _medir(funcion, generador, n0=1500, suelo=None):
     while _cpu(_referencia_lineal, chico, repeticiones)[0] < suelo / 2 and repeticiones < 4096:
         repeticiones *= 2
     tc, tg, rc, rg, salida, relativa = [], [], [], [], None, None
-    for _ronda in range(RONDAS):
+    for ronda in range(RONDAS):
+        if ronda:
+            time.sleep(pausa)
         for _ in range(2):                                    # intercaladas: comparten la carga del momento
             rc.append(_cpu(_referencia_lineal, chico, repeticiones)[0])
             tc.append(_cpu(funcion, chico)[0])
@@ -374,7 +378,7 @@ def test_la_puerta_deja_pasar_una_funcion_lineal_real():
 
 @pytest.mark.serie
 def test_la_puerta_rechaza_un_n_a_la_1_5_real():
-    relativa, tc, tg, _ = _medir(_n_a_la_1_5, lambda n: "x" * (n // 4))
+    relativa, tc, tg, _ = _medir(_n_a_la_1_5, lambda n: "x" * (n // 4), pausa=0)
     assert relativa is not None and not _es_lineal(relativa), (relativa, tc, tg)
 
 
@@ -382,7 +386,7 @@ def test_la_puerta_rechaza_un_n_a_la_1_5_real():
 def test_la_puerta_rechaza_la_regex_cuadratica_que_antes_quedaba_bajo_el_suelo():
     """`re.compile(r"x*y").search("x"*N)` con N pequeño tardaba < 50 ms y la puerta anterior no comparaba
     razones (`tc=0.0000 tg=0.4062` pasaba): ahora el tamaño crece hasta superar el suelo y la razón sale ≈ 8."""
-    relativa, tc, tg, _ = _medir(_regex_cuadratica, lambda n: "x" * n, n0=500, suelo=0.03)
+    relativa, tc, tg, _ = _medir(_regex_cuadratica, lambda n: "x" * n, n0=500, suelo=0.03, pausa=0)
     assert relativa is not None and not _es_lineal(relativa), (relativa, tc, tg)
     assert tc >= 0.03
 
@@ -410,8 +414,9 @@ def test_una_muestra_de_cpu_a_cero_no_da_una_razon_disparatada(monkeypatch):
         return t, salida
     monkeypatch.setattr(sys.modules[__name__], "_cpu", falso)
     # suelo bajo: el caso supera el suelo a la primera (sin doblar) y el índice de llamadas es estable
-    relativa, _tc, _tg, _ = _medir(_lineal_de_verdad, lambda n: "x" * (n * 70), suelo=0.01)
-    assert llamadas[0] >= 3 and _es_lineal(relativa), (llamadas, relativa)
+    relativa, _tc, _tg, _ = _medir(_lineal_de_verdad, lambda n: "x" * (n * 70), suelo=0.01, pausa=0)
+    # el objetivo es que el cero NO dispare la razón (antes 5,6e7); la linealidad fina la mide la puerta
+    assert llamadas[0] >= 3 and relativa < 20, (llamadas, relativa)
 
 
 def test_las_muestras_invalidas_se_descartan():
