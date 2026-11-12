@@ -629,24 +629,48 @@ def edades_dias(root, rel, lineas, hoy, plazo=None, perdidas=None):
         out = git(root, *args, timeout=limite, estado=estado)
         if "cortado" in estado and perdidas is not None:
             perdidas[0] += len(trozo)
-        if not out:
-            continue
-        sha_de, tiempos, cur = {}, {}, None
-        for ln in out.splitlines():
-            m = _BLAME_CABECERA.match(ln)
-            if m:
-                cur = m.group(1)
-                sha_de[int(m.group(2))] = cur
-            elif cur and ln.startswith("author-time "):
-                try:
-                    tiempos[cur] = int(ln.split()[1])
-                except (IndexError, ValueError):
-                    pass
-        for n, sha in sha_de.items():
-            if sha in tiempos:
-                fecha = _dt.datetime.fromtimestamp(tiempos[sha], _dt.timezone.utc).date()
-                res[n] = max(0, (hoy - fecha).days)
+        if out:
+            res.update(_edades_de_blame(out, hoy))
+        elif "error" in estado and "cortado" not in estado and _versionado(root, rel):
+            # Un solo `-L` fuera de rango (p. ej. un `\x0c` que Python cuenta como salto de línea y git no)
+            # hace fallar TODO el trozo: se reintenta línea a línea y lo que siga sin edad marca el informe.
+            for pos, n in enumerate(trozo):
+                if _agotado(plazo):
+                    if perdidas is not None:
+                        perdidas[0] += len(trozo) - pos
+                    break
+                lim = GIT_TIMEOUT if plazo is None else max(1.0, min(GIT_TIMEOUT, plazo - time.monotonic()))
+                o1 = git(root, "blame", "--porcelain", "-L", f"{n},{n}", "--", rel, timeout=lim)
+                if o1:
+                    res.update(_edades_de_blame(o1, hoy))
+                if n not in res and perdidas is not None:
+                    perdidas[0] += 1
     return res
+
+
+def _edades_de_blame(out, hoy):
+    """{línea: edad en días} de una salida `git blame --porcelain`."""
+    sha_de, tiempos, cur, res = {}, {}, None, {}
+    for ln in out.splitlines():
+        m = _BLAME_CABECERA.match(ln)
+        if m:
+            cur = m.group(1)
+            sha_de[int(m.group(2))] = cur
+        elif cur and ln.startswith("author-time "):
+            try:
+                tiempos[cur] = int(ln.split()[1])
+            except (IndexError, ValueError):
+                pass
+    for n, sha in sha_de.items():
+        if sha in tiempos:
+            fecha = _dt.datetime.fromtimestamp(tiempos[sha], _dt.timezone.utc).date()
+            res[n] = max(0, (hoy - fecha).days)
+    return res
+
+
+def _versionado(root, rel):
+    """¿`rel` está versionado en git? Un fichero sin versionar no tiene edad y no es un fallo de medida."""
+    return git(root, "ls-files", "--error-unmatch", "--", rel) is not None
 
 
 def marcadores(root, src, con_git, top, plazo=None):
@@ -701,12 +725,14 @@ def analizar(root, langs, window, min_lines, exclude_tests, since, top, exclude_
     avisos = []
     plazo = time.monotonic() + max_seconds if max_seconds else None
     parcial = False
+    motivos = set()          # por qué el informe es parcial: dos parciales solo se comparan si coinciden
     lista = ficheros(root, langs, exclude_tests, exclude_paths)
     if max_files and len(lista) > max_files:
         avisos.append(f"tope de ficheros: se analizan {max_files} de {len(lista)} (orden alfabético de ruta); "
                       "el informe es PARCIAL — acota con `--exclude-path`/`--langs` o sube `--max-files`")
         lista = lista[:max_files]
         parcial = True
+        motivos.add("max-files")
     src = []
     cod = {}
     grandes = []
@@ -735,12 +761,20 @@ def analizar(root, langs, window, min_lines, exclude_tests, since, top, exclude_
         avisos.append(f"tope de tiempo ({max_seconds} s): se analizan {len(src)} de {len(lista)} ficheros; "
                       "el informe es PARCIAL — acota con `--exclude-path`/`--langs` o sube `--max-seconds`")
         parcial = True
+        motivos.add("tiempo")
     if grandes:
         muestra = ", ".join(f"`{r}` ({t} bytes)" for r, t in grandes[:3]) + (", …" if len(grandes) > 3 else "")
         avisos.append(f"{len(grandes)} ficheros superan {max_bytes} bytes y se omiten ({muestra}): bundles, volcados o "
                       "código generado; el informe es PARCIAL — exclúyelos con `--exclude-path` o sube `--max-bytes`")
         parcial = True
+        motivos.add("max-bytes")
     dup = duplicados(cod, window, top, plazo, max_occ, max_pares)
+    if dup.get("recortadas"):
+        motivos.add("max-occ")
+    if dup.get("pares_tope"):
+        motivos.add("max-pairs")
+    if dup.get("sin_medir") or (dup.get("parcial") and not dup.get("recortadas") and not dup.get("pares_tope")):
+        motivos.add("tiempo-duplicados")
     if dup.get("recortadas"):
         avisos.append(f"{dup['recortadas']} ventanas de {window} líneas aparecen más de {max_occ} "
                       "veces (copias casi idénticas, plantillas o código generado): solo se emparejan las primeras "
@@ -769,9 +803,11 @@ def analizar(root, langs, window, min_lines, exclude_tests, since, top, exclude_
     tod = marcadores(root, src, con_git, top, plazo)
     if tod.get("edad_parcial"):
         avisos.append(f"{tod['edad_parcial']} de {tod['total']} TODO sin antigüedad: `git blame` se cortó por el tope de "
-                      f"tiempo ({max_seconds or 'sin tope'} s) o por un error del sistema (p. ej. línea de comandos "
-                      "demasiado larga); el informe es PARCIAL — sube `--max-seconds` o revisa `git`")
+                      f"tiempo ({max_seconds or 'sin tope'} s), por un error del sistema (p. ej. línea de comandos "
+                      "demasiado larga) o por un número de línea que git no reconoce (p. ej. un salto de página "
+                      "dentro de una línea); el informe es PARCIAL — sube `--max-seconds` o revisa `git`")
         parcial = True
+        motivos.add("edad")
     ev = excluidos_versionados(root, exclude_paths, langs) if con_git else None
     if ev and ev["total"]:
         dirs = sorted(ev["por_directorio"].items(), key=lambda kv: (-kv[1], kv[0]))
@@ -792,7 +828,8 @@ def analizar(root, langs, window, min_lines, exclude_tests, since, top, exclude_
                         "hotspots": hs["ficheros_cambiados"] if hs else None,
                         "todos": tod["total"], "todo_edad_max_dias": tod["edad_max_dias"]},
             "duplicados": dup, "tamano": tam, "hotspots": hs, "marcadores": tod,
-            "excluidos_versionados": ev, "avisos": avisos, "parcial": parcial}
+            "excluidos_versionados": ev, "avisos": avisos, "parcial": parcial,
+            "parcial_motivos": sorted(motivos)}
 
 
 # Métricas comparables con --baseline: (clave del resumen, «menos es mejor»)
@@ -811,13 +848,20 @@ def _cobertura(r):
     return (res.get("ficheros"), res.get("lineas"))
 
 
+def _motivos(r):
+    """Motivos de parcialidad declarados (None en informes anteriores a `parcial_motivos`)."""
+    m = r.get("parcial_motivos")
+    return tuple(sorted(m)) if isinstance(m, list) else None
+
+
 def comparar(actual, base):
     """Tendencia por métrica. Un informe PARCIAL (tope de ficheros, de tiempo, de pares…) cubre otro
     conjunto que uno completo, y dos parciales cubren conjuntos distintos salvo que midan lo mismo: sin
     cobertura idéntica (ficheros y líneas), compararlos daría «↓ mejora»/«↑ empeora» falsos."""
     out = []
     pa, pb = bool(actual.get("parcial")), bool(base.get("parcial"))
-    incomparable = pa != pb or (pa and pb and _cobertura(actual) != _cobertura(base))
+    incomparable = pa != pb or (pa and pb and (_cobertura(actual) != _cobertura(base)
+                                               or _motivos(actual) != _motivos(base)))
     for k, label in METRICAS:
         a, b = actual["resumen"].get(k), (base.get("resumen") or {}).get(k)
         if incomparable:
@@ -946,7 +990,7 @@ def main(argv=None):
                 r["avisos"].append("baseline: " + ("este informe" if r["parcial"] else "el baseline") + " es PARCIAL y el otro "
                                    "completo (informe parcial = otro conjunto de ficheros): las tendencias salen «no comparable»; repite los dos con los mismos topes")
             else:
-                r["avisos"].append("baseline: los dos informes son PARCIALES con distinta cobertura (ficheros o líneas "
+                r["avisos"].append("baseline: los dos informes son PARCIALES con distinta cobertura o motivo de parcialidad (ficheros, líneas o topes "
                                    "medidos): las tendencias salen «no comparable»; repite los dos con los mismos topes")
     print(json.dumps(r, ensure_ascii=False, indent=2) if a.json else md(r), end="" if not a.json else "\n")
     return 0
