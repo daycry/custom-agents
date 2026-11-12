@@ -1,6 +1,6 @@
 # Rendimiento medido — plugin-audit-2
 
-Medidas de las tareas de rendimiento. El implementer no puede escribir en `testing/` (guardarraíl del rol), así que las registró en el ledger ([tasks.md](../tasks.md)). Este fichero las recoge. La fuente de cada cifra es la evidencia de la tarea citada.
+Medidas de las tareas de rendimiento. El implementer no puede escribir en `testing/` (guardarraíl del rol), así que las registró en el ledger ([tasks.md](../tasks.md)). Este fichero las recoge. La fuente de cada cifra es la evidencia de la tarea citada, salvo donde se indica otra.
 
 ## T-23 — CI en paralelo
 
@@ -19,7 +19,7 @@ Después del ciclo de corrección 1 desapareció el bucle de scripts. Las suites
 
 - pytest en paralelo: 11.299 passed en 969 s;
 - paso serie: 14 passed;
-- envoltorios: 57 s de cola en total, dentro del paso en paralelo (45 s el de `test_lint_plugin`).
+- envoltorios: 57 s en total, dentro del paso en paralelo (45 s el de `test_lint_plugin`). Fuente: medida de la Lente D en el intento 2 de la revisión (Windows, `pytest` de los tres envoltorios → `3 passed in 57.38s`), no la evidencia de la tarea.
 
 ## T-07 — code-health sobre este repo
 
