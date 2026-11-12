@@ -286,6 +286,10 @@ class SinSuelo(Exception):
     """El caso pequeño no superó el suelo de CPU dentro de los topes: no se puede medir una razón."""
 
 
+def _validas(muestras, esperado):
+    return [m for m in muestras if m >= esperado / 2]
+
+
 def _medir(funcion, generador, n0=1500, suelo=None):
     """Mide `funcion` con una entrada pequeña (tamaño adaptado hasta superar `SUELO_CPU`) y otra ×16.
     Devuelve `(razon_relativa, t_chico, t_grande, salida_grande)`; `razon_relativa` es `None` si se llegó al
@@ -310,7 +314,7 @@ def _medir(funcion, generador, n0=1500, suelo=None):
     repeticiones = 1
     while _cpu(_referencia_lineal, chico, repeticiones)[0] < suelo / 2 and repeticiones < 4096:
         repeticiones *= 2
-    tc, tg, rc, rg, salida = [], [], [], [], None
+    tc, tg, rc, rg, salida, relativa = [], [], [], [], None, None
     for _ronda in range(RONDAS):
         for _ in range(2):                                    # intercaladas: comparten la carga del momento
             rc.append(_cpu(_referencia_lineal, chico, repeticiones)[0])
@@ -320,11 +324,19 @@ def _medir(funcion, generador, n0=1500, suelo=None):
             if t > TOPE_CPU_GRANDE:
                 return float("inf"), min(tc), t, salida
             rg.append(_cpu(_referencia_lineal, grande, repeticiones)[0])
-        # el ruido ajeno solo SUMA tiempo: el mínimo de las muestras es el mejor estimador del coste propio
-        relativa = (min(tg) / max(min(tc), 1e-9)) / (min(rg) / max(min(rc), 1e-9))
+        # el ruido ajeno solo SUMA tiempo: el mínimo de las muestras es el mejor estimador del coste propio.
+        # Una muestra por debajo de la mitad de lo esperado no es una medida (el reloj de CPU de Windows
+        # se carga por ticks y bajo carga puede devolver 0 para una llamada de 0,1 s): se descarta.
+        vtc, vtg = _validas(tc, suelo), _validas(tg, CRECIMIENTO * suelo)
+        vrc, vrg = _validas(rc, suelo / 2), _validas(rg, CRECIMIENTO * suelo / 2)
+        if not (vtc and vtg and vrc and vrg):
+            continue
+        relativa = (min(vtg) / min(vtc)) / (min(vrg) / min(vrc))
         if _es_lineal(relativa):
             break                  # lo superlineal de verdad sale rojo en TODAS las rondas: solo se repite el rojo
-    return relativa, min(tc), min(tg), salida
+    if relativa is None:
+        raise SinSuelo("ninguna ronda dio muestras de CPU válidas (el reloj devolvió tiempos muy por debajo de lo esperado)")
+    return relativa, min(vtc), min(vtg), salida
 
 
 def test_el_criterio_de_linealidad_distingue_lineal_de_cuadratico():
@@ -380,6 +392,30 @@ def test_sin_suelo_alcanzado_no_se_aprueba_por_razon():
     inventada) y una que gasta el tope de CPU antes de llegar lanza `SinSuelo`."""
     relativa, t, _, _ = _medir(lambda s: len(s), lambda n: "x" * n)
     assert relativa is None and t < SUELO_CPU
+
+
+def test_una_muestra_de_cpu_a_cero_no_da_una_razon_disparatada(monkeypatch):
+    """El reloj de CPU de Windows carga por ticks y bajo carga puede devolver 0 para una llamada de 0,1 s
+    (visto: razón 5,6e7 en una pasada). Las muestras muy por debajo de lo esperado se descartan: una función
+    lineal con las muestras pequeñas de la primera ronda a 0 sigue dando una razón ≈ 1."""
+    real, llamadas = _cpu, [0]
+
+    def falso(funcion, *args):
+        t, salida = real(funcion, *args)
+        if funcion is _lineal_de_verdad:
+            llamadas[0] += 1
+            if llamadas[0] == 2:                      # la primera muestra pequeña de la ronda 1 (1 = el suelo)
+                return 0.0, salida
+        return t, salida
+    monkeypatch.setattr(sys.modules[__name__], "_cpu", falso)
+    # suelo bajo: el caso supera el suelo a la primera (sin doblar) y el índice de llamadas es estable
+    relativa, _tc, _tg, _ = _medir(_lineal_de_verdad, lambda n: "x" * (n * 70), suelo=0.01)
+    assert llamadas[0] >= 3 and _es_lineal(relativa), (llamadas, relativa)
+
+
+def test_las_muestras_invalidas_se_descartan():
+    assert _validas([0.0, 0.2, 0.04], 0.1) == [0.2]
+    assert _validas([0.0, 0.0], 0.1) == []
 
 
 def test_sin_suelo_por_tope_de_cpu_falla_con_motivo(monkeypatch):
