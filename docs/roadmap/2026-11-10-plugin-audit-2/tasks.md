@@ -1124,3 +1124,47 @@ Verificación dirigida sobre el ciclo final (`8488b00..84ec8ba`), dos revisores 
 - Gap 5: la numeración de líneas de code-health sigue a git (separa solo por `\n`).
 
 Tras este ciclo, una verificación dirigida más. Si aparecen solo Minor sin pérdida de datos, el orquestador cierra la fase y los anota como deuda.
+
+## Revisión de dos lentes — intento 5: Fase 1 (T-06, T-07, T-23, T-38) — verificación dirigida del fix4: 5 Important, 5 Minor
+
+Lentes: A+B+C+D sobre `cdcda09..HEAD` (`0fd3de2`). Motivos de C: `handbook-render.mjs:50` (`$eval` de Puppeteer, sin hallazgo) y `test_bench_session_end.py`; de D: `build-handbook.py:227` y `handbook-render.mjs:116-118` (sin hallazgo). Cerrados del intento 4: gaps 2-6 y T-38 (`check-handbook` exit 0, PDFs sin datos personales, generador idéntico al de la rama salvo lo declarado). Los rebates del implementer al diseño (×16 en vez de ×8; caso `None` con el tope por debajo del suelo) se aceptan con su evidencia. La fase **no** cierra: el salto de heredoc del gap 1 reabre evasiones que `cdcda09` denegaba. Tres lentes lo confirman por separado en bash real.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | El salto de cuerpo de heredoc oculta órdenes que bash ejecuta: `<<` aritmético (`$((1<<2))`, `let x<<=2`), here-string `<<<` detectado como `<<`, delimitador sin quitar comillas/escapes (`<<\EOF`, `<<E"OF"`); y un heredoc sin cierre solo marca incompleto el último segmento. Antes: DENY; ahora: allow | T-06 | pendiente | Lentes B y C: `guardrail-check.py:265,303-322,1022-1025`; sondas `scratchpad/lc5/probe.py`, `scratchpad/vf5/p.py`; bash real (`EXECUTED-arith`, `a.txt` restaurado) |
+| 2 | Important | El cuerpo «de shell» solo se analiza si la shell es el primer token del ÚLTIMO segmento: `env bash`, `A=1 bash`, `command`/`exec`/`time`/`sudo bash`, `bash <<'EOF' 2>&1`, `bash <<EOF \| tee`, `cat <<EOF \| bash; true`, `eval "$(cat <<'EOF' …)"`, `. /dev/stdin <<EOF` → allow | T-06 | pendiente | Lentes A, B, C: `guardrail-check.py:307,312-314`; repo real: 0 de 2 ficheros modificados tras `env bash <<EOF⏎git restore .⏎EOF` |
+| 3 | Important | Con delimitador sin comillas bash expande `$(…)` y los backticks del cuerpo; tratarlo como datos deja pasar `cat <<EOF⏎$(git restore .)⏎EOF` | T-06 | pendiente | Lente A: `guardrail-check.py:303-317`; repo real `scratchpad/r1` |
+| 4 | Important | `_cambia_base_en` es O(N·K) sin tope (`toks[idx:]`, `realpath` por cada `cd .`): con 30 KB el hook agota su plazo y el lanzador sigue sin deny (`run-hook.mjs:405,461`). Así, `echo cd .`×6000 + `; git push --force origin master` pasa | T-06 | pendiente | Lente D: `guardrail-check.py:508,528,537,551`; hook real 6,1 s, `hook timed out` / `role guard unavailable` |
+| 5 | Important | El paso `serie` pasa de 55-64 s a 586 s (1.054 tests: 761 de `test_console_encoding`, 240 de `test_agent_activity_store` y 27 de `redact_fix3`); la Verificación de T-23 («< 50 % del serie, anotado en `testing/perf.md`») deja de cumplirse | T-23 | pendiente | Lente D: `tasks.md:680,746`; `test_console_encoding` 197 s, `test_agent_activity_store` 127 s, puerta ~9 s de CPU por caso |
+| 6 | Minor | Residual previo al fix4: una comilla doble impar en el cuerpo de `git commit -m "$(cat <<'EOF' …)"` deja la comilla abierta y oculta las líneas siguientes | T-06 | pendiente | Lente B (allow también en `cdcda09`) |
+| 7 | Minor | Falsos denies: `cd`/`pushd`/`popd`/`chdir`/`env`/`git` como argumento cuentan como cambio de base (`echo cd; git restore …`, `git restore src/cd`) | T-06 | pendiente | Lentes A, B y D: `guardrail-check.py:548-552` |
+| 8 | Minor | Un fichero con separador solo CR queda en una línea, con los TODO colapsados y sin aviso (`parcial: false`) | T-07 | pendiente | Lente B: `code-health.py:263-274` |
+| 9 | Minor | Aserciones que no pueden fallar (`tc < SUELO_CPU` en la rama `None`, `tc >= 0.03/8`); el tope de 8 s de CPU de `test_2_2` deja ~2,25× de margen | T-23 | pendiente | Lente A: `test_redact_fix3.py:391,440`; `test_redact.py:656` |
+| 10 | Minor | Ledger: «606 antes + 39» (el total es 606); el RED de fix4/T-38 se comiteó después del código | T-06, T-07, T-23, T-38 | pendiente | Lente A: `tasks.md:242`; `0fd3de2` frente a `f67d090`… |
+
+**Diseño fijado por el orquestador para este ciclo.** Los gaps 1-4 y 6 tienen una sola causa: el guardarraíl acepta una orden que ha leído a medias.
+
+1. **Invariante de cierre.** Si al terminar de tokenizar la orden COMPLETA queda algo abierto en cualquier punto (comilla, heredoc, `$(`, backtick, `((`), la orden entera se deniega si contiene cualquier `git` o un cambio de base. Ya no se mira solo el último segmento.
+2. **Saltar el cuerpo es la excepción, por lista blanca.** El cuerpo de un heredoc se trata como datos SOLO si se cumplen a la vez tres condiciones:
+   - (a) el delimitador está entrecomillado o escapado (`'EOF'`, `"EOF"`, `\EOF`), así que no hay expansión;
+   - (b) el heredoc cierra;
+   - (c) en ninguna posición de la orden completa aparece un intérprete o envoltorio: `bash`, `sh`, `zsh`, `dash`, `ksh`, `eval`, `source`, `.`, `exec`, `env`, `sudo`, `command`, `time`, `xargs`, `nohup`.
+
+   En cualquier otro caso el cuerpo se analiza como órdenes, como hacía `cdcda09`. Fallar hacia el deny es aceptable, porque el implementer puede entrecomillar el delimitador.
+3. **Reconocer `<<` como bash.** Nunca cuentan `<<<` ni un `<<` dentro de `$(( ))`, `(( ))`, `let` o comillas simples. Dentro de `"…$(…)…"` sí cuenta, porque `$(` abre un contexto nuevo. El delimitador se lee quitando comillas y barras invertidas.
+4. **Cambio de base solo en posición de programa.** Se mira tras las asignaciones, las palabras de control y los envoltorios del punto 2. El recorrido es lineal: nada de `toks[idx:]` por token, y el `realpath` del cwd se calcula una sola vez por orden.
+5. **Tope de entrada dentro del guard.** Por encima de N bytes o M tokens (p. ej. 16 KB / 4.000), la orden se deniega si contiene `git` o un cambio de base, ANTES del análisis caro. El guard nunca agota el plazo del lanzador. Test de punta a punta por `run-hook.mjs` con el payload de 30 KB de la Lente D → deny en < 1,5 s.
+6. **Test diferencial contra bash real** (bash está en CI Linux y en Git Bash). Un corpus con TODAS las sondas de las lentes A, B y C de los intentos 4 y 5 se ejecuta en un repo temporal con centinela.
+   - Toda orden que en bash real llegue a ejecutar `git restore`/`reset`/`checkout`/`push` debe salir DENY del guard.
+   - Las órdenes legítimas del corpus deben salir allow: un commit con `<<'EOF'` y apóstrofos o comillas impares en el mensaje, `git -C <dir> status` y `cd <propio dir>`.
+7. **Paso `serie` (gap 5).**
+   - `test_console_encoding` y `test_agent_activity_store` vuelven al paso paralelo. Sus fallos de plazo se resuelven con un plazo que el test pueda inyectar (variable de entorno o parámetro), no midiendo el reloj de la máquina. Si hace falta un test del plazo real de 1,3 s, es UNO y va en serie.
+   - La puerta de redact baja su coste sin perder la separación: referencia lineal sobre una entrada menor y menos muestras por ronda.
+   - Objetivo: paso serie ≤ 90 s en la réplica Linux y Verificación de T-23 cumplida. El orquestador actualiza `testing/perf.md` con la réplica nueva.
+8. **Minor 7-10.**
+   - El 7 lo cierra el punto 4.
+   - El 8 se cierra añadiendo «separador solo CR» a `parcial_motivos` cuando el fichero tiene `\r` sin `\n`.
+   - El 9 se cierra quitando las aserciones tautológicas y estrechando el tope de `test_2_2`, o justificándolo en el ledger.
+   - El 10 se cierra corrigiendo las cifras. El orden RED/GREEN de los commits ya publicados no se reescribe y queda anotado como deuda.
+
+Tras este ciclo, verificación dirigida con las cuatro lentes, con el corpus diferencial como entrada. Si solo quedan Minor sin pérdida de datos, la fase cierra.
