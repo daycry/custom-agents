@@ -38,13 +38,13 @@ changelog: Changed
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Defectos | 6 | 7 | 85.7% | 0 / 15h | 0 / 4.0h | 0 / 1.00h | 0 / 1090k |
+| Fase 1 — Defectos | 6 | 8 | 75% | 0 / 16h | 0 / 5.0h | 0 / 1.25h | 0 / 1090k |
 | Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev) | 0 | 4 | 0% | 0 / 32h | 0 / 7.9h | 0 / 1.98h | 0 / 2100k |
 | Fase 3 — Tokens | 0 | 11 | 0% | 0 / 30h | 0 / 8.2h | 0 / 2.05h | 0 / 2260k |
 | Fase 4 — Simplificación del código | 1 | 8 | 12.5% | 0 / 34.5h | 0 / 8.5h | 0 / 2.12h | 0 / 2470k |
 | Fase 5 — Alcance y entrenamiento | 0 | 5 | 0% | 0 / 26h | 0 / 6.5h | 0 / 1.62h | 0 / 1800k |
 | Fase 6 — Higiene del roadmap | 0 | 2 | 0% | 0 / 7h | 0 / 1.7h | 0 / 0.42h | 0 / 500k |
-| **TOTAL** | **7** | **37** | **18.9%** | **0 / 144.5h** | **0 / 36.8h** | **0 / 9.20h** | **0 / 10220k** |
+| **TOTAL** | **7** | **38** | **18.4%** | **0 / 145.5h** | **0 / 37.8h** | **0 / 9.45h** | **0 / 10220k** |
 
 Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +20 % está en el plan); tokens al precio de `.claude/rates.json`.
 
@@ -280,6 +280,24 @@ GREEN: `pytest -q skills/code-health/scripts` → `56 passed`. Gap 2: `comparar(
 RED: `skills/code-health/scripts/test_code_health.py -k fix3` falló con `3 failed, 56 deselected`: `KeyError: 'parcial_motivos'` (gap 6: dos parciales con los mismos ficheros y líneas cortados por `--max-occ` y por `--max-pairs` no declaraban su motivo, y el informe completo tampoco) y `AssertionError: {'src/a.py:1': None, 'src/a.py:4': None}` (gap 7: un `\x0c` en una línea hace que el TODO de la línea 4 de Python quede fuera de rango en git; el `blame` del trozo fallaba entero y el TODO válido de la línea 1 perdía su edad sin marcar el informe parcial) · 2026-11-12.
 
 GREEN: `pytest -q skills/code-health/scripts` → `59 passed`. Gap 6: el informe lleva `parcial_motivos` (lista ordenada: `max-files`, `tiempo`, `max-bytes`, `max-occ`, `max-pairs`, `tiempo-duplicados`, `edad`; vacía si es completo) y `comparar()` exige, además de la misma cobertura, los mismos motivos entre dos parciales (un informe anterior sin la clave solo es comparable con otro que tampoco la tenga); el aviso `baseline:` nombra «cobertura o motivo de parcialidad». Gap 7: un `git blame` que sale con error (no cortado) sobre un fichero VERSIONADO se reintenta línea a línea; lo que siga sin edad suma a `edad_parcial`, marca el informe parcial (`parcial_motivos: ["edad"]`) y el aviso lo cita; el fichero sin versionar sigue dejando la edad en blanco sin marcar parcial (test de fix2 intacto). `SKILL.md` actualizado en la misma tarea.
+
+### T-38 — Manual PDF regenerable y al día (decidido por el usuario el 2026-11-12)
+
+- **Descripción**: `scripts/check-handbook.py` y `tests/test_npm_payload.py::test_npm_contains_pdf_editions_linked_from_its_readme` están en rojo desde T-03, porque las ediciones de `output/pdf/` fijan el hash de sus fuentes y el repo no tiene generador. El usuario exige que no quede nada en rojo («no puede quedar nada en rojo»), también los artefactos generados. Se trae a esta rama solo el generador reproducible que existe en la rama `docs/model-routing-discovery-2e32c1` (`scripts/build-handbook.py`, `scripts/handbook-render.mjs`, `scripts/handbook-runtime.mjs`, `scripts/handbook-theme.css` y `tests/test_handbook_build.py`), con lo que necesite de su `check-handbook.py`, y se regeneran las ediciones desfasadas. Desde aquí, la tarea que cambie una fuente del manual lo regenera en el mismo commit (o, si son varias de la misma fase, en una sola regeneración antes del cierre de la fase, sin dejar ningún commit de cierre en rojo).
+- **Changelog**: El manual PDF se regenera con un generador reproducible del repo y su verificación vuelve a verde.
+- **Estado**: borrador
+- **Tiempo humano**: est. 1h · real —
+- **Tiempo IA (ejec.)**: est. 1h · real —
+- **Archivos**: `scripts/build-handbook.py`, `scripts/handbook-render.mjs`, `scripts/handbook-runtime.mjs`, `scripts/handbook-theme.css`, `scripts/check-handbook.py`, `tests/test_handbook_build.py`, `tests/test_handbook_integrity.py`, `output/pdf/**`, `package.json` (solo si el generador declara un script), `docs/CUSTOMIZATION.md` y su espejo EN (una línea sobre cómo regenerar), `agent-kits/shared/copias.json` (si aplica)
+- **Verificación**:
+  - `python scripts/check-handbook.py` → exit 0
+  - `pytest -q tests/test_handbook_integrity.py tests/test_handbook_build.py tests/test_npm_payload.py` → todo passed
+  - El generador no instala nada ni descarga navegadores: usa Node, Puppeteer, markdown-it y Mermaid ya instalados, por rutas explícitas
+
+**Criterios de aceptación**
+- [ ] El generador está en el repo con sus tests y no amplía las dependencias de ejecución del plugin (solo herramientas de autoría opcionales).
+- [ ] Las ediciones de `output/pdf/` corresponden a las fuentes de HEAD y `check-handbook.py` sale en verde.
+- [ ] El test de npm de las ediciones PDF sale en verde.
 
 ## Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev)
 
@@ -1023,3 +1041,25 @@ Diff `5b2d379..HEAD` (ciclo de corrección 2). Lentes: A+B+C+D. Los gaps 1-9 del
 - Gap 4: lo implementado pasa a ser el diseño (dentro del proyecto y sin ser el propio directorio, un ancestro ni la raíz; riesgo equivalente a `git restore docs/` desde la raíz). Se corrigen el mensaje de denegación y `docs/agents/implementer.md`.
 - Gap 2: la puerta mide lo que quiere proteger, que es la ausencia de retroceso catastrófico (cuadrático o peor), no el tiempo de pared. Usa tiempo de CPU (`time.process_time`) y la mediana de 3 por tamaño. La entrada crece ×8: lineal ≈ 8, n^1,5 ≈ 22,6, cuadrático ≈ 64. El tope es 16, el doble del lineal. Se mide en Linux y Windows con carga ajena; sin ningún rojo en 10 ejecuciones seguidas.
 - Gaps 6-9: la comparación exige la misma cobertura y los mismos motivos de parcialidad; un blame con código ≠ 0 se reintenta por línea y lo que quede sin edad marca el informe parcial con aviso; el valor separado de `-s`/`--source` no cuenta como pathspec; la salida se toma de la última medición.
+
+## Revisión de dos lentes — intento 4: Fase 1 (T-06, T-07, T-23) — verificación dirigida del ciclo final: 2 Important, 4 Minor
+
+Verificación dirigida sobre el ciclo final (`8488b00..84ec8ba`), dos revisores de contexto fresco: B+C sobre el guardarraíl y A+B+D sobre code-health y `redact`. Los gaps 1-4 y 6-9 del intento 3 quedan corregidos según el diseño fijado. Lo que sigue son hallazgos nuevos, reproducidos con git real y con sondas. El usuario exige que no quede nada en rojo ni a medias («no puede quedar nada en rojo»), así que el orquestador abre un último ciclo con diseño estructural, no caso a caso.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | Un apóstrofo dentro del cuerpo de un heredoc abre una «comilla» que se traga lo que sigue: `cat <<EOF⏎it's⏎EOF⏎git restore .` y `git commit -F - <<'EOF'⏎don't⏎EOF⏎git checkout .` pasan sin deny, también por el hook | T-06 | pendiente | `agent-kits/shared/guardrail-check.py:293-297,941-945`; repo de prueba: 0 de 2 ficheros modificados |
+| 2 | Important | Bajo el suelo de 50 ms del caso pequeño, la puerta de `redact` no compara razones y da verde falso a un cuadrático (`re.compile(r"x*y").search("x"*25000)`: `tc=0.0000 tg=0.4062` → pasa); 15 de las 23 entradas quedan bajo el suelo. Con la máquina saturada sigue habiendo rojo (16,27) | T-23 | pendiente | `tests/test_redact_fix3.py:247,250-253`; sonda `vf2/probe2.py` |
+| 3 | Minor | El cambio de base solo se detecta si el segmento empieza por `cd`/`pushd`/`env`: se escapan `A=1 env -C ..`, `command cd ..`, `builtin cd ..`, `{ cd ..; … }`, `if …; then cd ..; fi`, `time cd ..`, `! cd ..`, `cd .. && bash -c 'git restore proj'`, `cd .. && eval '…'` | T-06 | pendiente | `guardrail-check.py:462,957,1027`; monorepo de prueba `vf/m` |
+| 4 | Minor | Falso positivo frecuente: `cd "<ruta del propio proyecto>" && git checkout feature/x` o `… && git restore src/a.py` se deniegan como cambio de base | T-06 | pendiente | `guardrail-check.py:914,1027-1028` |
+| 5 | Minor | Un `\x0c` desplaza la numeración de Python (`splitlines`) frente a la de git: un TODO recibe la edad de otra línea, con `fichero:línea` errónea y sin aviso | T-07 | pendiente | `skills/code-health/scripts/code-health.py:266,676-705`; repo `vf2/ff2` |
+| 6 | Minor | La medida con carga ajena en Windows se hizo en reposo | T-23 | pendiente | `tasks.md` T-23 |
+
+**Diseño fijado por el orquestador para este último ciclo:**
+
+- Gap 1: el tokenizador reconoce los heredocs (`<<DELIM`, `<<-DELIM`, `<<'DELIM'`, `<<"DELIM"`) y salta su cuerpo hasta la línea del delimitador: el cuerpo es datos, no órdenes. Un heredoc sin delimitador de cierre cuenta como orden incompleta (falla cerrado, como el gap 1 del intento 3).
+- Gaps 3 y 4: el cambio de base se detecta en cualquier punto de la orden, no solo al inicio del segmento. Un `cd`/`pushd`/`popd` (también tras `command`, `builtin`, `time`, `!`, asignaciones, `{`, `if/then/do`), un `env -C`/`--chdir` o un `git -C`/`--work-tree`/`--git-dir` en la orden, junto con una restauración del árbol, deniegan. La recursión en `bash -c`, `sh -c` y `eval` hereda ese estado. Única excepción: un `cd` cuyo destino, resuelto, es el propio directorio de trabajo del hook, no cuenta.
+- Gap 2: la puerta se autocalibra. En la misma pasada mide una función de referencia lineal sobre la misma entrada y compara `razón_redact / razón_referencia`, porque la carga afecta igual a las dos. El tamaño se adapta: crece hasta que el caso pequeño supere el suelo de CPU (con tope de tamaño y de tiempo declarados); sin suelo alcanzado, el test falla con un motivo claro en vez de aprobar. Lineal ≈ 1, n^1,5 ≈ 2,8 y cuadrático ≈ 8 con entrada ×8; el tope es 2,5. Las demostraciones cubren un cuadrático real que antes quedaba bajo el suelo. 10 pasadas seguidas sin rojo en Linux con 12 bucles de CPU (saturación) y en Windows con carga ajena.
+- Gap 5: la numeración de líneas de code-health sigue a git (separa solo por `\n`).
+
+Tras este ciclo, una verificación dirigida más. Si aparecen solo Minor sin pérdida de datos, el orquestador cierra la fase y los anota como deuda.
