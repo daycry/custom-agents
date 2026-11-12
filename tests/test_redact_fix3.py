@@ -394,6 +394,7 @@ def test_sin_suelo_alcanzado_no_se_aprueba_por_razon():
     assert relativa is None and t < SUELO_CPU
 
 
+@pytest.mark.serie
 def test_una_muestra_de_cpu_a_cero_no_da_una_razon_disparatada(monkeypatch):
     """El reloj de CPU de Windows carga por ticks y bajo carga puede devolver 0 para una llamada de 0,1 s
     (visto: razón 5,6e7 en una pasada). Las muestras muy por debajo de lo esperado se descartan: una función
