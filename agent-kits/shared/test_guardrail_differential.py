@@ -119,6 +119,21 @@ BAD = [
     "echo $((1<<2)) && {D}",
     "x=$((1<<2)); {D}",
     "cat <<EOF >f\n$(echo hi)\nEOF\n{D}",
+    # --- punto 2 (rebate aceptado): delimitador SIN comillas con interprete/envoltorio en cualquier posicion
+    # (el cuerpo se analiza entero) y `$(...)`/backticks anidados del cuerpo sin comillas
+    'eval "$(cat <<EOF\n{D}\nEOF\n)"',
+    "cat <<EOF | sh\n{D}\nEOF",
+    "cat <<EOF | sh -s\n{D}\nEOF",
+    "bash <<EOF\n$(echo {D})\nEOF",
+    'x="$(cat <<EOF\n$({D})\nEOF\n)"',
+    'echo "$(cat <<EOF\n$(echo $({D}))\nEOF\n)"',
+    "x=`cat <<EOF\n$({D})\nEOF\n`",
+    "cat <<EOF\n$(echo $({D}))\nEOF",
+    "cat <<EOF\n$(echo `{D}`)\nEOF",
+    "cat <<EOF\n`echo $({D})`\nEOF",
+    "cat <<EOF\n`echo \\`{D}\\``\nEOF",
+    'echo "`cat <<EOF\n$({D})\nEOF\n`"',
+    'echo "`cat <<EOF\n\\`{D}\\`\nEOF\n`"',
     # --- cambio de base en cualquier punto
     "cd ..; {D}",
     "pushd ..; {D}",
