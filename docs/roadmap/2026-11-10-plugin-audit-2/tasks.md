@@ -1225,3 +1225,63 @@ Lentes: A+B+C+D sobre `cdcda09..HEAD` (`0fd3de2`). Motivos de C: `handbook-rende
    - El 10 se cierra corrigiendo las cifras. El orden RED/GREEN de los commits ya publicados no se reescribe y queda anotado como deuda.
 
 Tras este ciclo, verificación dirigida con las cuatro lentes, con el corpus diferencial como entrada. Si solo quedan Minor sin pérdida de datos, la fase cierra.
+
+## Revisión de dos lentes — intento 6: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix5: 7 Important, 9 Minor; cambio de modelo decidido por el usuario
+
+Lentes: A+B+C+D sobre `0fd3de2..HEAD` (`82d6922`). C se disparó por `.github/workflows/ci.yml`; D se forzó por el orquestador (guard y puerta).
+
+**Cerrado del intento 5:** gaps 1-10 conforme al diseño y al rebate aceptado del punto 2. Evidencia:
+- corpus diferencial: `281 passed` + `87 passed`;
+- guard: O(N·K) pasa de 43,4 s a 0,28 s (`echo cd .`×32000);
+- paso serie: de 586 s a 65 s, con 55 tests serie igual a `--collect-only`;
+- `ci.yml.MANUAL-COPY` idéntico;
+- code-health CR.
+
+**No cierra:** el análisis de bash sigue abriendo huecos nuevos en cada intento. Tras seis intentos, el usuario decide cambiar de modelo (2026-11-13). Ver el diseño al final.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | **Regresión fix5.** `_aritmetica` es O(n²): recorre hasta el final en cada `((`/`$((` sin memoria. Además, el tope de entrada se comprueba DESPUÉS de tokenizar. Con 7,8 KB (`"("*8000 + "; git push --force origin master"`) el hook agota el plazo y sale `role guard unavailable; normal permissions continue` sin deny | T-06 | pendiente | Lentes A, B, C y D: `guardrail-check.py:338-355,400,443-445,1261,1275`; Linux 4,6 s y Windows 5,65 s por el hook, frente a 0,004 s en `0fd3de2` |
+| 2 | Important | **Regresión.** El guard ve heredoc donde bash no lo ve: `$[1<<2]`, `$(( "1" << 2 ))`, `$(( $(echo 1) << 2 ))`, `for ((i=0;i<1<<1;i++))`, `${x:-<<'E'}`. Las líneas siguientes se tratan como datos. `cdcda09` daba DENY | T-06 | pendiente | Lente B: `guardrail-check.py:335,429,443,517-525`; Git Bash ejecuta el `git restore .` |
+| 3 | Important | **Regresión.** Con delimitador sin comillas, bash une `\⏎` antes de comparar con el delimitador, así que cierra el heredoc antes que el guard (`cat <<EOF⏎EO\⏎F⏎git restore .⏎EOF`) | T-06 | pendiente | Lente B: `guardrail-check.py:314-330` |
+| 4 | Important | **Regresión.** La lista blanca (c) solo reconoce intérpretes por su nombre literal: `$BASH <<'EOF'`, `"$SHELL" <<'EOF'`, `s=bash; $s <<'EOF'`, `while read -r l; do $l; done <<'EOF'` | T-06 | pendiente | Lente B: `guardrail-check.py:270,725-730` |
+| 5 | Important | **Regresión.** El cambio de base solo se mira en posición de programa y no sale de `eval`, de funciones ni de `. <(…)`. `eval cd ../main; git restore src`, lanzado desde un worktree hermano, borró cambios sin comitear del checkout del usuario | T-06 | pendiente | Lente C: `guardrail-check.py:677,685-720,771-787,1292`; repo real `lc6/wt` |
+| 6 | Important | **Residual.** Envoltorios que no se desenvuelven para detectar git: `timeout 30`, `nice`, `stdbuf -o0`, `time -p`, `setsid`, `sudo`, `env -S`, `xargs git`. Además, plazo agotado con `export GIT_0…`×3000 + `"g"it` (44 KB) | T-06 | pendiente | Lentes B y C: `guardrail-check.py:563-620,678,830,1283-1287`; Git Bash ejecuta el `git restore .` |
+| 7 | Important | La puerta de redact da VERDE a un n^1,5 genuino con el reloj real (relativa 1,21 en Windows sin carga) y a un cuadrático que pesa un 5 %. Causa: `min(corregida, cruda)` + `min(vrc)`. La demostración solo usa el reloj simulado | T-23 | pendiente | Lente B: `test_redact_fix3.py:342-365`; `scratchpad/lb6/gate2.out` |
+| 8 | Minor | Residual: código por stdin, variables u otros intérpretes (`echo '…' \| bash`, `g=git; $g reset`, `bash <<< '…'`, `find -exec git`, heredoc entrecomillado a `python3`/`perl`) | T-06 | límite documentado (decisión del usuario) | Lentes A y C |
+| 9 | Minor | El CR se trata como espacio y como fin de delimitador; bash lo trata como carácter normal | T-06 | pendiente | Lente C: `guardrail-check.py:292,447,455` |
+| 10 | Minor | Entrada > 64 KB → `input-too-large` y la orden continúa sin pasar por el guard | T-06 | pendiente (lo cierra el punto 1 del diseño) | Lente C: `native-guardrail.py:308-311`, `run-hook.mjs:283` |
+| 11 | Minor | Subcomandos destructivos fuera de la lista: `reset --keep/--merge`, `checkout-index -f`, `read-tree -u --reset`, `rm -rf .` de git, `worktree remove --force`, `checkout -`/`@{-1}`/`refs/heads/master` | T-06 | pendiente | Lente C: `guardrail-check.py:666` |
+| 12 | Minor | Falso deny: commit con `<<'EOF'` y apóstrofo cuando otro segmento lleva `time`/`env`/`xargs` (`time pytest && git commit -m "$(cat <<'EOF'…)"`), con un mensaje engañoso | T-06 | pendiente (lo cierra el punto 2 del diseño) | Lente B: `guardrail-check.py:514,730` |
+| 13 | Minor | `CUSTOM_AGENTS_ACTIVITY_DEADLINE_SCALE` también se aplica en producción: con escala ≥ 1,6 el lanzador mata el proceso hijo antes de su cierre limpio | T-23 | pendiente | Lente B: `agent-activity-store.py:38-52,689`, `run-hook.mjs:26,366` |
+| 14 | Minor | `\r(?!\n)` marca ficheros `\r\r\n` y CR sueltos dentro de una línea como «separador CR» (falso `parcial: true`) | T-07 | pendiente | Lente B: `code-health.py:263-271` |
+| 15 | Minor | Aserción que no puede fallar (`relativa is None and t < SUELO_CPU`); coste evitable de la demostración cuadrática (sin tope previo) y pausas de 5 s | T-23 | pendiente | Lentes A y D: `test_redact_fix3.py:264,338,438-453` |
+| 16 | Minor | Ledger: fila «Total» de la réplica con columnas de otra tabla y una suma que no cuadra (1.025 frente a 1.032); T-23 `en-progreso` con `Cerrada: 2026-11-11`; RED de `77d7ec9` comiteado después; tope de 30 KB rebatido sin aceptación (`max(1,5 s, 2×base+1 s)`) | T-23, T-06 | pendiente | Lente A: `tasks.md:669-670,804`; `test_guardrail_differential.py:365` |
+
+**T-23, «< 50 %».** No se puede juzgar con la medida actual. Hay 11.867 tests frente a 11.190, y la carga del host era distinta: el paralelo pasa de 615 s en reposo a 734 s con carga. Según cómo se normalice, el resultado cae a los dos lados del umbral (44-52 %). Lente D: lo introducido por la iniciativa solo suma ~5 s al paralelo y ~30 s al serie, y no hay coste evitable de tamaño. **Decisión del usuario:** medida emparejada local. Árbol HEAD y un contenedor `-m 1g --cpuset-cpus 0-3`, con el host en reposo y orden A-B-A-B, dos veces por brazo. A = CI vieja (bucle de scripts + `pytest` sin xdist sobre las mismas rutas); B = CI nueva. Se anota la mediana de B/A en `testing/perf.md`; pasa si es < 0,5. La ejecuta el orquestador cuando el usuario haya parado sus contenedores.
+
+**Diseño fijado (decisión del usuario, 2026-11-13: «cambiar de modelo» y «solo cuadrático o peor»).**
+
+1. **Falla cerrado para el rol protegido.** Si el guard no puede decidir, el lanzador DENIEGA cuando el rol es protegido (`implementer`/`architect`, la política de ADR-023), y conserva `continue` para el resto. Casos: plazo agotado, entrada > 64 KB, error o intérprete ausente. Esto lo cierran juntos los gaps 1, 6 (plazo) y 10, y queda como garantía de diseño. Aparte:
+   - el guard hace un recorte barato y lineal ANTES de tokenizar: con > 16 KB o > 4.000 palabras, deny si el texto contiene `git` o un cambio de base;
+   - `_aritmetica` pasa a ser lineal o memoizada;
+   - test de punta a punta por `run-hook.mjs`: plazo agotado simulado y entrada > 64 KB → deny para el implementer y `continue` para un rol no protegido.
+2. **El cuerpo del heredoc se analiza SIEMPRE**, como en `cdcda09`, con el invariante de cierre del intento 5. La única excepción es una lista blanca de FORMAS EXACTAS de orden completa (no de reglas de análisis):
+   - `git commit [opciones] -m "$(cat <<'DELIM' ⏎ … ⏎ DELIM ⏎ )"`
+   - `git commit [opciones] -F - <<'DELIM' ⏎ … ⏎ DELIM`
+
+   Cada una puede ir precedida de `git add …` / `cd <propio directorio>` y unida con `&&`. Delimitador entrecomillado. En esas formas el cuerpo es el mensaje y no se analiza.
+
+   Se retiran: el salto general de cuerpo, la lista de intérpretes como condición de salto y la detección de `<<` aritmético para el salto. Eso cierra los gaps 2, 3, 4 y 12. El precio aceptado es un falso deny de heredocs fuera de las formas exactas cuyo cuerpo tenga comillas impares; la salida es escribir el fichero con la herramienta de edición o usar `-F <fichero>`. El mensaje de deny lo dice.
+3. **Envoltorios.** `_literal_invocation` desenvuelve los mismos envoltorios que `_posicion_programa`: `timeout [opts] N`, `nice [-n N]`, `stdbuf …`, `time [-p]`, `setsid`, `sudo [opts]`, `env [-S …]`, `xargs [opts]`, `nohup`, `command`, `exec`, `builtin`. Cierra el gap 6. Los subcomandos del gap 11 se añaden a la lista de destructivos o de cambio de rama.
+4. **Cambio de base dentro de `eval`, funciones y `. <(…)`.** Si la orden define una función o usa `eval`/`source`/`.` con contenido, el cambio de base se busca también en ese contenido, y el resultado sube a la orden que lo contiene. Cierra el gap 5.
+5. **Modelo de amenaza documentado** en `docs/agents/implementer.md` y en CONVENTIONS ES/EN si procede. El guard frena los errores de un agente honesto. Las indirecciones deliberadas (variables como programa, código por stdin hacia intérpretes, `find -exec`) son un límite conocido: gap 8, sin corrección.
+6. **Corpus diferencial.** Todas las sondas de las lentes A, B y C del intento 6 entran como BAD (las de `lb6`, `lc6`, `la6` e `i6` del scratchpad) o como límite documentado (gap 8, marcadas como tal). Los LEGIT incluyen las 14 órdenes típicas de la Lente B.
+7. **Puerta de redact: solo cuadrático o peor** (gap 7). Mediana en lugar de mínimo y umbral ~6 frente a la razón 16 del cuadrático con ×16. La demostración con reloj REAL debe rechazar un cuadrático puro y aceptar uno lineal, con 10 pasadas sin rojo en Linux con carga y en Windows con carga. El docstring documenta que n^1,5 queda fuera del alcance. Se cierra también el gap 15: tope de CPU antes de medir la entrada grande de la demostración y aserción tautológica fuera.
+8. **Minor 9, 13, 14 y 16:**
+   - 9: el CR fuera de comillas cuenta como carácter normal, igual que en bash; un CR en una orden con `git` → deny.
+   - 13: la escala solo actúa si además está activa una marca de test explícita, o se documenta y se acota a ≤ 1,5.
+   - 14: el aviso se da solo cuando hay `\r` y NINGÚN `\n` en el fichero.
+   - 16: se corrige la fila Total, se quita el `Cerrada` de T-23 y se anota la deuda de orden.
+
+Tras este ciclo: réplica Linux completa sin rojo, medida emparejada de T-23 (orquestador) y verificación dirigida de las cuatro lentes. Si solo quedan Minor sin pérdida de datos, la fase cierra.
