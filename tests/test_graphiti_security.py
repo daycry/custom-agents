@@ -186,7 +186,7 @@ _CARGAS_LOCALES_REVISADAS = {
                          "agent-kits/shared/redact.py"),
     },
     "agent-kits/shared/agent-activity-store.py": {
-        "sha256_lf": "7e13711f797135bc60310112d4a38813fecc481cb81454ffeb0753377e6957bc",
+        "sha256_lf": "d4466165f39d758ce905f4b2fa71f4dc7863945b658c664a513027d76d237d22",   # T-23 fix5: escala de plazos por entorno (`CUSTOM_AGENTS_ACTIVITY_DEADLINE_SCALE`, solo lectura de `os.environ`); mismas cargas locales, sin red
         "dependencies": ("agent-kits/shared/local-read.py", "agent-kits/shared/local-state.py",
                          "agent-kits/shared/agent-activity.py", "agent-kits/shared/redact.py"),
     },

@@ -439,7 +439,8 @@ def test_una_muestra_de_cpu_a_cero_no_da_una_razon_disparatada(monkeypatch):
 
 
 def test_las_muestras_invalidas_se_descartan():
-    assert _validas([0.0, 0.2, 0.01], 0.1) == [0.2]
+    pequena = 0.1 / VALIDA_DIV / 2                      # por debajo del umbral de validez de la plataforma
+    assert _validas([0.0, 0.2, pequena], 0.1) == [0.2]
     assert _validas([0.0, 0.0], 0.1) == []
 
 

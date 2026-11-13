@@ -50,7 +50,10 @@ def test_solo_stdlib():
         assert prohibido not in src
 
 
-# serie: mide CPU del hijo (< 2,5 s por caso; antes 1,5); bajo `-n auto` curl_args y mysql_args tardaron 1,72 s y 1,60 s (T-23 fix1)
+RAZON_CPU_MAX = 25   # CPU del caso / CPU de la referencia lineal; el caso más caro da 5-8 con la máquina libre (réplica Linux)
+
+
+# serie: mide CPU del hijo relativa a una referencia lineal (antes < 1,5 s absolutos); bajo `-n auto` curl_args y mysql_args tardaron 1,72 s y 1,60 s (T-23 fix1)
 @pytest.mark.serie
 @pytest.mark.parametrize('case', ['pem', 'assignment', 'quoted_json', 'show', 'prefixed_assignment',
                                   'curl_args', 'mysql_args'])
@@ -84,6 +87,11 @@ def test_bounded_memory_inputs_redact_without_superlinear_delay(tmp_path, case):
 script,fixture,case,root=sys.argv[1:]
 spec=importlib.util.spec_from_file_location('owned_redactor',script)
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+def ref():
+    t=time.process_time();a=0
+    for i in range(1500000): a+=i&7
+    return time.process_time()-t
+r0=ref()
 started=time.process_time()   # CPU, no pared: la carga ajena no cambia el veredicto (T-23 fix4)
 if case=='show':
     result=module.query(root,operation='show',id='ADR-001')
@@ -92,18 +100,21 @@ if case=='show':
 else:
     text=pathlib.Path(fixture).read_text(encoding='utf8')
     assert module.redactar(text)==text
-print(round(time.process_time()-started,4))
+d=time.process_time()-started
+print(round(d,4),round(min(r0,ref()),4))   # CPU del caso y de una referencia lineal medida en el MISMO hijo
 '''
     script = str(Path(HERE) / ('knowledge-view.py' if case == 'show' else 'redact.py'))
     try:
         result = subprocess.run([sys.executable,'-X','utf8','-B','-c',program,script,str(fixture),case,str(root)],
-                                cwd=own,env=env,capture_output=True,encoding='utf8',errors='replace',timeout=6)
+                                cwd=own,env=env,capture_output=True,encoding='utf8',errors='replace',timeout=20)
     except subprocess.TimeoutExpired:
-        pytest.fail('owned bounded input exceeded 6s redaction deadline: ' + case)
+        pytest.fail('owned bounded input exceeded 20s redaction deadline (colgado): ' + case)
     assert result.returncode == 0, result.stdout + result.stderr
-    # CPU del hijo: ~1,0 s con la máquina libre y 1,5-1,6 s con una réplica cargada (T-23 fix4/fix5b). Una versión
-    # superlineal sobre 120 000 repeticiones cuesta órdenes de magnitud más, así que 2,5 s sigue separando
-    assert float(result.stdout.strip()) < 2.5
+    # El veredicto es RELATIVO: CPU del caso / CPU de una referencia lineal medida en el mismo hijo (la carga de la
+    # máquina escala a las dos; con un tope absoluto de 1,5 s el caso `curl_args` dio 1,60 s y 3 s en réplicas
+    # cargadas, T-23 fix4/fix5b). El plazo de pared (20 s) solo evita un cuelgue.
+    cpu, referencia = (float(x) for x in result.stdout.split())
+    assert cpu < RAZON_CPU_MAX * max(referencia, 0.01), (case, cpu, referencia, round(cpu / max(referencia, 0.01), 1))
 
 
 @pytest.mark.parametrize('text', [
