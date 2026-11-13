@@ -390,10 +390,11 @@ def _aritmetica(command, j, st):
 
 
 def _leer(command, i, modo, st, prof):
-    """Tokeniza `command` desde `i`: `modo` `top` (hasta el final), `sub` (hasta el `)` que cierra un `$(`) o
-    `bt` (hasta el backtick de cierre). Los segmentos van a `st.out`. Devuelve `(posición, heredocs
-    pendientes sin cuerpo)`. Los paréntesis sin comillas separan órdenes, `$(…)` y los backticks se leen como
-    órdenes también DENTRO de comillas dobles (bash las ejecuta), y el cuerpo de un heredoc no se tokeniza."""
+    """Tokeniza `command` desde `i`: `modo` `top` (hasta el final) o `sub` (hasta el `)` que cierra un `$(`). Los
+    segmentos van a `st.out`. Devuelve `(posición, heredocs pendientes sin cuerpo)`. Los paréntesis sin comillas
+    separan órdenes, `$(…)` y los backticks se leen como órdenes también DENTRO de comillas dobles (bash las
+    ejecuta; el contenido de un backtick se lee aparte, sin sus barras de escape) y el cuerpo de un heredoc no se
+    tokeniza aquí: lo lee `_segmentos` como órdenes."""
     n = len(command)
     if prof > _MAX_ANIDADO:
         st.incompleta = True
