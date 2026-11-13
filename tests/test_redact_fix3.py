@@ -256,7 +256,7 @@ CRECIMIENTO = 16             # la entrada grande es ×16 la pequeña
 # ALCANCE DE LA PUERTA (decisión del usuario, T-23 fix6): rechaza el coste CUADRÁTICO o peor (razón ≈ 16 con ×16), no
 # distingue un n^1,5 (razón 4) de la carga ajena y NO lo cubre. Lineal ≈ 1. El umbral 6 deja ~3× de margen a cada lado.
 RAZON_RELATIVA_MAX = 6.0     # razón (t_grande / t_pequeño) / CRECIMIENTO máxima de un caso «no cuadrático»
-SUELO_CPU = 0.1 if os.name == "nt" else 0.02   # s de CPU del caso pequeño (el reloj de Windows tiene 15,6 ms de resolución;
+SUELO_CPU = 0.05 if os.name == "nt" else 0.02  # s de CPU del caso pequeño (el reloj de Windows tiene 15,6 ms de resolución: 0,05 s = ~3 ticks, bastan con el umbral 6 y la mediana; con 0,1 s la puerta tardaba 7 min;
 #                                               en Linux 0,02 s: la puerta costaba ~9 s por caso con 0,05 s, T-23 fix5)
 TOPE_CARACTERES = 1_000_000  # tope de tamaño del caso pequeño (el grande es ×16: ≤ 16 MB)
 SUELO_DEMO = 0.03 if os.name == "nt" else 0.01   # suelo de las demostraciones de la propia puerta (funciones sintéticas)
