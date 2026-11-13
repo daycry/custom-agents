@@ -55,7 +55,12 @@ jobs:
       - name: Tests (pytest — los marcados `serie`, sin xdist)
         # los de tiempo de pared (`< 1.5 s`) y orden de lecturas fallan bajo `-n auto` por la carga ajena;
         # llevan `@pytest.mark.serie` y corren aquí uno a uno (T-23, plugin-audit-2)
-        run: python -m pytest tests agent-kits/shared agent-kits/knowledge-curator skills/adversarial-review/scripts skills/code-health/scripts skills/dependency-upgrade/scripts skills/changelog-sync/scripts skills/unit-tests/scripts skills/api-contract/scripts skills/jira-sync/scripts skills/knowledge-services/scripts skills/knowledge-category-template/scripts skills/training-data-services/scripts skills/confluence-publish/scripts evals -q -m serie
+        # la recolección de los ~11.900 tests costaba ~70 s para ejecutar 56: solo se recogen los ficheros que
+        # llevan el marcador (`grep`), y `-m serie` filtra dentro de cada uno (T-23 fix5b, plugin-audit-2)
+        run: |
+          archivos=$(grep -rl --include='test_*.py' 'mark\.serie' tests agent-kits skills evals)
+          test -n "$archivos"
+          python -m pytest $archivos -q -m serie
 
       - name: "Bench captura de SessionEnd (CA-02: p95 ≤ 100 ms / p99 ≤ 300 ms)"
         # session-end-durable-capture: mide journal.py capture-end end-to-end (30 iteraciones, el

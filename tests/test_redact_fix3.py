@@ -291,8 +291,14 @@ class SinSuelo(Exception):
     """El caso pequeño no superó el suelo de CPU dentro de los topes: no se puede medir una razón."""
 
 
+# Una muestra por debajo de `esperado / VALIDA_DIV` no es una medida. En Windows el reloj de CPU es de 15,6 ms y
+# bajo carga devuelve 0 para una llamada de 0,1 s (÷8); en Linux es de ns y solo un cero absurdo se descarta (÷64):
+# con ÷8 una réplica cargada descartó TODAS las rondas de dos casos (T-23 fix5b).
+VALIDA_DIV = 8 if os.name == "nt" else 64
+
+
 def _validas(muestras, esperado):
-    return [m for m in muestras if m >= esperado / 8]
+    return [m for m in muestras if m >= esperado / VALIDA_DIV]
 
 
 def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None):
@@ -321,13 +327,15 @@ def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None):
         n *= 2
     grande = generador(n * CRECIMIENTO)
     ref = suelo / REF_DIV
-    repeticiones = 1
-    while _cpu(_referencia_lineal, BASE_REFERENCIA, repeticiones)[0] < ref and repeticiones < 65536:
-        repeticiones *= 2
     tc, tg, rc, rg, salida, relativa = [], [], [], [], None, None
     for ronda in range(rondas):
         if ronda:
             time.sleep(pausa)
+        # la referencia se recalibra en CADA ronda: la carga ajena cambia entre rondas y una calibración hecha
+        # en un tramo lento (o rápido) dejaría a las demás con muestras fuera de rango
+        repeticiones = 1
+        while _cpu(_referencia_lineal, BASE_REFERENCIA, repeticiones)[0] < ref and repeticiones < 65536:
+            repeticiones *= 2
         for _ in range(1 if ronda == 0 else 2):               # 1 muestra la primera ronda (casi todas dan verde);
             #                                                 # 2 en las de repetición, intercaladas: comparten la carga
             rc.append(_cpu(_referencia_lineal, BASE_REFERENCIA, repeticiones)[0])
@@ -348,7 +356,8 @@ def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None):
         if _es_lineal(relativa):
             break                  # lo superlineal de verdad sale rojo en TODAS las rondas: solo se repite el rojo
     if relativa is None:
-        raise SinSuelo("ninguna ronda dio muestras de CPU válidas (el reloj devolvió tiempos muy por debajo de lo esperado)")
+        raise SinSuelo("ninguna ronda dio muestras de CPU válidas (el reloj devolvió tiempos muy por debajo de lo "
+                       f"esperado): suelo={suelo} reps={repeticiones} tc={tc} tg={tg} rc={rc} rg={rg}")
     return relativa, min(vtc), min(vtg), salida
 
 
@@ -395,7 +404,7 @@ def test_la_puerta_rechaza_un_n_a_la_1_5_real():
 def test_la_puerta_rechaza_la_regex_cuadratica_que_antes_quedaba_bajo_el_suelo():
     """`re.compile(r"x*y").search("x"*N)` con N pequeño tardaba < 50 ms y la puerta anterior no comparaba
     razones (`tc=0.0000 tg=0.4062` pasaba): ahora el tamaño crece hasta superar el suelo y la razón sale ≈ 8."""
-    relativa, tc, tg, _ = _medir(_regex_cuadratica, lambda n: "x" * n, n0=500, suelo=SUELO_DEMO, pausa=0, rondas=2)
+    relativa, tc, tg, _ = _medir(_regex_cuadratica, lambda n: "x" * n, n0=500, suelo=SUELO_DEMO, pausa=0, rondas=1)
     assert relativa is not None and not _es_lineal(relativa), (relativa, tc, tg)
     # (sin `tc >= suelo/8`: `_medir` solo devuelve muestras de al menos ese valor, la aserción no podía fallar)
     assert tg > tc                                          # el grande cuesta de verdad más que el pequeño

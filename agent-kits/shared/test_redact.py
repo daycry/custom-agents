@@ -50,7 +50,7 @@ def test_solo_stdlib():
         assert prohibido not in src
 
 
-# serie: mide tiempo de pared (< 1.5 s por caso); bajo `-n auto` curl_args y mysql_args tardaron 1,72 s y 1,60 s (T-23 fix1)
+# serie: mide CPU del hijo (< 2,5 s por caso; antes 1,5); bajo `-n auto` curl_args y mysql_args tardaron 1,72 s y 1,60 s (T-23 fix1)
 @pytest.mark.serie
 @pytest.mark.parametrize('case', ['pem', 'assignment', 'quoted_json', 'show', 'prefixed_assignment',
                                   'curl_args', 'mysql_args'])
@@ -97,11 +97,13 @@ print(round(time.process_time()-started,4))
     script = str(Path(HERE) / ('knowledge-view.py' if case == 'show' else 'redact.py'))
     try:
         result = subprocess.run([sys.executable,'-X','utf8','-B','-c',program,script,str(fixture),case,str(root)],
-                                cwd=own,env=env,capture_output=True,encoding='utf8',errors='replace',timeout=3)
+                                cwd=own,env=env,capture_output=True,encoding='utf8',errors='replace',timeout=6)
     except subprocess.TimeoutExpired:
-        pytest.fail('owned bounded input exceeded 3s redaction deadline: ' + case)
+        pytest.fail('owned bounded input exceeded 6s redaction deadline: ' + case)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert float(result.stdout.strip()) < 1.5
+    # CPU del hijo: ~1,0 s con la máquina libre y 1,5-1,6 s con una réplica cargada (T-23 fix4/fix5b). Una versión
+    # superlineal sobre 120 000 repeticiones cuesta órdenes de magnitud más, así que 2,5 s sigue separando
+    assert float(result.stdout.strip()) < 2.5
 
 
 @pytest.mark.parametrize('text', [
