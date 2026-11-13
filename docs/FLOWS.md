@@ -629,10 +629,15 @@ borrar secciones) y deniega las variables `GIT_*`, `HOME` y `XDG_CONFIG_HOME`
 cuando la orden ejecuta git (en el mismo segmento o exportadas antes). Compara el nombre base del ejecutable sin distinguir
 mayúsculas, incluidos nombres Windows con `.exe`.
 
-El guardarraíl evita accidentes y las formas conocidas de saltarse estas reglas;
-no es un sandbox. Quedan fuera los envoltorios (`nice`, `sudo`, `xargs`,
-`find -exec`), los scripts que escriba el propio agente y los ficheros de
-configuración editados a mano (ADR-023, ADR-007).
+El guardarraíl frena los errores de un agente honesto; no es un sandbox. El cuerpo de
+un heredoc se analiza siempre como órdenes (salvo las dos formas exactas de
+`git commit` con mensaje) y se desenvuelven `timeout`, `nice`, `stdbuf`, `time`,
+`setsid`, `sudo`, `env -S` y `xargs`. Quedan fuera, por decisión del usuario, las
+indirecciones deliberadas (variables como programa, código por stdin hacia un
+intérprete, `find -exec`), los scripts que escriba el propio agente y los
+ficheros de configuración editados a mano (ADR-023, ADR-007). Si no puede decidir
+(plazo, entrada de más de 64 KiB, error), el lanzador deniega para `implementer`
+y `architect` y conserva `continue` para el resto.
 
 Cada orden conserva su propia decisión, también entre líneas. Comillas,
 comentarios y continuaciones escapadas mantienen la separación entre flags

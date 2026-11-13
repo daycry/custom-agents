@@ -271,11 +271,12 @@ export default {
     }
 
     const callbacks = { guard: async event => {
-      let decision;
+      let decision, protectedRole = false;
       try {
         const guardedIDs = await loadGuardedIDs();
         if (guardedIDs && (!Object.hasOwn(event || {}, 'agent')
             || (typeof event.agent === 'string' && !guardedIDs.has(event.agent)))) return;
+        protectedRole = !!guardedIDs && typeof event?.agent === 'string' && guardedIDs.has(event.agent);
         const cwd = await project(event.sessionID);
         if (!cwd) return;
         const output = await run(bindings.guard.handlers[0], {
@@ -287,7 +288,13 @@ export default {
           throw new Error('guard result');
         if (decision.diagnostic === 'guardrails-disabled') console.warn('custom-agents: role guards disabled by project configuration');
         else if (decision.diagnostic) warnGuard();
-      } catch { warnGuard(); return; }
+      } catch {
+        warnGuard();
+        // Fail closed for the protected role (T-06 fix6, ADR-023): no valid decision (deadline, bad output, error)
+        // denies the tool call for `implementer`/`architect`; every other identity keeps normal permissions.
+        if (protectedRole) throw new Error('custom-agents: the role guard could not decide, so the command is denied for this protected role - retry with a shorter command or ask the user');
+        return;
+      }
       // A before-hook Error is a native tool failure; no decision is cached by call ID.
       if (decision.decision === 'deny') throw new Error('custom-agents: ' + decision.reason.slice(0, 2048));
     },

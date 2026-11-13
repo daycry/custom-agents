@@ -70,6 +70,7 @@ Nunca exit ≠ 0 por error interno: se registra en stderr y se permite (un guard
 debe convertirse en un bloqueo fantasma).
 """
 import argparse
+import bisect
 import json
 import os
 import posixpath
@@ -266,18 +267,21 @@ def current_branch(project_dir, timeout=5):
 # construcción que oculta texto (heredoc, `$(( ))`, `<<<`, `"…$(…)…"`). Aquí se lee la orden con la
 # gramática de bash que importa para esto y todo lo que quede abierto al final es un hecho (`incompleta`)
 # con el que `check_git` deniega la orden entera si contiene `git` o un cambio de base.
+#
+# Modelo de amenaza (T-06 fix6, decisión del usuario): el guardarraíl frena los ERRORES de un agente honesto; las
+# indirecciones deliberadas (variable como programa, código por stdin hacia un intérprete, `find -exec`, heredoc a
+# `python3`) son un LÍMITE conocido (docs/agents/implementer.md). Por eso el cuerpo de un heredoc se analiza SIEMPRE
+# como órdenes, sin lista de intérpretes ni reglas de salto: la única excepción son las dos formas exactas de
+# `git commit` con mensaje (`_quitar_mensajes_de_commit`).
 _MAX_ANIDADO = 20          # profundidad de `$( )`, backticks y cuerpos de heredoc que se analizan
-_INTERPRETES = frozenset(("bash", "sh", "zsh", "dash", "ksh", "eval", "source", "exec", "env", "sudo",
-                          "command", "time", "xargs", "nohup"))
-_SIN_COMILLAS_RE = re.compile(r"\$\(|`")
 
 
 class _Lectura:
     """Resultado compartido de una lectura: segmentos, cuerpos de heredoc y si quedó algo abierto."""
-    __slots__ = ("out", "cuerpos", "incompleta")
+    __slots__ = ("out", "cuerpos", "incompleta", "tablas")
 
     def __init__(self):
-        self.out, self.cuerpos, self.incompleta = [], [], False
+        self.out, self.cuerpos, self.incompleta, self.tablas = [], [], False, {}
 
 
 def _delimitador(command, j):
@@ -289,7 +293,7 @@ def _delimitador(command, j):
     out, citado, leido = [], False, False
     while j < n:
         c = command[j]
-        if c in " \t\r\n;&|()<>":
+        if c in " \t\n;&|()<>":      # el CR NO termina la palabra: en bash es un carácter normal (fix6, gap 9)
             break
         leido = True
         if c == "\\" and j + 1 < n:
@@ -332,26 +336,57 @@ def _saltar_heredocs(command, pos, pendientes, st):
     return pos
 
 
-_ARIT_INVALIDA_RE = re.compile(r"[;\n`'\"]|\$\(|[A-Za-z0-9_$]\s+[A-Za-z0-9_$]")
+# Una aritmética `$(( … ))`/`(( … ))` deja de serlo (bash la lee como subshell) si lleva `;`, salto de línea, comillas,
+# backtick, `$(`, dos palabras seguidas o la palabra `git`. Todas las marcas se anotan en UNA pasada lineal
+# (`_TablaAritmetica`) y cada consulta es una búsqueda binaria: `_aritmetica` era O(n²) (T-06 fix6, gap 1).
+_BT_ESCAPE_RE = re.compile(r"\\([$`\\])")
+_ARIT_SUELTA_RE = re.compile(r"[;\n`'\"]")
+_ARIT_DOLAR_RE = re.compile(r"\$\(")
+_ARIT_GIT_RE = re.compile(r"\bgit\b")
+_ARIT_PARES_RE = re.compile(r"(?=([A-Za-z0-9_$]\s+[A-Za-z0-9_$]))")
 
 
-def _aritmetica(command, j):
-    """Posición tras el `))` de una expansión/orden aritmética cuyo contenido empieza en `j`, o None si NO es
-    aritmética (dos palabras seguidas, `;`, comillas, `$(`…: bash la lee entonces como subshell). Dentro de
-    la aritmética `<<` es un desplazamiento, no un heredoc."""
-    depth = 0
-    for k in range(j, len(command)):
-        c = command[k]
-        if c == "(":
-            depth += 1
-        elif c == ")":
-            if depth:
-                depth -= 1
-            elif command.startswith("))", k):
-                return None if _ARIT_INVALIDA_RE.search(command[j:k]) else k + 2
-            else:
-                return None
-    return None
+class _TablaAritmetica:
+    """Una pasada sobre la orden: casa cada `(` con su `)` (como el recorrido por profundidad, sin mirar comillas) y
+    guarda, por clase de marca, las posiciones de inicio y fin ordenadas (las fines son monótonas dentro de cada clase)."""
+    __slots__ = ("cierre", "marcas")
+
+    def __init__(self, command):
+        pila, cierre = [], {}
+        for m in re.finditer(r"[()]", command):
+            if m.group() == "(":
+                pila.append(m.start())
+            elif pila:
+                cierre[pila.pop()] = m.start()
+        self.cierre = cierre
+        self.marcas = []
+        for regex, grupo in ((_ARIT_SUELTA_RE, 0), (_ARIT_DOLAR_RE, 0), (_ARIT_GIT_RE, 0), (_ARIT_PARES_RE, 1)):
+            inicios, fines = [], []
+            for m in regex.finditer(command):
+                inicios.append(m.start(grupo))
+                fines.append(m.end(grupo))
+            self.marcas.append((inicios, fines))
+
+    def invalida(self, j, k):
+        """¿Hay alguna marca que invalide la aritmética dentro de `command[j:k]`?"""
+        for inicios, fines in self.marcas:
+            idx = bisect.bisect_left(inicios, j)
+            if idx < len(inicios) and fines[idx] <= k:
+                return True
+        return False
+
+
+def _aritmetica(command, j, st):
+    """Posición tras el `))` de una expansión/orden aritmética cuyo contenido empieza en `j` (el `(` que la abre está
+    en `j - 1`), o None si NO es aritmética (dos palabras seguidas, `;`, comillas, `$(`, `git`…: bash la lee entonces
+    como subshell). Dentro de la aritmética `<<` es un desplazamiento, no un heredoc. Lineal (tabla por orden)."""
+    tabla = st.tablas.get(command)
+    if tabla is None:
+        tabla = st.tablas[command] = _TablaAritmetica(command)
+    k = tabla.cierre.get(j - 1)
+    if k is None or command[k + 1:k + 2] != ")":
+        return None
+    return None if tabla.invalida(j, k) else k + 2
 
 
 def _leer(command, i, modo, st, prof):
@@ -379,6 +414,18 @@ def _leer(command, i, modo, st, prof):
             word.append(c)           # escape final: la orden está incompleta
             started, st.incompleta = True, True
             break
+        if quote == "$'":
+            # ANSI-C `$'…'`: la barra escapa el carácter siguiente (también la comilla simple) (fix6, lente C)
+            if c == "\\" and i + 1 < n:
+                word.append(command[i + 1])
+                i += 2
+                continue
+            if c == "'":
+                quote = None
+            else:
+                word.append(c)
+            i += 1
+            continue
         if c == "\\" and quote != "'" and i + 1 < n:
             following = command[i + 1]
             if following == "\n":
@@ -396,8 +443,13 @@ def _leer(command, i, modo, st, prof):
                 word.append(c)
             i += 1
             continue
+        if c == "$" and quote is None and command.startswith(("$'", '$"'), i):
+            # `$'…'` (ANSI-C) y `$"…"` (traducción): la `$` no es parte de la palabra
+            quote, started = ("$'" if command[i + 1] == "'" else '"'), True
+            i += 2
+            continue
         if c == "$" and command.startswith("$(", i):
-            fin = _aritmetica(command, i + 3) if command.startswith("$((", i) else None
+            fin = _aritmetica(command, i + 3, st) if command.startswith("$((", i) else None
             if fin is not None:
                 word.append(command[i:fin])
                 i = fin
@@ -408,12 +460,15 @@ def _leer(command, i, modo, st, prof):
             started = True
             continue
         if c == "`":
-            if modo == "bt" and quote is None:
-                i += 1
-                cierre = True
-                break
-            i, extra = _leer(command, i + 1, "bt", st, prof + 1)
-            pend.extend(extra)
+            # Sustitución con backticks: bash quita las barras de `\`` `\$` `\\` del contenido y LO LEE como una
+            # orden (así `\`` anida otra sustitución). Se hace igual: contenido sin escapes -> lectura recursiva.
+            j = i + 1
+            while j < n and command[j] != "`":
+                j += 2 if command[j] == "\\" else 1
+            if j >= n:
+                st.incompleta = True
+            _leer(_BT_ESCAPE_RE.sub(r"\1", command[i + 1:min(j, n)]), 0, "top", st, prof + 1)
+            i = min(j + 1, n)
             word.append("`")
             started = True
             continue
@@ -441,8 +496,8 @@ def _leer(command, i, modo, st, prof):
             i += 3 if triple else 2
             continue
         elif c == "(" and command.startswith("((", i) and not cur and not started \
-                and _aritmetica(command, i + 2) is not None:
-            i = _aritmetica(command, i + 2)        # `(( expr ))`: aritmética, no órdenes
+                and _aritmetica(command, i + 2, st) is not None:
+            i = _aritmetica(command, i + 2, st)    # `(( expr ))`: aritmética, no órdenes
             continue
         elif c == "#" and not started:
             newline = command.find("\n", i)
@@ -452,7 +507,10 @@ def _leer(command, i, modo, st, prof):
             i += 1
             cierre = True
             break
-        elif c in " \t\r\n;&|()":
+        elif c == "&" and ((i and command[i - 1] in "<>") or command.startswith("&>", i)):
+            word.append(c)                # `2>&1`, `>&2`, `&>fichero`: redirección, no separador de órdenes
+            started = True
+        elif c in " \t\n;&|()":           # el CR NO separa: en bash es un carácter normal (fix6, gap 9)
             if started:
                 cur.append("".join(word))
                 word, started = [], False
@@ -476,26 +534,6 @@ def _leer(command, i, modo, st, prof):
     return i, pend
 
 
-def _expansiones(texto):
-    """Regiones de un cuerpo de heredoc SIN entrecomillar que bash expande como órdenes: `$(…)` y backticks."""
-    out, i, n = [], 0, len(texto)
-    while True:
-        m = _SIN_COMILLAS_RE.search(texto, i)
-        if not m:
-            return out
-        if m.group() == "`":
-            j = texto.find("`", m.end())
-            out.append(texto[m.end():] if j < 0 else texto[m.end():j])
-            i = n if j < 0 else j + 1
-        else:
-            j, d = m.end(), 1
-            while j < n and d:
-                d += (texto[j] == "(") - (texto[j] == ")")
-                j += 1
-            out.append(texto[m.end():j - 1 if d == 0 else j])
-            i = j
-
-
 def _segmentos(command, _prof=0):
     """Literal shell words and command boundaries, retaining quoted punctuation as data.
 
@@ -503,34 +541,76 @@ def _segmentos(command, _prof=0):
     terminar queda algo abierto (comilla, `$(`, backtick, heredoc sin cierre, escape final); nada se
     descarta en silencio y `check_git` deniega entonces la orden entera si contiene `git` o cambia la base.
 
-    El cuerpo de un heredoc es DATOS solo si el delimitador está entrecomillado o escapado (sin expansión),
-    el heredoc cierra y en la orden no aparece ningún intérprete o envoltorio (`bash`, `eval`, `env`, `.`…):
-    en cualquier otro caso se analiza como órdenes. Con delimitador sin comillas el cuerpo es texto salvo
-    sus `$(…)` y backticks, que bash sí ejecuta y se analizan."""
+    El cuerpo de un heredoc se analiza SIEMPRE como órdenes (T-06 fix6): el guardarraíl y bash discrepaban en cada
+    construcción que oculta texto (`$[1<<2]`, `\\⏎` en el delimitador, `$BASH <<'EOF'`…), así que ya no hay reglas de
+    salto ni lista de intérpretes. La única excepción son las dos formas exactas de `git commit` con mensaje, que
+    `_quitar_mensajes_de_commit` retira de la orden ANTES de llegar aquí."""
     st = _Lectura()
     _leer(command, 0, "top", st, _prof)
     segs, incompleta = st.out, st.incompleta
-    if st.cuerpos:
-        interprete = any(_es_interprete(s) for s in segs)
-        for texto, citado, cerrado in st.cuerpos:
-            if interprete or not cerrado:
-                trozos = [texto]
-                if interprete and not citado and _expansiones(texto):
-                    # la shell ejecuta el cuerpo YA expandido (`bash <<EOF⏎$(echo git restore .)`): el
-                    # resultado de una sustitución no se conoce sin ejecutar -> orden incompleta
-                    incompleta = True
-            elif citado:
-                continue
-            else:
-                trozos = _expansiones(texto)
-            for trozo in trozos:
-                if _prof >= _MAX_ANIDADO:
-                    incompleta = True
-                    continue
-                sub, inc = _segmentos(trozo, _prof + 1)
-                segs.extend(sub)
-                incompleta = incompleta or inc
+    for texto, _citado, _cerrado in st.cuerpos:
+        if _prof >= _MAX_ANIDADO:
+            incompleta = True
+            continue
+        sub, inc = _segmentos(texto, _prof + 1)
+        segs.extend(sub)
+        incompleta = incompleta or inc
     return segs, incompleta
+
+
+# --- las dos FORMAS EXACTAS de `git commit` cuyo cuerpo de heredoc es el mensaje (T-06 fix6, punto 2) ---
+# Una palabra de opción: sin comillas ni `$`, backtick, `;`, `&`, `|`, `(`, `)`, `<`, `>`, barra ni espacios, o una
+# cadena entrecomillada sin expansión. El delimitador va entrecomillado y el cierre es la PRIMERA línea igual a él.
+_PALABRA = r"""(?:[^\s'"`$;&|()<>\\]|"[^"$`\\\n]*"|'[^'\n]*')+"""
+_OPCIONES = rf"(?:[ \t]+{_PALABRA})*"
+_CUERPO = r"""(?:(?!(?P=d)\n)[^\n]*\n)*"""
+_FORMA_M = re.compile(
+    rf"""git[ \t]+commit(?P<opts>{_OPCIONES})[ \t]+(?P<m>-[A-Za-z]*m|--message)[ \t]+"\$\(cat[ \t]+<<'(?P<d>[A-Za-z_][A-Za-z0-9_]*)'\n"""
+    rf"""{_CUERPO}(?P=d)\n\)\"""")
+_FORMA_F = re.compile(
+    rf"""git[ \t]+commit(?P<opts>{_OPCIONES})[ \t]+-F[ \t]+-[ \t]+<<'(?P<d>[A-Za-z_][A-Za-z0-9_]*)'\n"""
+    rf"""{_CUERPO}(?P=d)(?=\n|\Z)""")
+_DESPUES_RE = re.compile(r"[ \t]*(?:&&|\|\||;|\n|\Z)")
+
+
+def _cerrado_sin_heredoc(texto):
+    """¿`texto` se lee entero (nada abierto) y sin cuerpos de heredoc? Es lo que se exige a lo que precede a una forma exacta."""
+    st = _Lectura()
+    _leer(texto, 0, "top", st, 0)
+    return not st.incompleta and not st.cuerpos
+
+
+def _quitar_mensajes_de_commit(command):
+    """Sustituye las dos formas exactas de `git commit` con mensaje por una orden equivalente SIN cuerpo:
+
+    * `git commit [opciones] -m "$(cat <<'D' ⏎ … ⏎ D ⏎ )"`  ->  `git commit [opciones] -m x`
+    * `git commit [opciones] -F - <<'D' ⏎ … ⏎ D`            ->  `git commit [opciones] -F -`
+
+    En esas formas el cuerpo es el MENSAJE y no se analiza; las opciones sí (`--no-verify`, `-n`…). Solo si la forma
+    empieza una sentencia (inicio, o tras `&&`, `||`, `;` o salto de línea), lo que la precede se lee entero y sin
+    heredocs, y lo que la sigue empieza en un separador: así el estado de las comillas en el punto de la forma es el
+    mismo para bash y para el guardarraíl. Cualquier otro heredoc se analiza como órdenes (con su precio: falso deny
+    si el cuerpo tiene comillas impares; la salida es escribir el fichero con la herramienta de edición)."""
+    for _ in range(4):
+        if "<<" not in command:
+            break
+        cambiado = False
+        for forma, plantilla in ((_FORMA_M, 'git commit{opts} {m} x'), (_FORMA_F, 'git commit{opts} -F -')):
+            for m in forma.finditer(command):
+                previo = command[:m.start()].rstrip(" \t")
+                if previo and not previo.endswith(("&&", "||", ";", "\n")):
+                    continue
+                if not _DESPUES_RE.match(command, m.end()) or (previo and not _cerrado_sin_heredoc(previo)):
+                    continue
+                sustituto = plantilla.format(opts=m.group("opts"), m=m.groupdict().get("m") or "")
+                command = command[:m.start()] + sustituto + command[m.end():]
+                cambiado = True
+                break
+            if cambiado:
+                break
+        if not cambiado:
+            break
+    return command
 
 
 _ASSIGNMENT_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)=(.*)\Z", re.DOTALL)
@@ -560,23 +640,98 @@ def _program_name(token):
     return name[:-4] if name.endswith(".exe") else name
 
 
+# Palabras de control de shell y envoltorios que PRECEDEN al programa real de un segmento: el programa solo cuenta en
+# esa posición (`echo cd`, `git restore src/cd`, `git commit -m env` no cambian nada). Fuente única de los envoltorios
+# que se desenvuelven: `_literal_invocation` (qué git se invoca) y `_posicion_programa` (qué cambia la base).
+_CONTROL = frozenset(("if", "then", "else", "elif", "while", "until", "do", "{", "!", "time", "coproc", "nohup",
+                      "builtin"))
+_ENVOLTORIOS = frozenset(("env", "command", "builtin", "exec", "sudo", "nohup", "nice", "xargs", "stdbuf",
+                          "timeout", "setsid", "ionice"))
+_OPCION_CON_VALOR = frozenset(("-u", "-g", "-n", "-I", "-t", "-s", "-d", "-a", "-p", "-P", "-L", "-E", "-C",
+                               "-D", "-r", "-T", "-U", "-S", "-k", "-c"))
+_REDIRECCION_RE = re.compile(r"(?:[0-9]*|&)(?:<<<|<<|>>|>&|<&|<>|>\||>|<)(.*)\Z", re.DOTALL)
+_MAX_RESOLUCIONES = 64
+
+
+def _salta_redireccion(toks, i):
+    """Índice tras una redirección que ocupa `toks[i]` (`>f`, `2>&1`, `&>f`, o `>` seguido de su destino); `i` si
+    `toks[i]` no es una redirección. En posición de programa `2>&1 git restore .` ejecuta `git restore .`."""
+    m = _REDIRECCION_RE.fullmatch(toks[i])
+    if not m:
+        return i
+    return i + (1 if m.group(1) else 2)
+
+
+def _saltar_envoltorio(toks, i):
+    """`(índice tras el envoltorio de `toks[i]` y sus opciones, ¿un `env -C`/`--chdir` lo acompaña?)`: salta
+    asignaciones, opciones (con el valor de las que lo toman) y la duración de `timeout`."""
+    n, chdir = len(toks), False
+    nombre = _program_name(toks[i])
+    i += 1
+    while i < n:
+        o = toks[i]
+        if _ASSIGNMENT_RE.fullmatch(o):
+            i += 1
+        elif o == "--":
+            i += 1
+            break
+        elif not o.startswith("-"):
+            break
+        elif nombre == "env":
+            if o in ("--chdir", "--unset", "--split-string") or o.startswith("--chdir="):
+                chdir = chdir or o.startswith("--chdir")
+                i += 2 if "=" not in o else 1
+            elif o.startswith("--"):
+                i += 1
+            else:
+                chdir = chdir or "C" in o
+                i += 2 if o[-1] in "uCS" else 1
+        else:
+            i += 2 if o in _OPCION_CON_VALOR else 1
+    if nombre == "timeout" and i < n:
+        i += 1                          # la duración
+    return i, chdir
+
+
 def _literal_invocation(toks, inherited=None):
-    """Unwrap only literal assignment/env/command/exec prefixes; never evaluate shell text."""
+    """Unwrap only literal assignment/env/command/exec/wrapper prefixes; never evaluate shell text.
+
+    Desenvuelve los mismos envoltorios que `_posicion_programa` (`timeout [opts] N`, `nice [-n N]`, `stdbuf`, `time
+    [-p]`, `setsid`, `sudo [opts]`, `xargs [opts]`, `nohup`, `command`, `exec`, `builtin`, `env [-S …]`), las
+    redirecciones iniciales (`2>&1 git …`) y `function nombre {` (T-06 fix6, gap 6)."""
     bindings = dict(inherited or {})
+    toks = list(toks)
     i = 0
     while i < len(toks):
         assignment = _ASSIGNMENT_RE.fullmatch(toks[i])
         if assignment:
             bindings[assignment[1]] = assignment[2]
             i += 1
-        elif toks[i] in ("if", "then", "else", "elif", "while", "until", "do", "{", "!", "coproc", "time",
-                         "nohup", "builtin"):
+        elif toks[i] == "function" and i + 1 < len(toks):
+            i += 2                      # `function f { git … }`: el nombre y la llave no son el programa
+        elif toks[i] in _CONTROL:
             i += 1          # `{ git restore .; }`, `then git restore .`, `time git …`: el programa sigue después
+            if toks[i - 1] == "time":
+                while i < len(toks) and toks[i] in ("-p", "--"):
+                    i += 1
+        elif _salta_redireccion(toks, i) != i:
+            i = _salta_redireccion(toks, i)
         elif _program_name(toks[i]) in ("env", "command", "exec"):
             wrapper = _program_name(toks[i])
             i += 1
             while i < len(toks) and toks[i].startswith("-") and toks[i] != "--":
                 option = toks[i]
+                if wrapper == "env" and (option in ("-S", "--split-string") or option.startswith("--split-string=")
+                                         or (option.startswith("-S") and not option.startswith("--"))):
+                    # `env -S 'git restore .'`: el valor es una línea de órdenes que env trocea y ejecuta
+                    if option.startswith("--split-string="):
+                        valor, consumidos = option.split("=", 1)[1], 1
+                    elif option in ("-S", "--split-string"):
+                        valor, consumidos = (toks[i + 1] if i + 1 < len(toks) else ""), 2
+                    else:
+                        valor, consumidos = option[2:], 1
+                    toks = toks[:i] + valor.split() + toks[i + consumidos:]
+                    break
                 if wrapper == "env" and option in ("-", "-i", "--ignore-environment"):
                     bindings.clear()
                 elif wrapper == "env" and option in ("-u", "--unset") and i + 1 < len(toks):
@@ -621,6 +776,8 @@ def _literal_invocation(toks, inherited=None):
                 i += 1
             if i < len(toks) and toks[i] == "--":
                 i += 1
+        elif _program_name(toks[i]) in _ENVOLTORIOS:
+            i, _chdir = _saltar_envoltorio(toks, i)
         else:
             break
     return toks[i:], bindings
@@ -672,62 +829,31 @@ def _git_cambia_base(toks):
     return False
 
 
-# Palabras de control de shell y envoltorios que PRECEDEN al programa real de un segmento: el cambio de base
-# solo cuenta en posición de programa (`echo cd`, `git restore src/cd`, `git commit -m env` no cambian nada).
-_CONTROL = frozenset(("if", "then", "else", "elif", "while", "until", "do", "{", "!", "time", "coproc"))
-_ENVOLTORIOS = frozenset(("env", "command", "builtin", "exec", "sudo", "nohup", "nice", "xargs", "stdbuf",
-                          "timeout", "setsid", "ionice"))
-_OPCION_CON_VALOR = frozenset(("-u", "-g", "-n", "-I", "-t", "-s", "-d", "-a", "-p", "-P", "-L", "-E", "-C",
-                               "-D", "-r", "-T", "-U", "-S", "-k"))
-_MAX_RESOLUCIONES = 64
-
-
 def _posicion_programa(toks):
     """`(índice del programa real, ¿un `env -C`/`--chdir` lo precede?)` de un segmento: salta asignaciones,
-    palabras de control y envoltorios con sus opciones. Recorrido lineal: nada de rebanar `toks` por token."""
+    palabras de control, redirecciones iniciales, `function nombre` y envoltorios con sus opciones. Recorrido
+    lineal: nada de rebanar `toks` por token."""
     i, n, chdir = 0, len(toks), False
     while i < n:
         t = toks[i]
+        if t == "function" and i + 1 < n:
+            i += 2
+            continue
         if t in _CONTROL or _ASSIGNMENT_RE.fullmatch(t):
             i += 1
-            if t == "time" and i < n and toks[i] == "-p":
-                i += 1
-            continue
-        nombre = _program_name(t)
-        if nombre not in _ENVOLTORIOS:
-            return i, chdir
-        i += 1
-        while i < n:
-            o = toks[i]
-            if _ASSIGNMENT_RE.fullmatch(o):
-                i += 1
-            elif o == "--":
-                i += 1
-                break
-            elif not o.startswith("-"):
-                break
-            elif nombre == "env":
-                if o in ("--chdir", "--unset", "--split-string") or o.startswith("--chdir="):
-                    chdir = chdir or o.startswith("--chdir")
-                    i += 2 if "=" not in o else 1
-                elif o.startswith("--"):
+            if t == "time":
+                while i < n and toks[i] in ("-p", "--"):
                     i += 1
-                else:
-                    chdir = chdir or "C" in o
-                    i += 2 if o[-1] in "uCS" else 1
-            else:
-                i += 2 if o in _OPCION_CON_VALOR else 1
-        if nombre == "timeout" and i < n:
-            i += 1                      # la duración
+            continue
+        j = _salta_redireccion(toks, i)
+        if j != i:
+            i = j
+            continue
+        if _program_name(t) not in _ENVOLTORIOS:
+            return i, chdir
+        i, cambia = _saltar_envoltorio(toks, i)
+        chdir = chdir or cambia
     return i, chdir
-
-
-def _es_interprete(toks):
-    """¿El segmento invoca una shell, `eval`, `source`/`.` o un envoltorio que ejecuta lo que sigue?"""
-    i, _chdir = _posicion_programa(toks)
-    if i < len(toks) and toks[i] in (".", "source"):
-        return True
-    return any(_program_name(t) in _INTERPRETES for t in toks)
 
 
 def _destino_es_el_propio_directorio(destino, memo=None):
@@ -768,11 +894,14 @@ def _cd_cambia_base(toks, idx, memo=None):
     return not (k < len(toks) and _destino_es_el_propio_directorio(toks[k], memo))
 
 
-def _cambia_base_en(segmentos):
+def _cambia_base_en(segmentos, _prof=0):
     """¿Alguna parte de la orden cambia el directorio/árbol de git? Solo en POSICIÓN DE PROGRAMA de cada
     segmento (tras asignaciones, palabras de control y envoltorios): `command cd ..`, `{ cd ..; … }`,
     `if …; then cd ..; fi`, `time cd`, `! cd`, `A=1 env -C ..`, `git -C ..`. Un `cd`/`env`/`git` que es solo
-    un ARGUMENTO (`echo cd`, `git restore src/cd`) no cuenta. Lineal en el tamaño de la orden (T-06 fix5)."""
+    un ARGUMENTO (`echo cd`, `git restore src/cd`) no cuenta. Lineal en el tamaño de la orden (T-06 fix5).
+    Fix6, gap 5: el cambio de base se busca TAMBIÉN en el contenido de `eval` (sus argumentos son órdenes que se
+    ejecutan en esta shell) y `source`/`.` con un fichero (su contenido no se ve: cambia la base por prudencia);
+    las funciones ya están aplanadas en los segmentos y `. <(…)` también (los paréntesis separan órdenes)."""
     memo = {"cwd": None, "dest": {}}
     for toks in segmentos:
         i, chdir = _posicion_programa(toks)
@@ -784,7 +913,22 @@ def _cambia_base_en(segmentos):
         if (nombre in _CAMBIA_DIR and _cd_cambia_base(toks, i, memo)) \
                 or (nombre == "git" and _git_cambia_base(toks[i:])):
             return True
+        if nombre in (".", "source") and len(toks) > i + 1:
+            return True
+        if nombre == "eval" and len(toks) > i + 1:
+            if _prof >= 3 or _cambia_base_en(_segmentos(" ".join(toks[i + 1:]))[0], _prof + 1):
+                return True
     return False
+
+
+_PRINCIPAL_RE = re.compile(r"(?:refs/heads/|heads/|refs/remotes/[^/]+/|remotes/[^/]+/|(?:origin|upstream)/)?"
+                           r"(?:main|master)(?:[\^~].*|@\{.*)?\Z", re.I)
+
+
+def _es_rama_principal(destino):
+    """¿`destino` nombra la rama principal con alguna de sus formas (`master`, `refs/heads/master`, `origin/main`,
+    `master^0`, `MAIN`)? Una rama de trabajo llamada `feature/main` NO cuenta."""
+    return bool(_PRINCIPAL_RE.fullmatch(destino))
 
 
 def _es_git(toks, sub):
@@ -825,9 +969,16 @@ def _commit_skips_verification(args):
 
 _SHELLS = {"sh", "bash", "zsh", "dash", "ksh"}
 _MAX_ORDEN = 262144       # bytes: por encima, la orden se deniega sin analizarla
-_MAX_TOKENS = 4000        # palabras visibles (sin cuerpos de heredoc): tope de entrada del análisis
-_MAX_VISIBLE = 16384      # caracteres visibles
+# Recorte barato y lineal ANTES de tokenizar (T-06 fix6, punto 1): por encima de 16 KB o 4.000 palabras la orden se
+# deniega si su texto contiene `git` (sin distinguir mayúsculas: `GIT_DIR`) o algo que cambia la base. El guard nunca
+# agota el plazo del lanzador y, si lo agotara, el lanzador deniega por el rol protegido.
+_MAX_TOKENS = 4000        # palabras (separadas por espacio) de la orden completa
+_MAX_VISIBLE = 16384      # caracteres de la orden completa
+_RECORTE_RE = re.compile(r"git|\b(?:cd|pushd|popd|chdir|env|eval|source)\b|--work-tree|--git-dir|--chdir", re.I)
 _GIT_TEXTO_RE = re.compile(r"\bgit\b")
+_NOTA_HEREDOC = (" El cuerpo de un heredoc se analiza como órdenes (salvo en `git commit -m \"$(cat <<'EOF' … EOF\\n)\"` "
+                 "y `git commit -F - <<'EOF' … EOF`): si es un fichero o un texto, escríbelo con la herramienta de "
+                 "edición y usa `git commit -F <fichero>`, o evita las comillas impares en el cuerpo.")
 
 # Órdenes cuyo efecto cae FUERA del repositorio y no se deshace desde él (registro público,
 # estado del host, clúster, base de datos). Análisis literal de la invocación, como el resto
@@ -881,7 +1032,7 @@ def _subcomandos_shell(toks):
     prog = _program_name(toks[0])
     if prog == "eval":
         return [" ".join(toks[1:])] if len(toks) > 1 else []
-    if prog in _SHELLS:
+    if prog in _SHELLS or prog.startswith("$"):        # `$SHELL -c '…'`, `p=bash; $p -c '…'` (fix6, lente A)
         for i, t in enumerate(toks[1:], 1):
             if re.fullmatch(r"-[a-zA-Z]*c[a-zA-Z]*", t) and i + 1 < len(toks):
                 return [toks[i + 1]]
@@ -1250,17 +1401,37 @@ def _razon_restauracion(sub, args, base_cambiada=False):
 def check_git(command, branch, _depth=0, _env=None, _base=False):
     """Razón de deny o None. `branch` = rama actual (None si no hay git).
     Recursivo SOLO sobre lo que una shell ejecutaría (`sh -c "git push --force"`, `bash -c '…'`,
-    `eval "…"`); un mensaje de commit con «rm -rf .» dentro es texto y no se analiza."""
+    `eval "…"`); un mensaje de commit con «rm -rf .» dentro es texto y no se analiza.
+    Si la orden lleva un heredoc, el deny añade cómo escribirlo (T-06 fix6): su cuerpo se analiza como órdenes."""
+    razon = _check_git(command, branch, _depth, _env, _base)
+    if razon and _depth == 0 and "<<" in command:
+        razon += _NOTA_HEREDOC
+    return razon
+
+
+def _check_git(command, branch, _depth=0, _env=None, _base=False):
     if _depth > 3:
         return ("orden con `bash -c`/`eval` anidados a más de 3 niveles bloqueada: el guardarraíl no la analiza "
                 "entera — escribe la orden sin anidar.")
     if len(command) > _MAX_ORDEN:
         return (f"orden demasiado larga bloqueada ({len(command)} bytes, tope {_MAX_ORDEN}): el guardarraíl no "
                 "la analiza — divídela en órdenes más cortas o escribe el contenido con Write.")
+    # Recorte barato y lineal ANTES de tokenizar (fix6, punto 1): el guard nunca agota el plazo del lanzador.
+    if (len(command) > _MAX_VISIBLE or len(command.split()) > _MAX_TOKENS) and _RECORTE_RE.search(command):
+        return ("orden demasiado larga con `git` o cambio de base bloqueada: el guardarraíl no analiza "
+                f"más de {_MAX_TOKENS} palabras ni {_MAX_VISIBLE} caracteres — divide la orden o escribe el "
+                "contenido con la herramienta de edición.")
+    command = _quitar_mensajes_de_commit(command)
+    # El CR es un carácter normal en bash: `git status\r` no es `git status` y `echo x\r# …` no abre un comentario
+    # (fix6, gap 9). En una orden con `git` no se intenta adivinar: se deniega.
+    if "\r" in command and _GIT_TEXTO_RE.search(command):
+        return ("orden con retorno de carro (CR) y `git` bloqueada: bash trata el CR como parte de la palabra y el "
+                "guardarraíl no puede saber qué ejecuta — escríbela con saltos de línea LF.")
     exportados = set()      # variables sensibles exportadas en segmentos anteriores de la MISMA orden
     segmentos, incompleta = _segmentos(command)
     # La base cambia si CUALQUIER punto de la orden la cambia (o la heredó el `bash -c`/`eval` que la
-    # contiene): el guardarraíl valida rutas contra el directorio actual, no contra el efectivo.
+    # contiene): el guardarraíl valida rutas contra el directorio actual, no contra el efectivo. El cambio de base
+    # de un `eval`/`source` interno sube a la orden que lo contiene (`_cambia_base_en` lo mira también dentro).
     base_local = _cambia_base_en(segmentos)
     base_cambiada = _base or base_local
     contiene_git = bool(_GIT_TEXTO_RE.search(command))
@@ -1269,13 +1440,9 @@ def check_git(command, branch, _depth=0, _env=None, _base=False):
     # ENTERA se deniega si contiene `git` o cambia la base; ya no se mira solo el último segmento.
     if incompleta and (contiene_git or base_local):
         return ("orden incompleta con `git` o cambio de base bloqueada (escape final, comilla, `$(`, backtick o "
-                "heredoc sin cerrar): el guardarraíl no puede saber qué ruta o rama nombra — escríbela entera.")
-    # Tope de entrada: por encima de N tokens/caracteres visibles la orden se deniega si contiene `git` o un
-    # cambio de base, antes de seguir con el análisis; el guard nunca agota el plazo del lanzador.
-    if (sum(map(len, segmentos)) > _MAX_TOKENS or sum(len(t) for sg in segmentos for t in sg) > _MAX_VISIBLE) \
-            and (contiene_git or base_local):
-        return ("orden demasiado larga con `git` o cambio de base bloqueada: el guardarraíl no analiza "
-                f"más de {_MAX_TOKENS} palabras ni {_MAX_VISIBLE} caracteres — divide la orden.")
+                "heredoc sin cerrar): el guardarraíl no puede saber qué ruta o rama nombra — escríbela entera. Si es "
+                "un mensaje de commit, usa `git commit -m \"$(cat <<'EOF' … EOF\\n)\"` o `git commit -F - <<'EOF'`; "
+                "para cualquier otro texto, escríbelo con la herramienta de edición y usa `git commit -F <fichero>`.")
     for n, toks in enumerate(segmentos):
         crudo = toks
         toks, bindings = _literal_invocation(toks, _env)
@@ -1318,9 +1485,29 @@ def check_git(command, branch, _depth=0, _env=None, _base=False):
                     return ("`git push` que borra ramas remotas bloqueado (`--delete`/`-d`/`:rama`/`--mirror`/"
                             "`--prune`) — la limpieza de ramas la dirige el ritual de cierre de /dev-cycle (Fase 6).")
         i = _es_git(toks, "reset")
-        if i >= 0 and any(_prefijo(t, "--hard") for t in toks[i + 1:]):
-            return ("`git reset --hard` bloqueado: descarta cambios sin comitear que pueden no ser "
-                    "tuyos — revierte solo lo de tu intento (`git diff <foto> -- <ficheros> | git apply -R`).")
+        if i >= 0 and any(_prefijo(t, "--hard", "--keep", "--merge") for t in toks[i + 1:]):
+            return ("`git reset --hard|--keep|--merge` bloqueado: reescribe el árbol de trabajo y puede descartar "
+                    "cambios sin comitear que pueden no ser tuyos — revierte solo lo de tu intento "
+                    "(`git diff <foto> -- <ficheros> | git apply -R`).")
+        # Subcomandos que también descartan trabajo sin comitear (T-06 fix6, gap 11): `checkout-index -f` y
+        # `read-tree -u|--reset` reescriben el árbol, `rm -f` borra ficheros con cambios y `worktree remove -f` un árbol entero.
+        i = _es_git(toks, "checkout-index")
+        if i >= 0 and any(_cluster(t, "f") or _prefijo(t, "--force") for t in toks[i + 1:]):
+            return ("`git checkout-index -f` bloqueado: sobrescribe ficheros del árbol con cambios sin comitear — "
+                    "revierte solo lo de tu intento (`git diff <foto> -- <ficheros> | git apply -R`).")
+        i = _es_git(toks, "read-tree")
+        if i >= 0 and any(_cluster(t, "u") or _prefijo(t, "--reset") for t in toks[i + 1:]):
+            return ("`git read-tree -u|--reset` bloqueado: reescribe el árbol de trabajo y descarta cambios sin "
+                    "comitear — revierte solo lo de tu intento.")
+        i = _es_git(toks, "rm")
+        if i >= 0 and any(_cluster(t, "f") or _prefijo(t, "--force") for t in toks[i + 1:]):
+            return ("`git rm -f` bloqueado: borra ficheros aunque tengan cambios sin comitear — usa `git rm` sin "
+                    "`-f` o borra por nombre solo lo de tu intento.")
+        i = _es_git(toks, "worktree")
+        if i >= 0 and i + 1 < len(toks) and toks[i + 1] == "remove" \
+                and any(_cluster(t, "f") or _prefijo(t, "--force") for t in toks[i + 2:]):
+            return ("`git worktree remove --force` bloqueado: elimina un árbol de trabajo con cambios sin comitear — "
+                    "la limpieza de worktrees la dirige el ritual de cierre de /dev-cycle (Fase 6).")
         i = _es_git(toks, "clean")
         if i >= 0:
             razon = _razon_clean(toks[i + 1:])
@@ -1354,9 +1541,13 @@ def check_git(command, branch, _depth=0, _env=None, _base=False):
                     continue          # `git checkout main -- fichero` restaura ficheros, no cambia de rama
                 args = [t for t in toks[i + 1:] if not t.startswith("-")]
                 flags = [t for t in toks[i + 1:] if t.startswith("-")]
-                if args and args[0] in MAIN_BRANCHES and not any(f in ("-b", "-B", "-c", "-C") for f in flags) \
+                # El destino puede ser la rama principal con otro nombre (`refs/heads/master`, `origin/main`,
+                # `master^0`, `MAIN`) o «la anterior» (`-`, `@{-1}`): fix6, gap 11.
+                destino = args[0] if args else ("-" if "-" in flags else None)
+                if destino and (destino == "-" or destino == "@{-1}" or _es_rama_principal(destino)) \
+                        and not any(f in ("-b", "-B", "-c", "-C") for f in flags) \
                         and branch and branch not in MAIN_BRANCHES and branch != "HEAD":
-                    return (f"`git {sub} {args[0]}` bloqueado: estás en la rama de trabajo «{branch}» "
+                    return (f"`git {sub} {destino}` bloqueado: estás en la rama de trabajo «{branch}» "
                             f"y el implementer no sale de ella — la integración la dirige /dev-cycle (Fase 6).")
         if toks and os.path.basename(toks[0]) == "rm":
             flags = [t for t in toks[1:] if t.startswith("-")]

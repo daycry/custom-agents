@@ -8,6 +8,7 @@ normal runtime permissions and receive a stable diagnostic where appropriate.
 import argparse
 import importlib.util
 import json
+import re
 from pathlib import Path
 import sys
 
@@ -49,6 +50,26 @@ def _evaluator():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+_TOO_LARGE_REASON = ("the role guard cannot evaluate an input over 64 KiB, so the command is denied for this "
+                     "protected role - split it into shorter commands or write files with the edit tool")
+
+
+def _role_of_prefix(raw, runtime):
+    """Protected role named by the first identity key of a TRUNCATED payload prefix, or None.
+
+    Claude Code and OpenCode put `agent_type`/`agent` before `tool_input`; a quoted string value cannot forge the key
+    because JSON escapes its quotes. Anything unreadable returns None (normal permissions)."""
+    try:
+        mapping = _json_file(SHARED / "native-roles.json")
+        candidates = mapping["runtimes"][runtime]
+        key = "agent" if runtime == "opencode" else "agent_type"
+        found = re.search(r'"' + key + r'"\s*:\s*("(?:[^"\\]|\\.)*")', raw.decode("utf-8", "replace"))
+        identity = json.loads(found.group(1)) if found else None
+        return next((role for role in PROTECTED if identity is not None and identity == candidates.get(role)), None)
+    except Exception:
+        return None
 
 
 def _operation(tool, path, **fields):
@@ -308,7 +329,11 @@ def main():
     try:
         raw = sys.stdin.buffer.read(MAX_INPUT + 1)
         if len(raw) > MAX_INPUT:
-            result = _result(diagnostic="input-too-large")
+            # Fail closed for the protected role (T-06 fix6, ADR-023): the payload cannot be evaluated, so a protected
+            # identity is denied; any other identity (or none) keeps the diagnostic and normal permissions.
+            role = _role_of_prefix(raw, args.runtime)
+            result = (_result(role, _TOO_LARGE_REASON, "input-too-large") if role
+                      else _result(diagnostic="input-too-large"))
         else:
             try:
                 payload = json.loads(raw.decode("utf-8"))

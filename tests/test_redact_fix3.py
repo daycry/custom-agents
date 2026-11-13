@@ -8,6 +8,7 @@ tapar de más. Run: python -m pytest -q tests/test_redact_fix3.py
 """
 import importlib.util
 import itertools
+import math
 import os
 import re
 import sys
@@ -252,24 +253,24 @@ def _patologicos(n=100000):
 
 
 CRECIMIENTO = 16             # la entrada grande es ×16 la pequeña
-RAZON_RELATIVA_MAX = 2.5     # razón de redact / razón de la referencia lineal: lineal ≈ 1, n^1,5 ≈ 4, cuadrático ≈ 16
+# ALCANCE DE LA PUERTA (decisión del usuario, T-23 fix6): rechaza el coste CUADRÁTICO o peor (razón ≈ 16 con ×16), no
+# distingue un n^1,5 (razón 4) de la carga ajena y NO lo cubre. Lineal ≈ 1. El umbral 6 deja ~3× de margen a cada lado.
+RAZON_RELATIVA_MAX = 6.0     # razón (t_grande / t_pequeño) / CRECIMIENTO máxima de un caso «no cuadrático»
 SUELO_CPU = 0.1 if os.name == "nt" else 0.02   # s de CPU del caso pequeño (el reloj de Windows tiene 15,6 ms de resolución;
 #                                               en Linux 0,02 s: la puerta costaba ~9 s por caso con 0,05 s, T-23 fix5)
 TOPE_CARACTERES = 1_000_000  # tope de tamaño del caso pequeño (el grande es ×16: ≤ 16 MB)
 SUELO_DEMO = 0.03 if os.name == "nt" else 0.01   # suelo de las demostraciones de la propia puerta (funciones sintéticas)
-REF_MIN = 0.06 if os.name == "nt" else 0.0   # s: el reloj de CPU de Windows avanza a saltos de 15,6 ms; una referencia de ~1 tick da 0 (visto: rc=[0.0])
-REF_DIV = 2                  # la referencia lineal gasta suelo/2 (con suelo/8 el ruido la volvía inestable: razón 1,85 para un n^1,5)
-BASE_REFERENCIA = "x" * 2000            # entrada FIJA y pequeña de la referencia: se repite, no crece con el caso
-RONDAS = 4                   # rondas de 2 muestras: la siguiente solo se toma si la anterior dio rojo
-PAUSA_RONDAS = 5.0           # s entre rondas: una ráfaga de carga ajena no cubre todas (T-23 fix4: 1 de 5 pasadas)
-TOPE_CPU_GRANDE = 10.0       # s: un caso grande que tarde más se da por colgado (cuadrático o peor)
+MUESTRAS = 3                 # muestras (pares pequeño/grande) por ronda: se toma la MEDIANA de las razones
+RONDAS = 2                   # la segunda ronda solo se toma si la primera dio rojo; la mediana es de TODAS las muestras
+PAUSA_RONDAS = 1.0           # s entre rondas: una ráfaga de carga ajena no cubre las dos
+TOPE_CPU_GRANDE = 10.0       # s: un caso grande que tarde (o prometa tardar) más se da por colgado (cuadrático o peor)
 TOPE_CPU_CRECIMIENTO = 30.0  # s de CPU totales gastados en hallar el tamaño que supera el suelo
 
 
 def _es_lineal(razon_relativa):
-    """La puerta protege la ausencia de retroceso CATASTRÓFICO (cuadrático o peor), no el tiempo de pared.
-    Se autocalibra: en la misma pasada se mide una función de referencia LINEAL sobre la misma entrada, y
-    se compara `razón_redact / razón_referencia` (la carga ajena afecta igual a las dos). Pasa si es ≤ 2,5."""
+    """La puerta protege la ausencia de retroceso CATASTRÓFICO (cuadrático o peor), no el tiempo de pared ni un
+    n^1,5. La razón es `(t_grande / t_pequeño) / CRECIMIENTO` de la MEDIANA de las muestras: lineal ≈ 1, n^1,5 ≈ 4
+    (fuera de alcance) y cuadrático ≈ 16. Pasa si es ≤ 6."""
     return razon_relativa <= RAZON_RELATIVA_MAX
 
 
@@ -277,15 +278,6 @@ def _cpu(funcion, *args):
     inicio = time.process_time()
     salida = funcion(*args)
     return time.process_time() - inicio, salida
-
-
-def _referencia_lineal(entrada, repeticiones):
-    """Función de referencia lineal en `repeticiones` (un recorrido por carácter de `entrada`)."""
-    acc = 0
-    for _ in range(repeticiones):
-        for c in entrada:
-            acc += ord(c)
-    return acc
 
 
 class SinSuelo(Exception):
@@ -302,14 +294,23 @@ def _validas(muestras, esperado):
     return [m for m in muestras if m >= esperado / VALIDA_DIV]
 
 
+def _mediana(valores):
+    ordenados = sorted(valores)
+    medio = len(ordenados) // 2
+    return ordenados[medio] if len(ordenados) % 2 else (ordenados[medio - 1] + ordenados[medio]) / 2
+
+
 def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None):
     """Mide `funcion` con una entrada pequeña (tamaño adaptado hasta superar `SUELO_CPU`) y otra ×16.
     Devuelve `(razon_relativa, t_chico, t_grande, salida_grande)`; `razon_relativa` es `None` si se llegó al
     tope de tamaño sin superar el suelo (la función es inocua a ese tamaño: no hay razón que medir) y se
     lanza `SinSuelo` si el tope de CPU del crecimiento se agota antes. Un grande por encima de
-    `TOPE_CPU_GRANDE` s devuelve una razón infinita (colgado). La referencia lineal NO se mide sobre la entrada
-    del caso sino sobre una base fija y pequeña repetida (`BASE_REFERENCIA`: ×r en el caso pequeño, ×16r en el
-    grande): absorbe la carga ajena igual y cuesta una fracción de lo que costaba sobre el grande."""
+    `TOPE_CPU_GRANDE` s devuelve una razón infinita (colgado).
+
+    La razón es la MEDIANA de las razones de varias muestras (no el mínimo: una muestra pequeña anómala volvía rojo
+    un lineal y una grande afortunada daba verde a un cuadrático, T-23 intento 6, gap 7). Antes de ejecutar la entrada
+    grande se sonda una ×4: si su exponente promete pasar de `TOPE_CPU_GRANDE` s (cúbico o peor), se rechaza SIN
+    ejecutarla (gap 15). Con dos muestras de acuerdo en una ronda no se toma la tercera: la mediana ya está decidida."""
     suelo = SUELO_CPU if suelo is None else suelo
     pausa = PAUSA_RONDAS if pausa is None else pausa
     rondas = RONDAS if rondas is None else rondas
@@ -330,44 +331,36 @@ def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None):
         if gastado >= TOPE_CPU_CRECIMIENTO:
             raise SinSuelo(f"el caso pequeño no supera {suelo} s de CPU tras gastar {gastado:.1f} s")
         n *= 2
+    # sonda ×4: el exponente medido extrapola el coste del ×16 sin ejecutarlo
+    tm, _ = _cpu(funcion, generador(n * 4))
+    if tm > 0 and t > 0 and tm > t:
+        exponente = math.log(tm / t) / math.log(4)
+        if tm * 4 ** exponente > TOPE_CPU_GRANDE:
+            return float("inf"), t, tm * 4 ** exponente, None
     grande = generador(n * CRECIMIENTO)
-    ref = max(suelo / REF_DIV, REF_MIN)   # en Windows la referencia dura al menos varios ticks del reloj de CPU
-    tc, tg, rc, rg, salida, relativa = [], [], [], [], None, None
+    razones, tcs, tgs, salida = [], [], [], None
     for ronda in range(rondas):
         if ronda:
             time.sleep(pausa)
-        # la referencia se recalibra en CADA ronda: la carga ajena cambia entre rondas y una calibración hecha
-        # en un tramo lento (o rápido) dejaría a las demás con muestras fuera de rango
-        repeticiones = 1
-        while _cpu(_referencia_lineal, BASE_REFERENCIA, repeticiones)[0] < ref and repeticiones < 65536:
-            repeticiones *= 2
-        for _ in range(1 if ronda == 0 else 2):               # 1 muestra la primera ronda (casi todas dan verde);
-            #                                                 # 2 en las de repetición, intercaladas: comparten la carga
-            rc.append(_cpu(_referencia_lineal, BASE_REFERENCIA, repeticiones)[0])
-            tc.append(_cpu(funcion, chico)[0])
-            t, salida = _cpu(funcion, grande)
-            tg.append(t)
-            if t > TOPE_CPU_GRANDE:
-                return float("inf"), min(tc), t, salida
-            rg.append(_cpu(_referencia_lineal, BASE_REFERENCIA, repeticiones * CRECIMIENTO)[0])
-        # el ruido ajeno solo SUMA tiempo: el mínimo de las muestras es el mejor estimador del coste propio.
-        # Una muestra por debajo de 1/8 de lo esperado no es una medida (el reloj de CPU de Windows
-        # se carga por ticks y bajo carga puede devolver 0 para una llamada de 0,1 s): se descarta.
-        vtc, vtg = _validas(tc, suelo), _validas(tg, CRECIMIENTO * suelo)
-        vrc, vrg = _validas(rc, ref), _validas(rg, CRECIMIENTO * ref)
-        if not (vtc and vtg and vrc and vrg):
-            continue
-        # dos estimadores: la razón corregida por la referencia (cancela la carga ajena cuando afecta igual a las dos
-        # medidas) y la cruda (`min tg / min tc / CRECIMIENTO`, sin referencia). Una referencia que el ruido desvía
-        # (razón de referencia 6,5 en vez de 16, visto en Windows con 6 bucles de CPU) vuelve rojo un caso lineal
-        # con la corregida; lo superlineal de verdad es rojo con las dos. Se queda el menor (T-23 fix5b).
-        relativa = min((min(vtg) / min(vtc)) / (min(vrg) / min(vrc)), (min(vtg) / min(vtc)) / CRECIMIENTO)
-        if _es_lineal(relativa):
-            break                  # lo superlineal de verdad sale rojo en TODAS las rondas: solo se repite el rojo
-    if relativa is None:
+        tomadas = 0
+        while tomadas < MUESTRAS:
+            tc = _cpu(funcion, chico)[0]
+            tg, salida = _cpu(funcion, grande)
+            if tg > TOPE_CPU_GRANDE:
+                return float("inf"), tc, tg, salida
+            tomadas += 1
+            if tc >= suelo / VALIDA_DIV and tg >= CRECIMIENTO * suelo / VALIDA_DIV:
+                razones.append((tg / tc) / CRECIMIENTO)
+                tcs.append(tc)
+                tgs.append(tg)
+            if tomadas == 2 and len(razones) >= 2 and _es_lineal(razones[-1]) == _es_lineal(razones[-2]):
+                break                  # dos de acuerdo: la mediana de tres ya cae de ese lado
+        if razones and _es_lineal(_mediana(razones)):
+            break                      # lo superlineal de verdad sale rojo en TODAS las rondas: solo se repite el rojo
+    if not razones:
         raise SinSuelo("ninguna ronda dio muestras de CPU válidas (el reloj devolvió tiempos muy por debajo de lo "
-                       f"esperado): suelo={suelo} reps={repeticiones} tc={tc} tg={tg} rc={rc} rg={rg}")
-    return relativa, min(vtc), min(vtg), salida
+                       f"esperado): suelo={suelo} chico={t}")
+    return _mediana(razones), _mediana(tcs), _mediana(tgs), salida
 
 
 def test_el_criterio_de_linealidad_distingue_lineal_de_cuadratico():
@@ -392,33 +385,17 @@ def _regex_cuadratica(entrada):
     return re.compile(r"x*y").search(entrada)               # retroceso: O(n²) sobre "xxxx…"
 
 
-INTENTOS_DEMO = 3   # las demostraciones de la propia puerta reintentan: el ruido ajeno solo las desvía hacia el veredicto contrario
-
-
-def _demostrar(veredicto, *args, **kwargs):
-    """Mide una función sintética hasta `INTENTOS_DEMO` veces y devuelve la primera medida que da el `veredicto`
-    esperado (`_es_lineal` o su negación), o la última. No relaja la puerta real (`test_linear_cost_…` no reintenta):
-    solo evita que una réplica con 12 bucles de CPU dé razón 1,26-2,3 a un n^1,5 genuino (razón 4)."""
-    for _ in range(INTENTOS_DEMO):
-        medida = _medir(*args, **kwargs)
-        if medida[0] is not None and veredicto(medida[0]):
-            break
-    return medida
-
-
 @pytest.mark.serie
 def test_la_puerta_deja_pasar_una_funcion_lineal_real():
-    relativa, tc, tg, _ = _demostrar(_es_lineal, _lineal_de_verdad, lambda n: "x" * (n * 4), suelo=SUELO_DEMO)
+    relativa, tc, tg, _ = _medir(_lineal_de_verdad, lambda n: "x" * (n * 4), suelo=SUELO_DEMO)
     assert relativa is not None and _es_lineal(relativa), (relativa, tc, tg)
 
 
 def _con_reloj_simulado(monkeypatch, segundos_por_longitud):
     """Sustituye el reloj de CPU de la puerta por un modelo determinista: el coste de `funcion(entrada)` es
-    `segundos_por_longitud(len(entrada))` y el de la referencia es lineal en `repeticiones`. Ejercita la LÓGICA de la
-    puerta (crecimiento hasta el suelo, razón relativa, umbral 2,5) sin depender de la carga de la máquina."""
+    `segundos_por_longitud(len(entrada))`. Ejercita la LÓGICA de la puerta (crecimiento hasta el suelo, sonda ×4, mediana
+    de las razones, umbral 6) sin depender de la carga de la máquina."""
     def falso(funcion, *args):
-        if funcion is _referencia_lineal:
-            return args[1] * 1e-4, None                     # reps × 0,1 ms
         return segundos_por_longitud(len(args[0])), args[0]
     monkeypatch.setattr(sys.modules[__name__], "_cpu", falso)
 
@@ -441,8 +418,7 @@ def test_la_puerta_separa_lineal_de_cuadratico_y_deja_fuera_el_n_a_la_1_5(monkey
 def test_la_puerta_rechaza_la_regex_cuadratica_que_antes_quedaba_bajo_el_suelo():
     """`re.compile(r"x*y").search("x"*N)` con N pequeño tardaba < 50 ms y la puerta anterior no comparaba
     razones (`tc=0.0000 tg=0.4062` pasaba): ahora el tamaño crece hasta superar el suelo y la razón sale ≈ 8."""
-    relativa, tc, tg, _ = _demostrar(lambda r: not _es_lineal(r), _regex_cuadratica, lambda n: "x" * n, n0=500,
-                                     suelo=SUELO_DEMO, pausa=0, rondas=1)
+    relativa, tc, tg, _ = _medir(_regex_cuadratica, lambda n: "x" * n, n0=500, suelo=SUELO_DEMO, pausa=0)
     assert relativa is not None and not _es_lineal(relativa), (relativa, tc, tg)
     # (sin `tc >= suelo/8`: `_medir` solo devuelve muestras de al menos ese valor, la aserción no podía fallar)
     assert tg > tc                                          # el grande cuesta de verdad más que el pequeño
@@ -593,8 +569,6 @@ def test_la_mediana_resiste_una_muestra_pequena_atipica(monkeypatch):
     cuentas = {}
 
     def falso(funcion, *args):
-        if funcion is _referencia_lineal:
-            return args[1] * 1e-4, None
         n = len(args[0])
         t = 2e-6 * n
         if n == 12000:                                  # el tamaño pequeño de esta función con suelo 0,02
@@ -613,14 +587,12 @@ def test_un_coste_peor_que_cuadratico_se_rechaza_sin_ejecutar_el_caso_grande(mon
     largos = []
 
     def falso(funcion, *args):
-        if funcion is _referencia_lineal:
-            return args[1] * 1e-4, None
         largos.append(len(args[0]))
         return 1e-13 * len(args[0]) ** 3, args[0]
     monkeypatch.setattr(sys.modules[__name__], "_cpu", falso)
     relativa, _tc, _tg, _ = _medir(lambda s: None, lambda n: "x" * n, suelo=0.02, pausa=0)
     assert relativa == float("inf") and not _es_lineal(relativa)
-    assert max(largos) < 16 * min(largos), sorted(set(largos))      # nunca se llegó al ×16
+    assert 16 * 6000 not in largos, sorted(set(largos))     # el caso pequeño es 6000: nunca se ejecutó el ×16 (96000)
 
 
 def test_el_umbral_es_6_y_la_demostracion_real_no_reintenta():

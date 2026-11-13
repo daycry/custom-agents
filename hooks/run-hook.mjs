@@ -1,6 +1,6 @@
 // Shared launcher for Claude Code, Codex and OpenCode. No shell interprets the payload.
 import { spawn, spawnSync } from 'node:child_process';
-import { constants, closeSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readSync } from 'node:fs';
+import { constants, closeSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readSync } from 'node:fs';
 import { dirname, delimiter, join, resolve, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -142,11 +142,36 @@ const guardMessage = 'custom-agents: role guard unavailable; normal permissions 
 const guardDiagnostics = new Set(['input-unrecognized', 'role-map-unavailable', 'guardrails-disabled',
   'branch-unavailable', 'evaluator-unavailable', 'input-too-large', 'input-invalid-json', 'input-unavailable']);
 let guardEmitted = false;
+let guardRole = null;   // protected role of the payload (ADR-023), known as soon as the input is captured
 
-function emitGuard(result) {
+// Fail closed for the protected role (T-06 fix6, point 1): when the evaluator cannot decide (deadline, input over
+// 64 KiB, error, missing interpreter) the launcher DENIES for `implementer`/`architect` and keeps `continue` for
+// every other identity. The role comes from the complete payload or, for a truncated one, from the first
+// identity key of its retained prefix (Claude Code and OpenCode put it before `tool_input`).
+function protectedRoleOf(raw, runtime) {
+  try {
+    const name = runtime.slice('--runtime='.length), key = name === 'opencode' ? 'agent' : 'agent_type';
+    const mapping = JSON.parse(readFileSync(join(root, 'agent-kits', 'shared', 'native-roles.json'), 'utf8'));
+    const roles = mapping?.runtimes?.[name], ids = nativeProtectedIDs(mapping, name);
+    if (!roles || !ids || !raw || !raw.length) return null;
+    const text = new TextDecoder('utf-8').decode(raw);
+    let identity;
+    try { identity = JSON.parse(text)?.[key]; }
+    catch {
+      const found = new RegExp('"' + key + '"\\s*:\\s*("(?:[^"\\\\]|\\\\.)*")').exec(text);
+      identity = found ? JSON.parse(found[1]) : undefined;
+    }
+    return PROTECTED_GUARD_ROLES.find(role => typeof identity === 'string' && ids.has(identity) && roles[role] === identity) ?? null;
+  } catch { return null; }
+}
+
+function emitGuard(result, why = 'guard-unavailable') {
   if (guardEmitted) return;
   guardEmitted = true;
-  const value = result || { decision: 'continue', role: null, reason: null, diagnostic: 'guard-unavailable' };
+  const value = result || (guardRole
+    ? { decision: 'deny', role: guardRole, diagnostic: null,
+        reason: `custom-agents: the ${guardRole} role guard could not decide (${why}), so the command is denied — retry with a shorter command, split it, or write files with the edit tool; the user can run it by hand.` }
+    : { decision: 'continue', role: null, reason: null, diagnostic: 'guard-unavailable' });
   if (runtime === '--runtime=opencode') {
     process.stdout.write(JSON.stringify(value) + '\n');
     return;
@@ -279,7 +304,8 @@ async function main() {
     guardDeadline = performance.now() + childBudgetMs(hook, runtime, process.env);
     const captured = await readGuardInput(guardDeadline);
     input = captured.raw;
-    if (!captured.available) { warn('role guard input unavailable or timed out'); emitGuard(); return; }
+    guardRole = protectedRoleOf(input, runtime);
+    if (!captured.available) { warn('role guard input unavailable or timed out'); emitGuard(null, 'input-unavailable'); return; }
     if (input.length <= GUARD_INPUT_MAX) {
       try {
         const payload = JSON.parse(new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(input));
@@ -319,7 +345,7 @@ async function main() {
     }
   }
   const py = python();
-  if (!py) { warn('Python unavailable; hook skipped'); if (guard) emitGuard(); return; }
+  if (!py) { warn('Python unavailable; hook skipped'); if (guard) emitGuard(null, 'interpreter-missing'); return; }
   let command, args;
   // Capture and native guards use contained Python without shell startup.
   // T-14: SubagentStop (H-30) and the prompt capture (H-31) also run in one contained Python.
@@ -440,7 +466,7 @@ async function main() {
     if (post || guard) child.stdin.end(input, 'utf8');
     else process.stdin.pipe(child.stdin);
     child.on('error', error => { warn(guard ? 'role guard could not start' : error.message);
-      if (guard) emitGuard(); clearTimeout(timer); resolve(); });
+      if (guard) emitGuard(null, 'start-failed'); clearTimeout(timer); resolve(); });
     child.on('exit', code => {
       clearTimeout(timer);
       // H-29: the supervisor reports (only it can set JOB_EMPTY) that its job holds no other
@@ -458,7 +484,14 @@ async function main() {
         const result = !outputOverflow && !supervisionFailed && (!windows || jobHandle) ? guardResult(output) : null;
         // A complete denial must never become permission to continue because
         // cleanup or the remaining evaluator lifetime exceeded its budget.
-        emitGuard(result && (result.decision === 'deny' || (!timedOut && code === 0)) ? result : null);
+        // The evaluator itself crashed for a protected role («evaluator-unavailable»): also fail closed. An
+        // unrecognized tool schema keeps its documented contract (normal permissions, native-guardrail.py header).
+        const undecided = result && result.decision === 'continue' && result.role
+          && result.diagnostic === 'evaluator-unavailable';
+        if (undecided && !guardRole) guardRole = result.role;
+        emitGuard(result && !undecided && (result.decision === 'deny' || (!timedOut && code === 0)) ? result : null,
+          timedOut ? 'deadline' : outputOverflow ? 'output-overflow' : undecided ? result.diagnostic
+            : code ? 'evaluator-error' : 'invalid-result');
       }
       if (post && output.trim()) {
         let message = output.trim();
@@ -477,5 +510,5 @@ async function main() {
 
 main().catch(error => {
   warn(guard ? 'role guard unavailable' : error.message);
-  if (guard && ['--runtime=claude', '--runtime=codex', '--runtime=opencode'].includes(runtime)) emitGuard();
+  if (guard && ['--runtime=claude', '--runtime=codex', '--runtime=opencode'].includes(runtime)) emitGuard(null, 'launcher-error');
 }); // Informational hooks always exit 0.

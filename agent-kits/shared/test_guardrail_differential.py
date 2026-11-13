@@ -130,7 +130,6 @@ BAD = [
     'eval "$(cat <<EOF\n{D}\nEOF\n)"',
     "cat <<EOF | sh\n{D}\nEOF",
     "cat <<EOF | sh -s\n{D}\nEOF",
-    "bash <<EOF\n$(echo {D})\nEOF",
     'x="$(cat <<EOF\n$({D})\nEOF\n)"',
     'echo "$(cat <<EOF\n$(echo $({D}))\nEOF\n)"',
     "x=`cat <<EOF\n$({D})\nEOF\n`",
@@ -163,7 +162,6 @@ LEGIT = [
     "git add . && git commit -F - <<'EOF'\nmensaje con 'apóstrofos' y \"comillas impares\nEOF",
     "git commit -m \"$(cat <<'EOF'\nmensaje don't\nEOF\n)\"",
     "git commit -m \"$(cat <<'EOF'\nmensaje con \" comilla impar\nsegunda línea\nEOF\n)\"",
-    "git commit -F - <<EOF\ndon't\nEOF\ngit status",
     "git -C {proj} status",
     "git -C {proj} log --oneline -3",
     "cd {proj} && git status",
@@ -176,8 +174,6 @@ LEGIT = [
     "git restore src/cd",
     "type cd && git restore src/a.py",
     "cat <<EOF\nx\nEOF",
-    "cat <<'EOF'\n$(git restore .)\nEOF",
-    "cat <<'EOF'\ngit restore .\nEOF\ngit status",
     "git log <<< 'git restore .'",
     "cat > f.py <<'EOF'\nprint('x')\nEOF\ngit add f.py && git commit -m x",
     "python3 - <<'EOF'\nprint(1)\nEOF",
@@ -234,7 +230,9 @@ BAD6 = [
     # sondas de la lente C del intento 6: redirecciones al principio, ANSI-C, `function`, subcomandos
     ">/dev/null {D}", "2>&1 {D}", "> /dev/null {D}", "2>/dev/null {D}", "&>/dev/null {D}",
     "$'git' reset --hard", "git reset $'--hard'", '$"git" reset --hard', "function f { git reset --hard; }; f",
-    "git read-tree -u --reset HEAD", "git checkout-index -a -f", "git rm -rf .",
+    "git read-tree -u --reset HEAD", "git checkout-index -a -f",
+    # el cuerpo de un heredoc a CUALQUIER programa se analiza: awk/ex/python que lean órdenes de él ya no escapan
+    "awk 'BEGIN{while((getline l)>0) system(l)}' <<'EOF'\ngit reset --hard\nEOF",
     # gap 12 y variantes: un commit con heredoc FUERA de las formas exactas sigue analizándose
     "git commit -m \"$(cat <<'EOF'\nodd \" quote\nEOF\n)\"\n{D}",
 ]
@@ -245,14 +243,14 @@ SIN_PARIDAD_6 = {
     "git reset --keep HEAD~1", "git reset --merge HEAD~1", "git reset --keep", "git worktree remove --force ../wt",
     "git worktree remove -f ../wt", "git checkout -", "git checkout @{-1}", "git checkout refs/heads/master",
     "git switch -", "git checkout origin/master", "git checkout MASTER", "git checkout master^0",
-    "git checkout heads/main", "git status\r", "git status\r\ngit log", "echo x\rgit status",
+    "git checkout heads/main", "git status\r", "git status\r\ngit log", "echo x\rgit status", "git rm -rf .",
     "sudo {D}", "sudo -u root {D}", "setsid {D}", "ionice -c3 {D}",
 }
 BAD6 += [
     "git reset --keep HEAD~1", "git reset --merge HEAD~1", "git reset --keep", "git worktree remove --force ../wt",
     "git worktree remove -f ../wt", "git checkout -", "git checkout @{-1}", "git checkout refs/heads/master",
     "git switch -", "git checkout origin/master", "git checkout MASTER", "git checkout master^0",
-    "git checkout heads/main", "git status\r", "git status\r\ngit log", "echo x\rgit status",
+    "git checkout heads/main", "git status\r", "git status\r\ngit log", "echo x\rgit status", "git rm -rf .",
 ]
 
 # LÍMITE DOCUMENTADO (gap 8, decisión del usuario): bash ejecuta el efecto y el guardarraíl NO lo ve. Es la frontera
@@ -262,11 +260,10 @@ LIMITE = [
     "source <(echo '{D}')", "g=git; $g restore .", "g=git; $g reset --hard", "x=reset; git ${x} --hard",
     "h=--hard; git reset $h", "find . -maxdepth 0 -exec git reset --hard \\;", "echo --hard | xargs git reset",
     "X='{D}'; bash -c \"$X\"", "X='{D}'; $X", "X='{D}'; eval \"$X\"", "echo '{D}' | $SHELL",
-    "printf '{D}' | sh", "X='{D}'; bash <<EOF\n$X\nEOF",
+    "printf '{D}' | sh", "X='{D}'; bash <<EOF\n$X\nEOF", "bash <<EOF\n$(echo {D})\nEOF",
     "python3 - <<'EOF'\nimport os; os.system('git reset --hard')\nEOF",
     "perl <<'EOF'\nsystem('git reset --hard')\nEOF",
     "ex <<'EOF'\n!git reset --hard\nEOF",
-    "awk 'BEGIN{while((getline l)>0) system(l)}' <<'EOF'\ngit reset --hard\nEOF",
     "x='a[$(git reset --hard)]'; echo $((x))",
 ]
 
@@ -388,6 +385,21 @@ def _id(plantilla):
 def test_bad_el_guardarrail_deniega_lo_que_bash_ejecuta(plantilla, d, en_proj):
     orden = _expandir(plantilla, d, en_proj.as_posix())
     assert _decide(orden), f"DENY esperado: {orden!r}"
+
+
+FALSO_DENY_ACEPTADO = [
+    "git commit -F - <<EOF\ndon't\nEOF\ngit status",
+    "cat <<'EOF'\n$(git restore .)\nEOF",
+    "cat <<'EOF'\ngit restore .\nEOF\ngit status",
+]
+
+
+@pytest.mark.parametrize("plantilla", FALSO_DENY_ACEPTADO, ids=[_id(p) for p in FALSO_DENY_ACEPTADO])
+def test_falso_deny_aceptado_de_heredocs_fuera_de_las_formas_exactas(plantilla, en_proj):
+    """Decisión del usuario (fix6): lo que era dato en fix5 (delimitador sin comillas con `git commit -F -`, cuerpos
+    de `cat` con órdenes) se analiza ahora como órdenes y se deniega; el mensaje explica la salida."""
+    razon = _decide(_expandir(plantilla, D_RESTORE, en_proj.as_posix()))
+    assert razon and "herramienta de edición" in razon, razon
 
 
 @pytest.mark.parametrize("plantilla", LEGIT, ids=[_id(p) for p in LEGIT])
@@ -579,7 +591,33 @@ def test_payload_de_30kb_por_el_lanzador_se_deniega_en_menos_de_1_5_s(tmp_path):
         return dt
 
     # la referencia es la MISMA ruta con una orden minima: el arranque de node + python de esta maquina
-    # (0,5 s en un runner, 1,1-2 s en Windows cargado) se resta; el guard con 30 KB solo puede anadir ~1 s
+    # (0,5 s en un runner, 1,1-2 s en Windows cargado) se resta. Desde fix6 el recorte barato deniega ANTES de
+    # tokenizar, asi que el payload de 30 KB solo anade leerlo: la cota vuelve a ser estrecha (antes `2×base + 1`,
+    # un rebate sin aceptacion explicita del intento 6, gap 16)
     base = min(_correr(chica) for _ in range(3))
     ritmo = [_correr(_payload_30kb(proj)) for _ in range(3)]
-    assert min(ritmo) < max(1.5, 2 * base + 1.0), (base, ritmo)
+    assert min(ritmo) < max(1.5, base + 0.75), (base, ritmo)
+
+
+@pytest.mark.serie
+@pytest.mark.skipif(not NODE, reason="sin Node")
+@pytest.mark.parametrize("orden", [
+    "(" * 8000 + "; git push --force origin master",
+    'echo $(("(("));' * 2000 + " git push --force origin master",
+    "export " + " ".join(f"GIT_{i}" for i in range(3000)) + '\n"g"it reset --hard',
+], ids=["paren8k", "arit2000", "export3000"])
+def test_payloads_hostiles_por_el_lanzador_se_deniegan_dentro_del_plazo(tmp_path, orden):
+    """Gaps 1 y 6 del intento 6: con 7,8 KB de `(` el guard agotaba el plazo y el lanzador dejaba pasar la orden
+    («role guard unavailable; normal permissions continue»). Ahora el recorte barato y la aritmetica lineal deciden
+    dentro del plazo y, si no, el lanzador deniega por el rol protegido."""
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    env = {**os.environ, "CLAUDE_PROJECT_DIR": str(proj), "CUSTOM_AGENTS_PYTHON": sys.executable}
+    payload = json.dumps({"session_id": "x", "hook_event_name": "PreToolUse", "tool_name": "Bash",
+                          "tool_input": {"command": orden}, "agent_type": "custom-agents:implementer", "cwd": str(proj)})
+    r = subprocess.run([NODE, os.path.join(ROOT, "hooks", "run-hook.mjs"), "native-guardrail", "--runtime=claude"],
+                       input=payload, cwd=str(proj), env=env, capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert r.returncode == 0, r.stderr
+    out = json.loads(r.stdout)
+    assert out["hookSpecificOutput"]["permissionDecision"] == "deny", (r.stdout, r.stderr)
+    assert "unavailable" not in r.stdout

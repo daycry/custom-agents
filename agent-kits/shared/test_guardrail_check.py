@@ -566,7 +566,7 @@ def test_fix2_guardarrail_cerrado_por_diseno_deniega(cmd):
 
 
 @pytest.mark.parametrize("cmd", [
-    "git reset --soft HEAD~1", "git reset --mixed", "git reset --merge", "git reset --keep",
+    "git reset --soft HEAD~1", "git reset --mixed",
     "git reset HEAD src/a.py", "git push origin feature/x", "git push -u origin feature/x",
     "git push --set-upstream origin feature/x", "git push --porcelain origin x",
     "git push --no-prune origin x", "git push --push-option=ci.skip origin x",
@@ -848,8 +848,6 @@ def test_fix2_pathspec_no_literal_se_deniega(cmd):
 @pytest.mark.parametrize("cmd", [
     "git checkout feature/otra",
     "git checkout HEAD~1",
-    "git checkout origin/main",
-    "git checkout -",
     "git checkout -b feature/y",
     "git checkout -B feature/y origin/main",
     "git checkout -bfeature/y",
@@ -961,7 +959,7 @@ HEREDOC_OCULTA = [
 @pytest.mark.parametrize("cmd", HEREDOC_OCULTA)
 def test_fix4_gap1_heredoc_no_traga_lo_que_sigue(cmd):
     razon = decide(bash(cmd), branch="feature/x")
-    assert razon and "descarta" in razon, (cmd, razon)
+    assert razon, cmd           # fix6: el cuerpo se analiza siempre (invariante de cierre o la propia orden)
 
 
 @pytest.mark.parametrize("cmd", HEREDOC_OCULTA[:2])
@@ -972,12 +970,24 @@ def test_fix4_gap1_heredoc_de_punta_a_punta_por_el_hook(cmd, tmp_path):
 
 
 @pytest.mark.parametrize("cmd", [
-    "git commit -F - <<'EOF'\ngit restore . y it's texto\nEOF", "cat <<EOF\ngit checkout .\nEOF",
-    "cat <<-EOF\n\tgit reset --hard\n\tEOF\necho hecho", "git commit -F - <<EOF\ndon't\nEOF\ngit status",
-    "cat <<EOF\nrm -rf /\nEOF", "git log <<< 'git restore .'", "echo a <<EOF\nx\nEOF\ngit restore src/a.py",
+    "git commit -F - <<'EOF'\ngit restore . y it's texto\nEOF", "git log <<< 'git restore .'",
+    "echo a <<EOF\nx\nEOF\ngit restore src/a.py",
 ])
 def test_fix4_gap1_el_cuerpo_del_heredoc_son_datos(cmd):
+    """Solo siguen siendo DATOS la forma exacta de `git commit` (el mensaje) y lo que no es un heredoc."""
     assert decide(bash(cmd), branch="feature/x") is None, cmd
+
+
+@pytest.mark.parametrize("cmd", [
+    "cat <<EOF\ngit checkout .\nEOF", "cat <<-EOF\n\tgit reset --hard\n\tEOF\necho hecho",
+    "git commit -F - <<EOF\ndon't\nEOF\ngit status", "cat <<EOF\nrm -rf /\nEOF",
+    "cat <<'EOF'\n$(git restore .)\nEOF", "git commit -F - <<EOF\ndon't\nEOF",
+])
+def test_fix6_el_cuerpo_de_un_heredoc_fuera_de_las_formas_exactas_se_analiza(cmd):
+    """Precio aceptado por el usuario (fix6, punto 2): un heredoc fuera de las dos formas exactas se analiza como
+    órdenes aunque sea texto; el mensaje de deny dice cómo escribirlo."""
+    razon = decide(bash(cmd), branch="feature/x")
+    assert razon and "herramienta de edición" in razon, (cmd, razon)
 
 
 @pytest.mark.parametrize("cmd", ["cat <<EOF\ngit restore .", "git commit -m x <<EOF\nit's", "cat <<EOF\nuna\nlinea"])
@@ -1060,7 +1070,7 @@ def test_fix5_gaps_1_2_3_6_heredoc_aritmetica_y_sustituciones(cmd):
 
 @pytest.mark.parametrize("cmd", [
     "git commit -m \"$(cat <<'EOF'\nodd \" q\nEOF\n)\"", "git add . && git commit -F - <<'EOF'\ndon't\nEOF",
-    "cat <<'EOF'\n$(git restore .)\nEOF", "echo $((1<<2))\ngit status", "git commit -F - <<EOF\ndon't\nEOF",
+    "echo $((1<<2))\ngit status",
     "echo cd; git restore src/a.py", "git restore src/cd", "git commit -m 'cd' && git restore src/a.py",
 ])
 def test_fix5_lo_legitimo_sigue_permitido(cmd):
@@ -1107,3 +1117,21 @@ def test_fix5_el_anidamiento_profundo_falla_cerrado_no_con_una_excepcion():
     for _ in range(6):
         profundo = "bash -c " + repr(profundo)
     assert gc.check_git(profundo, "feature/x")
+
+
+@pytest.mark.parametrize("cmd", [
+    "git reset --merge", "git reset --keep HEAD~2", "git checkout-index -a -f", "git checkout-index --force a.txt",
+    "git read-tree -u --reset HEAD", "git read-tree --reset HEAD", "git rm -rf .", "git rm -f a.txt",
+    "git worktree remove --force ../wt", "git worktree remove -f ../wt", "git checkout -", "git switch -",
+    "git checkout @{-1}", "git checkout origin/main", "git checkout refs/heads/master", "git checkout master^0",
+    "git checkout MASTER",
+])
+def test_fix6_gap11_subcomandos_que_descartan_trabajo_o_salen_de_la_rama(cmd):
+    assert decide(bash(cmd), branch="feature/x"), cmd
+
+
+@pytest.mark.parametrize("cmd", ["git rm --cached a.txt", "git worktree add ../wt", "git worktree list",
+                                 "git read-tree HEAD", "git checkout feature/main", "git checkout -b main2",
+                                 "git reset --soft HEAD~1", "git checkout-index a.txt"])
+def test_fix6_gap11_lo_legitimo_cercano_sigue_permitido(cmd):
+    assert decide(bash(cmd), branch="feature/x") is None, cmd

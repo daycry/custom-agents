@@ -261,14 +261,16 @@ def ficheros(root, langs, exclude_tests, exclude_paths=()):
 
 
 def cr_suelto(path):
-    """¿El fichero tiene un CR (`\r`) que no precede a un LF (`\n`), es decir, un separador solo CR (Mac clásico)? Git y
-    `leer` solo parten por LF: un fichero así queda en UNA línea y sus TODO/duplicados se colapsan (T-07 fix5, gap 8)."""
+    """¿Es un fichero con saltos de línea SOLO CR (Mac clásico)? Es decir, con algún `\r` y NINGÚN `\n`. Git y `leer`
+    solo parten por LF: un fichero así queda en UNA línea y sus TODO/duplicados se colapsan (T-07 fix5, gap 8). Un
+    fichero con LF (o CRLF, o `\r\r\n`, o un CR suelto dentro de una línea) se numera bien y NO es parcial (fix6,
+    gap 14)."""
     try:
         with open(path, "rb") as fh:
             datos = fh.read()
     except OSError:
         return False
-    return re.search(rb"\r(?!\n)", datos) is not None
+    return b"\r" in datos and b"\n" not in datos
 
 
 def leer(path):

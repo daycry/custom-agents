@@ -629,10 +629,14 @@ removes sections) and denies `GIT_*`, `HOME` and `XDG_CONFIG_HOME` variables
 when the command runs git (in the same segment or exported earlier). Executable basename matching ignores case and
 handles Windows names ending in `.exe`.
 
-The guardrail prevents accidents and the known ways around these rules; it is
-not a sandbox. Wrappers (`nice`, `sudo`, `xargs`, `find -exec`), scripts the
-agent writes itself and hand-edited configuration files stay out of scope
-(ADR-023, ADR-007).
+The guardrail stops the mistakes of an honest agent; it is not a sandbox. A heredoc body
+is always analyzed as commands (except the two exact `git commit` message forms)
+and `timeout`, `nice`, `stdbuf`, `time`, `setsid`, `sudo`, `env -S` and `xargs`
+are unwrapped. Deliberate indirections (variables as the program, code piped to
+an interpreter, `find -exec`), scripts the agent writes itself and hand-edited
+configuration files stay out of scope by the user's decision (ADR-023, ADR-007).
+When it cannot decide (deadline, input over 64 KiB, error), the launcher denies
+for `implementer` and `architect` and keeps `continue` for every other role.
 
 Each command retains its own decision, including across lines. Quoting,
 comments and escaped line continuations keep flags separate from text.

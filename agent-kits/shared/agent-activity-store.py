@@ -38,7 +38,12 @@ IGNORE = b'*\n'
 def _deadline_scale():
     """Multiplicador de los plazos de pared (1..60) que un test puede inyectar con
     `CUSTOM_AGENTS_ACTIVITY_DEADLINE_SCALE`; sin la variable (o con un valor no numérico/menor que 1) valen los
-    plazos del diseño. Sirve para que la suite no dependa del reloj de la máquina; no relaja los hooks reales."""
+    plazos del diseño. Sirve para que la suite no dependa del reloj de la máquina; no relaja los hooks reales:
+    solo actúa si además hay una marca de test explícita (`PYTEST_CURRENT_TEST`, que pytest exporta y heredan los
+    subprocesos de la suite), porque con una escala >= 1,6 en un entorno de usuario el almacén excedería el
+    presupuesto de 2 s del lanzador y este mataría al hijo antes de su cierre limpio (T-23 fix6, gap 13)."""
+    if not os.environ.get('PYTEST_CURRENT_TEST'):
+        return 1.0
     try:
         scale = float(os.environ.get('CUSTOM_AGENTS_ACTIVITY_DEADLINE_SCALE', '1'))
     except ValueError:
