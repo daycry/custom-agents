@@ -14,6 +14,12 @@ de las lentes y las ejecuta en un repo temporal con centinela:
 
 Sin bash real (Windows sin Git Bash, p. ej.) las pruebas que lo ejecutan se saltan con motivo; en Windows
 se usa SIEMPRE el bash de Git, nunca el de WSL.
+
+MODELO (fix6, decisión del usuario, 2026-11-13): el guardarraíl frena los ERRORES de un agente honesto, no las
+indirecciones deliberadas. El cuerpo de un heredoc se analiza SIEMPRE como órdenes, salvo las dos formas exactas de
+`git commit` con mensaje (`-m "$(cat <<'D' … D)"` y `-F - <<'D' … D`). Lo que el análisis no puede ver (variables
+como programa, código por stdin hacia un intérprete, `find -exec`, heredoc a `python3`/`perl`) es un LÍMITE
+DOCUMENTADO: la lista `LIMITE` lo fija de forma explícita y comprueba que bash sí lo ejecuta.
 """
 import importlib.util
 import json
@@ -181,6 +187,114 @@ LEGIT = [
 ]
 
 
+# ----------------------------------------------------------------- corpus del intento 6 (fix6) ----
+# Sondas de las lentes A, B, C y D del intento 6 (scratchpad lb6/lc6/la6/i6). `{D}` = la orden destructiva.
+_BS = chr(92)
+BAD6 = [
+    # gap 2: el guardarraíl veía heredoc donde bash no lo ve (el cuerpo debe analizarse igual)
+    "echo $[1<<2]\n{D}\n2]",
+    'echo $(( "1" << 2 ))\n{D}\n2',
+    "echo $(( $(echo 1) << 2 ))\n{D}\n2",
+    "for ((i=0;i<1<<1;i++)); do :; done\n{D}\n1",
+    '(( "1" << 2 ))\n{D}\n2',
+    "echo ${x:-<<'E'}\n{D}\nE}",
+    "echo ${x:-<<E}\n{D}\nE}",
+    "echo $'" + _BS + "'' ; {D} #'",
+    "echo $'" + _BS + "''\n{D}\n#'",
+    # gap 3: `\⏎` se une antes de comparar con el delimitador
+    "cat <<EOF\nEO" + _BS + "\nF\n{D}\nEOF",
+    "cat <<-EOF\n\tEO" + _BS + "\nF\n{D}\nEOF",
+    "x=$(cat <<'EOF'\nhi\nEOF)\n{D}",
+    # gap 4: intérprete que no es un nombre literal (el cuerpo se analiza siempre)
+    "$BASH <<'EOF'\n{D}\nEOF",
+    "$BASH <<EOF\n{D}\nEOF",
+    '"$SHELL" <<\'EOF\'\n{D}\nEOF',
+    "s=bash; $s <<'EOF'\n{D}\nEOF",
+    "while read -r l; do $l; done <<'EOF'\n{D}\nEOF",
+    "cat <<'EOF' > x.sh\n{D}\nEOF\nchmod +x x.sh; ./x.sh",
+    "cat <<'EOF' | $SHELL\n{D}\nEOF",
+    'cat <<\'EOF\' | "$BASH"\n{D}\nEOF',
+    "p=bash; cat <<'EOF' | $p\n{D}\nEOF",
+    "$SHELL -c '{D}'",
+    "p=bash; $p -c '{D}'",
+    "r=bash\n$r <<'EOF'\n{D}\nEOF",
+    "read -r l <<'EOF'\n{D}\nEOF\n$l",
+    "mapfile -t a <<'EOF'\n{D}\nEOF\n${a[0]}",
+    # gap 6: envoltorios que no se desenvolvían
+    "time -p {D}", "nice {D}", "nice -n 5 {D}", "timeout 30 {D}", "timeout -k 5 30 {D}", "stdbuf -o0 {D}",
+    "setsid {D}", "sudo {D}", "sudo -u root {D}", "env -S '{D}'", "env -S 'bash -s' <<'EOF'\n{D}\nEOF",
+    "xargs {D} < /dev/null", "nohup {D}", "command {D}", "exec {D}", "builtin exec {D}",
+    "ionice -c3 {D}", "time {D}",
+    # gap 5: cambio de base dentro de eval/source/funciones
+    "eval cd ..; git restore b.txt", "eval 'cd ..' && git restore b.txt", "eval \"cd ..\"; git restore b.txt",
+    "source <(echo cd ..); git restore b.txt", "f() { cd ..; }; f; git restore b.txt",
+    "function f { cd ..; }; f; git restore b.txt", ". <(echo cd ..); git restore b.txt",
+    # gap 9: el CR no es espacio ni fin de comentario ni fin de delimitador
+    "echo x\r# ; {D}", "cat <<'EOF'\r\nEOF\r\n{D}\nEOF",
+    # sondas de la lente C del intento 6: redirecciones al principio, ANSI-C, `function`, subcomandos
+    ">/dev/null {D}", "2>&1 {D}", "> /dev/null {D}", "2>/dev/null {D}", "&>/dev/null {D}",
+    "$'git' reset --hard", "git reset $'--hard'", '$"git" reset --hard', "function f { git reset --hard; }; f",
+    "git read-tree -u --reset HEAD", "git checkout-index -a -f", "git rm -rf .",
+    # gap 12 y variantes: un commit con heredoc FUERA de las formas exactas sigue analizándose
+    "git commit -m \"$(cat <<'EOF'\nodd \" quote\nEOF\n)\"\n{D}",
+]
+
+# BAD sin efecto reproducible en el repo de prueba (o sin el programa en Git Bash): no se pide paridad, pero el
+# guardarraíl debe denegarlas igual (subcomandos del gap 11, CR del gap 9, `sudo`/`setsid` ausentes del bash de Git).
+SIN_PARIDAD_6 = {
+    "git reset --keep HEAD~1", "git reset --merge HEAD~1", "git reset --keep", "git worktree remove --force ../wt",
+    "git worktree remove -f ../wt", "git checkout -", "git checkout @{-1}", "git checkout refs/heads/master",
+    "git switch -", "git checkout origin/master", "git checkout MASTER", "git checkout master^0",
+    "git checkout heads/main", "git status\r", "git status\r\ngit log", "echo x\rgit status",
+    "sudo {D}", "sudo -u root {D}", "setsid {D}", "ionice -c3 {D}",
+}
+BAD6 += [
+    "git reset --keep HEAD~1", "git reset --merge HEAD~1", "git reset --keep", "git worktree remove --force ../wt",
+    "git worktree remove -f ../wt", "git checkout -", "git checkout @{-1}", "git checkout refs/heads/master",
+    "git switch -", "git checkout origin/master", "git checkout MASTER", "git checkout master^0",
+    "git checkout heads/main", "git status\r", "git status\r\ngit log", "echo x\rgit status",
+]
+
+# LÍMITE DOCUMENTADO (gap 8, decisión del usuario): bash ejecuta el efecto y el guardarraíl NO lo ve. Es la frontera
+# del modelo: indirecciones deliberadas (variable como programa, código por stdin, `find -exec`, otro intérprete).
+LIMITE = [
+    "echo '{D}' | bash", "echo \"{D}\" | sh", "bash <<< '{D}'", "bash <<< \"{D}\"", "bash <(echo {D})",
+    "source <(echo '{D}')", "g=git; $g restore .", "g=git; $g reset --hard", "x=reset; git ${x} --hard",
+    "h=--hard; git reset $h", "find . -maxdepth 0 -exec git reset --hard \\;", "echo --hard | xargs git reset",
+    "X='{D}'; bash -c \"$X\"", "X='{D}'; $X", "X='{D}'; eval \"$X\"", "echo '{D}' | $SHELL",
+    "printf '{D}' | sh", "X='{D}'; bash <<EOF\n$X\nEOF",
+    "python3 - <<'EOF'\nimport os; os.system('git reset --hard')\nEOF",
+    "perl <<'EOF'\nsystem('git reset --hard')\nEOF",
+    "ex <<'EOF'\n!git reset --hard\nEOF",
+    "awk 'BEGIN{while((getline l)>0) system(l)}' <<'EOF'\ngit reset --hard\nEOF",
+    "x='a[$(git reset --hard)]'; echo $((x))",
+]
+
+# LEGIT: las 14 órdenes típicas de la lente B (lb6/legit.py) y las de los gaps 12 y de uso normal.
+LEGIT6 = [
+    "git add . && git commit -m \"$(cat <<'EOF'\nT-06: fix the guard's heredoc handling\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\"",
+    "git add -A && git commit -F - <<'EOF'\nfeat: it's done\nEOF",
+    "cd \"{proj}\" && git status --short",
+    "cd \"{proj}\" && python -m pytest -q tests/test_x.py 2>&1 | tail -5",
+    "python -m pytest -q -k 'fix5 and not slow' agent-kits/shared/test_guardrail_check.py",
+    "PYTHONPATH=. pytest -q tests && git add -A && git commit -m 'T-06: green'",
+    "git diff 0fd3de2..HEAD --stat | tail -3",
+    "python3 - <<'EOF'\nimport json\nprint(json.dumps({'a': \"it's\"}))\nEOF",
+    "cat > src/x.py <<'EOF'\ndef f():\n    return \"don't\"\nEOF\ngit add src/x.py",
+    "timeout 600 python -m pytest -q && git commit -am \"$(cat <<'EOF'\nfix: don't\nEOF\n)\"",
+    "for f in a b; do echo $f; done; git status",
+    "git log --oneline -5 && git show --stat HEAD",
+    "git commit -m \"$(cat <<'EOF'\nfix: use `time` and $(date) in docs\nEOF\n)\"",
+    "export PYTHONUTF8=1; python -m pytest -q && git add -A && git commit -F - <<'EOF'\nT-06: it's green\nEOF",
+    # gap 12: otro segmento con `time`/`env`/`xargs` no convierte un commit legítimo en falso deny
+    "time pytest -q && git commit -m \"$(cat <<'EOF'\nfix: it's ok\nEOF\n)\"",
+    "ls | xargs echo; git commit -F - <<'EOF'\nit's\nEOF",
+    # el flujo normal con redirecciones y envoltorios sin git destructivo
+    "timeout 30 git status", "nice git log --oneline -3", "time -p git diff --stat", "xargs echo < /dev/null",
+    "git status 2>&1", "git log > /dev/null", "2>&1 git status", "git restore src/a.py", "git checkout HEAD src/a.py",
+]
+
+
 def _expandir(plantilla, d, proj):
     return plantilla.replace("{D}", d).replace("{proj}", proj)
 
@@ -321,6 +435,112 @@ def test_propiedad_si_el_guardarrail_permite_bash_no_toca_el_centinela(plantilla
             if antes != despues:
                 fallos.append(orden)
     assert not fallos, f"el guardarraíl PERMITIÓ órdenes que bash ejecutó: {fallos}"
+
+
+# --------------------------------------------------------------------------- fix6 ----
+@pytest.mark.parametrize("d", [D_RESTORE, D_PUSH], ids=["restore", "push-force"])
+@pytest.mark.parametrize("plantilla", BAD6, ids=[_id(p) for p in BAD6])
+def test_bad6_el_guardarrail_deniega(plantilla, d, en_proj):
+    orden = _expandir(plantilla, d, en_proj.as_posix())
+    assert _decide(orden), f"DENY esperado: {orden!r}"
+
+
+@pytest.mark.parametrize("plantilla", LEGIT6, ids=[_id(p) for p in LEGIT6])
+def test_legit6_el_flujo_normal_sigue_permitido(plantilla, en_proj):
+    orden = _expandir(plantilla, D_RESTORE, en_proj.as_posix())
+    razon = _decide(orden)
+    assert razon is None, f"ALLOW esperado: {orden!r} -> {razon}"
+
+
+@necesita_bash
+@pytest.mark.parametrize("plantilla", [p for p in BAD6 if p not in SIN_PARIDAD_6],
+                         ids=[_id(p) for p in BAD6 if p not in SIN_PARIDAD_6])
+def test_paridad6_cada_bad_cambia_el_centinela_en_bash_real(plantilla, plantilla_repo, tmp_path):
+    orden = _expandir(plantilla, D_RESTORE, "/nada")
+    antes, despues, _ = _ejecutar_en_bash(plantilla_repo, tmp_path, orden)
+    assert antes != despues, f"bash NO ejecutó el efecto de {orden!r}"
+
+
+@necesita_bash
+@pytest.mark.parametrize("plantilla", LIMITE, ids=[_id(p) for p in LIMITE])
+def test_limite_documentado_bash_lo_ejecuta_y_el_guardarrail_no_lo_ve(plantilla, plantilla_repo, tmp_path, en_proj):
+    """GAP 8 / LÍMITE DOCUMENTADO (decisión del usuario): estas indirecciones deliberadas NO se detectan. El test fija
+    el límite en las dos direcciones: bash SÍ ejecuta el efecto y el guardarraíl lo permite. Si un día se cubre alguna,
+    se mueve a `BAD6` en el mismo cambio."""
+    orden = _expandir(plantilla, D_RESTORE, en_proj.as_posix())
+    assert _decide(orden) is None, f"el límite documentado ya se detecta, muévelo a BAD6: {orden!r}"
+    antes, despues, _ = _ejecutar_en_bash(plantilla_repo, tmp_path, orden)
+    assert antes != despues, f"bash NO ejecutó {orden!r}: no es un límite real"
+
+
+def test_el_deny_de_un_heredoc_fuera_de_las_formas_exactas_explica_la_alternativa(en_proj):
+    """El precio aceptado del modelo: un heredoc con comilla impar fuera de las dos formas exactas se deniega, y el
+    mensaje dice cómo escribirlo (fichero con la herramienta de edición o `-F <fichero>`)."""
+    razon = _decide("cat > f.txt <<'EOF'\ndon't\nEOF\ngit add f.txt")
+    assert razon and "-F" in razon and "herramienta de edición" in razon, razon
+
+
+def test_un_commit_con_heredoc_de_forma_exacta_no_analiza_el_cuerpo(en_proj):
+    for orden in ("git commit -m \"$(cat <<'EOF'\ngit push --force origin master\nit's\nEOF\n)\"",
+                  "git commit -F - <<'EOF'\n$(git restore .) don't\nEOF"):
+        assert _decide(orden) is None, orden
+    # pero las opciones SÍ se analizan: `--no-verify` y `-n` siguen denegándose en la forma exacta
+    assert _decide("git commit --no-verify -m \"$(cat <<'EOF'\nx\nEOF\n)\"")
+    assert _decide("git commit -n -F - <<'EOF'\nx\nEOF")
+
+
+def test_un_cuerpo_fuera_de_la_forma_exacta_se_analiza_aunque_el_delimitador_este_entrecomillado(en_proj):
+    assert _decide("cat <<'EOF'\ngit restore .\nEOF\ngit status")
+    assert _decide("git log <<< 'x'\ncat <<'EOF'\ngit push --force origin master\nEOF")
+
+
+# --- cota de entrada y coste lineal (gaps 1 y 6; lente D) ---
+def _tiempo(orden):
+    t = time.perf_counter()
+    razon = gc.check_git(orden, "feat/x")
+    return time.perf_counter() - t, razon
+
+
+@pytest.mark.parametrize("orden", [
+    "(" * 8000 + "; git push --force origin master",
+    "(" * 16000 + "; git push --force origin master",
+    "(" * 60000 + "; git push --force origin master",
+    'echo $(("(("));' * 2000 + " git push --force origin master",
+    "echo $(( '((((((((((' ) );" * 2500 + "; git push --force origin master",
+    "export " + " ".join(f"GIT_{i}" for i in range(3000)) + '\n"g"it reset --hard',
+    ("(" * 1500 + " a b " + ")" * 1500 + "\n") * 12 + "git restore .",
+], ids=["paren8k", "paren16k", "paren60k", "arit2000", "arit2500", "export3000", "paren-bloques"])
+def test_las_ordenes_hostiles_se_deciden_deprisa_y_con_deny(orden):
+    dt, razon = _tiempo(orden)
+    assert razon, "DENY esperado"
+    assert dt < 1.0, f"{dt:.2f}s: el análisis no es lineal / no acota la entrada"
+
+
+def test_aritmetica_es_lineal():
+    """`_aritmetica` recorría hasta el final en cada `((` (O(n²): 4,6 s con 8 KB). Con la tabla de paréntesis es
+    lineal: cuadruplicar la entrada no multiplica el tiempo por 16 (análisis de 16 KB frente al de 64 KB)."""
+    def coste(n):
+        orden = "echo $((" * (n // 7)
+        t = time.process_time()
+        for _ in range(3):
+            gc._segmentos(orden)
+        return time.process_time() - t
+    chico, grande = coste(16000), coste(64000)
+    assert grande < 8 * max(chico, 0.01) + 0.3, (chico, grande)
+
+
+def test_el_recorte_barato_deniega_sin_tokenizar(monkeypatch):
+    """Con más de 16 KB o 4.000 palabras, la orden se deniega ANTES de tokenizar si contiene `git` o un cambio de base."""
+    def no(*a, **k):
+        raise AssertionError("se tokenizó una orden por encima de la cota")
+    monkeypatch.setattr(gc, "_segmentos", no)
+    assert gc.check_git("echo " + "x " * 9000 + "; git status", "feat/x")
+    assert gc.check_git("a" * 20000 + "\ncd ..", "feat/x")
+    assert gc.check_git("echo " + "y " * 4100 + "; GIT_DIR=x ls", "feat/x")
+
+
+def test_una_orden_larga_sin_git_ni_cambio_de_base_se_analiza():
+    assert gc.check_git("echo " + "x " * 9000, "feat/x") is None
 
 
 # --------------------------------------------------------------------------- de punta a punta ----

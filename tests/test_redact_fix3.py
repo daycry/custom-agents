@@ -371,8 +371,11 @@ def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None):
 
 
 def test_el_criterio_de_linealidad_distingue_lineal_de_cuadratico():
-    assert _es_lineal(1.0) and _es_lineal(1.8)    # lineal ≈ 1, con ruido
-    assert not _es_lineal(2.8)                    # n^1,5 (×8; ×16 da 4)
+    """Alcance (fix6, decisión del usuario): la puerta rechaza el coste CUADRÁTICO o peor. Un n^1,5 (razón 4 con
+    ×16) queda FUERA de su alcance: la medida de CPU de una máquina compartida no separa 4 de 1 con garantías."""
+    assert _es_lineal(1.0) and _es_lineal(1.8) and _es_lineal(3.0)   # lineal ≈ 1, con ruido
+    assert _es_lineal(4.0)                        # n^1,5: fuera de alcance (documentado)
+    assert not _es_lineal(8.0)                    # claramente superlineal
     assert not _es_lineal(16.0)                   # cuadrático
     assert not _es_lineal(float("inf"))           # colgado
 
@@ -420,10 +423,9 @@ def _con_reloj_simulado(monkeypatch, segundos_por_longitud):
     monkeypatch.setattr(sys.modules[__name__], "_cpu", falso)
 
 
-def test_la_puerta_rechaza_un_n_a_la_1_5_simulado(monkeypatch):
-    """La separación que importa: lineal ≈ 1, n^1,5 = 4 y cuadrático = 16 frente al umbral 2,5. Con el reloj real,
-    12 bucles de CPU en la réplica Linux dieron razón 1,26 / 2,3 / 1,47 / 1,71 a un n^1,5 genuino (T-23 fix5b): el
-    ruido ajeno solo desvía hacia el veredicto contrario, así que la demostración se hace con un reloj determinista."""
+def test_la_puerta_separa_lineal_de_cuadratico_y_deja_fuera_el_n_a_la_1_5(monkeypatch):
+    """La separación que importa: lineal ≈ 1 y cuadrático = 16 frente al umbral 6. El n^1,5 (razón 4) queda fuera de
+    alcance por decisión del usuario (fix6): con el reloj real una razón 4 no se distingue de la carga ajena."""
     veredictos = {}
     for nombre, modelo in (("lineal", lambda n: 2e-6 * n), ("n^1,5", lambda n: 2e-8 * n ** 1.5),
                            ("cuadratico", lambda n: 1e-9 * n * n)):
@@ -431,7 +433,7 @@ def test_la_puerta_rechaza_un_n_a_la_1_5_simulado(monkeypatch):
         relativa, tc, tg, _ = _medir(lambda s: None, lambda n: "x" * n, suelo=0.02, pausa=0)
         veredictos[nombre] = (None if relativa is None else round(relativa, 2), _es_lineal(relativa))
     assert veredictos["lineal"][1] and abs(veredictos["lineal"][0] - 1.0) < 0.05, veredictos
-    assert not veredictos["n^1,5"][1] and abs(veredictos["n^1,5"][0] - 4.0) < 0.2, veredictos
+    assert veredictos["n^1,5"][1] and abs(veredictos["n^1,5"][0] - 4.0) < 0.2, veredictos   # fuera de alcance
     assert not veredictos["cuadratico"][1] and abs(veredictos["cuadratico"][0] - 16.0) < 0.5, veredictos
 
 
@@ -449,8 +451,10 @@ def test_la_puerta_rechaza_la_regex_cuadratica_que_antes_quedaba_bajo_el_suelo()
 def test_sin_suelo_alcanzado_no_se_aprueba_por_razon():
     """Una función inocua que no supera el suelo con el tope de tamaño devuelve `None` (no una razón
     inventada) y una que gasta el tope de CPU antes de llegar lanza `SinSuelo`."""
-    relativa, t, _, _ = _medir(lambda s: len(s), lambda n: "x" * n)
-    assert relativa is None and t < SUELO_CPU
+    llamadas = []
+    relativa, t, grande, salida = _medir(lambda s: llamadas.append(len(s)), lambda n: "x" * n)
+    assert relativa is None and grande is None and salida is None     # no se midió ningún caso grande
+    assert max(llamadas) * 2 > TOPE_CARACTERES                        # y se llegó de verdad al tope de tamaño
 
 
 @pytest.mark.serie
@@ -580,3 +584,47 @@ def test_fix4_idempotent(texto):
 @pytest.mark.parametrize("texto,secreto", FIX4)
 def test_fix4_same_in_the_journal_backup(texto, secreto):
     assert secreto not in _respaldo_de_journal()(texto)
+
+
+# ---- fix6 (gaps 7 y 15): mediana en lugar de mínimo, umbral 6 y tope de CPU antes de medir lo grande --------------
+def test_la_mediana_resiste_una_muestra_pequena_atipica(monkeypatch):
+    """Gap 7 (intento 6): con `min` de las muestras, UNA muestra pequeña anómala (reloj que se queda corto, 0,15× de lo
+    esperado y aun así válida) volvía rojo un lineal. Con la mediana de las muestras de una ronda lo absorbe."""
+    cuentas = {}
+
+    def falso(funcion, *args):
+        if funcion is _referencia_lineal:
+            return args[1] * 1e-4, None
+        n = len(args[0])
+        t = 2e-6 * n
+        if n == 12000:                                  # el tamaño pequeño de esta función con suelo 0,02
+            cuentas[n] = cuentas.get(n, 0) + 1
+            if cuentas[n] % 3 == 0:
+                t *= 0.15
+        return t, args[0]
+    monkeypatch.setattr(sys.modules[__name__], "_cpu", falso)
+    relativa, _tc, _tg, _ = _medir(lambda s: None, lambda n: "x" * n, suelo=0.02, pausa=0)
+    assert relativa is not None and _es_lineal(relativa), relativa
+
+
+def test_un_coste_peor_que_cuadratico_se_rechaza_sin_ejecutar_el_caso_grande(monkeypatch):
+    """Gap 15: el tope de CPU se aplica ANTES de medir la entrada grande, con una sonda ×4: un cúbico (o peor) que
+    tardaría minutos no se ejecuta; devuelve razón infinita (colgado)."""
+    largos = []
+
+    def falso(funcion, *args):
+        if funcion is _referencia_lineal:
+            return args[1] * 1e-4, None
+        largos.append(len(args[0]))
+        return 1e-13 * len(args[0]) ** 3, args[0]
+    monkeypatch.setattr(sys.modules[__name__], "_cpu", falso)
+    relativa, _tc, _tg, _ = _medir(lambda s: None, lambda n: "x" * n, suelo=0.02, pausa=0)
+    assert relativa == float("inf") and not _es_lineal(relativa)
+    assert max(largos) < 16 * min(largos), sorted(set(largos))      # nunca se llegó al ×16
+
+
+def test_el_umbral_es_6_y_la_demostracion_real_no_reintenta():
+    """Decisión del usuario (fix6): umbral ~6 frente a la razón 16 del cuadrático; sin reintentos de la demostración
+    (`INTENTOS_DEMO`): con la mediana y ese margen el reloj real basta."""
+    assert 5 <= RAZON_RELATIVA_MAX <= 8
+    assert "INTENTOS_DEMO" not in globals()

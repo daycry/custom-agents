@@ -955,3 +955,24 @@ def test_fix5_gap8_crlf_y_lf_no_son_parciales(tmp_path):
     (root / "src" / "l.py").write_bytes(b"# TODO: dos\nx = 1\n")
     r = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10)
     assert "separador-cr" not in r["parcial_motivos"], r["parcial_motivos"]
+
+
+def test_fix6_gap14_cr_doble_o_suelto_dentro_de_una_linea_con_lf_no_marca_parcial(tmp_path):
+    """`\r\r\n` (CRLF con un CR de más) y un CR suelto dentro de una línea de un fichero con LF no son un separador
+    Mac: git y `leer` parten por LF y las líneas salen bien. Solo un fichero con CR y NINGÚN LF es parcial."""
+    root = tmp_path / "r"
+    (root / "src").mkdir(parents=True)
+    (root / "src" / "dbl.py").write_bytes(b"# TODO: uno\r\r\nx = 1\r\r\n")
+    (root / "src" / "stray.py").write_bytes(b"# TODO: dos\nx = 'a\rb'\ny = 2\n")
+    r = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10)
+    assert "separador-cr" not in r["parcial_motivos"], r["parcial_motivos"]
+    assert not any("CR" in a for a in r["avisos"]), r["avisos"]
+    assert len(ch.leer(str(root / "src" / "stray.py"))) == 3
+
+
+def test_fix6_gap14_un_fichero_solo_cr_sigue_siendo_parcial(tmp_path):
+    root = tmp_path / "r"
+    (root / "src").mkdir(parents=True)
+    (root / "src" / "mac.py").write_bytes(b"# TODO: uno\rx = 1\r# TODO: dos\ry = 2\r")
+    r = ch.analizar(str(root), {"py"}, 8, 6, False, 90, 10)
+    assert "separador-cr" in r["parcial_motivos"], r["parcial_motivos"]

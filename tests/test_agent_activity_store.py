@@ -1537,6 +1537,19 @@ def test_los_plazos_de_pared_se_pueden_inyectar_por_entorno(monkeypatch):
         assert load('agent-activity-store').LIFECYCLE_DEADLINE == esperado, valor
 
 
+def test_la_escala_de_plazos_no_actua_en_produccion(monkeypatch):
+    """Gap 13 (intento 6): con la variable puesta FUERA de una suite (un entorno de usuario con escala >= 1,6) el
+    almacén excedía el presupuesto de 2 s del lanzador y este mataba al hijo antes de su cierre limpio. La escala solo
+    actúa si además hay una marca de test explícita: pytest exporta `PYTEST_CURRENT_TEST` (y los subprocesos de la
+    suite la heredan)."""
+    monkeypatch.setenv('CUSTOM_AGENTS_ACTIVITY_DEADLINE_SCALE', '20')
+    monkeypatch.delenv('PYTEST_CURRENT_TEST', raising=False)
+    produccion = load('agent-activity-store')
+    assert (produccion.TOOL_DEADLINE, produccion.LIFECYCLE_DEADLINE) == (1.3, 1.0)
+    monkeypatch.setenv('PYTEST_CURRENT_TEST', 'tests/x.py::t (call)')
+    assert load('agent-activity-store').LIFECYCLE_DEADLINE == pytest.approx(20.0)
+
+
 def test_los_ficheros_de_actividad_y_consola_no_corren_enteros_en_serie():
     """T-23 fix5 (gap 5): 1.000 tests de estos dos ficheros en el paso serie lo llevaron de 60 s a 586 s. Solo un
     test concreto con plazo de pared real puede llevar `@pytest.mark.serie`, no el fichero entero."""
