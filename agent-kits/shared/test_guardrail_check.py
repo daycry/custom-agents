@@ -1042,7 +1042,7 @@ def test_fix5_invariante_de_cierre_con_cambio_de_base():
 
 FIX5_BAD = [
     "echo $((1<<2))\ngit restore .", "x=$(( 1 << 3 ))\ngit restore .", "(( y = 1<<2 ))\ngit restore .",
-    'cat <<<"hola"\ngit restore .', "cat <<< hola\ngit restore .", "cat <<\EOF\nx\nEOF\ngit restore .",
+    'cat <<<"hola"\ngit restore .', "cat <<< hola\ngit restore .", "cat <<\\EOF\nx\nEOF\ngit restore .",
     'cat <<E"OF"\nx\nEOF\ngit restore .', "cat <<EOF\n$(git restore .)\nEOF",
     "cat <<EOF\n`git restore .`\nEOF", "env bash <<EOF\ngit restore .\nEOF",
     "bash <<EOF 2>&1\ngit restore .\nEOF", "bash <<EOF | tee log\ngit restore .\nEOF",

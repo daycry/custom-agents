@@ -256,7 +256,9 @@ RAZON_RELATIVA_MAX = 2.5     # razón de redact / razón de la referencia lineal
 SUELO_CPU = 0.1 if os.name == "nt" else 0.02   # s de CPU del caso pequeño (el reloj de Windows tiene 15,6 ms de resolución;
 #                                               en Linux 0,02 s: la puerta costaba ~9 s por caso con 0,05 s, T-23 fix5)
 TOPE_CARACTERES = 1_000_000  # tope de tamaño del caso pequeño (el grande es ×16: ≤ 16 MB)
-SUELO_DEMO = 0.03 if os.name == "nt" else 0.01   # suelo de las demostraciones de la propia puerta (funciones sintéticas)
+SUELO_DEMO = 0.03 if os.name == "nt" else 0.005  # suelo de las demostraciones de la propia puerta (funciones sintéticas)
+REF_DIV = 2                  # la referencia lineal gasta suelo/2 (con suelo/8 el ruido la volvía inestable: razón 1,85 para un n^1,5)
+BASE_REFERENCIA = "x" * 2000            # entrada FIJA y pequeña de la referencia: se repite, no crece con el caso
 RONDAS = 4                   # rondas de 2 muestras: la siguiente solo se toma si la anterior dio rojo
 PAUSA_RONDAS = 5.0           # s entre rondas: una ráfaga de carga ajena no cubre todas (T-23 fix4: 1 de 5 pasadas)
 TOPE_CPU_GRANDE = 10.0       # s: un caso grande que tarde más se da por colgado (cuadrático o peor)
@@ -277,7 +279,7 @@ def _cpu(funcion, *args):
 
 
 def _referencia_lineal(entrada, repeticiones):
-    """Función de referencia lineal en la longitud de la entrada (un recorrido por carácter)."""
+    """Función de referencia lineal en `repeticiones` (un recorrido por carácter de `entrada`)."""
     acc = 0
     for _ in range(repeticiones):
         for c in entrada:
@@ -293,14 +295,17 @@ def _validas(muestras, esperado):
     return [m for m in muestras if m >= esperado / 8]
 
 
-def _medir(funcion, generador, n0=1500, suelo=None, pausa=None):
+def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None):
     """Mide `funcion` con una entrada pequeña (tamaño adaptado hasta superar `SUELO_CPU`) y otra ×16.
     Devuelve `(razon_relativa, t_chico, t_grande, salida_grande)`; `razon_relativa` es `None` si se llegó al
     tope de tamaño sin superar el suelo (la función es inocua a ese tamaño: no hay razón que medir) y se
     lanza `SinSuelo` si el tope de CPU del crecimiento se agota antes. Un grande por encima de
-    `TOPE_CPU_GRANDE` s devuelve una razón infinita (colgado)."""
+    `TOPE_CPU_GRANDE` s devuelve una razón infinita (colgado). La referencia lineal NO se mide sobre la entrada
+    del caso sino sobre una base fija y pequeña repetida (`BASE_REFERENCIA`: ×r en el caso pequeño, ×16r en el
+    grande): absorbe la carga ajena igual y cuesta una fracción de lo que costaba sobre el grande."""
     suelo = SUELO_CPU if suelo is None else suelo
     pausa = PAUSA_RONDAS if pausa is None else pausa
+    rondas = RONDAS if rondas is None else rondas
     n, gastado = n0, 0.0
     while True:
         chico = generador(n)
@@ -315,27 +320,28 @@ def _medir(funcion, generador, n0=1500, suelo=None, pausa=None):
             raise SinSuelo(f"el caso pequeño no supera {suelo} s de CPU tras gastar {gastado:.1f} s")
         n *= 2
     grande = generador(n * CRECIMIENTO)
+    ref = suelo / REF_DIV
     repeticiones = 1
-    while _cpu(_referencia_lineal, chico, repeticiones)[0] < suelo / 2 and repeticiones < 4096:
+    while _cpu(_referencia_lineal, BASE_REFERENCIA, repeticiones)[0] < ref and repeticiones < 65536:
         repeticiones *= 2
     tc, tg, rc, rg, salida, relativa = [], [], [], [], None, None
-    for ronda in range(RONDAS):
+    for ronda in range(rondas):
         if ronda:
             time.sleep(pausa)
         for _ in range(1 if ronda == 0 else 2):               # 1 muestra la primera ronda (casi todas dan verde);
             #                                                 # 2 en las de repetición, intercaladas: comparten la carga
-            rc.append(_cpu(_referencia_lineal, chico, repeticiones)[0])
+            rc.append(_cpu(_referencia_lineal, BASE_REFERENCIA, repeticiones)[0])
             tc.append(_cpu(funcion, chico)[0])
             t, salida = _cpu(funcion, grande)
             tg.append(t)
             if t > TOPE_CPU_GRANDE:
                 return float("inf"), min(tc), t, salida
-            rg.append(_cpu(_referencia_lineal, grande, repeticiones)[0])
+            rg.append(_cpu(_referencia_lineal, BASE_REFERENCIA, repeticiones * CRECIMIENTO)[0])
         # el ruido ajeno solo SUMA tiempo: el mínimo de las muestras es el mejor estimador del coste propio.
         # Una muestra por debajo de 1/8 de lo esperado no es una medida (el reloj de CPU de Windows
         # se carga por ticks y bajo carga puede devolver 0 para una llamada de 0,1 s): se descarta.
         vtc, vtg = _validas(tc, suelo), _validas(tg, CRECIMIENTO * suelo)
-        vrc, vrg = _validas(rc, suelo / 2), _validas(rg, CRECIMIENTO * suelo / 2)
+        vrc, vrg = _validas(rc, ref), _validas(rg, CRECIMIENTO * ref)
         if not (vtc and vtg and vrc and vrg):
             continue
         relativa = (min(vtg) / min(vtc)) / (min(vrg) / min(vrc))
@@ -381,7 +387,7 @@ def test_la_puerta_deja_pasar_una_funcion_lineal_real():
 
 @pytest.mark.serie
 def test_la_puerta_rechaza_un_n_a_la_1_5_real():
-    relativa, tc, tg, _ = _medir(_n_a_la_1_5, lambda n: "x" * (n // 4), suelo=SUELO_DEMO, pausa=0)
+    relativa, tc, tg, _ = _medir(_n_a_la_1_5, lambda n: "x" * (n // 4), suelo=SUELO_DEMO, pausa=0, rondas=2)
     assert relativa is not None and not _es_lineal(relativa), (relativa, tc, tg)
 
 
@@ -389,7 +395,7 @@ def test_la_puerta_rechaza_un_n_a_la_1_5_real():
 def test_la_puerta_rechaza_la_regex_cuadratica_que_antes_quedaba_bajo_el_suelo():
     """`re.compile(r"x*y").search("x"*N)` con N pequeño tardaba < 50 ms y la puerta anterior no comparaba
     razones (`tc=0.0000 tg=0.4062` pasaba): ahora el tamaño crece hasta superar el suelo y la razón sale ≈ 8."""
-    relativa, tc, tg, _ = _medir(_regex_cuadratica, lambda n: "x" * n, n0=500, suelo=SUELO_DEMO, pausa=0)
+    relativa, tc, tg, _ = _medir(_regex_cuadratica, lambda n: "x" * n, n0=500, suelo=SUELO_DEMO, pausa=0, rondas=2)
     assert relativa is not None and not _es_lineal(relativa), (relativa, tc, tg)
     # (sin `tc >= suelo/8`: `_medir` solo devuelve muestras de al menos ese valor, la aserción no podía fallar)
     assert tg > tc                                          # el grande cuesta de verdad más que el pequeño
@@ -448,7 +454,8 @@ def test_linear_cost_on_pathological_inputs(k):
         assert redact.redactar(una) == una, k
         return
     assert _es_lineal(relativa), (k, generador(40)[:40], round(relativa, 2), round(tc, 3), round(tg, 3))
-    assert redact.redactar(salida) == salida, k               # idempotencia sobre la salida ya medida
+    una = redact.redactar(generador(4000))                    # idempotencia sobre una salida pequeña: la del
+    assert redact.redactar(una) == una, k                     # grande costaba otra pasada de redact sobre ×16
 
 
 def test_quoted_prose_without_options_avoids_nested_command_scans(monkeypatch):
