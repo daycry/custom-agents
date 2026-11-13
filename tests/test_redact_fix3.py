@@ -256,9 +256,11 @@ RAZON_RELATIVA_MAX = 2.5     # razón de redact / razón de la referencia lineal
 SUELO_CPU = 0.1 if os.name == "nt" else 0.02   # s de CPU del caso pequeño (el reloj de Windows tiene 15,6 ms de resolución;
 #                                               en Linux 0,02 s: la puerta costaba ~9 s por caso con 0,05 s, T-23 fix5)
 TOPE_CARACTERES = 1_000_000  # tope de tamaño del caso pequeño (el grande es ×16: ≤ 16 MB)
-SUELO_DEMO = 0.03 if os.name == "nt" else 0.005  # suelo de las demostraciones de la propia puerta (funciones sintéticas)
+SUELO_DEMO = 0.03 if os.name == "nt" else 0.01   # suelo de las demostraciones de la propia puerta (funciones sintéticas)
 REF_DIV = 2                  # la referencia lineal gasta suelo/2 (con suelo/8 el ruido la volvía inestable: razón 1,85 para un n^1,5)
 BASE_REFERENCIA = "x" * 2000            # entrada FIJA y pequeña de la referencia: se repite, no crece con el caso
+SUELO_DEMO_1_5 = 0.03 if os.name == "nt" else 0.02   # el n^1,5 está más cerca del umbral (razón 4 frente a 2,5): con un
+#                                                       caso pequeño de 0,01 s el ruido de una réplica con 12 bucles dio 2,3 y 1,26
 RONDAS = 4                   # rondas de 2 muestras: la siguiente solo se toma si la anterior dio rojo
 PAUSA_RONDAS = 5.0           # s entre rondas: una ráfaga de carga ajena no cubre todas (T-23 fix4: 1 de 5 pasadas)
 TOPE_CPU_GRANDE = 10.0       # s: un caso grande que tarde más se da por colgado (cuadrático o peor)
@@ -396,7 +398,7 @@ def test_la_puerta_deja_pasar_una_funcion_lineal_real():
 
 @pytest.mark.serie
 def test_la_puerta_rechaza_un_n_a_la_1_5_real():
-    relativa, tc, tg, _ = _medir(_n_a_la_1_5, lambda n: "x" * (n // 4), suelo=SUELO_DEMO, pausa=0, rondas=2)
+    relativa, tc, tg, _ = _medir(_n_a_la_1_5, lambda n: "x" * (n // 4), suelo=SUELO_DEMO_1_5, pausa=0)
     assert relativa is not None and not _es_lineal(relativa), (relativa, tc, tg)
 
 
