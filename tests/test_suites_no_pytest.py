@@ -275,6 +275,28 @@ def test_los_tests_de_tiempo_de_pared_de_redact_estan_marcados_serie():
     assert any("pytest.mark.serie" in l for l in previas), previas
 
 
+def test_el_paso_serie_solo_recoge_los_ficheros_con_el_marcador():
+    """T-23 fix5b: `-m serie` sobre las 15 carpetas recogía 11.900 tests para ejecutar 56 (la recolección costaba
+    ~70 s en la réplica Linux, el 45 % del paso). El paso serie lista con `grep` los ficheros que llevan
+    `mark.serie` y solo recoge esos; `-m serie` sigue filtrando dentro de cada uno, así que no se pierde ninguno."""
+    yml = _yml_ci()
+    lineas = yml.splitlines()
+    i = next(n for n, l in enumerate(lineas) if "python -m pytest" in l and "-m serie" in l)
+    paso = "\n".join(lineas[max(0, i - 4):i + 1])
+    assert "grep -rl" in paso and r"mark\.serie" in paso, paso
+    assert "$archivos" in lineas[i] and "tests agent-kits" not in lineas[i], lineas[i]
+    assert "test -n" in paso or '[ -n "$archivos" ]' in paso, "sin lista el paso recogería todo el repo"
+    # la lista que produce el grep incluye los ficheros que el resto de la suite da por marcados
+    marcados = set()
+    for carpeta in ("tests", "agent-kits", "skills", "evals"):
+        for raiz, _dirs, ficheros in os.walk(os.path.join(ROOT, carpeta)):
+            for f in ficheros:
+                if f.startswith("test_") and f.endswith(".py") and "mark.serie" in open(
+                        os.path.join(raiz, f), encoding="utf-8").read():
+                    marcados.add(f)
+    assert {"test_redact_fix3.py", "test_agent_activity_store.py", "test_code_health.py"} <= marcados, marcados
+
+
 def main():
     return pytest.main([os.path.abspath(__file__), "-q"])
 
