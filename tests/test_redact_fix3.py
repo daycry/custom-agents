@@ -318,6 +318,10 @@ def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None):
         chico = generador(n)
         funcion(chico)                                        # calentamiento: cachés de regex y de intérprete
         t, _ = _cpu(funcion, chico)
+        if t >= suelo:
+            # el suelo se CONFIRMA con una segunda medida: un pico de carga no lo cruza (Windows con 6 bucles: el caso
+            # pequeño «de 0,1 s» costaba 0,016 s en las muestras y la razón salía 3,9 para un caso lineal)
+            t = min(t, _cpu(funcion, chico)[0])
         gastado += t
         if t >= suelo:
             break
@@ -460,7 +464,7 @@ def test_una_muestra_de_cpu_a_cero_no_da_una_razon_disparatada(monkeypatch):
         t, salida = real(funcion, *args)
         if funcion is _lineal_de_verdad:
             llamadas[0] += 1
-            if llamadas[0] == 2:                      # la primera muestra pequeña de la ronda 1 (1 = el suelo)
+            if llamadas[0] == 3:                      # la primera muestra pequeña de la ronda 1 (1 y 2 = el suelo y su confirmación)
                 return 0.0, salida
         return t, salida
     monkeypatch.setattr(sys.modules[__name__], "_cpu", falso)
