@@ -515,6 +515,10 @@ def _segmentos(command, _prof=0):
         for texto, citado, cerrado in st.cuerpos:
             if interprete or not cerrado:
                 trozos = [texto]
+                if interprete and not citado and _expansiones(texto):
+                    # la shell ejecuta el cuerpo YA expandido (`bash <<EOF⏎$(echo git restore .)`): el
+                    # resultado de una sustitución no se conoce sin ejecutar -> orden incompleta
+                    incompleta = True
             elif citado:
                 continue
             else:
