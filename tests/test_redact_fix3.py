@@ -257,10 +257,9 @@ SUELO_CPU = 0.1 if os.name == "nt" else 0.02   # s de CPU del caso pequeño (el 
 #                                               en Linux 0,02 s: la puerta costaba ~9 s por caso con 0,05 s, T-23 fix5)
 TOPE_CARACTERES = 1_000_000  # tope de tamaño del caso pequeño (el grande es ×16: ≤ 16 MB)
 SUELO_DEMO = 0.03 if os.name == "nt" else 0.01   # suelo de las demostraciones de la propia puerta (funciones sintéticas)
+REF_MIN = 0.06 if os.name == "nt" else 0.0   # s: el reloj de CPU de Windows avanza a saltos de 15,6 ms; una referencia de ~1 tick da 0 (visto: rc=[0.0])
 REF_DIV = 2                  # la referencia lineal gasta suelo/2 (con suelo/8 el ruido la volvía inestable: razón 1,85 para un n^1,5)
 BASE_REFERENCIA = "x" * 2000            # entrada FIJA y pequeña de la referencia: se repite, no crece con el caso
-SUELO_DEMO_1_5 = 0.03 if os.name == "nt" else 0.02   # el n^1,5 está más cerca del umbral (razón 4 frente a 2,5): con un
-#                                                       caso pequeño de 0,01 s el ruido de una réplica con 12 bucles dio 2,3 y 1,26
 RONDAS = 4                   # rondas de 2 muestras: la siguiente solo se toma si la anterior dio rojo
 PAUSA_RONDAS = 5.0           # s entre rondas: una ráfaga de carga ajena no cubre todas (T-23 fix4: 1 de 5 pasadas)
 TOPE_CPU_GRANDE = 10.0       # s: un caso grande que tarde más se da por colgado (cuadrático o peor)
@@ -328,7 +327,7 @@ def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None):
             raise SinSuelo(f"el caso pequeño no supera {suelo} s de CPU tras gastar {gastado:.1f} s")
         n *= 2
     grande = generador(n * CRECIMIENTO)
-    ref = suelo / REF_DIV
+    ref = max(suelo / REF_DIV, REF_MIN)   # en Windows la referencia dura al menos varios ticks del reloj de CPU
     tc, tg, rc, rg, salida, relativa = [], [], [], [], None, None
     for ronda in range(rondas):
         if ronda:
@@ -378,14 +377,6 @@ def _lineal_de_verdad(entrada):
     return acc
 
 
-def _n_a_la_1_5(entrada):
-    acc, n = 0, len(entrada)
-    for i in range(n):
-        for j in range(int(n ** 0.5)):
-            acc += i ^ j
-    return acc
-
-
 def _regex_cuadratica(entrada):
     return re.compile(r"x*y").search(entrada)               # retroceso: O(n²) sobre "xxxx…"
 
@@ -410,11 +401,30 @@ def test_la_puerta_deja_pasar_una_funcion_lineal_real():
     assert relativa is not None and _es_lineal(relativa), (relativa, tc, tg)
 
 
-@pytest.mark.serie
-def test_la_puerta_rechaza_un_n_a_la_1_5_real():
-    relativa, tc, tg, _ = _demostrar(lambda r: not _es_lineal(r), _n_a_la_1_5, lambda n: "x" * (n // 4),
-                                     suelo=SUELO_DEMO_1_5, pausa=0)
-    assert relativa is not None and not _es_lineal(relativa), (relativa, tc, tg)
+def _con_reloj_simulado(monkeypatch, segundos_por_longitud):
+    """Sustituye el reloj de CPU de la puerta por un modelo determinista: el coste de `funcion(entrada)` es
+    `segundos_por_longitud(len(entrada))` y el de la referencia es lineal en `repeticiones`. Ejercita la LÓGICA de la
+    puerta (crecimiento hasta el suelo, razón relativa, umbral 2,5) sin depender de la carga de la máquina."""
+    def falso(funcion, *args):
+        if funcion is _referencia_lineal:
+            return args[1] * 1e-4, None                     # reps × 0,1 ms
+        return segundos_por_longitud(len(args[0])), args[0]
+    monkeypatch.setattr(sys.modules[__name__], "_cpu", falso)
+
+
+def test_la_puerta_rechaza_un_n_a_la_1_5_simulado(monkeypatch):
+    """La separación que importa: lineal ≈ 1, n^1,5 = 4 y cuadrático = 16 frente al umbral 2,5. Con el reloj real,
+    12 bucles de CPU en la réplica Linux dieron razón 1,26 / 2,3 / 1,47 / 1,71 a un n^1,5 genuino (T-23 fix5b): el
+    ruido ajeno solo desvía hacia el veredicto contrario, así que la demostración se hace con un reloj determinista."""
+    veredictos = {}
+    for nombre, modelo in (("lineal", lambda n: 2e-6 * n), ("n^1,5", lambda n: 2e-8 * n ** 1.5),
+                           ("cuadratico", lambda n: 1e-9 * n * n)):
+        _con_reloj_simulado(monkeypatch, modelo)
+        relativa, tc, tg, _ = _medir(lambda s: None, lambda n: "x" * n, suelo=0.02, pausa=0)
+        veredictos[nombre] = (None if relativa is None else round(relativa, 2), _es_lineal(relativa))
+    assert veredictos["lineal"][1] and abs(veredictos["lineal"][0] - 1.0) < 0.05, veredictos
+    assert not veredictos["n^1,5"][1] and abs(veredictos["n^1,5"][0] - 4.0) < 0.2, veredictos
+    assert not veredictos["cuadratico"][1] and abs(veredictos["cuadratico"][0] - 16.0) < 0.5, veredictos
 
 
 @pytest.mark.serie
