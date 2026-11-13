@@ -353,7 +353,11 @@ def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None):
         vrc, vrg = _validas(rc, ref), _validas(rg, CRECIMIENTO * ref)
         if not (vtc and vtg and vrc and vrg):
             continue
-        relativa = (min(vtg) / min(vtc)) / (min(vrg) / min(vrc))
+        # dos estimadores: la razón corregida por la referencia (cancela la carga ajena cuando afecta igual a las dos
+        # medidas) y la cruda (`min tg / min tc / CRECIMIENTO`, sin referencia). Una referencia que el ruido desvía
+        # (razón de referencia 6,5 en vez de 16, visto en Windows con 6 bucles de CPU) vuelve rojo un caso lineal
+        # con la corregida; lo superlineal de verdad es rojo con las dos. Se queda el menor (T-23 fix5b).
+        relativa = min((min(vtg) / min(vtc)) / (min(vrg) / min(vrc)), (min(vtg) / min(vtc)) / CRECIMIENTO)
         if _es_lineal(relativa):
             break                  # lo superlineal de verdad sale rojo en TODAS las rondas: solo se repite el rojo
     if relativa is None:
