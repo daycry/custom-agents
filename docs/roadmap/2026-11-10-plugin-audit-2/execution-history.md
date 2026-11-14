@@ -181,3 +181,49 @@ Lentes: A+B+C+D sobre `00bdf50..5d99de6`. La memoria libre era menor de 1 GB, as
 
 Tras este ciclo: réplica Linux completa sin rojo, medida emparejada de T-23 con el equipo libre (la hace el orquestador) y verificación dirigida de las cuatro lentes. Si solo quedan Minor sin pérdida de datos, la fase cierra.
 
+
+## Archivado 2026-11-14 — Revisión de dos lentes — intento 9: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix8: 2 Important, 6 Minor (bytes sin cambios)
+
+SHA-256 del bloque: `1b1b64ce4682195575ef02b8c5d3959a52d6ef75f1414f85145000fd4b88c9d7`.
+
+## Revisión de dos lentes — intento 9: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix8: 2 Important, 6 Minor
+
+Lentes: A+B+C+D sobre `c3c7989..1ba8714`, dos a dos por memoria (≈ 2 GB libres).
+
+**Cerrado del intento 8:**
+- Gaps 1-13 y 15. Las sondas de xargs heredado (unas 60 por lente) dan deny.
+- La prueba de plazo lee la cota de `hooks.json`: 6,0-6,7 s frente a 9 s.
+- El escáner del rol no tiene tope y su memoria es constante: 256 MiB en 1,9 s y 62 MB.
+- OpenCode compara por `realpath` y no hay fallo abierto: `canonical` vuelve a `resolve()` si el `realpath` lanza.
+- T-39 está en la fase 6.
+- Cifras del ledger y orden RED → código: correctos.
+- Puertas en verde, verificadas por el orquestador.
+
+**Desviaciones aceptadas:**
+- Punto 3, `env -S` acotado a 4 troceos y 2.048 caracteres. Se acepta para git, porque deniega; el caso sin git es el gap 4.
+- Punto 7, demo de redact ×4. Se acepta en coste (3,7-11 s), con el gap 6.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | `xargs -a <(git diff --name-only) git restore` → allow. `_segmentos` corta en `<(`/`)` y el resto sale como un segmento nuevo sin el `xargs` delante. Igual con `--arg-file=<(…)`, `-a<(…)` y `-a <(…) -I{} sh -c '…'`. Bash real: centinela perdido. No es regresión, porque `c3c7989` da lo mismo, pero contradice `implementer.md:92` | T-06 | corregido (fix9) | Lente B: `guardrail-check.py:1614-1631`; `lb9/r1` |
+| 2 | Important | Test intermitente: `test_journal.py::test_replay_con_recover_max_limita…` asserta `recuperadas == 3` y `dur_ms < 5000` con reloj de pared, sin la escala inyectable del fix8. Lo ejecuté 7 veces seguidas en serie y falló 5 (`2 == 3`). Contradice el criterio 2 de T-23 y la regla «nada en rojo, tampoco flaky» | T-23 | corregido (fix9) | Lentes A y B: `agent-kits/shared/test_journal.py:2267-2277` |
+| 3 | Minor | Regresión de paridad: en `native-guardrail.py:81` la alternativa de escape pasó de `\\.` a `\.`. Con más de 64 KiB y la identidad escapada (`custom-agents:implementer`), el adaptador Python da continue. Sin efecto de punta a punta: `run-hook.mjs:116` conserva `\\.` y deniega antes. `test_native_guard_scan8.py` no prueba escapes | T-06 | corregido (fix9) | Lentes A, B, C y D: `lc9/p1.py` |
+| 4 | Minor | `env -S` fuera del tope (5.º troceo o más de 2.048 caracteres): `_trocea_s` devuelve `None` y solo se deniega si aparece `git` literal. (a) Órdenes externas que se denegaban en `c3c7989` pasan a allow: `env -S 'kubectl delete ns prod A=<2.100 x>'`, `docker system prune`, `npm publish`. (b) `g""it` fuera del tope → allow, con pérdida de datos. (c) shlex no aplica los escapes propios de env: `\_` es un espacio y `\c` corta; `env -S 'git restore\_.'` y `env -S 'git restore .\c'` → allow, con pérdida de datos. Son formas deliberadas | T-06 | corregido (fix9) | Lentes A, B y C: `guardrail-check.py:818-828,866-869,901-904`; GNU env 8.32 |
+| 5 | Minor | Las dos pruebas del panel pasaron a serie en vez de inyectar `BODY_TIMEOUT`. Es una línea (`monkeypatch.setattr(service, 'BODY_TIMEOUT', …)`, como en `test_panel_review_server.py:227`). Doctrina de fix5, punto 7: los plazos se inyectan | T-23 | corregido (fix9) | Lentes A y B: `tests/test_panel_review_panel_server.py:263,459` |
+| 6 | Minor | La demo de redact a ×4 asserta `relativa > 2` en vez de la decisión real de la puerta (`not _es_lineal`, umbral 6). En una de 3 medidas un cuadrático dio una razón de 3,84 y `_es_lineal` = True: la puerta lo dejaría pasar y la demo sale verde. El margen de 5× se comprueba con constantes | T-23 | corregido (fix9) | Lentes A y B: `tests/test_redact_fix3.py:390,463,677`; `lb9/redemo.py` |
+| 7 | Minor | OpenCode: `canonical()` llama a `realpathSync.native` síncrono y sin caché en los dos lados de cada comparación, incluido `location.directory`, que es constante. En SMB o VPN bloquea el bucle de eventos en cada herramienta y cada evento | T-06 | corregido (fix9) | Lente D: `hooks/opencode-plugin.js:66-73,233,437` y su espejo; 265 µs frente a 6,9 µs por llamada |
+| 8 | Minor | Límite: un payload hostil de claves densas de 128 MiB o más pasa del plazo de lectura de 4,5 s antes de llegar al rol, y sale continue. No es realista. Antes del fix8 ocurría ya por encima de 16 MiB | T-06 | corregido (fix9): límite documentado en el modelo de amenaza | Lente D: `ld9/probe2.mjs` |
+
+**Diseño fijado por el orquestador para fix9:**
+
+1. **Sustitución de proceso con xargs** (gap 1). Un `<(…)`/`>(…)`/`$(…)` dentro de una palabra NO parte el segmento de la orden que lo contiene. El interior se analiza aparte, como segmento propio, y la orden exterior se analiza entera, con sus argumentos. Con `xargs`, cualquier `-a`/`--arg-file` (con o sin `=`, pegado o separado, con sustitución o fichero) cuenta como «rutas por stdin». Todas las formas del gap van al corpus diferencial como BAD, con bash real.
+2. **Journal** (gap 2). El test del replay no depende del reloj de pared. Usa la escala inyectada del fix8 o el reloj simulado, y la aserción de duración desaparece o pasa a usar el reloj inyectado. Cualquier otra aserción de pared de menos de unos segundos en `test_journal.py` que pueda fallar bajo carga recibe el mismo trato; el inventario de esas aserciones va en el informe. Verificación: `-k replay` 20 veces seguidas con carga, 0 rojos.
+3. **Escáner Python** (gap 3). Vuelve a `\\.`. Un test de paridad pasa el mismo corpus (identidades escapadas, clave partida, blancos) por el escáner de `native-guardrail.py` y por el de `run-hook.mjs`, y exige el mismo rol.
+4. **`env -S`** (gap 4). Un valor que no se puede trocear (fuera del tope o con comilla abierta) se deniega SIEMPRE para el rol protegido: el guard solo actúa sobre ese rol. Antes del troceo se aplican los escapes de GNU env (`\_` → espacio, `\c` → corte, `\t`, `\n`, `\v`, `\f`, `\r`, `\\`, `\'`, `\"`, `\#`, `\$`). Un escape desconocido se deniega si la orden contiene git. Tests con las formas del gap y con el ejemplo sin git.
+5. **Panel** (gap 5). Las dos pruebas inyectan `BODY_TIMEOUT` y vuelven al paso paralelo.
+6. **Demo de redact** (gap 6). La aserción vuelve a ser la decisión real de la puerta (`not _es_lineal`, con el umbral 6). El tamaño y el número de muestras se eligen para que la razón medida de un cuadrático supere 6 con margen (≥ 1,5× sobre el umbral en el peor de 10 ensayos), y el coste se mantiene por debajo de 15 s en Windows. Si no hay combinación posible, se vuelve a ×8 con menos muestras. El margen se demuestra con medidas, no con constantes. Otra vez 10+10 pasadas.
+7. **OpenCode** (gap 7). `location.directory` se canoniza una vez, al cargar. Las demás rutas se canonizan con una caché por cadena (acotada), y el fallo sigue volviendo a `resolve()`. Test del adaptador e interop regenerado.
+8. **Límite** (gap 8). Se añade al modelo de amenaza de `implementer.md` y de INTEROP ES/EN.
+
+Tras este ciclo: réplica Linux completa sin rojo, medida emparejada de T-23 con el equipo libre (la hace el orquestador) y verificación dirigida de las cuatro lentes. Si solo quedan Minor sin pérdida de datos, la fase cierra.
+
