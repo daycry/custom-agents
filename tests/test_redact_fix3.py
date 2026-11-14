@@ -649,3 +649,59 @@ def test_el_umbral_es_6_y_la_demostracion_real_no_reintenta():
     (`INTENTOS_DEMO`): con la mediana y ese margen el reloj real basta."""
     assert 5 <= RAZON_RELATIVA_MAX <= 8
     assert "INTENTOS_DEMO" not in globals()
+
+
+# ---- fix8 (gaps 10 y 11): demo con reloj real más barata y confirmaciones con pausa ---------------------------------
+def test_fix8_margen_de_la_demo_entre_la_muestra_tipica_y_el_tope():
+    """Gap 10: una muestra típica de la demo cuesta `SUELO_DEMO × CRECIMIENTO²` s (cuadrático ×16 = 256×); el tope de
+    la demo (`TOPE_CPU_DEMO`) da al menos 5× de margen para que la rama `tg > tope` no sea un azar de la carga."""
+    tipica = SUELO_DEMO * CRECIMIENTO ** 2
+    assert TOPE_CPU_DEMO >= 5 * tipica, (TOPE_CPU_DEMO, tipica)
+    assert tipica <= 6.0, tipica                      # gap 11: una muestra de la demo (Windows sin carga) ≈ 5 s como mucho
+
+
+def test_fix8_un_inf_por_tope_se_confirma_con_una_segunda_muestra_tras_la_pausa(monkeypatch):
+    """Gap 10: un caso grande que pasa del tope por UNA muestra inflada por la carga (aquí 10×, la primera) no vuelve
+    rojo un lineal: se espera `pausa` y se toma una segunda muestra; si no pasa del tope, el caso sigue por la mediana."""
+    dormidos, grandes = [], [0]
+
+    def falso(funcion, *args):
+        n = len(args[0])
+        t = 2e-6 * n
+        if n == 12000 * CRECIMIENTO:                     # el caso grande del tamaño adaptado (12000 con suelo 0,02)
+            grandes[0] += 1
+            if grandes[0] == 1:
+                t = 11.0                                 # > TOPE_CPU_GRANDE: una sola muestra inflada
+        return t, args[0]
+    monkeypatch.setattr(sys.modules[__name__], "_cpu", falso)
+    monkeypatch.setattr(time, "sleep", lambda s: dormidos.append(s))
+    relativa, _tc, _tg, _ = _medir(lambda s: None, lambda n: "x" * n, suelo=0.02, pausa=0.5)
+    assert 0.5 in dormidos, dormidos                     # la confirmación espera `pausa`
+    assert relativa is not None and math.isfinite(relativa) and _es_lineal(relativa), relativa
+
+
+def test_fix8_un_grande_que_pasa_del_tope_en_las_dos_muestras_sigue_siendo_inf(monkeypatch):
+    def falso(funcion, *args):
+        n = len(args[0])
+        return (11.0 if n == 12000 * CRECIMIENTO else 2e-6 * n), args[0]
+    monkeypatch.setattr(sys.modules[__name__], "_cpu", falso)
+    relativa, *_ = _medir(lambda s: None, lambda n: "x" * n, suelo=0.02, pausa=0)
+    assert relativa == float("inf")
+
+
+def test_fix8_la_confirmacion_x4_de_la_sonda_espera_la_pausa(monkeypatch):
+    """Gap 10: la segunda muestra ×4 se toma tras `pausa`, igual que las rondas: una ráfaga de carga no cubre las dos."""
+    dormidos, x4 = [], [0]
+
+    def falso(funcion, *args):
+        n = len(args[0])
+        t = 2e-6 * n
+        if n == 48000:
+            x4[0] += 1
+            if x4[0] == 1:
+                t *= 10
+        return t, args[0]
+    monkeypatch.setattr(sys.modules[__name__], "_cpu", falso)
+    monkeypatch.setattr(time, "sleep", lambda s: dormidos.append(s))
+    _medir(lambda s: None, lambda n: "x" * n, n0=1500, suelo=0.02, pausa=0.5)
+    assert x4[0] >= 2 and 0.5 in dormidos, (x4, dormidos)
