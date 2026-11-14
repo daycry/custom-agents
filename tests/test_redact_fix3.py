@@ -460,9 +460,27 @@ def test_la_puerta_rechaza_la_regex_cuadratica_que_antes_quedaba_bajo_el_suelo()
                                  rondas=1, tope=TOPE_CPU_DEMO, paso=1.25, muestras=2,
                                  crecimiento=CRECIMIENTO_DEMO)   # fix8: ×4 y 2 muestras: menos coste
     assert relativa is not None and math.isfinite(relativa), (relativa, tc, tg)   # la mediana, no un `inf` de la sonda
-    assert relativa > CRECIMIENTO_DEMO / 2, (relativa, tc, tg)   # cuadrático ⇒ ≈ el crecimiento (4); lineal ⇒ ≈ 1
+    # fix9, gap 6: la aserción es la DECISIÓN REAL de la puerta (umbral 6), no `relativa > 2`: con ×4 un cuadrático da una
+    # razón ≈ 4 y `_es_lineal` lo dejaba pasar mientras la demo salía verde.
+    assert not _es_lineal(relativa), (relativa, tc, tg)
     # (sin `tc >= suelo/8`: `_medir` solo devuelve muestras de al menos ese valor, la aserción no podía fallar)
     assert tg > tc                                          # el grande cuesta de verdad más que el pequeño
+
+
+def test_fix9_la_demo_del_cuadratico_crece_lo_bastante_para_superar_el_umbral():
+    """Gap 6: con crecimiento `c` un cuadrático da una razón ≈ `c` (`(c² · t) / t / c`); si `c` no supera el umbral de la puerta, ni
+    el cuadrático real puede salir rojo en la demo. El margen medido (peor de 10 ensayos) va en el ledger."""
+    assert CRECIMIENTO_DEMO > RAZON_RELATIVA_MAX, (CRECIMIENTO_DEMO, RAZON_RELATIVA_MAX)
+
+
+def test_fix9_la_sonda_x4_extrapola_al_crecimiento_real_y_no_siempre_a_x16(monkeypatch):
+    """Gap 6: con `crecimiento=8` el caso grande es ×8 (64× el pequeño), no ×16 (256×): la sonda ×4 prometía el coste de ×16 y
+    una demo que costaba 1,3 s salía `inf` con un tope de 3 s. Un cuadrático medido a ×8 da una razón finita ≈ 8."""
+    _con_reloj_simulado(monkeypatch, lambda n: 1e-9 * n * n)
+    relativa, tc, tg, _ = _medir(lambda s: None, lambda n: "x" * n, suelo=0.02, pausa=0, rondas=1, tope=3.0, muestras=2,
+                                 crecimiento=8)
+    assert math.isfinite(relativa) and not _es_lineal(relativa), (relativa, tc, tg)
+    assert abs(relativa - 8.0) < 0.5, relativa
 
 
 def test_un_inf_de_la_sonda_x4_necesita_confirmacion_antes_del_rojo(monkeypatch):

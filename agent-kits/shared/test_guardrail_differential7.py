@@ -209,7 +209,34 @@ FALSO_DENY_ACEPTADO_8 = [
     'git commit -m "$(cat <<EOF\nit\'s\nEOF\n)"',
     'git commit -m "$(cat <<\'EOF-1\'\nit\'s\nEOF-1\n)"',
 ]
+# --- fix9 (gap 1 y gap 4): sustitucion de proceso con `xargs -a` (el `<(…)` partia el segmento y el `xargs` se perdia) y `env -S`
+# con los escapes propios de GNU env (`\_` es un espacio, `\c` corta). BAD con efecto real en bash (paridad): ---------------
+BAD9_PARIDAD = [
+    "xargs -a <(echo .) git restore",
+    "xargs -a <(echo a.txt) git checkout --",
+    "xargs --arg-file=<(echo a.txt) git checkout --",
+    "xargs --arg-file <(echo a.txt) git restore",
+    "xargs -a<(echo a.txt) git restore",
+    "xargs -a <(echo a.txt) -I{} sh -c 'git restore {}'",
+    "xargs -a <(git diff --name-only --relative) git restore",
+    r"xargs -0 -a <(printf 'a.txt\0') git restore",
+    "git diff --name-only --relative | xargs -a <(echo a.txt) git restore",
+    r"env -S 'git restore\_.'",
+    r"env -S 'git\_restore\_.'",
+    r"env -S 'git restore .\c'",
+    r"env -S 'git restore .\c ignorado'",
+    r"""env -S 'env -S "git\_restore\_."'""",
+]
+LEGIT9 = [
+    "xargs -a <(echo a.txt) git add",
+    "xargs -a <(git diff --name-only) git status",
+    "diff <(git show HEAD:a.txt) <(git show HEAD:a.txt)",
+    "env -S 'git status'",
+    "env -S 'git restore src/a.py'",
+]
 BAD7 += BAD8_PARIDAD
+BAD7 += BAD9_PARIDAD
+LEGIT7 += LEGIT9
 SIN_PARIDAD_7 |= set(SIN_PARIDAD_8)
 BAD7 += sorted(SIN_PARIDAD_8)
 LEGIT7 += LEGIT8
