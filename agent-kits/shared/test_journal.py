@@ -1341,10 +1341,9 @@ def test_replay_termina_dentro_del_presupuesto_con_0_10_100_pendientes(tmp_path)
         proj, _ = proyecto(tmp_path / f"n{n}", con_git=False)
         for i in range(n):
             journal.capture_end(str(proj), session_end_payload(proj, sid=f"s{i}"))
-        inicio = time.monotonic()
+        # Sin cota de reloj de pared (T-23 fix9, gap 2): que `replay` termine lo demuestra que devuelva (un cuelgue lo corta el
+        # timeout de la suite); el presupuesto y el tope se comprueban por sus efectos, no por cuánto tarda la máquina.
         r = journal.replay(str(proj), budget_ms=300, max_n=3)
-        dur_ms = (time.monotonic() - inicio) * 1000
-        assert dur_ms < 5000, f"n={n}: replay tardó {dur_ms:.0f} ms"
         assert 0 <= r["materializados"] <= min(n, 3)
         assert r["restantes"] == n - r["materializados"]
 
@@ -1810,8 +1809,8 @@ def test_transcript_seguro_symlink_o_fuera_del_directorio_permitido_se_ignora(tm
 def test_replay_cerrojo_ocupado_bajo_presupuesto_devuelve_bloqueado_rapido(tmp_path):
     """Gap 32 (B5): `replay` tomaba antes un `flock` BLOQUEANTE arrancando el reloj DESPUÉS — con
     el cerrojo tomado por OTRO proceso 3s, `budget_ms=500` tardaba esos 3s en vez de 500ms
-    (`SessionStart`, T-05, se colgaría). Aquí el cerrojo lo tiene un hilo durante 3s y `replay`
-    debe volver bloqueado en bastante menos de 1s."""
+    (`SessionStart`, T-05, se colgaría). Aquí el cerrojo lo tiene un hilo y `replay` debe volver
+    bloqueado SIN esperar a que se suelte (sin cota de reloj de pared, T-23 fix9)."""
     import fcntl
     import threading
     proj, _ = proyecto(tmp_path, con_git=False)
@@ -1820,22 +1819,33 @@ def test_replay_cerrojo_ocupado_bajo_presupuesto_devuelve_bloqueado_rapido(tmp_p
     os.makedirs(dir_, exist_ok=True)
     lock_path = os.path.join(dir_, ".replay.lock")
 
+    # Sin cota de reloj de pared (T-23 fix9, gap 2): el hilo SOSTIENE el cerrojo hasta que el test lo suelta. Si `replay` fuera
+    # bloqueante no volvería nunca mientras el cerrojo sigue tomado: se ejecuta en otro hilo y se comprueba que vuelve con el
+    # cerrojo aún tomado (el límite de 60 s solo evita colgar el test, no es una aserción de rendimiento).
+    tomado, soltar = threading.Event(), threading.Event()
+
     def sostener_cerrojo():
         fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
         fcntl.flock(fd, fcntl.LOCK_EX)
-        time.sleep(3)
+        tomado.set()
+        soltar.wait(timeout=60)
         fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
 
+    resultado = []
     th = threading.Thread(target=sostener_cerrojo)
     th.start()
-    time.sleep(0.1)                     # deja que el hilo tome el cerrojo primero
-    t0 = time.monotonic()
-    r = journal.replay(str(proj), budget_ms=500)
-    elapsed = time.monotonic() - t0
-    th.join(timeout=5)
+    assert tomado.wait(timeout=30)      # el hilo tomó el cerrojo primero
+    consulta = threading.Thread(target=lambda: resultado.append(journal.replay(str(proj), budget_ms=500)))
+    consulta.start()
+    consulta.join(timeout=60)
+    volvio_con_el_cerrojo_tomado = not consulta.is_alive() and not soltar.is_set()
+    soltar.set()
+    th.join(timeout=30)
+    consulta.join(timeout=30)
+    assert volvio_con_el_cerrojo_tomado, "replay debía volver bloqueado mientras otro proceso tiene el cerrojo"
+    r = resultado[0]
     assert r["bloqueado"] is True and r["materializados"] == 0
-    assert elapsed < 1.5, f"tardó {elapsed:.2f}s: el cerrojo debía ser NO bloqueante bajo presupuesto"
 
 
 def test_fecha_local_de_captured_at_usa_tz_local_no_utc():
@@ -2264,17 +2274,18 @@ def test_replay_con_recover_materializa_huerfana_bajo_el_mismo_cerrojo(tmp_path)
     assert len(es) == 1 and es[0]["session_id"] == "cr1" and es[0]["cierre"] == "recuperado_sin_cierre"
 
 
-def test_replay_con_recover_max_limita_aunque_haya_cientos_de_huerfanas(tmp_path):
-    """Gap 65: 100 huérfanas, `--max 3` -> como mucho 3 recuperadas en esta pasada, dentro de
-    presupuesto (antes `recover` no tenía tope propio ni presupuesto)."""
+def test_replay_con_recover_max_limita_aunque_haya_cientos_de_huerfanas(tmp_path, monkeypatch):
+    """Gap 65: 100 huérfanas, `--max 3` -> exactamente 3 recuperadas en esta pasada (antes `recover` no tenía tope propio ni
+    presupuesto). T-23 fix9, gap 2: sin reloj de pared. El plazo de la E/S del journal se fija con la escala inyectada del
+    fix8 (60 s) y el presupuesto de trabajo es holgado (120 s): con el de 2 s y un fsync lento bajo carga la pasada se cortaba
+    en 2 de 3 (falló 5 de 7 ejecuciones). La aserción de duración desaparece: lo que se comprueba es el TOPE, no el rendimiento."""
+    monkeypatch.setenv("CUSTOM_AGENTS_JOURNAL_IO_DEADLINE_SCALE", "12")
     proj, _ = proyecto(tmp_path, con_git=False)
     for i in range(100):
         _log_prompts(proj, f"h{i}", mtime_hace_min=1500)
-    inicio = time.monotonic()
-    r = journal.replay(str(proj), budget_ms=2000, max_n=3, con_recover=True, current_session_id="viva")
-    dur_ms = (time.monotonic() - inicio) * 1000
+    r = journal.replay(str(proj), budget_ms=120000, max_n=3, con_recover=True, current_session_id="viva")
     assert r["recuperadas"] == 3
-    assert dur_ms < 5000, f"replay --con-recover tardó {dur_ms:.0f} ms con 100 huérfanas"
+    assert len(journal.entradas(str(proj))) == 3
 
 
 def test_replay_con_recover_dos_procesos_concurrentes_no_duplican(tmp_path):
@@ -2635,24 +2646,31 @@ def test_cmd_recover_expone_budget_ms_y_max_con_defaults_0_sin_tope(tmp_path):
 @pytest.mark.skipif(os.name == "nt", reason="flock es POSIX; en Windows el equivalente es msvcrt")
 def test_recover_cerrojo_ocupado_bajo_presupuesto_devuelve_bloqueado_rapido(tmp_path):
     """Gap 87: `recover()` a demanda usa `_cerrojo_presupuestado` con deadline — si el cerrojo lo
-    tiene OTRO proceso, devuelve `bloqueado: true` en bastante menos de 1s, nunca colgado."""
+    tiene OTRO proceso, devuelve `bloqueado: true` sin esperar a que se suelte, nunca colgado."""
     import fcntl
+    import threading
     proj, _ = proyecto(tmp_path, con_git=False)
     dir_ = journal._journal_queue_dir(str(proj))
     os.makedirs(dir_, exist_ok=True)
     lock_path = os.path.join(dir_, ".replay.lock")
     fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
     fcntl.flock(fd, fcntl.LOCK_EX)
+    resultado = []
     try:
-        t0 = time.monotonic()
-        r = journal.recover(str(proj), current_session_id="viva", budget_ms=300)
-        elapsed = time.monotonic() - t0
+        # Sin cota de reloj de pared (T-23 fix9, gap 2): el cerrojo sigue tomado todo el rato; `recover` bloqueante no volvería
+        # nunca. Va en otro hilo y se comprueba que vuelve con el cerrojo aún tomado (60 s solo evita colgar el test).
+        hilo = threading.Thread(target=lambda: resultado.append(journal.recover(str(proj), current_session_id="viva", budget_ms=300)))
+        hilo.start()
+        hilo.join(timeout=60)
+        volvio = not hilo.is_alive()
     finally:
         fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
+    hilo.join(timeout=30)
+    assert volvio, "recover() debía volver bloqueado mientras otro proceso tiene el cerrojo"
+    r = resultado[0]
     assert r.get("bloqueado") is True
     assert r["recuperadas"] == 0
-    assert elapsed < 1.0, f"tardó {elapsed:.2f}s: recover() debía volver bloqueado bajo presupuesto"
 
 
 def test_docstring_y_help_de_recover_dicen_1440_no_360():

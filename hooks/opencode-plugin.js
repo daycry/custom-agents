@@ -63,20 +63,36 @@ const normalized = path => process.platform === 'win32' ? resolve(path).toLowerC
 // project reached through another path form is not another project) and their workspace IDs do not CONTRADICT each other
 // (T-06 fix8, gap 6): an ID present on one side only never makes the session foreign. Case-insensitive file systems (Windows,
 // macOS) compare in lower case.
+// `realpathSync.native` is a blocking system call (on SMB or a VPN it stalls the event loop on every tool call and every
+// event): the plugin's own directory is resolved ONCE, when it loads, and every other path through a per-string cache,
+// bounded (a full cache is dropped as a whole: a project has a handful of distinct paths). Only a successful resolution is
+// cached, so a path that does not exist yet falls back to `resolve()` each time and is resolved for real once it exists
+// (T-06 fix9, gap 7).
+const CANONICAL_CACHE_MAX = 64;
+const canonicalCache = new Map();
 const canonical = path => {
-  let real;
-  try { real = realpathSync.native(path); } catch { real = resolve(path); }
-  return process.platform === 'win32' || process.platform === 'darwin' ? real.toLowerCase() : real;
+  const cached = canonicalCache.get(path);
+  if (cached !== undefined) return cached;
+  let real, resolved = true;
+  try { real = realpathSync.native(path); } catch { real = resolve(path); resolved = false; }
+  const value = process.platform === 'win32' || process.platform === 'darwin' ? real.toLowerCase() : real;
+  if (resolved) {
+    if (canonicalCache.size >= CANONICAL_CACHE_MAX) canonicalCache.clear();
+    canonicalCache.set(path, value);
+  }
+  return value;
 };
-const sameLocation = (a, b) => typeof a?.directory === 'string' && typeof b?.directory === 'string'
-  && canonical(a.directory) === canonical(b.directory)
+const sameLocation = (a, b, bDirectory) => typeof a?.directory === 'string' && typeof b?.directory === 'string'
+  && canonical(a.directory) === (bDirectory ?? canonical(b.directory))
   && (a.workspaceID == null || b.workspaceID == null || a.workspaceID === b.workspaceID);
 
 export default {
   id: 'custom-agents',
   async setup(ctx) {
     const location = ctx.location;
-    const roots = [join(here, '..', '..'), join(here, '..'), here,
+    // The plugin's own location, resolved once here (gap 7): the comparisons below reuse it instead of resolving it again.
+    const locationReal = typeof location?.directory === 'string' ? canonical(location.directory) : undefined;
+    const roots =[join(here, '..', '..'), join(here, '..'), here,
       join(location.directory, '.opencode'), join(location.directory, '.claude'),
       join(home, '.config', 'opencode'), join(home, '.claude')];
     const hooks = roots.map(root => join(root, 'hooks')).find(dir => existsSync(join(dir, 'run-hook.mjs')));
@@ -230,7 +246,7 @@ export default {
       if (!sessionID || controller.signal.aborted) return {};
       const response = await ctx.session.get({ sessionID });
       const session = response?.data ?? response;
-      if (sameLocation(session?.location, location)) return { directory: session.location.directory };
+      if (sameLocation(session?.location, location, locationReal)) return { directory: session.location.directory };
       return typeof session?.location?.directory === 'string' ? { foreign: true } : {};
     }
     async function project(sessionID) { return (await locate(sessionID)).directory ?? null; }
@@ -434,7 +450,7 @@ export default {
             || (event.type === binding.idle_status_event && event.data?.status?.type === binding.idle_status);
           const activity = matches(bindings.activity), capture = matches(bindings.capture);
           // V2's local stream omits location; session.get remains authoritative in every case.
-          if ((!activity && !capture) || (event.location && !sameLocation(event.location, location))) continue;
+          if ((!activity && !capture) || (event.location && !sameLocation(event.location, location, locationReal))) continue;
           try {
             const cwd = await project(event.data?.sessionID);
             if (cwd) {

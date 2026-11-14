@@ -363,7 +363,9 @@ reglas de comandos Bash/PowerShell; Codex admite `apply_patch` y comandos emitid
 como Bash; OpenCode V2 admite write/edit/patch/shell (`path`, `oldString`/`newString`,
 `patchText`). Entrada no reconocida continúa con diagnóstico; la de más de 64 KiB se deniega
 para `implementer` y `architect` (falla cerrado, ADR-023) y continúa con
-diagnóstico para el resto. No inspecciona toda escritura indirecta desde shell o MCP.
+diagnóstico para el resto. Límite del modelo de amenaza: la clave del rol se busca en todo el flujo, pero la lectura
+tiene un plazo de 4,5 s; un payload hostil de claves densas de 128 MiB o más lo agota antes de llegar al rol y continúa
+(ninguna herramienta de un agente honesto produce una entrada así). No inspecciona toda escritura indirecta desde shell o MCP.
 
 La consulta de rama reconoce también HEAD simbólico antes del primer commit:
 main/master conserva su protección y una feature conserva las reglas de cambio

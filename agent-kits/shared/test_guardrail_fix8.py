@@ -76,13 +76,14 @@ def test_gap2_xargs_con_opcion_opcional_y_git_inocuo_sigue_permitido(cmd):
     "env -S 'git reset \"--hard\"'", "env -S 'git \"reset\" --hard'", "env -S 'git restore \".\"'",
     "env -S 'env -S \"git -C .. restore a.txt\"'", "env -S \"git restore '.'\"", "env -S 'git restore \\.'",
     "env -S 'git \"status' ; git restore .", "env -S 'git \"status'",
+    "env -S 'echo \"hola'",    # fix9, punto 4: una comilla abierta se deniega SIEMPRE (con o sin git); antes era legitimo
 ])
 def test_gap4_env_s_con_comillas_dentro_del_valor(cmd):
     assert decide(cmd), cmd
 
 
 @pytest.mark.parametrize("cmd", [
-    "env -S 'git status'", "env -S 'git log -1 --format=\"%h %s\"'", "env -S 'echo \"hola'", "env FOO=1 git status",
+    "env -S 'git status'", "env -S 'git log -1 --format=\"%h %s\"'", "env FOO=1 git status",
 ])
 def test_gap4_env_s_legitimo_sigue_permitido(cmd):
     assert decide(cmd) is None, cmd

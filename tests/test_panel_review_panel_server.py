@@ -28,6 +28,9 @@ def load(path, name):
     return module
 
 
+PLAZO_INYECTADO = 120   # s: `BODY_TIMEOUT` (3 s) se agota bajo `-n auto` con el dueno real; ninguna prueba depende de que se agote
+
+
 @pytest.fixture
 def service():
     return load(SCRIPT, 'panel_scope_transport')
@@ -260,8 +263,8 @@ def test_owner_failure_degrades_without_stack_or_paths(service, tmp_path, monkey
         server.shutdown(); server.server_close(); thread.join(5)
 
 
-@pytest.mark.serie   # abre una revision con el dueno real y un plazo de pared de 3 s (BODY_TIMEOUT): bajo `-n auto` se agota (T-23 fix8)
-def test_real_owner_open_then_summary_and_current(service, tmp_path):
+def test_real_owner_open_then_summary_and_current(service, tmp_path, monkeypatch):
+    monkeypatch.setattr(service, 'BODY_TIMEOUT', PLAZO_INYECTADO)   # el plazo de pared de 3 s se inyecta (T-23 fix9, gap 5)
     project = make_project(tmp_path)
     server = service.create_server(project, DATA, review_scope={'state_root': project / '.claude/plan-review'})
     thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
@@ -456,9 +459,9 @@ def test_una_carpeta_con_plan_no_revisable_no_ofrece_revision_y_review_current_d
 
 # --- fix2 de la Fase 2: una operación que cambia estado invalida la caché de review-current/summary (I2-2) -------------
 
-@pytest.mark.serie   # abre una revision con el dueno real y un plazo de pared de 3 s (BODY_TIMEOUT): bajo `-n auto` se agota (T-23 fix8)
-def test_con_el_dueno_real_refresh_y_submit_se_ven_al_instante_en_review_current(service, tmp_path):
+def test_con_el_dueno_real_refresh_y_submit_se_ven_al_instante_en_review_current(service, tmp_path, monkeypatch):
     """I2-2: sin esperar al TTL de 5 s, `review-current` devuelve el `review_id` nuevo tras refresh y el estado tras submit."""
+    monkeypatch.setattr(service, 'BODY_TIMEOUT', PLAZO_INYECTADO)   # T-23 fix9, gap 5: plazo inyectado, sin paso serie
     project = make_project(tmp_path)
     server = service.create_server(project, DATA, review_scope={'state_root': project / '.claude/plan-review'})
     thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()

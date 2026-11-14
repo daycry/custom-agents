@@ -508,6 +508,17 @@ def _leer(command, i, modo, st, prof):
             cur.append("<<<" if triple else "<<")
             i += 3 if triple else 2
             continue
+        elif c in "<>" and command.startswith("(", i + 1) and quote is None:
+            # Sustitución de proceso `<(…)` / `>(…)` (fix9, gap 1): es PARTE de la palabra que la lleva, como `$(…)`. El
+            # interior se lee aparte, como segmentos propios, y la orden exterior sigue entera con sus argumentos
+            # (`xargs -a <(git diff --name-only) git restore` es un solo `xargs`: antes el `(` la partía y el `xargs` se perdía).
+            # La palabra queda como `<()`/`>()`: sigue empezando por `<`/`>` (`_FUENTE_VISIBLE`, `source <(…)`).
+            i, extra = _leer(command, i + 2, "sub", st, prof + 1)
+            pend.extend(extra)
+            word.append(c + "()")
+            started = True
+            ult_redir = -2
+            continue
         elif c == "(" and command.startswith("((", i) and not cur and not started \
                 and _aritmetica(command, i + 2, st) is not None:
             i = _aritmetica(command, i + 2, st)    # `(( expr ))`: aritmética, no órdenes
@@ -812,20 +823,97 @@ def _saltar_envoltorio(toks, i):
 
 
 _MAX_TROCEOS_S = 4
-_MAX_VALOR_S = 2048             # `shlex` lee carácter a carácter (~2 µs): un valor más largo no se trocea, se deniega con git
+_MAX_VALOR_S = 2048             # un valor más largo no se trocea: se deniega SIEMPRE (el troceo es carácter a carácter)
+_ESCAPES_ENV = {"t": "\t", "n": "\n", "v": "\v", "f": "\f", "r": "\r", "\\": "\\", "'": "'", '"': '"', "#": "#",
+                "$": "$"}
+_BLANCOS_ENV = " \t\n\v\f\r"
+
+
+class _OpcionIlegible(str):
+    """La opción `-S` cuyo valor el guardarraíl no puede trocear. `siempre`: se deniega con o sin `git` (valor fuera del
+    tope o con una comilla abierta); si no, solo con `git` (un escape desconocido, que env rechaza)."""
+    siempre = False
+
+
+class _SinTroceo(Exception):
+    def __init__(self, siempre):
+        super().__init__(siempre)
+        self.siempre = siempre
 
 
 def _trocea_s(valor, cortes):
-    """Palabras de un valor de `env -S` como las trocea env (comillas y barra invertida, `shlex` POSIX) o `None` si no se pueden
-    leer (comilla sin cerrar), si ya hubo `_MAX_TROCEOS_S` troceos en esta orden o si el valor pasa de `_MAX_VALOR_S` caracteres: cada troceo reconstruye la lista de
-    palabras, así que una cadena de `-S` anidados sería cuadrática (fix8, gap 4). `None` = opción desconocida."""
+    r"""Palabras de un valor de `env -S` TROCEADO COMO LO HACE GNU env (fix9, gap 4; antes `shlex`, que no conoce sus
+    escapes): los blancos separan; las comillas simples son literales salvo `\\` y `\'`; las dobles admiten escapes; fuera
+    de comillas `\_` separa y `\c` corta; `\t \n \v \f \r \\ \' \" \# \$` son el carácter; un `#` al empezar palabra abre un
+    comentario. Lanza `_SinTroceo(siempre=True)` si ya hubo `_MAX_TROCEOS_S` troceos en esta orden (cada uno reconstruye la
+    lista: una cadena de `-S` anidados sería cuadrática, fix8, gap 4), si el valor pasa de `_MAX_VALOR_S` caracteres o si
+    queda una comilla abierta, y `_SinTroceo(siempre=False)` ante un escape desconocido o una barra final (env falla: se
+    deniega solo con `git`). Lineal en el valor."""
     cortes[0] += 1
     if cortes[0] > _MAX_TROCEOS_S or len(valor) > _MAX_VALOR_S:
-        return None
-    try:
-        return shlex.split(valor, posix=True)
-    except ValueError:
-        return None
+        raise _SinTroceo(True)
+    palabras, palabra, en_palabra, comilla, i, n = [], [], False, None, 0, len(valor)
+
+    def cierra():
+        nonlocal palabra, en_palabra
+        if en_palabra:
+            palabras.append("".join(palabra))
+        palabra, en_palabra = [], False
+
+    while i < n:
+        c = valor[i]
+        if comilla == "'":
+            if c == "'":
+                comilla = None
+            elif c == "\\" and valor[i + 1:i + 2] in ("\\", "'"):
+                i += 1
+                palabra.append(valor[i])
+            else:
+                palabra.append(c)
+        elif c == "\\":
+            sig = valor[i + 1:i + 2]
+            if not sig:
+                raise _SinTroceo(False)                       # barra final
+            i += 1
+            if sig == "_":
+                if comilla == '"':
+                    palabra.append(" ")
+                else:
+                    cierra()                                  # fuera de comillas es un separador
+            elif sig == "c":
+                if comilla:
+                    raise _SinTroceo(False)                   # env: «'\c' must not appear in double-quoted -S string»
+                break
+            elif sig in _ESCAPES_ENV:
+                palabra.append(_ESCAPES_ENV[sig])
+                en_palabra = True
+            else:
+                raise _SinTroceo(False)
+        elif comilla == '"':
+            if c == '"':
+                comilla = None
+            else:
+                palabra.append(c)
+        elif c in "'\"":
+            comilla, en_palabra = c, True
+        elif c in _BLANCOS_ENV:
+            cierra()
+        elif c == "#" and not en_palabra:
+            break
+        else:
+            palabra.append(c)
+            en_palabra = True
+        i += 1
+    if comilla:
+        raise _SinTroceo(True)
+    cierra()
+    return palabras
+
+
+def _opcion_ilegible(opcion, siempre):
+    ilegible = _OpcionIlegible(opcion)
+    ilegible.siempre = siempre
+    return ilegible
 
 
 def _opciones_env(nombre, toks, i, bindings, cortes):
@@ -863,9 +951,10 @@ def _opciones_env(nombre, toks, i, bindings, cortes):
             elif nombre == "env" and (o == "--split-string" or o.startswith("--split-string=")):
                 valor, usados = ((o.split("=", 1)[1], 1) if "=" in o else
                                  (toks[i + 1] if i + 1 < len(toks) else "", 2))
-                palabras = _trocea_s(valor, cortes)
-                if palabras is None:
-                    return i, toks, chdir, o
+                try:
+                    palabras = _trocea_s(valor, cortes)
+                except _SinTroceo as ilegible:
+                    return i, toks, chdir, _opcion_ilegible(o, ilegible.siempre)
                 toks = toks[:i] + palabras + toks[i + usados:]
             elif nombre == "env" and base in _ENV_LARGAS_SIN_VALOR:
                 i += 1
@@ -898,9 +987,10 @@ def _opciones_env(nombre, toks, i, bindings, cortes):
                 elif letra == "C":
                     chdir = True
                 elif letra == "S":
-                    palabras = _trocea_s(valor, cortes)
-                    if palabras is None:
-                        return i, toks, chdir, o
+                    try:
+                        palabras = _trocea_s(valor, cortes)
+                    except _SinTroceo as ilegible:
+                        return i, toks, chdir, _opcion_ilegible(o, ilegible.siempre)
                     toks = toks[:i] + palabras + toks[i + usados:]
                     usados = 0
                 i += usados
@@ -1616,6 +1706,10 @@ def _check_git(command, branch, _depth=0, _env=None, _base=False, _xargs=False):
     for n, toks in enumerate(segmentos):
         crudo = toks
         toks, bindings, _chdir, desconocida, via_xargs = _desenvuelve(toks, _env)
+        if getattr(desconocida, "siempre", False):
+            return (f"valor de `env -S` ilegible bloqueado (`{desconocida}`: comilla abierta, más de {_MAX_VALOR_S} "
+                    f"caracteres o más de {_MAX_TROCEOS_S} `-S` anidados): el guardarraíl no puede saber qué orden "
+                    "ejecuta env — escríbela sin `-S`, con el programa y sus argumentos en palabras separadas.")
         if desconocida and any(_GIT_TEXTO_RE.search(t) for t in crudo):
             return (f"opción `{desconocida}` de un envoltorio (`timeout`, `nice`, `sudo`, `xargs`, `flock`, `env`…) no "
                     "reconocida en una orden con `git`: el guardarraíl no puede saber si consume un valor ni qué "

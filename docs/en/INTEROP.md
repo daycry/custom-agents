@@ -358,7 +358,9 @@ command rules; Codex supports `apply_patch` and commands emitted as Bash; OpenCo
 V2 supports write/edit/patch/shell (`path`, `oldString`/`newString`, `patchText`).
 Unrecognized input continues with diagnostics; input above 64 KiB is denied for
 `implementer` and `architect` (fails closed, ADR-023) and continues with
-diagnostics for every other identity. Arbitrary indirect shell/MCP writes are not
+diagnostics for every other identity. Threat-model limit: the role key is looked for in the whole stream, but the read
+has a 4.5 s deadline; a hostile payload of dense keys of 128 MiB or more exhausts it before reaching the role and continues
+(no tool of an honest agent produces such an input). Arbitrary indirect shell/MCP writes are not
 comprehensively inspected.
 
 Branch lookup also recognizes symbolic HEAD before the first commit: main/master
