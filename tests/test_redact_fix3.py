@@ -417,11 +417,43 @@ def test_la_puerta_separa_lineal_de_cuadratico_y_deja_fuera_el_n_a_la_1_5(monkey
 @pytest.mark.serie
 def test_la_puerta_rechaza_la_regex_cuadratica_que_antes_quedaba_bajo_el_suelo():
     """`re.compile(r"x*y").search("x"*N)` con N pequeño tardaba < 50 ms y la puerta anterior no comparaba
-    razones (`tc=0.0000 tg=0.4062` pasaba): ahora el tamaño crece hasta superar el suelo y la razón sale ≈ 8."""
-    relativa, tc, tg, _ = _medir(_regex_cuadratica, lambda n: "x" * n, n0=500, suelo=SUELO_DEMO, pausa=0)
-    assert relativa is not None and not _es_lineal(relativa), (relativa, tc, tg)
+    razones (`tc=0.0000 tg=0.4062` pasaba): ahora el tamaño crece hasta superar el suelo y la razón sale ≈ 16.
+
+    Fix7 (gap 15): la demostración con reloj real pasa por la MEDIANA de las muestras. Antes la resolvía siempre la sonda
+    ×4 con un `inf` sacado de UNA sola muestra (5/5 en Windows) y la mediana nunca se ejercitaba: aquí el tope de un
+    caso grande se sube (`tope`) para que el cuadrático dé muestras MEDIBLES, y se exige una razón FINITA."""
+    relativa, tc, tg, _ = _medir(_regex_cuadratica, lambda n: "x" * n, n0=500, suelo=SUELO_DEMO, pausa=0,
+                                 rondas=1, tope=TOPE_CPU_DEMO)
+    assert relativa is not None and math.isfinite(relativa), (relativa, tc, tg)   # la mediana, no un `inf` de la sonda
+    assert not _es_lineal(relativa), (relativa, tc, tg)
     # (sin `tc >= suelo/8`: `_medir` solo devuelve muestras de al menos ese valor, la aserción no podía fallar)
     assert tg > tc                                          # el grande cuesta de verdad más que el pequeño
+
+
+def test_un_inf_de_la_sonda_x4_necesita_confirmacion_antes_del_rojo(monkeypatch):
+    """Fix7 (gap 15): una sola medida ×4 inflada por la carga (aquí 10×, la primera) no vuelve rojo un caso lineal: la
+    sonda promete `inf` y se confirma con una segunda muestra; si esa no lo confirma, el caso sigue por la mediana."""
+    llamadas = {"x4": 0}
+    modelo = lambda n: 2e-6 * n
+
+    def falso(funcion, *args):
+        n = len(args[0])
+        t = modelo(n)
+        if n == 48000:                                              # el caso ×4 del tamaño adaptado (12000 × 4)
+            llamadas["x4"] += 1
+            if llamadas["x4"] == 1:
+                t *= 10
+        return t, args[0]
+    monkeypatch.setattr(sys.modules[__name__], "_cpu", falso)
+    relativa, tc, tg, _ = _medir(lambda s: None, lambda n: "x" * n, n0=1500, suelo=0.02, pausa=0)
+    assert llamadas["x4"] >= 2, llamadas                       # se confirmó con una segunda muestra ×4
+    assert relativa is not None and _es_lineal(relativa), (relativa, tc, tg)
+
+
+def test_el_cuadratico_sigue_siendo_rojo_con_la_confirmacion_de_la_sonda(monkeypatch):
+    _con_reloj_simulado(monkeypatch, lambda n: 1e-9 * n * n * 40)          # cuadrático caro: la sonda promete > tope
+    relativa, _tc, _tg, _ = _medir(lambda s: None, lambda n: "x" * n, n0=1500, suelo=0.02, pausa=0)
+    assert not _es_lineal(relativa), relativa
 
 
 def test_sin_suelo_alcanzado_no_se_aprueba_por_razon():
