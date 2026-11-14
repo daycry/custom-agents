@@ -1517,3 +1517,57 @@ Lentes: A+B+C+D sobre `c3c7989..1ba8714`, dos a dos por memoria (≈ 2 GB libres
 8. **Límite** (gap 8). Se añade al modelo de amenaza de `implementer.md` y de INTEROP ES/EN.
 
 Tras este ciclo: réplica Linux completa sin rojo, medida emparejada de T-23 con el equipo libre (la hace el orquestador) y verificación dirigida de las cuatro lentes. Si solo quedan Minor sin pérdida de datos, la fase cierra.
+
+## Revisión de dos lentes — intento 10: Fase 1 (T-06, T-23) — verificación dirigida del fix9: 2 Important, 7 Minor
+
+Lentes: A+B+C+D sobre `93df37e..ae382f7`, dos a dos por memoria.
+
+**Cerrado del intento 9:** los 8 gaps.
+- `xargs -a`/`--arg-file` con `<(…)` → deny en sus 15 formas. El fuzz de la Lente B (5.208 órdenes, 93df37e frente a HEAD) da 0 regresiones fuera de `case`.
+- `test_journal` sin reloj de pared: `-k replay` ×10 con 16 bucles de CPU, 10/10.
+- Escáner Python con `\\.` y test de paridad.
+- `env -S` con troceo propio: 47-48 valores comparados con GNU env 8.32 real.
+- Panel con `BODY_TIMEOUT` inyectado y en paralelo.
+- Demo de redact con `not _es_lineal`: razones medidas de 9,66 a 15,23 con umbral 6; coste de 3,4 a 10,4 s.
+- OpenCode con caché.
+- Límite de 128 MiB documentado.
+
+**Interpretaciones aceptadas del implementer:**
+- i1: troceo propio en vez de shlex.
+- i3: `env -S 'echo "hola'` pasa a deny.
+- i4: `\#` y `\$` se permiten.
+- i5: `${VAR}` dentro de `-S` es indirección y entra en el modelo de amenaza.
+
+`source <(echo git restore .)`/`bash <(…)` → allow es indirección (el texto lo genera `echo`). Las órdenes escritas dentro de `<(…)` sí se analizan (Lente C). Queda como límite.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | Regresión del fix9: dentro de `<(…)`/`>(…)` el `)` de un patrón de `case` cierra la sustitución, y el resto se queda como argumentos de la orden exterior, que ya no se parte. `cat <(case x in x) git reset --hard;; esac)` → allow (deny en 93df37e). Igual con `tee >(case x in x) git stash drop;; esac)` y `diff <(case "$f" in *.py) git checkout master;; esac) b`. `$(case x in x) …)` ya daba allow en 93df37e. Bash 5.2.37 real: centinela perdido. Verificado por el orquestador | T-06 | pendiente | Lente C: `guardrail-check.py:511-521,530`; `lc10/p1.py`, `lc10/r1` |
+| 2 | Important | Fallo abierto en OpenCode, silencioso y permanente. Si `realpathSync.native` falla una vez durante `setup` (EIO pasajero en unidad de red, junction o enlace), `locationReal` se queda en `resolve()`. Las llamadas posteriores sí resuelven y se cachean, así que `sameLocation` da falso y la sesión del propio proyecto sale `foreign`: sin guard durante toda la vida del plugin. En 93df37e se deniega | T-06 | pendiente | Lente C: `hooks/opencode-plugin.js:73-84,94,250,311-315` y su espejo; `lc10/p3.mjs` |
+| 3 | Minor | La caché de rutas reales no caduca y `locationReal` se fija en `setup`. Si el enlace del proyecto se re-apunta con OpenCode abierto, la sesión sale `foreign`. Requiere re-apuntar el enlace. El impacto de punta a punta no es verificable sin runtime | T-06 | pendiente | Lentes B y C: `opencode-plugin.js:73-82,94`; `lb10/oc.mjs` |
+| 4 | Minor | Un fallo de `realpath` no se cachea y se repite de forma síncrona en cada herramienta y cada evento. En UNC caído son 8 s la primera vez y de 5,6 a 8 ms después, con el bucle de eventos bloqueado. No es regresión | T-06 | pendiente | Lente D: `opencode-plugin.js:77-82,249,453`; `ld10/rp.mjs` |
+| 5 | Minor | `_BLANCOS_ENV` incluye `\n\v\f\r`, pero GNU env 8.32 solo separa por espacio y tabulador. Tras un LF el guard abre palabra nueva y toma `#` como comentario: `env -S 'git -c user.name=c⏎#y restore .'` → allow, con el centinela perdido en bash real. En 93df37e también daba allow. Es una forma deliberada | T-06 | pendiente | Lente B: `guardrail-check.py:829,899,901`; `lb10/envcmp.py` |
+| 6 | Minor | Paridad de blancos: el `\s` de Python casa `\x1c`-`\x1f` y `\x85`; el de JS no. Solo ocurre con JSON inválido y el lado más estricto es Python. Sin efecto de punta a punta | T-06 | pendiente | Lente C: `native-guardrail.py:83` frente a `run-hook.mjs:116`; `lc10/p4.py` |
+| 7 | Minor | Dos aserciones con presupuesto corto (`replay(budget_ms=100)` y `recover(budget_ms=300)` esperan 1) no recibieron el trato del punto 2. Margen sin carga de unas 3×. La Lente B no las reproduce en 60 iteraciones con carga | T-23 | pendiente | Lente A: `test_journal.py:1631-1632,2716-2717`; `la10/jb2.py` |
+| 8 | Minor | Los comentarios de la demo de redact contradicen el ledger y la configuración: dicen 11,8 frente a 10,90, «1 muestra» frente a `MUESTRAS_DEMO = 3`, y ×14 frente a ×12 | T-23 | pendiente | Lente A: `tests/test_redact_fix3.py:262,469,705` |
+| 9 | Minor | Fuera del diff. En 2 de 10 pasadas, `test_replay_con_recover_dos_procesos_concurrentes_no_duplican` emite un warning de hilo en Windows: `FileExistsError [WinError 183]` al renombrar `.tmp-*` → `.custom-agents-journal`, seguido de `ValueError: unsafe_state`. El test pasa. Puede ser una carrera de escritura del journal en Windows | T-23 | pendiente (investigar) | Lente B: `journal-io.py:108-121` |
+
+**Diseño fijado por el orquestador para fix10:**
+
+1. **`case` dentro de una sustitución** (gap 1). Dentro de `$(…)`, `<(…)`, `>(…)` y backticks, el lector reconoce la gramática de `case`: tras `case <palabra> in`, un `)` cierra un patrón y no la sustitución, hasta `;;`, `;&`, `;;&` o `esac`. También vale el `(` opcional delante del patrón. Si el lector no puede seguir la gramática con certeza (anidamiento, `esac` ausente), la orden se deniega cuando contiene git o un cambio de base. Ante la duda, deny. Las formas del gap, con `$(case …)` incluido, van al corpus diferencial como BAD con bash real. Se amplía el fuzz de la Lente B con `case` en todos los contextos.
+2. **OpenCode, comparación sin fallo abierto** (gaps 2, 3 y 4).
+   - Dos rutas son la misma ubicación si coinciden tras `resolve()` (con minúsculas en win32 y darwin) **o** tras `realpath`. La unión solo amplía qué sesiones se guardan.
+   - La ruta real de `location.directory` no se fija en `setup`. Pasa por la misma caché que el resto.
+   - La caché guarda éxitos y fallos con caducidad corta (unos 5 s), está acotada y no bloquea más de una resolución por ruta y ventana.
+   - Tests del adaptador: fallo en el primer `realpath` y éxito después → la sesión propia se guarda; enlace re-apuntado → guardada al caducar la entrada; ruta caída → una sola llamada por ventana. Se regenera interop.
+3. **`env -S`** (gap 5). Se separa solo por espacio y tabulador, como GNU env. `\n`, `\v`, `\f` y `\r` literales son parte de la palabra y no abren comentario. Se comprueba también contra el coreutils de la imagen Linux de CI (9.x) en la réplica: si difiere de 8.32, se deniega la forma ambigua.
+4. **Paridad** (gap 6). Los dos escáneres usan la misma clase explícita de blancos JSON (`[ \t\n\r]`), sin `\s`. Se añaden casos al test de paridad.
+5. **Journal** (gap 7). Los dos presupuestos cortos pasan a un reloj inyectado, o a un presupuesto que no dependa de la carga, con la misma semántica (1 elemento). El test vigía de fix9 los incluye.
+6. **Comentarios de la demo** (gap 8). Se corrigen con las cifras de la configuración final y del ledger.
+7. **Carrera del journal en Windows** (gap 9). Se aplica `debug-root-cause`:
+   - Reproducir, aislar y probar la hipótesis.
+   - Si hay un defecto real (captura perdida, duplicada o un estado inseguro que no se recupera): fix con test de regresión.
+   - Si el warning es ruido de un camino ya manejado (reintento): eliminar el warning, con evidencia en el ledger.
+   - Si el arreglo excede la fase: se anota en T-39 con la evidencia.
+
+Tras este ciclo: réplica Linux completa sin rojo, medida emparejada de T-23 con el equipo libre (la hace el orquestador) y verificación dirigida de las cuatro lentes. Si solo quedan Minor sin pérdida de datos, la fase cierra.
