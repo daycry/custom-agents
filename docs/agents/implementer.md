@@ -101,7 +101,8 @@ lo que acabaría ejecutándose tras expansiones e indirecciones. **Límite conoc
 sin corrección**: variables como programa u opción (`g=git; $g reset --hard`,
 `X='git restore .'; eval "$X"`), código por stdin hacia un intérprete
 (`echo '…' | bash`, `bash <<< '…'`, `bash <(echo …)`), `find -exec git …`,
-`source ./script.sh` cuyo contenido cambia de directorio o lanza git, `xargs git …` con un
+`source ./script.sh` cuyo contenido cambia de directorio o lanza git, `trap 'cd …' DEBUG`
+(se ejecuta ANTES de cada orden: fix8, `LIMITE7`), `xargs git …` con un
 subcomando no destructivo de ficheros, un heredoc a `python3`/`perl`/`ex` con
 código que arranca git por dentro, y los ficheros de configuración o scripts que
 escriba el propio agente (ADR-023, ADR-007). `test_guardrail_differential.py`

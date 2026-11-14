@@ -259,8 +259,9 @@ RAZON_RELATIVA_MAX = 6.0     # razón (t_grande / t_pequeño) / CRECIMIENTO máx
 SUELO_CPU = 0.05 if os.name == "nt" else 0.02  # s de CPU del caso pequeño (el reloj de Windows tiene 15,6 ms de resolución: 0,05 s = ~3 ticks, bastan con el umbral 6 y la mediana; con 0,1 s la puerta tardaba 7 min;
 #                                               en Linux 0,02 s: la puerta costaba ~9 s por caso con 0,05 s, T-23 fix5)
 TOPE_CARACTERES = 1_000_000  # tope de tamaño del caso pequeño (el grande es ×16: ≤ 16 MB)
-CRECIMIENTO_DEMO = 8          # la demo con reloj real usa ×8 (cuadrático = 64×, razón ≈ 8) y no ×16 (256×): la muestra grande pasa de ~19 s a ~4 s (fix8, gap 11)
-SUELO_DEMO = 0.02 if os.name == "nt" else 0.01   # suelo de las demostraciones de la propia puerta: una muestra ×16 cuesta SUELO_DEMO × 256 s (cuadrático), unos 5 s en Windows (fix8, gap 11: con 0,03 eran 7,7 s por muestra y la demo 53 s)
+CRECIMIENTO_DEMO = 4          # la demo con reloj real del cuadrático usa ×4 (16×, razón ≈ 4) y no ×16 (256×): fix8, gaps 10 y 11
+SUELO_DEMO_CUADRATICO = 0.08 if os.name == "nt" else 0.04   # …con un caso pequeño MÁS largo (ticks de 15,6 ms: el error de cuantización baja al ~20 %): la muestra grande cuesta unos 1,3 s y la razón sale ≈ 4 frente a ≈ 1 del lineal
+SUELO_DEMO = 0.03 if os.name == "nt" else 0.01   # suelo de las demostraciones de la propia puerta (funciones sintéticas)
 TOPE_CPU_DEMO = 30.0         # s: tope de un caso grande en la demostración con reloj real del cuadrático (fix7, gap 15): con el
 #                              tope de la puerta (10 s) una sola muestra ×4 de Windows prometía `inf` y la mediana nunca se ejercitaba
 MUESTRAS = 3                 # muestras (pares pequeño/grande) por ronda: se toma la MEDIANA de las razones
@@ -347,9 +348,12 @@ def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None, top
         if gastado >= TOPE_CPU_CRECIMIENTO:
             raise SinSuelo(f"el caso pequeño no supera {suelo} s de CPU tras gastar {gastado:.1f} s")
         n = max(n + 1, int(n * paso))          # `paso` 2 por defecto; un cuadrático sube ×paso² por escalón
-    # sonda ×4: el exponente medido extrapola el coste del ×16 sin ejecutarlo
-    tm, _ = _cpu(funcion, generador(n * 4))
-    prometido = _prometido(tm, t, tope)
+    # sonda ×4: el exponente medido extrapola el coste del ×16 sin ejecutarlo (con `crecimiento` ≤ 4 el propio caso grande
+    # ya es el ×4: la sonda sobra y su extrapolación a ×16 no vale)
+    tm, prometido = 0.0, 0.0
+    if crecimiento > 4:
+        tm, _ = _cpu(funcion, generador(n * 4))
+        prometido = _prometido(tm, t, tope)
     if prometido:
         # un `inf` de la sonda necesita CONFIRMACIÓN antes del rojo (fix7, gap 15): una sola medida ×4 inflada por la
         # carga (unas 3,5 veces bastan) volvía rojo un caso lineal sin segunda ronda. Se toma una segunda muestra ×4 y
@@ -452,11 +456,11 @@ def test_la_puerta_rechaza_la_regex_cuadratica_que_antes_quedaba_bajo_el_suelo()
     Fix7 (gap 15): la demostración con reloj real pasa por la MEDIANA de las muestras. Antes la resolvía siempre la sonda
     ×4 con un `inf` sacado de UNA sola muestra (5/5 en Windows) y la mediana nunca se ejercitaba: aquí el tope de un
     caso grande se sube (`tope`) para que el cuadrático dé muestras MEDIBLES, y se exige una razón FINITA."""
-    relativa, tc, tg, _ = _medir(_regex_cuadratica, lambda n: "x" * n, n0=500, suelo=SUELO_DEMO, pausa=0,
+    relativa, tc, tg, _ = _medir(_regex_cuadratica, lambda n: "x" * n, n0=500, suelo=SUELO_DEMO_CUADRATICO, pausa=0,
                                  rondas=1, tope=TOPE_CPU_DEMO, paso=1.25, muestras=2,
-                                 crecimiento=CRECIMIENTO_DEMO)   # fix8: ×8 y 2 muestras: menos coste
+                                 crecimiento=CRECIMIENTO_DEMO)   # fix8: ×4 y 2 muestras: menos coste
     assert relativa is not None and math.isfinite(relativa), (relativa, tc, tg)   # la mediana, no un `inf` de la sonda
-    assert relativa > CRECIMIENTO_DEMO / 2, (relativa, tc, tg)   # cuadrático ⇒ ≈ el crecimiento (8); lineal ⇒ ≈ 1
+    assert relativa > CRECIMIENTO_DEMO / 2, (relativa, tc, tg)   # cuadrático ⇒ ≈ el crecimiento (4); lineal ⇒ ≈ 1
     # (sin `tc >= suelo/8`: `_medir` solo devuelve muestras de al menos ese valor, la aserción no podía fallar)
     assert tg > tc                                          # el grande cuesta de verdad más que el pequeño
 
@@ -667,10 +671,10 @@ def test_el_umbral_es_6_y_la_demostracion_real_no_reintenta():
 
 # ---- fix8 (gaps 10 y 11): demo con reloj real más barata y confirmaciones con pausa ---------------------------------
 def test_fix8_margen_de_la_demo_entre_la_muestra_tipica_y_el_tope():
-    """Gap 10: una muestra típica de la demo cuesta `SUELO_DEMO × CRECIMIENTO_DEMO²` s nominales (cuadrático ×8 = 64×) y,
+    """Gap 10: una muestra típica de la demo cuesta `SUELO_DEMO_CUADRATICO × CRECIMIENTO_DEMO²` s nominales (cuadrático ×4 = 16×) y,
     medida en Windows, unas 3 veces más (el reloj de ticks y la caché): el tope de la demo (`TOPE_CPU_DEMO`) da al menos
     5× de margen para que la rama `tg > tope` no sea un azar de la carga."""
-    tipica = SUELO_DEMO * CRECIMIENTO_DEMO ** 2 * 3
+    tipica = SUELO_DEMO_CUADRATICO * CRECIMIENTO_DEMO ** 2 * 3
     assert TOPE_CPU_DEMO >= 5 * tipica, (TOPE_CPU_DEMO, tipica)
     assert tipica <= 6.0, tipica                      # gap 11: una muestra de la demo (Windows sin carga) ≈ 4 s como mucho
 

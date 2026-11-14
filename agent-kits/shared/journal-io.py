@@ -36,10 +36,10 @@ _IO_SCALE_VAR = 'CUSTOM_AGENTS_JOURNAL_IO_DEADLINE_SCALE'
 
 
 def deadline_seconds():
-    """Plazo de pared de una escritura acotada del journal: 5 s. Un test puede alargarlo (multiplicador de 1 a 60 en
-    `CUSTOM_AGENTS_JOURNAL_IO_DEADLINE_SCALE`) para no depender del reloj de la máquina, como la escala de plazos de
-    `agent-activity-store.py`: solo actúa bajo `PYTEST_CURRENT_TEST`, así que la producción NO cambia (T-23 fix8, gap 13).
-    Un valor ausente, no numérico, no finito o menor que 1 vale el plazo por defecto."""
+    """Wall-clock deadline of one bounded journal write: 5 s. A test may stretch it (multiplier 1..60 in
+    CUSTOM_AGENTS_JOURNAL_IO_DEADLINE_SCALE) so it does not depend on the machine clock, like the deadline scale of
+    agent-activity-store.py: it acts only under PYTEST_CURRENT_TEST, so production does NOT change (T-23 fix8, gap 13).
+    A missing, non-numeric, non-finite or below-1 value keeps the default deadline."""
     if not os.environ.get('PYTEST_CURRENT_TEST'):
         return _IO_DEADLINE
     try:
