@@ -260,6 +260,8 @@ SUELO_CPU = 0.05 if os.name == "nt" else 0.02  # s de CPU del caso pequeño (el 
 #                                               en Linux 0,02 s: la puerta costaba ~9 s por caso con 0,05 s, T-23 fix5)
 TOPE_CARACTERES = 1_000_000  # tope de tamaño del caso pequeño (el grande es ×16: ≤ 16 MB)
 SUELO_DEMO = 0.03 if os.name == "nt" else 0.01   # suelo de las demostraciones de la propia puerta (funciones sintéticas)
+TOPE_CPU_DEMO = 30.0         # s: tope de un caso grande en la demostración con reloj real del cuadrático (fix7, gap 15): con el
+#                              tope de la puerta (10 s) una sola muestra ×4 de Windows prometía `inf` y la mediana nunca se ejercitaba
 MUESTRAS = 3                 # muestras (pares pequeño/grande) por ronda: se toma la MEDIANA de las razones
 RONDAS = 2                   # la segunda ronda solo se toma si la primera dio rojo; la mediana es de TODAS las muestras
 PAUSA_RONDAS = 1.0           # s entre rondas: una ráfaga de carga ajena no cubre las dos
@@ -300,7 +302,16 @@ def _mediana(valores):
     return ordenados[medio] if len(ordenados) % 2 else (ordenados[medio - 1] + ordenados[medio]) / 2
 
 
-def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None):
+def _prometido(tm, t, tope):
+    """Coste extrapolado del caso ×16 a partir de la sonda ×4 (`tm`) y del caso pequeño (`t`) si pasa de `tope`; si no, 0."""
+    if tm > 0 and t > 0 and tm > t:
+        extrapolado = tm * 4 ** (math.log(tm / t) / math.log(4))
+        if extrapolado > tope:
+            return extrapolado
+    return 0.0
+
+
+def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None, tope=None, paso=2):
     """Mide `funcion` con una entrada pequeña (tamaño adaptado hasta superar `SUELO_CPU`) y otra ×16.
     Devuelve `(razon_relativa, t_chico, t_grande, salida_grande)`; `razon_relativa` es `None` si se llegó al
     tope de tamaño sin superar el suelo (la función es inocua a ese tamaño: no hay razón que medir) y se
@@ -314,6 +325,7 @@ def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None):
     suelo = SUELO_CPU if suelo is None else suelo
     pausa = PAUSA_RONDAS if pausa is None else pausa
     rondas = RONDAS if rondas is None else rondas
+    tope = TOPE_CPU_GRANDE if tope is None else tope
     n, gastado = n0, 0.0
     while True:
         chico = generador(n)
@@ -330,13 +342,18 @@ def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None):
             return None, t, None, None
         if gastado >= TOPE_CPU_CRECIMIENTO:
             raise SinSuelo(f"el caso pequeño no supera {suelo} s de CPU tras gastar {gastado:.1f} s")
-        n *= 2
+        n = max(n + 1, int(n * paso))          # `paso` 2 por defecto; un cuadrático sube ×paso² por escalón
     # sonda ×4: el exponente medido extrapola el coste del ×16 sin ejecutarlo
     tm, _ = _cpu(funcion, generador(n * 4))
-    if tm > 0 and t > 0 and tm > t:
-        exponente = math.log(tm / t) / math.log(4)
-        if tm * 4 ** exponente > TOPE_CPU_GRANDE:
-            return float("inf"), t, tm * 4 ** exponente, None
+    prometido = _prometido(tm, t, tope)
+    if prometido:
+        # un `inf` de la sonda necesita CONFIRMACIÓN antes del rojo (fix7, gap 15): una sola medida ×4 inflada por la
+        # carga (unas 3,5 veces bastan) volvía rojo un caso lineal sin segunda ronda. Se toma una segunda muestra ×4 y
+        # se decide con la menor; si esa no promete pasar del tope, el caso sigue por la mediana de las razones.
+        tm = min(tm, _cpu(funcion, generador(n * 4))[0])
+        prometido = _prometido(tm, t, tope)
+        if prometido:
+            return float("inf"), t, prometido, None
     grande = generador(n * CRECIMIENTO)
     razones, tcs, tgs, salida = [], [], [], None
     for ronda in range(rondas):
@@ -346,7 +363,7 @@ def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None):
         while tomadas < MUESTRAS:
             tc = _cpu(funcion, chico)[0]
             tg, salida = _cpu(funcion, grande)
-            if tg > TOPE_CPU_GRANDE:
+            if tg > tope:
                 return float("inf"), tc, tg, salida
             tomadas += 1
             if tc >= suelo / VALIDA_DIV and tg >= CRECIMIENTO * suelo / VALIDA_DIV:
@@ -423,7 +440,7 @@ def test_la_puerta_rechaza_la_regex_cuadratica_que_antes_quedaba_bajo_el_suelo()
     ×4 con un `inf` sacado de UNA sola muestra (5/5 en Windows) y la mediana nunca se ejercitaba: aquí el tope de un
     caso grande se sube (`tope`) para que el cuadrático dé muestras MEDIBLES, y se exige una razón FINITA."""
     relativa, tc, tg, _ = _medir(_regex_cuadratica, lambda n: "x" * n, n0=500, suelo=SUELO_DEMO, pausa=0,
-                                 rondas=1, tope=TOPE_CPU_DEMO)
+                                 rondas=1, tope=TOPE_CPU_DEMO, paso=1.25)
     assert relativa is not None and math.isfinite(relativa), (relativa, tc, tg)   # la mediana, no un `inf` de la sonda
     assert not _es_lineal(relativa), (relativa, tc, tg)
     # (sin `tc >= suelo/8`: `_medir` solo devuelve muestras de al menos ese valor, la aserción no podía fallar)

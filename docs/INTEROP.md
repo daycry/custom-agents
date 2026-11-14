@@ -490,8 +490,11 @@ Los tres huecos que más importan:
   incompleto y errores degradan; shell/MCP arbitrario necesita permisos del runtime.
   La matriz nativa final sigue abierta en el roadmap; un test del launcher no la sustituye.
   El launcher recoge un resultado estructurado acotado antes de entregar la decisión.
-  Una evaluación ausente o inválida avisa mediante `systemMessage` en Claude/Codex
-  y diagnóstico estructurado en OpenCode, conservando los permisos normales.
+  Una evaluación ausente o inválida (plazo, entrada de más de 64 KiB, error del
+  evaluador, intérprete ausente) **deniega** para `implementer` y `architect`
+  (falla cerrado, ADR-023) y, para cualquier otra identidad, avisa mediante
+  `systemMessage` en Claude/Codex y diagnóstico estructurado en OpenCode,
+  conservando los permisos normales.
   Un bloqueo completo se conserva aunque falle después el cierre del evaluador o
   la confirmación de limpieza. Esto no acredita resolver el arranque bajo carga.
 - **Los eventos difieren por runtime.** Codex entrega los cambios de apply_patch en

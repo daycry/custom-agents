@@ -4,6 +4,10 @@
 This adapter recognizes the supported mutation schemas; it is not a sandbox
 for arbitrary shells, custom tools, or incomplete payloads. Such inputs retain
 normal runtime permissions and receive a stable diagnostic where appropriate.
+
+Fail closed for the protected roles (ADR-023): when the evaluator cannot decide — input over 64 KiB with the role key
+anywhere in the stream, an exception inside the evaluator — the adapter (and, above it, the launcher) DENIES for
+`implementer`/`architect`; every other identity keeps normal permissions.
 """
 import argparse
 import importlib.util
@@ -52,24 +56,39 @@ def _evaluator():
     return module
 
 
-_TOO_LARGE_REASON = ("the role guard cannot evaluate an input over 64 KiB, so the command is denied for this "
-                     "protected role - split it into shorter commands or write files with the edit tool")
+_TOO_LARGE_REASON = ("the role guard cannot evaluate an input over 64 KiB, so the call is denied for this protected "
+                     "role - send a smaller payload: split the command, or the file content, into several shorter "
+                     "operations")
+# The identity key is looked for in the WHOLE stream up to this bound (T-06 fix7, gap 10a): the runtime's key order is
+# not part of any contract, so it may come after `tool_input`.
+SCAN_MAX = 16 * 1024 * 1024
 
 
-def _role_of_prefix(raw, runtime):
-    """Protected role named by the first identity key of a TRUNCATED payload prefix, or None.
+def _role_of_stream(raw, runtime):
+    """Protected role named by an identity key anywhere in the payload (`raw`, bounded by `SCAN_MAX`), or None.
 
-    Claude Code and OpenCode put `agent_type`/`agent` before `tool_input`; a quoted string value cannot forge the key
-    because JSON escapes its quotes. Anything unreadable returns None (normal permissions)."""
+    One linear regex scan, no JSON parse of the whole payload. A quoted string value cannot forge the key because JSON
+    escapes its quotes; a nested object that repeats the key can only make the guard stricter (fail closed). Anything
+    unreadable returns None (normal permissions)."""
     try:
         mapping = _json_file(SHARED / "native-roles.json")
         candidates = mapping["runtimes"][runtime]
         key = "agent" if runtime == "opencode" else "agent_type"
-        found = re.search(r'"' + key + r'"\s*:\s*("(?:[^"\\]|\\.)*")', raw.decode("utf-8", "replace"))
-        identity = json.loads(found.group(1)) if found else None
-        return next((role for role in PROTECTED if identity is not None and identity == candidates.get(role)), None)
+        pattern = re.compile(r'"' + key + r'"\s{0,64}:\s{0,64}("(?:[^"\\\r\n]|\\.){0,256}")')
+        for found in pattern.finditer(raw.decode("utf-8", "replace")):
+            try:
+                identity = json.loads(found.group(1))
+            except ValueError:
+                continue
+            role = next((role for role in PROTECTED if identity == candidates.get(role)), None)
+            if role:
+                return role
+        return None
     except Exception:
         return None
+
+
+_role_of_prefix = _role_of_stream     # the previous name, kept for callers of the adapter module
 
 
 def _operation(tool, path, **fields):
@@ -289,12 +308,23 @@ def evaluate(payload, runtime, project_dir, *, roles=None, cfg=None, branch_fn=N
     role = next((key for key in PROTECTED if identity == candidates[key]), None)
     if role is None:
         return _result()
+    # Only the schema validation BEFORE evaluating produces `input-unrecognized` (normal permissions, the documented
+    # contract). Any exception from the evaluator itself is `evaluator-unavailable`: the launcher denies the protected
+    # role (T-06 fix7, gap 10b).
     try:
         if cfg is None:
             cfg, active = read_config(project_dir)
             if not active:
                 return _result(role, diagnostic="guardrails-disabled")
+    except Exception:
+        return _result(role, diagnostic="evaluator-unavailable")
+    try:
         operations = normalize(payload, runtime)
+    except (ValueError, TypeError, KeyError):
+        return _result(role, diagnostic="input-unrecognized")
+    except Exception:
+        return _result(role, diagnostic="evaluator-unavailable")
+    try:
         if not operations:
             return _result(role)
         evaluator = _evaluator()
@@ -314,8 +344,6 @@ def evaluate(payload, runtime, project_dir, *, roles=None, cfg=None, branch_fn=N
                 reason = "".join(char if char.isprintable() else " " for char in reason)[:2048]
                 return _result(role, reason, "branch-unavailable" if branch_unavailable else None)
         return _result(role, diagnostic="branch-unavailable" if branch_unavailable else None)
-    except (ValueError, TypeError, KeyError):
-        return _result(role, diagnostic="input-unrecognized")
     except Exception:
         return _result(role, diagnostic="evaluator-unavailable")
 
@@ -331,7 +359,7 @@ def main():
         if len(raw) > MAX_INPUT:
             # Fail closed for the protected role (T-06 fix6, ADR-023): the payload cannot be evaluated, so a protected
             # identity is denied; any other identity (or none) keeps the diagnostic and normal permissions.
-            role = _role_of_prefix(raw, args.runtime)
+            role = _role_of_stream(raw + sys.stdin.buffer.read(SCAN_MAX - len(raw)), args.runtime)
             result = (_result(role, _TOO_LARGE_REASON, "input-too-large") if role
                       else _result(diagnostic="input-too-large"))
         else:

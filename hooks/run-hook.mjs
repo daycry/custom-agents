@@ -100,6 +100,10 @@ function guardNeedsPython(payload, runtime, path) {
 }
 // native-prefilter:end
 
+// Over GUARD_INPUT_MAX the role key is looked for in the WHOLE stream, bounded by this size (T-06 fix7, gap 10a): the
+// key order of a runtime payload is not a contract, so `agent_type`/`agent` may come after `tool_input`.
+const GUARD_SCAN_MAX = 16 * 1024 * 1024;
+
 function readGuardInput(deadline) {
   return new Promise(resolve => {
     const chunks = [];
@@ -108,14 +112,14 @@ function readGuardInput(deadline) {
       if (finished) return;
       finished = true; clearTimeout(timer);
       process.stdin.off('data', data); process.stdin.off('end', end); process.stdin.off('error', error);
-      // Drain oversized input without retaining it or keeping the launcher alive after its child.
+      // Drain what exceeds the scan bound without retaining it or keeping the launcher alive after its child.
       process.stdin.resume(); process.stdin.unref?.();
       resolve({available, raw: Buffer.concat(chunks, size)});
     };
     const data = chunk => {
-      const part = chunk.subarray(0, GUARD_INPUT_MAX + 1 - size);
+      const part = chunk.subarray(0, GUARD_SCAN_MAX + 1 - size);
       chunks.push(part); size += part.length;
-      if (size > GUARD_INPUT_MAX) finish(true);
+      if (size > GUARD_SCAN_MAX) finish(true);
     };
     const end = () => finish(true), error = () => finish(false);
     const timer = setTimeout(() => finish(false), Math.max(0, deadline - performance.now()));
@@ -146,8 +150,9 @@ let guardRole = null;   // protected role of the payload (ADR-023), known as soo
 
 // Fail closed for the protected role (T-06 fix6, point 1): when the evaluator cannot decide (deadline, input over
 // 64 KiB, error, missing interpreter) the launcher DENIES for `implementer`/`architect` and keeps `continue` for
-// every other identity. The role comes from the complete payload or, for a truncated one, from the first
-// identity key of its retained prefix (Claude Code and OpenCode put it before `tool_input`).
+// every other identity. The role comes from the complete payload or, over 64 KiB, from an identity key found by one
+// bounded regex scan of the whole stream (no JSON parse of it; a quoted value cannot forge the key because JSON
+// escapes its quotes, and a nested repeat of the key can only make the guard stricter).
 function protectedRoleOf(raw, runtime) {
   try {
     const name = runtime.slice('--runtime='.length), key = name === 'opencode' ? 'agent' : 'agent_type';
@@ -155,13 +160,18 @@ function protectedRoleOf(raw, runtime) {
     const roles = mapping?.runtimes?.[name], ids = nativeProtectedIDs(mapping, name);
     if (!roles || !ids || !raw || !raw.length) return null;
     const text = new TextDecoder('utf-8').decode(raw);
-    let identity;
-    try { identity = JSON.parse(text)?.[key]; }
-    catch {
-      const found = new RegExp('"' + key + '"\\s*:\\s*("(?:[^"\\\\]|\\\\.)*")').exec(text);
-      identity = found ? JSON.parse(found[1]) : undefined;
+    const roleOf = identity => PROTECTED_GUARD_ROLES.find(role => typeof identity === 'string' && ids.has(identity) && roles[role] === identity) ?? null;
+    if (raw.length <= GUARD_INPUT_MAX) {
+      try { return roleOf(JSON.parse(text)?.[key]); } catch { /* truncated or invalid: scan below */ }
     }
-    return PROTECTED_GUARD_ROLES.find(role => typeof identity === 'string' && ids.has(identity) && roles[role] === identity) ?? null;
+    const pattern = new RegExp('"' + key + '"\\s{0,64}:\\s{0,64}("(?:[^"\\\\\\r\\n]|\\\\.){0,256}")', 'g');
+    for (const found of text.matchAll(pattern)) {
+      let identity;
+      try { identity = JSON.parse(found[1]); } catch { continue; }
+      const role = roleOf(identity);
+      if (role) return role;
+    }
+    return null;
   } catch { return null; }
 }
 
@@ -170,7 +180,7 @@ function emitGuard(result, why = 'guard-unavailable') {
   guardEmitted = true;
   const value = result || (guardRole
     ? { decision: 'deny', role: guardRole, diagnostic: null,
-        reason: `custom-agents: the ${guardRole} role guard could not decide (${why}), so the command is denied — retry with a shorter command, split it, or write files with the edit tool; the user can run it by hand.` }
+        reason: `custom-agents: the ${guardRole} role guard could not decide (${why}), so the call is denied — retry with a smaller payload (split the command, or the file content, into several shorter operations); the user can run it by hand.` }
     : { decision: 'continue', role: null, reason: null, diagnostic: 'guard-unavailable' });
   if (runtime === '--runtime=opencode') {
     process.stdout.write(JSON.stringify(value) + '\n');
@@ -306,6 +316,14 @@ async function main() {
     input = captured.raw;
     guardRole = protectedRoleOf(input, runtime);
     if (!captured.available) { warn('role guard input unavailable or timed out'); emitGuard(null, 'input-unavailable'); return; }
+    if (input.length > GUARD_INPUT_MAX && guardRole) {
+      // Over 64 KiB the guard cannot evaluate the payload: the protected role is denied without starting the child
+      // (the key may sit after `tool_input`, beyond what the child receives); every other identity keeps the
+      // evaluator's own `input-too-large` diagnostic and normal permissions.
+      emitGuard(null, 'input over 64 KiB');
+      return;
+    }
+    if (input.length > GUARD_INPUT_MAX) input = input.subarray(0, GUARD_INPUT_MAX + 1);
     if (input.length <= GUARD_INPUT_MAX) {
       try {
         const payload = JSON.parse(new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(input));

@@ -129,15 +129,17 @@ def test_sin_interprete_se_deniega_para_el_rol_protegido(tmp_path, runtime):
     assert _decision(salida, runtime) == "continue", salida
 
 
-@pytest.mark.serie
 @pytest.mark.parametrize("runtime", ["claude", "opencode"])
 def test_plazo_agotado_se_deniega_para_el_rol_protegido(tmp_path, runtime):
-    """Plazo simulado: el guard duerme más que el presupuesto del lanzador (4,5 s). Antes: `continue` con el aviso
-    «role guard unavailable». Ahora: deny para el implementer, y el lanzador no espera al hijo."""
-    lanzador, proyecto = _arbol(tmp_path, guard_source="import sys,time\nsys.stdin.read()\ntime.sleep(30)\n")
-    salida, dt = _correr(lanzador, proyecto, runtime, _payload(runtime, IDS[runtime][0], "git status"))
+    """Plazo simulado: el guard duerme MUCHO más que el presupuesto del lanzador (4,5 s). Antes: `continue` con el aviso
+    «role guard unavailable». Ahora: deny para el implementer, y el lanzador no espera al hijo.
+
+    Fix7 (gap 16): corre en el paso PARALELO. El hijo duerme 120 s y la cota es 100 s: no mide tiempo de pared fino
+    (la carga de `-n auto` no la acerca), solo que el lanzador NO espera al hijo (con una espera, el test tardaría 120 s)."""
+    lanzador, proyecto = _arbol(tmp_path, guard_source="import sys,time\nsys.stdin.read()\ntime.sleep(120)\n")
+    salida, dt = _correr(lanzador, proyecto, runtime, _payload(runtime, IDS[runtime][0], "git status"), timeout=110)
     assert _decision(salida, runtime) == "deny", salida
-    assert dt < 12, dt
+    assert dt < 100, dt
 
 
 @pytest.mark.parametrize("runtime", ["claude", "codex", "opencode"])

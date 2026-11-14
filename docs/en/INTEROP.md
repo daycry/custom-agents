@@ -482,8 +482,11 @@ The three gaps that matter most:
   degrade; arbitrary shell/MCP requires runtime permissions. The final native matrix
   remains open in the roadmap; launcher tests do not replace it.
   The launcher collects a bounded structured result before delivering the decision.
-  A missing or invalid evaluation emits `systemMessage` in Claude/Codex and a
-  structured diagnostic in OpenCode, retaining normal permissions. A complete
+  A missing or invalid evaluation (deadline, input over 64 KiB, evaluator
+  error, missing interpreter) **denies** for `implementer` and `architect`
+  (fails closed, ADR-023); for any other identity it emits `systemMessage` in
+  Claude/Codex and a structured diagnostic in OpenCode, retaining normal
+  permissions. A complete
   denial is retained even if evaluator termination or cleanup confirmation later
   fails. This does not establish a fix for startup under load.
 - **Events differ across runtimes.** Codex supplies apply_patch changes in `tool_input.command`;

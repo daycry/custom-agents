@@ -594,13 +594,14 @@ flowchart LR
 > The map does not prove prompt origin or an effective sandbox. ADR-023 and CONVENTIONS
 > rule 8; opt-out in `.claude/dev.json`.
 > The launcher validates one bounded structured response. Without a valid
-> evaluation, it warns through the native channel and retains normal permissions.
-> Complete denials survive later failures; startup under load remains under diagnosis.
+> evaluation it **fails closed for the protected role** (it denies `implementer` and
+> `architect`) and, for any other identity, warns through the native channel and
+> retains normal permissions (ADR-023). Complete denials survive later failures.
 
 ```mermaid
 flowchart LR
     T["owned implementer/architect attempt a mutation<br/>Claude · Codex · OpenCode"] --> W["pre-tool dispatcher<br/>native-guardrail.py + ID map"]
-    W -->|"no Python / timeout without decision<br/>missing or invalid response"| M(["Claude/Codex systemMessage<br/>OpenCode diagnostic<br/>exit 0 + normal permissions"])
+    W -->|"no Python / timeout without decision / input > 64 KiB<br/>missing or invalid response / evaluator error"| M(["protected role: ❌ deny (fails closed)<br/>other identity: native warning<br/>+ exit 0 and normal permissions"])
     W --> G["guardrail-check.py pre-tool<br/>(dev.json → guardrails)"]
     G -->|"implementer: roadmap ≠ tasks.md<br/>both: docs/security-scan/**"| D(["❌ deny + reason:<br/>«only tasks.md; planner changes the plan»"])
     G -->|"HEAD on main/master<br/>+ write outside the ledger"| D2(["❌ deny: «work on feature/<slug>»"])
@@ -631,8 +632,12 @@ handles Windows names ending in `.exe`.
 
 The guardrail stops the mistakes of an honest agent; it is not a sandbox. A heredoc body
 is always analyzed as commands (except the two exact `git commit` message forms)
-and `timeout`, `nice`, `stdbuf`, `time`, `setsid`, `sudo`, `env -S` and `xargs`
-are unwrapped. Deliberate indirections (variables as the program, code piped to
+and `timeout`, `nice`, `stdbuf`, `time`, `setsid`, `sudo`, `flock`, `env -S` and `xargs`
+are unwrapped by a single implementation (also with a detached option value, e.g.
+`timeout --kill-after 5 30`; an unknown wrapper option in a command with `git` is
+denied, and `xargs … git restore|checkout|reset|clean|rm` is always denied). The exact
+`git commit` form only holds when it starts a real statement (not after a comment)
+and no body line starts with the delimiter. Deliberate indirections (variables as the program, code piped to
 an interpreter, `find -exec`), scripts the agent writes itself and hand-edited
 configuration files stay out of scope by the user's decision (ADR-023, ADR-007).
 When it cannot decide (deadline, input over 64 KiB, error), the launcher denies

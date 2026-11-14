@@ -235,6 +235,8 @@ BAD6 = [
     "awk 'BEGIN{while((getline l)>0) system(l)}' <<'EOF'\ngit reset --hard\nEOF",
     # gap 12 y variantes: un commit con heredoc FUERA de las formas exactas sigue analizándose
     "git commit -m \"$(cat <<'EOF'\nodd \" quote\nEOF\n)\"\n{D}",
+    # fix7, gap 4: `xargs … git <subcomando destructivo de ficheros>` se deniega siempre (antes era LIMITE)
+    "echo --hard | xargs git reset",
 ]
 
 # BAD sin efecto reproducible en el repo de prueba (o sin el programa en Git Bash): no se pide paridad, pero el
@@ -258,7 +260,7 @@ BAD6 += [
 LIMITE = [
     "echo '{D}' | bash", "echo \"{D}\" | sh", "bash <<< '{D}'", "bash <<< \"{D}\"", "bash <(echo {D})",
     "source <(echo '{D}')", "g=git; $g restore .", "g=git; $g reset --hard", "x=reset; git ${x} --hard",
-    "h=--hard; git reset $h", "find . -maxdepth 0 -exec git reset --hard \\;", "echo --hard | xargs git reset",
+    "h=--hard; git reset $h", "find . -maxdepth 0 -exec git reset --hard \\;",
     "X='{D}'; bash -c \"$X\"", "X='{D}'; $X", "X='{D}'; eval \"$X\"", "echo '{D}' | $SHELL",
     "printf '{D}' | sh", "X='{D}'; bash <<EOF\n$X\nEOF", "bash <<EOF\n$(echo {D})\nEOF",
     "python3 - <<'EOF'\nimport os; os.system('git reset --hard')\nEOF",
@@ -598,8 +600,7 @@ def test_payload_de_30kb_por_el_lanzador_se_deniega_en_menos_de_1_5_s(tmp_path):
     assert min(ritmo) < max(1.5, base + 0.75), (base, ritmo)
 
 
-@pytest.mark.serie
-@pytest.mark.skipif(not NODE, reason="sin Node")
+@pytest.mark.skipif(not NODE, reason="sin Node")        # sin `serie` (fix7, gap 16): no mide tiempo de pared, solo el deny
 @pytest.mark.parametrize("orden", [
     "(" * 8000 + "; git push --force origin master",
     'echo $(("(("));' * 2000 + " git push --force origin master",

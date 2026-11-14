@@ -594,13 +594,14 @@ flowchart LR
 > wrapper. El mapa no acredita origen del prompt ni sandbox efectivo. ADR-023 y regla 8 de
 > CONVENTIONS; opt-out en `.claude/dev.json`.
 > El launcher valida una única respuesta estructurada acotada. Sin evaluación
-> válida, avisa en el canal nativo y conserva permisos normales. Un deny completo
-> se conserva ante fallos posteriores; el arranque bajo carga sigue en diagnóstico.
+> válida, **falla cerrado para el rol protegido** (deniega `implementer` y `architect`)
+> y conserva permisos normales, con aviso en el canal nativo, para cualquier otra
+> identidad (ADR-023). Un deny completo se conserva ante fallos posteriores.
 
 ```mermaid
 flowchart LR
     T["implementer/architect propios intentan una mutación<br/>Claude · Codex · OpenCode"] --> W["dispatcher previo<br/>native-guardrail.py + mapa de IDs"]
-    W -->|"sin Python / timeout sin decisión<br/>respuesta ausente o inválida"| M(["systemMessage Claude/Codex<br/>diagnóstico OpenCode<br/>exit 0 + permisos normales"])
+    W -->|"sin Python / timeout sin decisión / entrada > 64 KiB<br/>respuesta ausente o inválida / error del evaluador"| M(["rol protegido: ❌ deny (falla cerrado)<br/>otra identidad: aviso nativo<br/>+ exit 0 y permisos normales"])
     W --> G["guardrail-check.py pre-tool<br/>(dev.json → guardrails)"]
     G -->|"implementer: roadmap ≠ tasks.md<br/>ambos: docs/security-scan/**"| D(["❌ deny + razón:<br/>«solo tasks.md; el plan lo cambia planner»"])
     G -->|"implementer: HEAD en main/master<br/>+ escritura fuera del ledger"| D2(["❌ deny: «trabaja en feature/<slug>»"])
@@ -632,7 +633,12 @@ mayúsculas, incluidos nombres Windows con `.exe`.
 El guardarraíl frena los errores de un agente honesto; no es un sandbox. El cuerpo de
 un heredoc se analiza siempre como órdenes (salvo las dos formas exactas de
 `git commit` con mensaje) y se desenvuelven `timeout`, `nice`, `stdbuf`, `time`,
-`setsid`, `sudo`, `env -S` y `xargs`. Quedan fuera, por decisión del usuario, las
+`setsid`, `sudo`, `flock`, `env -S` y `xargs` con una sola implementación (también con
+el valor de la opción separado, p. ej. `timeout --kill-after 5 30`; una opción
+desconocida de un envoltorio con `git` se deniega, y `xargs … git restore|checkout|reset|clean|rm`
+se deniega siempre). La forma exacta de `git commit` solo vale al empezar una sentencia
+real (no tras un comentario) y si ninguna línea del cuerpo empieza por el delimitador.
+Quedan fuera, por decisión del usuario, las
 indirecciones deliberadas (variables como programa, código por stdin hacia un
 intérprete, `find -exec`), los scripts que escriba el propio agente y los
 ficheros de configuración editados a mano (ADR-023, ADR-007). Si no puede decidir

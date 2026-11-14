@@ -213,12 +213,17 @@ export default {
     const TRANSIENT_NOTICE = 'bloqueado (otro replay en curso)';
 
     // Session APIs may expose other locations. Never reuse the instance root without checking.
-    async function project(sessionID) {
-      if (!sessionID || controller.signal.aborted) return null;
+    // `{ directory }` for a session of this location; `{ foreign: true }` for a session whose KNOWN location differs
+    // (another workspace: the documented skip); `{}` when the project cannot be told (no session id, an aborted
+    // plugin, a session without a location). The guard fails closed on `{}` for the protected roles (T-06 fix7, 10c).
+    async function locate(sessionID) {
+      if (!sessionID || controller.signal.aborted) return {};
       const response = await ctx.session.get({ sessionID });
       const session = response?.data ?? response;
-      return sameLocation(session?.location, location) ? session.location.directory : null;
+      if (sameLocation(session?.location, location)) return { directory: session.location.directory };
+      return typeof session?.location?.directory === 'string' ? { foreign: true } : {};
     }
+    async function project(sessionID) { return (await locate(sessionID)).directory ?? null; }
 
     function run(script, payload) {
       return new Promise(resolveResult => {
@@ -277,8 +282,12 @@ export default {
         if (guardedIDs && (!Object.hasOwn(event || {}, 'agent')
             || (typeof event.agent === 'string' && !guardedIDs.has(event.agent)))) return;
         protectedRole = !!guardedIDs && typeof event?.agent === 'string' && guardedIDs.has(event.agent);
-        const cwd = await project(event.sessionID);
-        if (!cwd) return;
+        const where = await locate(event.sessionID);
+        const cwd = where.directory;
+        if (!cwd) {
+          if (protectedRole && !where.foreign) throw new Error('project unavailable');
+          return;
+        }
         const output = await run(bindings.guard.handlers[0], {
           agent: event.agent, tool_name: event.tool, tool_input: event.input, cwd,
         });
