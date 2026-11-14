@@ -102,3 +102,82 @@ Fuera de gap: `test_ca08` no lo toca la iniciativa (Lente D: sin commits en `57f
 
 Tras este ciclo: réplica Linux completa sin rojo, medida emparejada de T-23 (la hace el orquestador) y verificación dirigida de las cuatro lentes. Si solo quedan Minor sin pérdida de datos, la fase cierra.
 
+
+## Archivado 2026-11-14 — Revisión de dos lentes — intento 8: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix7: 3 Important, 12 Minor (bytes sin cambios)
+
+SHA-256 del bloque: `8f99caa7cbfcd4b2ea9c4de898ddab83ea09a2499e2d7a7fb05aa5fcb6a953b2`.
+
+## Revisión de dos lentes — intento 8: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix7: 3 Important, 12 Minor
+
+Lentes: A+B+C+D sobre `00bdf50..5d99de6`. La memoria libre era menor de 1 GB, así que las lentes corrieron dos a dos y con un proceso cada vez.
+
+**Cerrado del intento 7:**
+- Gaps 1, 2, 5, 6, 8, 9, 11, 12, 13, 14 y 16.
+- Gap 10 (a) y (b): el rol se busca en todo el flujo, sin falsificación por una clave dentro de una cadena, y cualquier excepción del evaluador es `evaluator-unavailable`.
+- Gap 3 en sus formas sin comillas.
+- Gap 4 en unas 35 variantes directas.
+- Lista blanca lineal: los hostiles del intento 7 tardan menos de 0,08 s.
+- Escáner del rol lineal: 16 MiB en 145 ms y 90 MB.
+
+**Rebates e interpretaciones:**
+- El rebate i1 del implementer (punto 6(c) de OpenCode) se acepta. `native-guard-adapter.test.mjs:66-68` fija que una sesión de otra ubicación no se guarda, y `locate()` cumple las dos condiciones.
+- La i4 (comentario detectado con el tokenizador real) se acepta.
+- Falso deny aceptado por el diseño 1(a): un mensaje de commit con una línea que empieza por el delimitador.
+
+**Causa del rojo no reproducido de `test_journal.py`** (Lente B, reproducida de forma determinista):
+- La E/S acotada del journal tiene un plazo de pared fijo de 5 s (`journal-io.py:69`, `local-state.py:81,97`).
+- Si el fsync se atasca más, salta `journal_io_deadline`, `outbox.py:331-333` lo convierte en `OSError` y `capture_end` lo traga.
+- Resultado: 2 envelopes en vez de 3 (`test_journal.py:2429`).
+- No viene de esta iniciativa.
+- En producción, un atasco de E/S de más de 5 s en SessionEnd pierde la captura sin aviso visible. Es un hallazgo de producto y va al gap 15.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | `xargs -I{} sh -c 'git restore {}'` → allow. Al recursar en `sh -c`/`bash -c` no se hereda que «las rutas llegan por stdin», así que `{}`/`%` pasan como ruta literal. Igual con `xargs -I % bash -c 'git checkout -- %'` y `xargs -I{} sh -c 'echo {}; git restore -- {}'`. Es la forma habitual de un agente honesto | T-06 | corregido en fix8 | Lentes B y C: `guardrail-check.py:1591-1614`, `_subcomandos_shell:1169`; Git Bash, centinela perdido |
+| 2 | Important | `--replace`, `--eof` y `--max-lines` de GNU xargs llevan valor OPCIONAL, solo pegado con `=`. La tabla los trata como opciones con valor separado y se traga `git`. `xargs --replace git restore {}` → allow. Contradice `implementer.md:92` («se deniega siempre») | T-06 | corregido en fix8 | Lentes B y C: `guardrail-check.py:733-734,772`; xargs 4.10.0, centinela perdido |
+| 3 | Important | Assert de tiempo relajado para sacar el test del paso serie: `dt < 12` → `dt < 100`, con el hijo durmiendo 120 s. El hook tiene `timeout: 10` en `hooks.json`. Si una regresión hace que el lanzador espere unos 60 s, el runtime lo corta sin deny y el test sigue verde. Contradice el punto 10 del diseño (si la aserción lo impide, se queda en serie) | T-06, T-23 | corregido en fix8 | Lente A: `tests/test_native_guard_failclosed.py:139-142`, `hooks/hooks.json:10`, `tasks.md:301` |
+| 4 | Minor | `env -S` trocea el valor con `str.split()`, pero env quita comillas y procesa `\`. `env -S 'git reset "--hard"'`, `env -S 'git "reset" --hard'`, `env -S 'git restore "."'` y `env -S 'env -S "git -C .. restore a.txt"'` → allow, con pérdida de datos. Además el troceo repetido es cuadrático: 11,7 KB de `-S` → 1,06 s | T-06 | corregido en fix8 | Lentes B y D: `guardrail-check.py:846,878` |
+| 5 | Minor | Fallo abierto por encima de 16 MiB: el escáner deja de leer en `GUARD_SCAN_MAX` y, si la clave del rol va detrás, el resultado es continue | T-06 | corregido en fix8 | Lentes C y D: `run-hook.mjs:105,120-122,319`, `native-guardrail.py:64,362`; 17 MiB → continue |
+| 6 | Minor | OpenCode compara ubicaciones como texto: solo pasa a minúsculas en win32 y exige `workspaceID` estricto. El mismo proyecto con otra forma de ruta (enlace simbólico, nombre 8.3, mayúsculas en macOS) sale como ajeno y se salta el guard. No verificable sin runtime | T-06 | corregido en fix8 | Lente C: `opencode-plugin.js:61-63,224,288` y su espejo |
+| 7 | Minor | `docs/INTEROP.md:364` y `docs/en/INTEROP.md:359` siguen diciendo que la entrada de más de 64 KiB continúa | T-06 | corregido en fix8 | Lente A |
+| 8 | Minor | Punto 11 incompleto. (a) Faltan sondas en el corpus: `lc7` b51-b79, k84-k103, w23, w25-w28, w32, w35-w39, los 24 de `lb7/legit2.py` y los falsos deny previos `<<"EOF"`, `<<EOF` y `<<'EOF-1'`. (b) `trap 'cd ../main' DEBUG; git restore src` → allow y no está en LIMITE7. (c) `nice {D}` en `SIN_PARIDAD_7` contradice BAD6 (`test_guardrail_differential.py:220`) | T-06 | corregido en fix8 | Lente A: `test_guardrail_differential7.py:19-103` |
+| 9 | Minor | `Archivos` no recoge `agent-kits/shared/test_ledger_view.py` ni `tests/test_graphiti_security.py`, y T-23 dice «sin ficheros nuevos» | T-06, T-23 | corregido en fix8 | Lente A: `tasks.md:935` |
+| 10 | Minor | La demo de redact con reloj real tiene poco margen: `TOPE_CPU_DEMO` = 30 s frente a unos 12 s por muestra en Windows. La rama `tg > tope → inf` no se confirma, y la confirmación ×4 se toma sin pausa entre rondas | T-23 | corregido en fix8 | Lente B: `test_redact_fix3.py:350-354,366-367,443` |
+| 11 | Minor | La demo de redact cuesta 53 s en Windows sin carga y unos 88 s con carga, en el paso serie. Es evitable: la razón esperada es ≈16 frente a un umbral de 6, medida en CPU | T-23 | corregido en fix8 | Lente D: `test_redact_fix3.py:263,442-443` |
+| 12 | Minor | Coste evitable en el corpus: `_estado(copia)` lanza 2 procesos git en cada caso, aunque la copia es idéntica a la plantilla. `_tiene(programa)` no guarda el resultado. Son 40-80 s de CPU en Windows | T-06 | corregido en fix8 | Lente D: `test_guardrail_differential.py:355`, `test_guardrail_differential7.py:106` |
+| 13 | Minor | Test frágil: `test_journal.py::test_replay_con_recover_max_n…` depende del plazo de pared de 5 s de la E/S del journal. Con un fsync lento falla `2 == 3` | T-23 | corregido en fix8 | Lente B: reproducción `lb8/jexp.py` |
+| 14 | Minor | Rama: `git checkout FETCH_HEAD` → allow. Es la misma clase que `HEAD~1`, que ya se decidió permitir (ledger, línea 230): sin cambio, anotado | T-06 | descartado (rebatido) | Lente C |
+| 15 | Minor | Hallazgo de producto fuera de alcance: un atasco de E/S de más de 5 s en SessionEnd pierde la captura del journal con solo un aviso en stderr | — | deuda aceptada → tarea nueva en fase 6 | Lente B: `journal-capture.py:316-321` |
+
+**Diseño fijado por el orquestador para fix8:**
+
+1. **`xargs` heredado** (gaps 1 y 2). El análisis guarda un indicador «rutas por stdin» que se hereda al recursar en `sh -c`/`bash -c`/`env -S`/`eval` lanzados por `xargs`. Con el indicador activo, cualquier subcomando destructivo de ficheros se deniega, con `{}`/`%` o sin ellos.
+   - En la tabla de xargs, `--replace`, `--eof` y `--max-lines` solo consumen valor con `=`.
+   - Una opción larga desconocida de xargs en una orden con `git` se deniega.
+2. **Prueba de plazo de punta a punta** (gap 3).
+   - La aserción vuelve a quedar por debajo del timeout del hook: `dt <` (timeout de `hooks/hooks.json` − 1 s), leído del propio `hooks.json`. Así la prueba falla si el lanzador agota el plazo del runtime.
+   - Si la cota no aguanta en el paso paralelo, la prueba vuelve a serie y se justifica en el ledger. No se relaja.
+3. **`env -S` con `shlex`** (gap 4). El valor se trocea como lo hace env, con `shlex.split(posix=True)` y sus escapes. Si el troceo falla, se deniega cuando la orden contiene git.
+   - Coste lineal: un solo troceo por `-S` y nada de rebanar la lista entera.
+   - Test con las 4 formas del gap y con el hostil de 11,7 KB por debajo de 0,2 s.
+4. **Escáner sin tope** (gap 5). La búsqueda del rol recorre TODO el flujo con memoria constante: una ventana deslizante sobre los fragmentos, sin retener el cuerpo pasados los 64 KiB que necesita el hijo. Así no queda corte en 16 MiB. Test con 17 MiB y la clave al final → deny para el implementer y continue para qa.
+5. **OpenCode** (gap 6). Las dos ubicaciones se comparan tras `realpath` (`fs.realpathSync.native`), con minúsculas en win32 y darwin. Un `workspaceID` presente solo en un lado no hace la sesión ajena. Test del adaptador. Interop regenerado.
+6. **Corpus y documentación** (gaps 7, 8 y 9).
+   - Corregir INTEROP ES/EN.
+   - Meter en el corpus todas las sondas listadas en el gap 8(a) como LEGIT, BAD, LIMITE o FALSO_DENY_ACEPTADO.
+   - Llevar `trap … DEBUG` a LIMITE7 y añadirlo al modelo de amenaza.
+   - Resolver la incoherencia de `nice`.
+   - Completar `Archivos`.
+7. **Puerta de redact** (gaps 10 y 11).
+   - La demo con reloj real usa un tamaño menor y menos muestras: objetivo menor de 15 s en Windows sin carga.
+   - Un `inf` por tope también se confirma con una segunda muestra tras `PAUSA_RONDAS`.
+   - El margen entre la muestra típica y el tope es al menos 5×.
+   - Otra vez 10 pasadas en Linux y 10 en Windows con carga.
+8. **Coste del corpus** (gap 12): `_estado` de la plantilla se calcula una vez por módulo y `_tiene` se guarda en caché.
+9. **Journal** (gap 13). El plazo de 5 s de `journal-io` se puede inyectar en tests, igual que la escala de plazos de `agent-activity-store`: solo actúa bajo `PYTEST_CURRENT_TEST`. El test del replay lo usa.
+   - Test de regresión que fija el comportamiento con un fsync retrasado más allá del plazo por defecto. Usa el plazo inyectado y no depende del reloj de la máquina.
+   - La producción NO cambia en este ciclo.
+10. **Deuda** (gap 15): se añade al ledger una tarea nueva en la fase 6, «captura de SessionEnd que no se pierde sin aviso ante un atasco de E/S», con su Verificación.
+
+Tras este ciclo: réplica Linux completa sin rojo, medida emparejada de T-23 con el equipo libre (la hace el orquestador) y verificación dirigida de las cuatro lentes. Si solo quedan Minor sin pérdida de datos, la fase cierra.
+
