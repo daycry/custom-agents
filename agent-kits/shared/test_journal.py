@@ -3285,3 +3285,37 @@ def test_los_presupuestos_cortos_de_los_tests_no_dependen_del_reloj_de_pared():
         if cortos and not congela:
             sin_reloj.append(f.name)
     assert not sin_reloj, f"presupuesto corto con reloj real (usa `_reloj_congelado(monkeypatch)`): {sin_reloj}"
+
+
+# --- T-23 fix10, gap 9: carrera del inicializador de la cola (`.custom-agents-journal` / `.gitignore`) -------------------------
+# El inicializador que gana crea el fichero con `os.link(temporal, destino)`: hasta que borra el temporal el inodo tiene DOS
+# enlaces. El que pierde (`FileExistsError`) leia el fichero en ese instante y `JIO.read` lanzaba `ValueError('unsafe_state')`
+# hacia `replay`/`capture`: una excepcion en un hilo (en Windows, 2 de 10 pasadas). `update()` ya esperaba ese estado; la
+# lectura del inicializador no. Esperar es correcto; un enlace duro que NO se va (el ataque que `nlink == 1` vigila) sigue fallando.
+def _dos_enlaces(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    dir_ = journal._journal_queue_dir(str(proj))
+    journal._asegurar_gitignore_local(dir_)
+    marcador = os.path.join(dir_, ".custom-agents-journal")
+    extra = os.path.join(dir_, ".tmp-carrera")
+    os.link(marcador, extra)
+    return dir_, extra
+
+
+def test_inicializador_de_la_cola_espera_al_estado_transitorio_de_dos_enlaces(tmp_path):
+    dir_, extra = _dos_enlaces(tmp_path)
+    hilo = threading.Timer(0.15, lambda: os.remove(extra))
+    hilo.start()
+    try:
+        journal._asegurar_gitignore_local(dir_)       # antes: ValueError('unsafe_state') al instante
+    finally:
+        hilo.join()
+    assert not os.path.lexists(extra)
+
+
+def test_inicializador_de_la_cola_sigue_rechazando_un_enlace_duro_persistente(tmp_path):
+    dir_, extra = _dos_enlaces(tmp_path)
+    with pytest.raises(ValueError, match="unsafe_state"):
+        journal._asegurar_gitignore_local(dir_)
+    assert os.path.lexists(extra)
+
