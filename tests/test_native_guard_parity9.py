@@ -56,6 +56,12 @@ def _corpus(runtime):
         ("blancos_64", _cuerpo(runtime, lit(impl), antes=" " * 64, despues=" " * 64), True),
         ("saltos_y_blancos", _cuerpo(runtime, lit(impl), antes="\n  ", despues="\n\t "), True),
         ("blancos_65_limite_documentado", _cuerpo(runtime, lit(impl), antes=" " * 65, despues=""), False),
+        # fix10 (gap 6): los blancos son SOLO los de JSON (`[ \t\n\r]`); `\s` casaba tambien controles que el otro lado no
+        ("fs_separador_de_archivo_no_es_blanco_json", _cuerpo(runtime, lit(impl), antes="\x1c"), False),
+        ("us_separador_de_unidad_no_es_blanco_json", _cuerpo(runtime, lit(impl), despues="\x1f"), False),
+        ("tabulador_vertical_no_es_blanco_json", _cuerpo(runtime, lit(impl), antes="\x0b"), False),
+        ("salto_de_pagina_no_es_blanco_json", _cuerpo(runtime, lit(impl), despues="\x0c"), False),
+        ("cr_si_es_blanco_json", _cuerpo(runtime, lit(impl), antes="\r", despues="\r"), True),
         ("rol_no_protegido", _cuerpo(runtime, lit(qa)), False),
         ("rol_no_protegido_escapado", _cuerpo(runtime, lit(_escapada(qa, "q"))), False),
         ("sufijo_extra", _cuerpo(runtime, lit(impl + "X")), False),
@@ -104,3 +110,12 @@ def test_clave_partida_entre_dos_lecturas_se_encuentra_igual_en_los_dos(tmp_path
         assert _decide_python(runtime, cuerpo), (runtime, desfase)
         salida, _ = _correr(lanzador, proyecto, runtime, cuerpo, timeout=120)
         assert _decision(salida, runtime) == "deny", (runtime, desfase)
+
+
+@pytest.mark.parametrize("runtime", ["claude", "opencode"])
+def test_el_escaner_python_no_toma_nel_ni_nbsp_como_blanco_de_json(runtime):
+    r"""fix10 (gap 6): `\s` de Python casa `\x85` y `\xa0` leidos como latin-1; el escaner de JS no (clase explicita)."""
+    impl, clave = IDS[runtime][0], _clave(runtime)
+    for blanco in (b"\xc2\x85"[1:], b"\xa0", b"\x1c", b"\x1f"):
+        dato = b'{"' + clave.encode() + b'"' + blanco + b':"' + impl.encode() + b'"}'
+        assert ng._role_scanner(runtime)(dato) is None, (runtime, blanco)

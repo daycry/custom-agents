@@ -3254,3 +3254,34 @@ def test_t21_draft_de_un_cierre_normal_conserva_la_marca(tmp_path):
     proj, _ = proyecto(tmp_path)
     assert journal.draft(str(proj), session_id="s-normal", reason="other")["regla_iniciativa"] == "vigente"
     assert "regla_iniciativa" not in journal.draft(str(proj), session_id="s-late", reason="orphan_recovery")
+
+
+# --- T-23 fix10, gap 7: los presupuestos cortos no dependen de la carga de la maquina ---------------------------------------
+# Un `budget_ms` constante por debajo de 1 s con el reloj real se agota si la maquina va cargada (la pasada se corta antes de
+# su primer elemento). Un test que lo usa congela el reloj (`_reloj_congelado`) o comprueba que el cerrojo esta ocupado (el
+# presupuesto solo acota la espera y la asercion es tolerante). Un test nuevo con presupuesto corto y reloj real falla aqui.
+_PRESUPUESTO_CORTO_CERROJO = {
+    "test_replay_termina_dentro_del_presupuesto_con_0_10_100_pendientes",
+    "test_replay_cerrojo_ocupado_bajo_presupuesto_devuelve_bloqueado_rapido",
+    "test_replay_sigue_bloqueado_si_el_cerrojo_esta_realmente_ocupado",
+    "test_recover_cerrojo_ocupado_bajo_presupuesto_devuelve_bloqueado_rapido",
+    "test_replay_con_recover_bloqueado_inicializa_recuperadas_y_candidatas",
+}
+
+
+def test_los_presupuestos_cortos_de_los_tests_no_dependen_del_reloj_de_pared():
+    import ast
+    arbol = ast.parse(open(__file__, encoding="utf-8").read())
+    sin_reloj = []
+    for f in ast.walk(arbol):
+        if not (isinstance(f, ast.FunctionDef) and f.name.startswith("test_")) or f.name in _PRESUPUESTO_CORTO_CERROJO:
+            continue
+        cortos = [c for c in ast.walk(f) if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)
+                  and c.func.attr in ("replay", "recover")
+                  and any(k.arg == "budget_ms" and isinstance(k.value, ast.Constant) and isinstance(k.value.value, int)
+                          and 0 < k.value.value < 1000 for k in c.keywords)]
+        congela = any(isinstance(c, ast.Call) and isinstance(c.func, ast.Name) and c.func.id == "_reloj_congelado"
+                      for c in ast.walk(f))
+        if cortos and not congela:
+            sin_reloj.append(f.name)
+    assert not sin_reloj, f"presupuesto corto con reloj real (usa `_reloj_congelado(monkeypatch)`): {sin_reloj}"

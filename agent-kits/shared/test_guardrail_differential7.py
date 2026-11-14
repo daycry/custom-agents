@@ -234,8 +234,48 @@ LEGIT9 = [
     "env -S 'git status'",
     "env -S 'git restore src/a.py'",
 ]
+# --- fix10 (gap 1): dentro de `$(…)`, `<(…)`, `>(…)` y backticks, el `)` de un patron de `case` NO cierra la sustitucion. El
+# lector del fix9 la cerraba ahi y el resto quedaba como argumentos de la orden exterior (ya no se partia): allow con efecto real. ---
+BAD10_PARIDAD = [
+    "cat <(case x in x) {D};; esac)",
+    "tee >(case x in x) {D};; esac) </dev/null",
+    "diff <(case a.py in *.py) {D};; esac) /dev/null",
+    "cat <(case x in a|x) {D};; esac)",
+    "cat <(case x in (x) {D};; esac)",
+    "cat <(case x in x) {D};& y) true;; esac)",
+    "cat <(case x in x) true;;& *) {D};; esac)",
+    "cat <(case y in x) true;; y) {D};; esac)",
+    "cat <(case x in x) {D}\nesac)",
+    "cat <(case x in\nx) {D}\n;;\nesac)",
+    "cat <(case x in x) cat <(case y in y) {D};; esac;; esac)",
+    "echo $(case x in x) {D};; esac)",
+    'echo "$(case x in x) {D};; esac)"',
+    "echo `case x in x) {D};; esac`",
+    "cat <(echo a; case x in x) {D};; esac)",
+    "xargs -a <(case x in x) echo a.txt;; esac) git restore",
+    "cat <(case x in x) {D};; esac) ; true",
+    "echo $(echo $(case x in x) {D};; esac))",
+    "x=$(case x in x) {D};; esac)",
+]
+# `env -S` separa SOLO por espacio y tabulador (GNU env): un LF, VT, FF o CR literal es parte de la palabra y un `#` tras ellos
+# NO abre un comentario (fix10, gap 5). El centinela cambia en bash real: `git -c user.name=c⏎#y restore .` es un `restore`.
+BAD10_ENV = [
+    "env -S $'git -c user.name=c\\x0b#y restore .'",
+    "env -S $'git -c user.name=c\\x0c#y restore .'",
+    "env -S $'git -c user.name=c\\r#y restore .'",
+    "env -S 'git -c user.name=c\n#y restore .'",
+]
+LEGIT10 = [
+    "cat <(case x in x) echo a;; esac)",
+    "echo $(case x in x) git status;; esac)",
+    "diff <(case a in a) git show HEAD:a.txt;; esac) /dev/null",
+    "cat <(case x in x) git diff --name-only;; esac)",
+]
 BAD7 += BAD8_PARIDAD
 BAD7 += BAD9_PARIDAD
+BAD7 += BAD10_PARIDAD
+BAD7 += BAD10_ENV
+LEGIT7 += LEGIT10
 LEGIT7 += LEGIT9
 SIN_PARIDAD_7 |= set(SIN_PARIDAD_8)
 BAD7 += sorted(SIN_PARIDAD_8)
