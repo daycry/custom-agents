@@ -24,13 +24,15 @@ function contarRealpath() {
   return { llamadas, restaurar: () => { fs.realpathSync.native = original; } };
 }
 
-test('la ubicacion del plugin se canoniza una vez, al cargar', async () => {
+// fix10 (gap 2, punto 2): la ruta real de la ubicacion YA NO se fija al cargar (un fallo pasajero de `realpath` en `setup` la dejaba
+// como `resolve()` para siempre y la sesion propia salia ajena): `setup` no la resuelve y pasa por la misma cache que el resto.
+test('la ubicacion del plugin no se canoniza al cargar: pasa por la cache como las demas rutas (fix10)', async () => {
   const directory = ownedProject();
   const medida = contarRealpath();
   const ctx = opencodeContext(directory);
   try {
     const cleanup = await plugin.setup(ctx);
-    try { assert.ok(medida.llamadas.includes(directory), `setup no canonizo ${directory}: ${medida.llamadas}`); }
+    try { assert.ok(!medida.llamadas.includes(directory), `setup canonizo ${directory}: ${medida.llamadas}`); }
     finally { await cleanup?.(); }
   } finally { medida.restaurar(); rmSync(directory, {recursive:true, force:true}); }
 });
