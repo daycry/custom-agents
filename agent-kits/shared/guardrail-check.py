@@ -392,6 +392,43 @@ def _aritmetica(command, j, st):
     return None if tabla.invalida(j, k) else k + 2
 
 
+_PREFIJOS_ORDEN = frozenset({"then", "do", "else", "elif", "if", "while", "until", "!", "{", "time"})
+
+
+def _empieza_orden(cur):
+    """`cur` (las palabras ya leídas de la orden) está vacío o solo lleva palabras reservadas de cabecera (`then case …`)."""
+    return all(w in _PREFIJOS_ORDEN for w in cur)
+
+
+def _case_palabra(cases, palabra, cur, st):
+    """Seguimiento de la gramática de `case` DENTRO de una sustitución `$(…)`/`<(…)`/`>(…)` (fix10, gap 1). Allí un `)` cierra
+    la sustitución, salvo el que cierra un patrón de `case`: sin este seguimiento `cat <(case x in x) git reset --hard;; esac)`
+    se leía como `cat <(case x in x)` seguido de argumentos de `cat`, y el `git` se perdía. `cases` es la pila de estados:
+    `w` (espera el sujeto), `i` (espera `in`), `p` (en patrones) y `b` (en el cuerpo de una cláusula). Un `case` anidado, un
+    `in` ausente o un `esac` que no llega dejan la lectura `incompleta`: sin certeza se deniega si hay git o cambio de base.
+    Devuelve True cuando la palabra es el `in` que abre los patrones (el llamador descarta la cabecera)."""
+    top = cases[-1] if cases else None
+    primero = _empieza_orden(cur)
+    if top == "w":
+        cases[-1] = "i"
+    elif top == "i":
+        if palabra == "in":
+            cases[-1] = "p"
+            return True                  # `case x in` no es una orden: el llamador descarta la cabecera
+        else:
+            st.incompleta = True
+            cases.pop()
+    elif top == "p":
+        if primero and palabra == "esac":
+            cases.pop()
+    elif primero and palabra == "case":
+        if cases:
+            st.incompleta = True
+        cases.append("w")
+    elif top == "b" and primero and palabra == "esac":
+        cases.pop()
+
+
 def _leer(command, i, modo, st, prof):
     """Tokeniza `command` desde `i`: `modo` `top` (hasta el final) o `sub` (hasta el `)` que cierra un `$(`). Los
     segmentos van a `st.out`. Devuelve `(posición, heredocs pendientes sin cuerpo)`. Los paréntesis sin comillas
@@ -403,6 +440,7 @@ def _leer(command, i, modo, st, prof):
         st.incompleta = True
         return n, []
     cur, word, started, quote, pend, par, cierre = [], [], False, None, [], 0, False
+    cases = []              # pila del seguimiento de `case` (solo dentro de una sustitución, fix10)
     ult_redir = -2          # posición del último `<`/`>` SIN escapar ni entrecomillar (fix7, gap 6)
     while i < n:
         c = command[i]
@@ -527,7 +565,27 @@ def _leer(command, i, modo, st, prof):
             newline = command.find("\n", i)
             i = n if newline < 0 else newline
             continue
+        elif c == "(" and cases and cases[-1] == "p" and par == 0 and not started and not cur:
+            i += 1                        # `(` opcional delante de un patrón de `case`: no abre un grupo
+            continue
+        elif c == ")" and modo == "sub" and par == 0 and cases and cases[-1] == "p" \
+                and not (started and "".join(word) == "esac" and _empieza_orden(cur)):
+            word, started, cur = [], False, []   # `)` que cierra un patrón de `case`: no cierra la sustitución
+            cases[-1] = "b"
+        elif c == ";" and cases and cases[-1] == "b" and par == 0 and command.startswith((";;", ";&"), i):
+            if started:
+                _case_palabra(cases, "".join(word), cur, st)
+                cur.append("".join(word))
+                word, started = [], False
+            if cur:
+                st.out.append(cur)
+                cur = []
+            cases[-1] = "p"               # `;;`, `;&` y `;;&` terminan la cláusula: sigue otro patrón
+            i += 3 if command.startswith(";;&", i) else 2
+            continue
         elif c == ")" and modo == "sub" and par == 0:
+            if started and cases:
+                _case_palabra(cases, "".join(word), cur, st)
             i += 1
             cierre = True
             break
@@ -536,10 +594,14 @@ def _leer(command, i, modo, st, prof):
             started = True
         elif c in " \t\n;&|()":           # el CR NO separa: en bash es un carácter normal (fix6, gap 9)
             if started:
-                cur.append("".join(word))
+                if modo == "sub" and _case_palabra(cases, "".join(word), cur, st):
+                    cur = []
+                else:
+                    cur.append("".join(word))
                 word, started = [], False
             if c in "\n;&|()" and cur:
-                st.out.append(cur)
+                if not (cases and cases[-1] == "p"):          # lo que hay entre patrones no es una orden
+                    st.out.append(cur)
                 cur = []
             par += (c == "(") - (c == ")" and par > 0)
         else:
@@ -548,7 +610,7 @@ def _leer(command, i, modo, st, prof):
             word.append(c)
             started = True
         i += 1
-    if quote or (modo != "top" and not cierre):
+    if quote or (modo != "top" and not cierre) or cases:
         st.incompleta = True
     if started:
         cur.append("".join(word))
@@ -826,7 +888,7 @@ _MAX_TROCEOS_S = 4
 _MAX_VALOR_S = 2048             # un valor más largo no se trocea: se deniega SIEMPRE (el troceo es carácter a carácter)
 _ESCAPES_ENV = {"t": "\t", "n": "\n", "v": "\v", "f": "\f", "r": "\r", "\\": "\\", "'": "'", '"': '"', "#": "#",
                 "$": "$"}
-_BLANCOS_ENV = " \t\n\v\f\r"
+_BLANCOS_ENV = " \t"       # GNU env separa SOLO por espacio y tabulador: LF, VT, FF y CR literales son parte de la palabra (fix10, gap 5)
 
 
 class _OpcionIlegible(str):
@@ -843,7 +905,7 @@ class _SinTroceo(Exception):
 
 def _trocea_s(valor, cortes):
     r"""Palabras de un valor de `env -S` TROCEADO COMO LO HACE GNU env (fix9, gap 4; antes `shlex`, que no conoce sus
-    escapes): los blancos separan; las comillas simples son literales salvo `\\` y `\'`; las dobles admiten escapes; fuera
+    escapes): solo el espacio y el tabulador separan (un LF, VT, FF o CR literal es parte de la palabra); las comillas simples son literales salvo `\\` y `\'`; las dobles admiten escapes; fuera
     de comillas `\_` separa y `\c` corta; `\t \n \v \f \r \\ \' \" \# \$` son el carácter; un `#` al empezar palabra abre un
     comentario. Lanza `_SinTroceo(siempre=True)` si ya hubo `_MAX_TROCEOS_S` troceos en esta orden (cada uno reconstruye la
     lista: una cadena de `-S` anidados sería cuadrática, fix8, gap 4), si el valor pasa de `_MAX_VALOR_S` caracteres o si

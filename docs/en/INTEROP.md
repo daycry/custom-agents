@@ -399,7 +399,7 @@ owned processes and waits for them to close.
 
 The journal keeps its shared policy: capture only in projects with `docs/roadmap`,
 `docs/knowledge` or `.claude/dev.json`, respecting session and turn opt-outs. V2 local
-streams omit `location`; `session.get` verifies project and workspace before writing.
+streams omit `location`; `session.get` verifies project and workspace before writing. Two locations are the same project when they agree after `resolve()` or after `realpath`; resolutions go through a bounded cache that expires after about 5 s (failures included), so a transient `realpath` failure never leaves the plugin's own session foreign and an unreachable path costs one call per window.
 Events carrying a foreign location are discarded.
 
 An update retires the old file only when it matches a known copy (including CRLF/LF

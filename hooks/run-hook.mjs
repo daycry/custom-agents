@@ -113,7 +113,7 @@ function makeRoleScanner(name) {
     const mapping = JSON.parse(readFileSync(join(root, 'agent-kits', 'shared', 'native-roles.json'), 'utf8'));
     roles = mapping?.runtimes?.[name]; ids = nativeProtectedIDs(mapping, name);
   } catch { /* unreadable map: no role can be named */ }
-  const pattern = new RegExp('"' + key + '"\\s{0,64}:\\s{0,64}("(?:[^"\\\\\\r\\n]|\\\\.){0,256}")', 'g');
+  const pattern = new RegExp('"' + key + '"[ \\t\\n\\r]{0,64}:[ \\t\\n\\r]{0,64}("(?:[^"\\\\\\r\\n]|\\\\.){0,256}")', 'g');
   return {
     feed(chunk) {
       if (found || !ids || !roles) return;
@@ -193,7 +193,7 @@ function protectedRoleOf(raw, runtime) {
     if (raw.length <= GUARD_INPUT_MAX) {
       try { return roleOf(JSON.parse(text)?.[key]); } catch { /* truncated or invalid: scan below */ }
     }
-    const pattern = new RegExp('"' + key + '"\\s{0,64}:\\s{0,64}("(?:[^"\\\\\\r\\n]|\\\\.){0,256}")', 'g');
+    const pattern = new RegExp('"' + key + '"[ \\t\\n\\r]{0,64}:[ \\t\\n\\r]{0,64}("(?:[^"\\\\\\r\\n]|\\\\.){0,256}")', 'g');
     for (const found of text.matchAll(pattern)) {
       let identity;
       try { identity = JSON.parse(found[1]); } catch { continue; }

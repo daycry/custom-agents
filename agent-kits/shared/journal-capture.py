@@ -299,9 +299,9 @@ def _asegurar_gitignore_local(dirpath):
             try:
                 JIO.write(path, raw)
             except FileExistsError:
-                JIO.read(path)  # Another cooperating initializer won; never overwrite.
+                JIO.read_settled(path)  # Another cooperating initializer won; never overwrite (its two links settle first).
         else:
-            JIO.read(path)
+            JIO.read_settled(path)
 
 def _sid_seguro(session_id):
     """`session_id` como trozo de nombre de fichero: nunca sale de `.claude/` (sin separadores)."""

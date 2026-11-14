@@ -405,7 +405,7 @@ suscripción, termina los procesos propios y espera su cierre.
 
 El journal mantiene la política compartida: solo captura proyectos con `docs/roadmap`,
 `docs/knowledge` o `.claude/dev.json`, respetando opt-outs de sesión y turno. El stream
-local V2 omite `location`; `session.get` verifica proyecto y workspace antes de escribir.
+local V2 omite `location`; `session.get` verifica proyecto y workspace antes de escribir. Dos ubicaciones son el mismo proyecto si coinciden tras `resolve()` o tras `realpath`; las resoluciones pasan por una caché acotada con caducidad de unos 5 s (también para los fallos), así que un fallo pasajero de `realpath` no deja la sesión propia como ajena y una ruta caída cuesta una llamada por ventana.
 Los eventos con ubicación ajena se descartan.
 
 La actualización retira el archivo antiguo solo si coincide con una copia conocida

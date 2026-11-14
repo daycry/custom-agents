@@ -59,39 +59,38 @@ function summaryArgs(input) {
   return args;
 }
 const normalized = path => process.platform === 'win32' ? resolve(path).toLowerCase() : resolve(path);
-// Two locations are the same project when their REAL paths agree (symlinks, 8.3 names and directory case resolved: the same
-// project reached through another path form is not another project) and their workspace IDs do not CONTRADICT each other
-// (T-06 fix8, gap 6): an ID present on one side only never makes the session foreign. Case-insensitive file systems (Windows,
-// macOS) compare in lower case.
+// Two locations are the same project when their paths agree after `resolve()` (lower case on Windows and macOS) OR after
+// `realpath` (symlinks, 8.3 names and directory case resolved: the same project reached through another path form is not
+// another project), and their workspace IDs do not CONTRADICT each other (T-06 fix8, gap 6): an ID present on one side only
+// never makes the session foreign. The union only widens which sessions are kept: a failed or stale `realpath` can no longer
+// turn the plugin's own session foreign for good (fix10, gap 2).
 // `realpathSync.native` is a blocking system call (on SMB or a VPN it stalls the event loop on every tool call and every
-// event): the plugin's own directory is resolved ONCE, when it loads, and every other path through a per-string cache,
-// bounded (a full cache is dropped as a whole: a project has a handful of distinct paths). Only a successful resolution is
-// cached, so a path that does not exist yet falls back to `resolve()` each time and is resolved for real once it exists
-// (T-06 fix9, gap 7).
-const CANONICAL_CACHE_MAX = 64;
+// event), so every resolution goes through ONE per-string cache, the plugin's own directory included (it is resolved again,
+// not fixed at `setup`: a re-pointed link is followed, gap 3). The cache keeps successes AND failures for a short window
+// (`CANONICAL_TTL_MS`): a path that cannot be resolved costs one blocking call per window, not one per tool call (gap 4).
+// It is bounded (a full cache is dropped as a whole: a project has a handful of distinct paths).
+const CANONICAL_CACHE_MAX = 64, CANONICAL_TTL_MS = 5000;
 const canonicalCache = new Map();
+const caseless = path => process.platform === 'win32' || process.platform === 'darwin' ? path.toLowerCase() : path;
 const canonical = path => {
-  const cached = canonicalCache.get(path);
-  if (cached !== undefined) return cached;
-  let real, resolved = true;
-  try { real = realpathSync.native(path); } catch { real = resolve(path); resolved = false; }
-  const value = process.platform === 'win32' || process.platform === 'darwin' ? real.toLowerCase() : real;
-  if (resolved) {
-    if (canonicalCache.size >= CANONICAL_CACHE_MAX) canonicalCache.clear();
-    canonicalCache.set(path, value);
-  }
+  const now = Date.now(), cached = canonicalCache.get(path);
+  if (cached !== undefined && now >= cached.at && now - cached.at < CANONICAL_TTL_MS) return cached.value;
+  let real;
+  try { real = realpathSync.native(path); } catch { real = resolve(path); }
+  const value = caseless(real);
+  if (!canonicalCache.has(path) && canonicalCache.size >= CANONICAL_CACHE_MAX) canonicalCache.clear();
+  canonicalCache.set(path, { value, at: now });
   return value;
 };
-const sameLocation = (a, b, bDirectory) => typeof a?.directory === 'string' && typeof b?.directory === 'string'
-  && canonical(a.directory) === (bDirectory ?? canonical(b.directory))
+const sameDirectory = (a, b) => caseless(resolve(a)) === caseless(resolve(b)) || canonical(a) === canonical(b);
+const sameLocation = (a, b) => typeof a?.directory === 'string' && typeof b?.directory === 'string'
+  && sameDirectory(a.directory, b.directory)
   && (a.workspaceID == null || b.workspaceID == null || a.workspaceID === b.workspaceID);
 
 export default {
   id: 'custom-agents',
   async setup(ctx) {
     const location = ctx.location;
-    // The plugin's own location, resolved once here (gap 7): the comparisons below reuse it instead of resolving it again.
-    const locationReal = typeof location?.directory === 'string' ? canonical(location.directory) : undefined;
     const roots =[join(here, '..', '..'), join(here, '..'), here,
       join(location.directory, '.opencode'), join(location.directory, '.claude'),
       join(home, '.config', 'opencode'), join(home, '.claude')];
@@ -246,7 +245,7 @@ export default {
       if (!sessionID || controller.signal.aborted) return {};
       const response = await ctx.session.get({ sessionID });
       const session = response?.data ?? response;
-      if (sameLocation(session?.location, location, locationReal)) return { directory: session.location.directory };
+      if (sameLocation(session?.location, location)) return { directory: session.location.directory };
       return typeof session?.location?.directory === 'string' ? { foreign: true } : {};
     }
     async function project(sessionID) { return (await locate(sessionID)).directory ?? null; }
@@ -450,7 +449,7 @@ export default {
             || (event.type === binding.idle_status_event && event.data?.status?.type === binding.idle_status);
           const activity = matches(bindings.activity), capture = matches(bindings.capture);
           // V2's local stream omits location; session.get remains authoritative in every case.
-          if ((!activity && !capture) || (event.location && !sameLocation(event.location, location, locationReal))) continue;
+          if ((!activity && !capture) || (event.location && !sameLocation(event.location, location))) continue;
           try {
             const cwd = await project(event.data?.sessionID);
             if (cwd) {

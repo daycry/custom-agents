@@ -259,7 +259,7 @@ RAZON_RELATIVA_MAX = 6.0     # razón (t_grande / t_pequeño) / CRECIMIENTO máx
 SUELO_CPU = 0.05 if os.name == "nt" else 0.02  # s de CPU del caso pequeño (el reloj de Windows tiene 15,6 ms de resolución: 0,05 s = ~3 ticks, bastan con el umbral 6 y la mediana; con 0,1 s la puerta tardaba 7 min;
 #                                               en Linux 0,02 s: la puerta costaba ~9 s por caso con 0,05 s, T-23 fix5)
 TOPE_CARACTERES = 1_000_000  # tope de tamaño del caso pequeño (el grande es ×16: ≤ 16 MB)
-CRECIMIENTO_DEMO = 12         # la demo con reloj real del cuadrático usa ×12 (144×, razón ≈ 12 frente al umbral 6): fix9, gap 6 (con ×4 la razón es ≈ 4 y `_es_lineal` lo dejaba pasar). Peor de 10 ensayos medidos: 11,8 (≥ 1,5× el umbral = 9)
+CRECIMIENTO_DEMO = 12         # la demo con reloj real del cuadrático usa ×12 (144×, razón ≈ 12 frente al umbral 6): fix9, gap 6 (con ×4 la razón es ≈ 4 y `_es_lineal` lo dejaba pasar). Peor de 10 ensayos medidos: 10,90 (≥ 1,5× el umbral = 9; el mejor 13,42)
 SUELO_DEMO_CUADRATICO = 0.0156  # caso pequeño de un tick del reloj de CPU de Windows (15,6 ms), promediado en `REPS_CHICO_DEMO` repeticiones: la muestra grande cuesta 1,5-3 s
 REPS_CHICO_DEMO = 64          # repeticiones del caso pequeño de la demo (se promedian): el error de cuantización del reloj baja del ~75 % a ~5 %
 PASO_DEMO = 1.1               # crecimiento del tamaño hasta el suelo: con ×1,25 el caso pequeño se pasaba del suelo hasta ×1,56 y el grande costaba lo mismo de más
@@ -466,7 +466,7 @@ def test_la_puerta_rechaza_la_regex_cuadratica_que_antes_quedaba_bajo_el_suelo()
         pass                                     # fix9: el primer ensayo de un proceso frío medía 2-3× más
     relativa, tc, tg, _ = _medir(_regex_cuadratica, lambda n: "x" * n, n0=500, suelo=SUELO_DEMO_CUADRATICO, pausa=0,
                                  rondas=1, tope=TOPE_CPU_DEMO, paso=PASO_DEMO, muestras=MUESTRAS_DEMO,
-                                 crecimiento=CRECIMIENTO_DEMO, reps_chico=REPS_CHICO_DEMO)   # fix9: ×12, 1 muestra, pequeño promediado
+                                 crecimiento=CRECIMIENTO_DEMO, reps_chico=REPS_CHICO_DEMO)   # fix9/fix10: ×12, 3 muestras (la tercera solo si discrepan las dos primeras), pequeño promediado
     assert relativa is not None and math.isfinite(relativa), (relativa, tc, tg)   # la mediana, no un `inf` de la sonda
     # fix9, gap 6: la aserción es la DECISIÓN REAL de la puerta (umbral 6), no `relativa > 2`: con ×4 un cuadrático da una
     # razón ≈ 4 y `_es_lineal` lo dejaba pasar mientras la demo salía verde.
@@ -702,7 +702,7 @@ def test_fix8_margen_de_la_demo_entre_la_muestra_tipica_y_el_tope():
     5× de margen para que la rama `tg > tope` no sea un azar de la carga."""
     tipica = SUELO_DEMO_CUADRATICO * CRECIMIENTO_DEMO ** 2 * 3
     assert TOPE_CPU_DEMO >= 5 * tipica, (TOPE_CPU_DEMO, tipica)
-    assert tipica <= 12.0, tipica  # gap 11 / fix9: coste de la demo por debajo de 15 s; con ×14 una muestra mide 1,5-3 s (la pesimista ×3 da 9,2)
+    assert tipica <= 12.0, tipica  # gap 11 / fix9: coste de la demo por debajo de 15 s; con ×12 una muestra mide 1,5-3 s (la pesimista ×3 da 6,7)
 
 
 def test_fix8_un_inf_por_tope_se_confirma_con_una_segunda_muestra_tras_la_pausa(monkeypatch):

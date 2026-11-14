@@ -79,6 +79,32 @@ def read(path, maximum=MAX_BYTES):
     return IO.read(path, maximum)[0]
 
 
+def settled(operation, path):
+    """Run `operation()` (a guarded read of `path`) and, if it fails with `unsafe_state` because the file is in the TRANSIENT
+    state of an exclusive creation, wait for it to settle (T-23 fix10, gap 9). The winner of `os.link(temporary, path)` leaves
+    the inode with two links until it removes its private temporary, and the guards refuse that state (`nlink != 1`: they
+    exist against hard-linked files). Like `update`, wait for it, never adopt it: a link that stays (a planted hard link)
+    exhausts the bound (about 0.75 s) and the original `unsafe_state` is raised."""
+    for attempt in range(40):
+        try:
+            return operation()
+        except ValueError as error:
+            if str(error) != 'unsafe_state':
+                raise
+            path = Path(path).absolute(); IO.dirs(path.parent)
+            if os.path.lexists(path):
+                info = path.lstat()
+                need(stat.S_ISREG(info.st_mode) and not IO.reader._redirected(info) and info.st_nlink in (1, 2), 'unsafe_state')
+            if attempt == 39:
+                raise
+            time.sleep(min(0.002 * 2 ** attempt, 0.02))
+
+
+def read_settled(path, maximum=MAX_BYTES):
+    """`read` of a file another cooperating initializer may have JUST created (see `settled`)."""
+    return settled(lambda: read(path, maximum), path)
+
+
 def write(path, raw, *, owned_prefix=None, allow_degraded_sync=False):
     path = Path(path).absolute(); IO.dirs(path.parent)
     previous = identity = None
@@ -174,7 +200,7 @@ def queue(path):
             if stat.S_ISDIR(info.st_mode):
                 IO.dirs(target)
             else:
-                IO.file(target)
+                settled(lambda target=target: IO.file(target), target)   # a file being created has two links for an instant
 
 
 class GuardedOutbox:

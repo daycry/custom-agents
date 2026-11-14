@@ -80,7 +80,7 @@ def _role_scanner(runtime):
         key = "agent" if runtime == "opencode" else "agent_type"
         # The escape alternative is a backslash plus the escaped character, exactly as in `makeRoleScanner` of hooks/run-hook.mjs
         # (a lone `\.` here would match a literal dot and never consume an escape: T-06 fix9, gap 3).
-        pattern = re.compile(r'"' + key + r'"\s{0,64}:\s{0,64}("(?:[^"\\\r\n]|\\.){0,256}")')
+        pattern = re.compile(r'"' + key + r'"[ \t\n\r]{0,64}:[ \t\n\r]{0,64}("(?:[^"\\\r\n]|\\.){0,256}")')
     except Exception:
         return lambda chunk: None
     tail = [b""]

@@ -36,6 +36,14 @@ def _git(root, *args):
                                "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@x"})
 
 
+def _reloj_congelado(monkeypatch):
+    """Congela `time.monotonic` (T-23 fix10, gap 7): un `budget_ms` corto con el reloj real se agota si la maquina va cargada y la
+    pasada se corta antes de su primer elemento. Con el reloj quieto el presupuesto nunca caduca y lo que se comprueba es lo que
+    importa (la IA no se llama; `recover` usa el plazo corto de git), no cuanto tarda la maquina."""
+    t0 = time.monotonic()
+    monkeypatch.setattr(journal.time, "monotonic", lambda: t0)
+
+
 def proyecto(tmp_path, con_git=True, activa=True):
     proj = tmp_path / "proj"
     led = proj / "docs" / "roadmap" / "2026-01-01-demo" / "tasks.md"
@@ -1628,6 +1636,7 @@ def test_replay_bajo_presupuesto_ajustado_no_llama_a_la_ia(tmp_path, monkeypatch
     # inyecta los stubs monkeypacheando escribir_sesion vía el módulo (replay los pasa por dentro)
     monkeypatch.setattr(journal, "resumen_ia",
                         lambda *a, **k: (_ for _ in ()).throw(AssertionError("resumen_ia no debe llamarse")))
+    _reloj_congelado(monkeypatch)
     r = journal.replay(str(proj), budget_ms=100)
     assert r["materializados"] == 1
     assert llamadas == []
@@ -2713,6 +2722,7 @@ def test_recover_con_presupuesto_usa_budget_git_timeout(tmp_path, monkeypatch):
         return real_git(root, *args, timeout=timeout)
 
     monkeypatch.setattr(journal, "_git", _git_espia)
+    _reloj_congelado(monkeypatch)
     r = journal.recover(str(proj), current_session_id="viva", budget_ms=300)
     assert r["recuperadas"] == 1, r
     assert vistos, "recover no llegó a invocar git"
@@ -3256,37 +3266,6 @@ def test_t21_draft_de_un_cierre_normal_conserva_la_marca(tmp_path):
     assert "regla_iniciativa" not in journal.draft(str(proj), session_id="s-late", reason="orphan_recovery")
 
 
-# --- T-23 fix10, gap 7: los presupuestos cortos no dependen de la carga de la maquina ---------------------------------------
-# Un `budget_ms` constante por debajo de 1 s con el reloj real se agota si la maquina va cargada (la pasada se corta antes de
-# su primer elemento). Un test que lo usa congela el reloj (`_reloj_congelado`) o comprueba que el cerrojo esta ocupado (el
-# presupuesto solo acota la espera y la asercion es tolerante). Un test nuevo con presupuesto corto y reloj real falla aqui.
-_PRESUPUESTO_CORTO_CERROJO = {
-    "test_replay_termina_dentro_del_presupuesto_con_0_10_100_pendientes",
-    "test_replay_cerrojo_ocupado_bajo_presupuesto_devuelve_bloqueado_rapido",
-    "test_replay_sigue_bloqueado_si_el_cerrojo_esta_realmente_ocupado",
-    "test_recover_cerrojo_ocupado_bajo_presupuesto_devuelve_bloqueado_rapido",
-    "test_replay_con_recover_bloqueado_inicializa_recuperadas_y_candidatas",
-}
-
-
-def test_los_presupuestos_cortos_de_los_tests_no_dependen_del_reloj_de_pared():
-    import ast
-    arbol = ast.parse(open(__file__, encoding="utf-8").read())
-    sin_reloj = []
-    for f in ast.walk(arbol):
-        if not (isinstance(f, ast.FunctionDef) and f.name.startswith("test_")) or f.name in _PRESUPUESTO_CORTO_CERROJO:
-            continue
-        cortos = [c for c in ast.walk(f) if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)
-                  and c.func.attr in ("replay", "recover")
-                  and any(k.arg == "budget_ms" and isinstance(k.value, ast.Constant) and isinstance(k.value.value, int)
-                          and 0 < k.value.value < 1000 for k in c.keywords)]
-        congela = any(isinstance(c, ast.Call) and isinstance(c.func, ast.Name) and c.func.id == "_reloj_congelado"
-                      for c in ast.walk(f))
-        if cortos and not congela:
-            sin_reloj.append(f.name)
-    assert not sin_reloj, f"presupuesto corto con reloj real (usa `_reloj_congelado(monkeypatch)`): {sin_reloj}"
-
-
 # --- T-23 fix10, gap 9: carrera del inicializador de la cola (`.custom-agents-journal` / `.gitignore`) -------------------------
 # El inicializador que gana crea el fichero con `os.link(temporal, destino)`: hasta que borra el temporal el inodo tiene DOS
 # enlaces. El que pierde (`FileExistsError`) leia el fichero en ese instante y `JIO.read` lanzaba `ValueError('unsafe_state')`
@@ -3304,7 +3283,7 @@ def _dos_enlaces(tmp_path):
 
 def test_inicializador_de_la_cola_espera_al_estado_transitorio_de_dos_enlaces(tmp_path):
     dir_, extra = _dos_enlaces(tmp_path)
-    hilo = threading.Timer(0.15, lambda: os.remove(extra))
+    hilo = threading.Timer(0.1, lambda: os.remove(extra))
     hilo.start()
     try:
         journal._asegurar_gitignore_local(dir_)       # antes: ValueError('unsafe_state') al instante

@@ -43,10 +43,11 @@ test('fix10 gap 2: a failed first realpath never leaves the project foreign for 
     ctx.session.get = async () => ({ data: { location: { directory: p } } });
     await withClock(async advance => {
       cleanup = await plugin.setup(ctx);
+      await prompt(ctx, 'during');                        // el primer realpath falla: la ventana de fallo (unos 5 s) la deja fuera
       advance(WINDOW);
       await prompt(ctx, 'own');
     });
-    assert.equal(saved(p, 'own'), true, 'la sesion del propio proyecto debe guardarse tras caducar el fallo');
+    assert.equal(saved(p, 'own'), true, 'la sesion del propio proyecto debe guardarse tras caducar el fallo (antes: para siempre foreign)');
   } finally { restore?.(); await cleanup?.(); try { rmdirSync(j); } catch {} rmSync(p, { recursive: true, force: true }); }
 });
 
@@ -66,8 +67,8 @@ test('fix10 gap 3: a re-pointed link is followed once the cached entry expires',
   const p = project('c'), x = project('x'), j = `${p}-link`; let cleanup;
   try {
     link(x, j);
-    const ctx = opencodeContext(p);
-    ctx.session.get = async () => ({ data: { location: { directory: j } } });
+    const ctx = opencodeContext(j);                       // la ubicacion del plugin es el enlace; la sesion llega por la ruta real
+    ctx.session.get = async () => ({ data: { location: { directory: p } } });
     await withClock(async advance => {
       cleanup = await plugin.setup(ctx);
       await prompt(ctx, 'before');
