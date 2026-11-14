@@ -38,13 +38,13 @@ changelog: Changed
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Defectos | 7 | 8 | 87.5% | 0 / 16h | 0 / 5.0h | 0 / 1.25h | 0 / 1090k |
+| Fase 1 — Defectos | 5 | 8 | 62.5% | 0 / 16h | 0 / 5.0h | 0 / 1.25h | 0 / 1090k |
 | Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev) | 0 | 4 | 0% | 0 / 32h | 0 / 7.9h | 0 / 1.98h | 0 / 2100k |
 | Fase 3 — Tokens | 0 | 11 | 0% | 0 / 30h | 0 / 8.2h | 0 / 2.05h | 0 / 2260k |
 | Fase 4 — Simplificación del código | 0 | 8 | 0.0% | 0 / 34.5h | 0 / 8.5h | 0 / 2.12h | 0 / 2470k |
 | Fase 5 — Alcance y entrenamiento | 0 | 5 | 0% | 0 / 26h | 0 / 6.5h | 0 / 1.62h | 0 / 1800k |
-| Fase 6 — Higiene del roadmap | 0 | 2 | 0% | 0 / 7h | 0 / 1.7h | 0 / 0.42h | 0 / 500k |
-| **TOTAL** | **7** | **38** | **18.4%** | **0 / 145.5h** | **0 / 37.8h** | **0 / 9.45h** | **0 / 10220k** |
+| Fase 6 — Higiene del roadmap | 0 | 3 | 0% | 0 / 10h | 0 / 2.5h | 0 / 0.62h | 0 / 750k |
+| **TOTAL** | **5** | **39** | **12.8%** | **0 / 148.5h** | **0 / 38.6h** | **0 / 9.65h** | **0 / 10470k** |
 
 Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +20 % está en el plan); tokens al precio de `.claude/rates.json`.
 
@@ -198,11 +198,10 @@ TDD n/a: prosa de descriptions y de dos comandos; la puerta determinista es eval
 
 - **Descripción**: `guardrail-check.py` solo trata `git checkout`/`switch` como cambio de rama; `git checkout -- .`, `git restore .` y `checkout -f` pasan (deuda de F1 de la iniciativa anterior). Se añaden pocas reglas (descartan trabajo sin commit) con tests que fallan primero, sin tocar el alcance por rol (ADR-007).
 - **Changelog**: El guardarraíl del implementer también deniega git checkout -- ., git restore . y checkout -f.
-- **Estado**: completado
-- **Cerrada**: 2026-11-14
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 2h · real —
 - **Tiempo IA (ejec.)**: est. 0.5h · real 5.01h (0.4h del cierre original estimado + 2.53h medidas en fix5 + 0.78h medidas en fix6 + 1.33h medidas en fix7 `(medido)`; las ventanas de fix5, fix6 y fix7 están compartidas con T-07 y T-23)
-- **Archivos**: `agent-kits/shared/guardrail-check.py`, `agent-kits/shared/test_guardrail_check.py`, `agent-kits/shared/test_guardrail_differential.py` (fix5), `tests/test_native_guardrail_dispatch.py`, `docs/agents/implementer.md`, `docs/CONVENTIONS.md` · fix6: `agent-kits/shared/native-guardrail.py`, `hooks/run-hook.mjs`, `hooks/opencode-plugin.js`, `interop/opencode/plugins/custom-agents/index.js` (regenerado), `tests/test_native_guard_failclosed.py` (nuevo), `tests/hook-guard-failclosed.test.mjs` (nuevo), `docs/FLOWS.md`, `docs/en/FLOWS.md` · fix7: `agent-kits/shared/test_guardrail_fix7.py`, `agent-kits/shared/test_guardrail_differential7.py`, `tests/test_native_guard_failclosed7.py`, `tests/native-guard-adapter-failclosed.test.mjs` (nuevos), `docs/INTEROP.md`, `docs/en/INTEROP.md`, `interop/opencode/plugins/custom-agents/index.js` (regenerado), `agent-kits/shared/test_guardrail_differential.py`
+- **Archivos**: `agent-kits/shared/guardrail-check.py`, `agent-kits/shared/test_guardrail_check.py`, `agent-kits/shared/test_guardrail_differential.py` (fix5), `tests/test_native_guardrail_dispatch.py`, `docs/agents/implementer.md`, `docs/CONVENTIONS.md` · fix6: `agent-kits/shared/native-guardrail.py`, `hooks/run-hook.mjs`, `hooks/opencode-plugin.js`, `interop/opencode/plugins/custom-agents/index.js` (regenerado), `tests/test_native_guard_failclosed.py` (nuevo), `tests/hook-guard-failclosed.test.mjs` (nuevo), `docs/FLOWS.md`, `docs/en/FLOWS.md` · fix7: `agent-kits/shared/test_guardrail_fix7.py`, `agent-kits/shared/test_guardrail_differential7.py`, `tests/test_native_guard_failclosed7.py`, `tests/native-guard-adapter-failclosed.test.mjs` (nuevos), `docs/INTEROP.md`, `docs/en/INTEROP.md`, `interop/opencode/plugins/custom-agents/index.js` (regenerado), `agent-kits/shared/test_guardrail_differential.py` · fix8: `tests/test_native_guard_scan8.py` y `tests/native-guard-adapter-fix8.test.mjs` y `agent-kits/shared/test_guardrail_fix8.py` (nuevos), `agent-kits/shared/guardrail-check.py`, `agent-kits/shared/native-guardrail.py`, `hooks/run-hook.mjs`, `hooks/opencode-plugin.js`, `interop/opencode/plugins/custom-agents/index.js` (regenerado), `agent-kits/shared/test_guardrail_differential.py`, `agent-kits/shared/test_guardrail_differential7.py`, `tests/test_native_guard_failclosed.py`, `tests/test_graphiti_security.py` (huella del lanzador), `docs/INTEROP.md`, `docs/en/INTEROP.md`, `docs/agents/implementer.md`
 - **Evidencia**: GREEN: `pytest -q agent-kits/shared/test_guardrail_check.py -k restauracion` → `23 passed` (15 denegaciones + 8 permitidos: `git checkout main -- <fichero>`, `checkout -b|-B`, `restore --staged`, `restore <fichero>`, `checkout <rama>`); suite completa del guardarraíl → `414 passed`. Se deniegan `git checkout -f|--force`, `checkout [--] .`, `git restore .`, `restore --worktree|-W`, `switch -f|--discard-changes` (también con `-C`, `sh -c '…'`); el mensaje dice «descarta cambios sin comitear» y apunta a `git diff <foto> -- <ficheros> | git apply -R`. `restore --staged .` (solo índice) no se deniega. Runtimes: `pytest -q tests/test_native_guardrail_dispatch.py tests/test_native_prefilter_parity.py tests/test_native_role_context.py` → `33 passed`; `node --test tests/native-guard-adapter.test.mjs` → `pass 3`; `node --test tests/hook-guard-prefilter.test.mjs` → `pass 23`; `export-interop.py --check` → `88 ficheros al día` (el guardarraíl lo sirve un único script). Alcance: `docs/CONVENTIONS.md` no describe las reglas de git del guardarraíl, no se toca; la lista de denegaciones vive en `docs/agents/implementer.md` (actualizada) y en el docstring del script.
 - **Runtimes**: Una sola política (`guardrail-check.py`); `native-guardrail.py` la sirve a Codex y OpenCode (`tests/native-guard-adapter.test.mjs`).
 - **Verificación**:
@@ -307,12 +306,41 @@ GREEN: diseño del orquestador aplicado punto a punto (no hubo imposibles; las i
 
 RED: `agent-kits/shared/test_guardrail_fix8.py` + `agent-kits/shared/test_journal_io_deadline.py` (29 failed, 30 passed: xargs heredado por `sh -c`, `--replace/--eof/--max-lines`, `env -S` con comillas, hostil de `-S` anidados, `_estado`/`_tiene` sin caché, `journal_io_deadline` sin escala), `tests/test_native_guard_scan8.py` (8 failed, 2 passed: 17 MiB con la clave al final y INTEROP ES/EN), `node --test tests/native-guard-adapter-fix8.test.mjs` (3 fail, 2 pass: `workspaceID` en un solo lado, enlace al proyecto) y `tests/test_redact_fix3.py -k fix8` (3 failed, 1 passed: margen del tope de la demo, `inf` por tope sin confirmar, confirmación ×4 sin pausa) fallaron antes del código · 2026-11-14.
 
+GREEN: diseño del orquestador aplicado punto a punto (sin imposibles; interpretaciones abajo; commits `3bc278b` y `272c284`):
+1. **`xargs` heredado** (gaps 1 y 2, punto 1): `check_git` recibe `_xargs` y la marca «rutas por stdin» de `_desenvuelve` se hereda al recursar en `sh|bash -c`/`eval` (sigue dentro de `env -S`): `xargs -I{} sh -c 'git restore {}'` y sus variantes, con o sin `{}`, se deniegan. `--replace`, `--eof` y `--max-lines` pasan a `_LARGAS_OPCIONALES` (valor solo pegado con `=`): `xargs --replace git restore {}` se deniega y `xargs --replace echo {}` sigue permitido. Una opción larga desconocida con git ya se denegaba.
+2. **`env -S` con shlex** (gap 4, punto 3): `_trocea_s` usa `shlex.split(posix=True)`; las 4 formas del gap se deniegan y un valor ilegible es opción desconocida (deny con git). Hostil de 11,7 KB: 0,14 s → < 0,02 s de CPU.
+3. **Escáner sin tope** (gap 5, punto 4): `_role_scanner`/`_role_of_stream` (`native-guardrail.py`) y `makeRoleScanner`/`readGuardInput` (`run-hook.mjs`): ventana deslizante de 1 KiB, memoria constante y sin tope; el lanzador solo retiene 64 KiB + 1 B para el hijo. 17 MiB con la clave al final: deny para `implementer` y `architect` (Claude y OpenCode, por el lanzador y por `native-guardrail.py`) y `continue` para `qa`. Huella del lanzador actualizada en `tests/test_graphiti_security.py`.
+4. **OpenCode** (gap 6, punto 5): `canonical()` (`realpathSync.native`; minúsculas en win32 y darwin); un `workspaceID` presente en un solo lado no hace la sesión ajena, dos distintos sí. Interop regenerado: `export-interop.py --check` → `88 ficheros al día`.
+5. **Plazo de punta a punta** (gap 3, punto 2): `test_plazo_agotado_se_deniega_para_el_rol_protegido` vuelve al paso SERIE con `dt < timeout de hooks.json − 1` (9 s, leído del fichero); mide 5,9 s (claude) y 6,3 s (opencode). No se relajó.
+6. **Corpus y documentación** (gaps 7, 8, 9 y 12, puntos 6 y 8): INTEROP ES/EN corregidos (con prueba); las sondas de `lc7` (b51-b79, k84-k103, w23, w25-w28, w32, w35-w39) y las 24 de `lb7/legit2.py` clasificadas por su ejecución real: 38 BAD con paridad, 19 sin paridad, 23 LEGIT, 1 LIMITE (`trap 'cd ..' DEBUG`, ya en el modelo de amenaza de `docs/agents/implementer.md`) y 3 falsos deny (`<<"EOF"`, `<<EOF`, `<<'EOF-1'`); `nice {D}` sale de `SIN_PARIDAD_7` (BAD6 lo ejecuta con paridad); `_estado_plantilla` y `_tiene` con caché.
+
+**Interpretaciones y rebates de fix8** (ninguno sustituye el diseño en silencio):
+- *i1 — punto 3.* En vez de reescribir la lista de palabras sin rebanar, se acota: 4 troceos por invocación y 2.048 caracteres por valor (`shlex` va carácter a carácter); lo que pasa de ahí es opción desconocida (deny con git). Cubre las 4 formas y el hostil.
+- *i2 — punto 5.* El enlace al proyecto se prueba con una unión (`junction`) en Windows; el nombre 8.3 y las mayúsculas de macOS no se pueden probar aquí (sin runtime).
+- *i3 — punto 7.* La primera versión de la demo (×8, umbral 4) dio razón 3,7 bajo carga en la pasada 1 de Windows y se descartó: usa ×4 con un caso pequeño de 0,08 s (razón ≈ 5 frente a ≈ 1 del lineal, umbral 2) y `_medir` omite la sonda ×4 si `crecimiento` ≤ 4; cuesta unos 11 s en Windows (antes 53 s). El `inf` por tope y la segunda muestra ×4 se confirman tras `PAUSA_RONDAS`.
+- *i4 — `test_journal.py::test_replay_con_recover_max_limita…`* falló UNA vez bajo la carga de otra suite (aserción de pared `< 5000 ms`) y pasa suelta; no se tocó.
+- *Gap 14, rebatido sin cambio:* `git checkout FETCH_HEAD` es la misma clase que `HEAD~1`, permitida por decisión previa.
+
+**Puerta de redact: 10 pasadas sin rojo por plataforma con carga** (`pytest tests/test_redact_fix3.py -m serie -x`, 26 tests, `HEAD` `272c284`, ambas plataformas a la vez; Linux en `python:3.11-slim` `-m 1g`, 4 CPU y 12 bucles de CPU; Windows con 6 bucles):
+
+| Pasada | Linux (12 bucles de CPU, 4 CPU) | Segundos | Windows (6 bucles de CPU) | Segundos |
+|---|---|---|---|---|
+| 1 | 26 passed, 0 failed | 213 | 26 passed, 0 failed | 494 |
+| 2 | 26 passed, 0 failed | 180 | 26 passed, 0 failed | 404 |
+| 3 | 26 passed, 0 failed | 194 | 26 passed, 0 failed | 535 |
+| 4 | 26 passed, 0 failed | 165 | 26 passed, 0 failed | 426 |
+| 5 | 26 passed, 0 failed | 194 | 26 passed, 0 failed | 508 |
+| 6 | 26 passed, 0 failed | 257 | 26 passed, 0 failed | 379 |
+| 7 | 26 passed, 0 failed | 200 | 26 passed, 0 failed | 396 |
+| 8 | 26 passed, 0 failed | 198 | 26 passed, 0 failed | 300 |
+| 9 | 26 passed, 0 failed | 207 | 26 passed, 0 failed | 394 |
+| 10 | 26 passed, 0 failed | 224 | 26 passed, 0 failed | 302 |
+
 ### T-07 — code-health no termina sobre el repo completo (1.9)
 
 - **Descripción**: El auditor reporta timeout de 300 s con `code-health.py` sobre este repo. No lo reprodujo el orquestador: se mide primero qué lo hace lento (sin exclusiones de `worktrees`, `node_modules`, `interop`, `*.sqlite`, o comparación de shingles cuadrática) y se arregla la causa, con un tope de tiempo declarado.
 - **Changelog**: code-health termina en un tiempo acotado sobre repos grandes y excluye directorios generados.
-- **Estado**: completado
-- **Cerrada**: 2026-11-14
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 3h · real —
 - **Tiempo IA (ejec.)**: est. 1h · real 0.8h (estimado) + fix5, fix6 y fix7 sin horas propias (ventanas medidas de 2.53h, 0.78h y 1.33h compartidas con T-06 y T-23, imputadas a T-06)
 - **Archivos**: `skills/code-health/scripts/code-health.py`, `skills/code-health/scripts/test_code_health.py`, `skills/code-health/SKILL.md`, `agent-kits/shared/copias.json` (fix1: el rango del docstring de uso cambia con la línea nueva de flags)
@@ -376,6 +404,8 @@ RED: `skills/code-health/scripts/test_code_health.py -k fix6` falló antes del c
 GREEN: commits `1cf29b3`. `cr_suelto()` solo marca un fichero con algún CR y NINGÚN LF (CR como único separador); CR-CR-LF y un CR suelto dentro de una línea de un fichero con LF no son parciales. `pytest -q skills/code-health/scripts/test_code_health.py -k fix6` → `2 passed`; suite completa del fichero → `65 collected`, sin fallos en la réplica Linux (ver T-23).
 
 **fix7 (revisión de dos lentes, intento 7)** — clave de medición `plugin-audit-2/T-07-fix7`. La revisión no abre ningún gap sobre T-07: sin cambios de código ni de `Archivos`. Se vuelve a ejecutar su suite dentro de la réplica Linux completa de fix7 (`skills/code-health/scripts`, en el paso paralelo) y el ledger conserva el estado `completado`.
+
+**fix8 (intento 8)** — clave de medición `plugin-audit-2/T-07-fix8`. Sin cambios propios: ningún gap del intento 8 toca `code-health`; las horas medidas de la ventana compartida se imputan a T-06.
 
 ### T-38 — Manual PDF regenerable y al día (decidido por el usuario el 2026-11-12)
 
@@ -730,7 +760,7 @@ GREEN: `python scripts/build-handbook.py --edition 2026-11-12` regeneró las tre
 - **Estado**: en-progreso
 - **Tiempo humano**: est. 2h · real —
 - **Tiempo IA (ejec.)**: est. 0.5h · real 0.55h (medido; ventana compartida con T-02..T-07) + fix5, fix6 y fix7 sin horas propias (ventanas imputadas a T-06)
-- **Archivos**: `docs/roadmap/2026-11-10-plugin-audit-2/testing/perf.md` (lo escribe el orquestador con las medidas de T-07 y T-23; el guardarraíl veta `testing/` al implementer) · `ci.yml.MANUAL-COPY` y `.github/workflows/ci.yml` (idénticos, comprobado con `diff`; el paso `pip install pytest pyyaml` de `:30-31` añade `pytest-xdist`), `tests/test_ci_manual_copy.py`, `tests/test_ci_skill_suites.py`, `tests/test_suites_no_pytest.py` · añadidos por la nota de alcance: `pytest.ini` (solo registra el marcador `serie`), `tests/test_redact_fix3.py`, `tests/test_npm_payload.py` (fix4: timeout de `npm pack` 120 → 600 s), `tests/test_local_state_fix3.py` (fix4: módulo al paso serie, plazo de pared del almacén), `agent-kits/shared/test_redact.py`, `agent-kits/shared/test_plan_review_summary.py`, `tests/test_agent_activity_store.py`, `tests/test_bench_session_end.py`, `tests/opencode-plugin.test.mjs` (fix1: espera a que el hijo escriba el JSON), `tests/test_lint_plugin.py`, `tests/test_ledger_lint.py`, `tests/test_dashboard.py` (fix1: wrappers `test_suite_legada_*` de sus `main()`/`run()`) (marcados `@pytest.mark.serie`: miden tiempo de pared o dependen del orden de lecturas y fallan bajo `-n auto`; corren en un paso aparte sin xdist), `agent-kits/shared/agent-activity-store.py` (fix5), `agent-kits/shared/test_redact.py` (fix5)
+- **Archivos**: `docs/roadmap/2026-11-10-plugin-audit-2/testing/perf.md` (lo escribe el orquestador con las medidas de T-07 y T-23; el guardarraíl veta `testing/` al implementer) · `ci.yml.MANUAL-COPY` y `.github/workflows/ci.yml` (idénticos, comprobado con `diff`; el paso `pip install pytest pyyaml` de `:30-31` añade `pytest-xdist`), `tests/test_ci_manual_copy.py`, `tests/test_ci_skill_suites.py`, `tests/test_suites_no_pytest.py` · añadidos por la nota de alcance: `pytest.ini` (solo registra el marcador `serie`), `tests/test_redact_fix3.py`, `tests/test_npm_payload.py` (fix4: timeout de `npm pack` 120 → 600 s), `tests/test_local_state_fix3.py` (fix4: módulo al paso serie, plazo de pared del almacén), `agent-kits/shared/test_redact.py`, `agent-kits/shared/test_plan_review_summary.py`, `tests/test_agent_activity_store.py`, `tests/test_bench_session_end.py`, `tests/opencode-plugin.test.mjs` (fix1: espera a que el hijo escriba el JSON), `tests/test_lint_plugin.py`, `tests/test_ledger_lint.py`, `tests/test_dashboard.py` (fix1: wrappers `test_suite_legada_*` de sus `main()`/`run()`) (marcados `@pytest.mark.serie`: miden tiempo de pared o dependen del orden de lecturas y fallan bajo `-n auto`; corren en un paso aparte sin xdist), `agent-kits/shared/agent-activity-store.py` (fix5), `agent-kits/shared/test_redact.py` (fix5) · fix7 (corrección de fix8, gap 9: faltaban): `agent-kits/shared/test_ledger_view.py` (paso serie), `tests/test_graphiti_security.py` (huella del lanzador) · fix8: `agent-kits/shared/test_journal_io_deadline.py` (nuevo), `agent-kits/shared/journal-io.py` (plazo inyectable solo bajo `PYTEST_CURRENT_TEST`), `agent-kits/shared/test_journal.py`, `tests/test_redact_fix3.py`, `tests/test_native_guard_failclosed.py` (prueba de plazo al paso serie)
 - **Evidencia**: MEDIDA (Linux `python:3.11-slim`, un contenedor `-m 1g`, 4 CPU, `git archive` en LF, mismos **11.190 tests** en las dos formas; `testing/perf.md` lo veta el guardarraíl del rol, por eso consta aquí). CI VIEJA: bucle (163 ficheros `tests/test_*.py` ejecutados como script) **163 s** + pytest en serie **1.340 s** = **1.503 s**. CI NUEVA: bucle solo con los 3 ficheros sin `def test` (`test_coverage_check`, `test_mermaid_blocks`, `test_readme_badges`) **9 s** + `pytest -n auto -m "not serie" --durations=20` **615 s** (host sin otra carga; 734 s con carga) + paso `-m serie` **55 s** = **679 s ≈ 45 %** (pytest solo: 46 %; suelo del paralelo: `test_task_brief::test_ca08…` = 131-166 s). REBATE del plan: los ficheros que el bucle repetía eran **160 de 163** (no 23/27: casi todos los `tests/test_*.py` tienen ya `def test`). `-n auto` rompió tests que miden tiempo de pared o contienden por un lock con procesos hermanos; marcados `@pytest.mark.serie` (marcador registrado en `pytest.ini`, paso aparte sin xdist): `test_redact_fix3::test_linear_cost_on_pathological_inputs`, `test_redact::test_2_2_lineal_con_muchas_comillas_y_operadores`, `test_plan_review_summary::test_state_changed_during_read`, `test_agent_activity_store::test_d2_burst…` y `::test_2_1_lifecycle_signals_survive_sustained_tool_contention…`, `test_bench_session_end::test_bench_mide_in_process…` y `::test_bench_reporta_e2e_p50…`; `tests/test_suites_no_pytest.py::test_los_tests_de_tiempo_van_en_un_paso_serie_aparte` fija la lista y el paso. Residuo conocido de ESTA máquina (no de xdist): los dos de `redact` miden `< 1,5 s` y fallan también en serie aquí (tardan 1,7 s; en el runner de GitHub pasan) → `test_redact_fix3` falla en el paso serie en este entorno. GREEN: `pytest -q tests/test_ci_manual_copy.py tests/test_ci_skill_suites.py` → `16 passed`; `tests/test_suites_no_pytest.py -k "bucle or paraleliza or incluye or tiempo or hay_suites"` → `5 passed`; `ci.yml.MANUAL-COPY` y `.github/workflows/ci.yml` idénticos. Medición de uso (usage-meter, `plugin-audit-2/T-23`, ventana compartida con T-02..T-07 porque se hicieron entrelazadas): 0,55 h IA medidas, 33 min, ≈ 7,88 € estimado por tarifa; las demás tareas llevan estimación.
 - **Runtimes**: Sin diferencia de conducta; la CI sigue ejecutando `node --test` de Codex y OpenCode.
 - **Verificación**:
@@ -754,17 +784,7 @@ GREEN: el detector `casos_solo_desde_main` (AST: funciones no-`test*` con `asser
 
 **Verificación en Linux de los fix1 (gap 3)** — `python:3.11-slim`, un contenedor `-m 1g --cpuset-cpus 0-3` (sin `--cpuset-cpus`, `-n auto` veía los núcleos del anfitrión: 16 procesos en 1 GiB, `INTERNALERROR` y 38 fallos por OOM; ese intento se descarta), árbol de `git -c core.autocrlf=false archive`, Node 22 y npm copiados de `node:22-bookworm-slim`, permisos normalizados desde el índice (un montaje de Windows los deja todos en 0777 y `hooks.json` salía ejecutable). Pasos del `ci.yml` nuevo, resultado final sobre HEAD `5bb47c1` (tras los fix1):
 
-| Paso de la CI | passed | failed | skipped | Resultado |
-|---|---|---|---|---|
-| Linter del plugin | — | — | — | exit 0, `10 agentes · 0 errores · 16 avisos` |
-| Manual PDF y fuentes coherentes (`check-handbook`) | — | — | — | **exit 1** (rojo conocido, ver T-03: `source_changed` de `docs/guides/atlassian.md`, `docs/reference/atlassian.md`, `agent-kits/shared/modules.json`) |
-| Evals estáticos | — | — | — | exit 0, `59 ficheros · 227 casos · 0 errores` |
-| pytest `-n auto -m "not serie"` | 11.299 | 1 (`test_npm_payload::test_npm_contains_pdf_editions_linked_from_its_readme`, el rojo conocido del PDF) + 4 *errors* de entorno | 67 | 969 s (anfitrión con carga; 615 s medidos en reposo) |
-| pytest `-m serie` | 14 | 0 | 0 | 64 s, exit 0 |
-| Bench SessionEnd | — | — | — | exit 0 (`p95=14,75 ms`, `p99=16,81 ms`) |
-| `export-interop --check` | — | — | — | exit 0, `88 ficheros al día` |
-| `node --test --test-concurrency=2 tests/*.test.mjs` | 512 | 0 | 25 | exit 0 (537 pruebas, 137 s) |
-| Sintaxis de los `.py` + JSONs + `release.py --check` | — | — | — | exit 0 (`todas coinciden en 3.3.0`) |
+(Tabla de la réplica de fix1 condensada por el tope de lectura de 256 KiB del ledger: lint, evals, interop, bench, node y sintaxis en verde; paralelo 11.299 passed con el rojo conocido del PDF y 4 errors de entorno, ambos resueltos en ciclos posteriores; serie 14 passed en 64 s.)
 
 (SUPERADO por T-38 y por el fix4: ya no hay rojo; ver la réplica Linux del fix4 más abajo. Registro histórico:) Lo que NO está en verde, con causa:
 - `check-handbook` (exit 1) y `tests/test_npm_payload.py::test_npm_contains_pdf_editions_linked_from_its_readme` (`sha256` de una fuente ≠ el de `output/pdf/*.manifest.json`; el test y el script leen los mismos manifiestos): una sola causa, las ediciones `output/pdf/*` se generaron antes de que cambiaran esas fuentes. Acción del usuario: regenerar los PDF (T-03).
@@ -820,18 +840,7 @@ Medición de uso del ciclo (usage-meter, ventanas solapadas, no sumables): `plug
 
 **Réplica Linux completa de la CI sobre el árbol final del fix4 (HEAD `5c8904a`, T-23-fix4)** — `python:3.11-slim`, un contenedor `-m 1g --cpuset-cpus 0-3`, anfitrión sin otra carga mía, árbol de `git archive HEAD` (con `core.autocrlf` del propio repo: el guardarraíl veta `git -c core.autocrlf=false`; los 1.946 ficheros de texto salieron en CRLF y se normalizaron a LF con un script antes de montarlos), permisos normalizados desde el índice (`100644`/`100755`), Node 22 de NodeSource, usuario sin privilegios, los pasos EXACTOS de `ci.yml.MANUAL-COPY`:
 
-| Paso de la CI | passed | failed | skipped | Resultado |
-|---|---|---|---|---|
-| Linter del plugin | — | — | — | exit 0, `10 agentes · 0 errores · 16 avisos` |
-| Manual PDF y fuentes coherentes (`check-handbook`) | — | — | — | exit 0, `PDF, LF-normalized sources, workflows and diagrams match` |
-| Evals estáticos | — | — | — | exit 0, `59 ficheros · 227 casos · 0 errores` |
-| pytest `-n auto -m "not serie"` | 10.490 | **0** (0 errors) | 66 | exit 0, 1.116 s |
-| pytest `-m serie` | 1.053 | **0** | 1 | exit 0, 586 s |
-| Bench SessionEnd | — | — | — | exit 0 (`p50=8,39 ms`, `p95=10,68 ms`, `p99=10,78 ms`) |
-| `export-interop --check` | — | — | — | exit 0, `88 ficheros al día` |
-| `node --test --test-concurrency=2 tests/*.test.mjs` | 512 | **0** | 25 | exit 0 (537 pruebas) |
-| Sintaxis de los `.py` + JSONs | — | — | — | exit 0 (`sintaxis OK`, `JSONs OK`) |
-| `release.py --check` | — | — | — | exit 0 (`todas coinciden en 3.3.0`) |
+(Tabla de la réplica de fix4 condensada por el tope de lectura de 256 KiB del ledger: 0 fallos y 0 errores; paralelo 10.490 passed en 1.116 s, serie 1.053 passed en 586 s; el resto de pasos, exit 0.)
 
 `test_npm_payload` (incluido el del PDF) ya no agota nada dentro del contenedor: el timeout de `npm pack` del fixture pasó de 120 a 600 s y sus 5 pruebas pasan en el paso paralelo. **No queda ningún rojo ni «de entorno»**: el del PDF (T-03) se resolvió con T-38 y los 4 *errors* de `npm pack` con el timeout.
 
@@ -850,18 +859,7 @@ RED: `tests/test_agent_activity_store.py -k "inyectar or no_corren_enteros"` fal
 
 **Cierre fix5 (ciclo fix5b, 2026-11-13)** — commits: `50a125b`, `ce45708` y anteriores (ver `git log --grep "fix5b"`). Réplica Linux COMPLETA de `ci.yml.MANUAL-COPY` sobre `HEAD` `2c75a87` (`python:3.11-slim`, un contenedor `-m 1g --cpuset-cpus 0-3`, `git archive` normalizado a LF, permisos del índice, Node 22 de NodeSource, usuario sin privilegios; host compartido con otros contenedores ajenos):
 
-| Paso de la CI | passed | failed | skipped | Segundos | Resultado |
-|---|---|---|---|---|---|
-| Linter del plugin | — | — | — | 3 | exit 0, `10 agentes · 0 errores · 16 avisos` |
-| Manual PDF y fuentes (`check-handbook`) | — | — | — | 0 | exit 0 |
-| Evals estáticos | — | — | — | 0 | exit 0, `227 casos · 0 errores` |
-| pytest `-n auto -m "not serie"` | 11.812 | **0** (0 errors) | 67 | 767 | exit 0 |
-| pytest serie (solo los ficheros con el marcador) | 55 | **0** | 0 | **65** | exit 0 (objetivo ≤ 90 s: cumplido; antes 586 s) |
-| Bench SessionEnd | — | — | — | 1 | exit 0 (`p50=11,53 ms`, `p95=14,0 ms`, `p99=16,5 ms`) |
-| `export-interop --check` | — | — | — | 0 | exit 0, `88 ficheros al día` |
-| `node --test --test-concurrency=2 tests/*.test.mjs` | 512 | **0** | 25 | 182 | exit 0 (537 pruebas) |
-| Sintaxis de los `.py` + JSONs + `release.py --check` | — | — | — | 14 | exit 0 |
-| **Total** | 12.379 | **0** | 92 | **1.032** | 0 fallos y 0 errores en todos los pasos (corregido en fix6, gap 16: la fila traía columnas de otra tabla y una suma de 1.025 s que no cuadraba con las del paso: 3+0+0+767+65+1+0+182+14 = 1.032 s) |
+(Tabla de la réplica de fix5b condensada por el tope de lectura de 256 KiB del ledger: 0 fallos y 0 errores en todos los pasos; paralelo 11.812 passed en 767 s; total 12.379 passed, 92 skipped, 1.032 s.)
 
 Frente a la tabla anterior (CI vieja 1.503 s = bucle 163 s + pytest serie 1.340 s): pytest paralelo + serie = 832 s (**55 % de 1.503 s**, 62 % de 1.340 s) con 677 tests más (11.867 frente a 11.190); el paso paralelo medía 615 s con el host libre y 734 s con carga en la medida de T-23, y esta réplica corrió en un host compartido con otros contenedores ajenos (visto uno al 110 % de CPU en una medida anterior); el suelo del paralelo sigue siendo `test_task_brief::test_ca08…` (195 s, recorre todos los ledgers de `docs/roadmap/`, crece con cada iniciativa). **La Verificación literal «< 50 %» NO queda demostrada en esta máquina**: 55 % de la CI vieja medida sobre pytest+bucle, 45 % era el dato de la medida original sobre un host libre. Se deja `en-progreso` para decisión del orquestador (medir `testing/perf.md` con el host libre).
 
@@ -884,19 +882,7 @@ GREEN: commits `1cf29b3`, `c23d80b`. Puerta de redact (`tests/test_redact_fix3.p
 
 **Cierre fix6 (2026-11-13)** — commits: RED `2652b0c`; código `1cf29b3`, `c23d80b`, `f823f0d`; ledger `2a64ee0`. Réplica Linux COMPLETA de `ci.yml.MANUAL-COPY` sobre `HEAD` `2a64ee0` (`python:3.11-slim`, Node 22, un solo contenedor `-m 1g --cpuset-cpus 0-3`, árbol de `git ls-tree` con los blobs en LF, `HEAD` sin tocar), **0 failed / 0 errors en todos los pasos**:
 
-| Paso de la CI | passed | failed | skipped | Segundos | Resultado |
-|---|---|---|---|---|---|
-| Linter del plugin | — | — | — | 8 | exit 0, `10 agentes · 0 errores · 16 avisos` |
-| Manual PDF y fuentes (`check-handbook`) | — | — | — | 0 | exit 0 |
-| Evals estáticos | — | — | — | 1 | exit 0, `227 casos · 0 errores` |
-| pytest `-n auto -m "not serie"` | 12.148 | **0** (0 errors) | 67 | 936 | exit 0 |
-| pytest serie (solo los ficheros con el marcador) | 60 | **0** | 0 | 105 | exit 0 |
-| Bench SessionEnd | — | — | — | 1 | exit 0 (`p50=19,34 ms`, `p95=27,63 ms`, `p99=29,44 ms`) |
-| `export-interop --check` | — | — | — | 1 | exit 0, `88 ficheros al día` |
-| `node --test --test-concurrency=2 tests/*.test.mjs` | 515 | **0** | 25 | 224 | exit 0 (540 pruebas) |
-| Sintaxis de los `.py` | — | — | — | 7 | exit 0 |
-| JSONs + `release.py --check` | — | — | — | 1 | exit 0 |
-| **Total** | 12.723 | **0** | 92 | **1.284** | 0 fallos y 0 errores en todos los pasos (suma de los pasos = `TOTAL_SEGUNDOS`) |
+(Tabla de la réplica de fix6 condensada por el tope de lectura de 256 KiB del ledger: 0 fallos y 0 errores en todos los pasos; total 12.723 passed, 92 skipped, 1.284 s.)
 
 Frente a fix5b (paralelo 767 s, serie 65 s, total 1.032 s): el paso paralelo sube 169 s y el serie 40 s. Causas medidas, no cargadas a la carga ajena: el corpus diferencial pasa de 281 a 573 casos (cada uno copia un repo y ejecuta bash real, ~0,5 s), `tests/test_native_guard_failclosed.py` añade 26 pruebas de lanzador (~1,5 s cada una de arranque de node) y, en el paso serie, dos pruebas de plazo agotado (~5 s cada una, 4,5 s de presupuesto del lanzador) y la puerta de redact con mediana; la variación del propio host (los tests más lentos del paso paralelo son los de siempre: `test_task_brief::test_ca08…` 229 s) pone el resto. La medida de «< 50 %» no se juzga aquí: la hace el orquestador con la medida emparejada.
 
@@ -907,33 +893,11 @@ La primera réplica de este ciclo (sobre `c23d80b`) dio 2 rojos reales, ambos in
 
 Linux (`python:3.11-slim`, 4 CPU, **12 bucles de CPU** `while 1: pass`):
 
-| Pasada | exit | passed | Segundos |
-|---|---|---|---|
-| 1 | 0 | 26 | 240 |
-| 2 | 0 | 26 | 153 |
-| 3 | 0 | 26 | 141 |
-| 4 | 0 | 26 | 132 |
-| 5 | 0 | 26 | 127 |
-| 6 | 0 | 26 | 127 |
-| 7 | 0 | 26 | 210 |
-| 8 | 0 | 26 | 191 |
-| 9 | 0 | 26 | 126 |
-| 10 | 0 | 26 | 244 |
+10 pasadas, 26 passed cada una, 126-244 s (tabla de fix6 condensada por el tope de lectura de 256 KiB del ledger).
 
 Windows (Git Bash, **6 bucles de CPU**):
 
-| Pasada | exit | passed | Segundos |
-|---|---|---|---|
-| 1 | 0 | 26 | 447 |
-| 2 | 0 | 26 | 446 |
-| 3 | 0 | 26 | 529 |
-| 4 | 0 | 26 | 497 |
-| 5 | 0 | 26 | 270 |
-| 6 | 0 | 26 | 275 |
-| 7 | 0 | 26 | 340 |
-| 8 | 0 | 26 | 252 |
-| 9 | 0 | 26 | 319 |
-| 10 | 0 | 26 | 246 |
+10 pasadas, 26 passed cada una, 246-529 s (tabla de fix6 condensada por el tope de lectura de 256 KiB del ledger).
 
 
 **fix7 (revisión de dos lentes, intento 7: gaps 13 (docstring de la demo), 15 y 16; T-23 sigue `en-progreso`: solo falta la medida emparejada que hace el orquestador)** — clave de medición `plugin-audit-2/T-23-fix7`. Sin ficheros nuevos en `Archivos` (`tests/test_redact_fix3.py`, `tests/test_native_guard_failclosed.py` y `agent-kits/shared/test_guardrail_differential.py` ya estaban cubiertos por fix5-fix6).
@@ -944,19 +908,7 @@ GREEN: (gap 15) `_medir` confirma un `inf` de la sonda ×4 con una SEGUNDA muest
 
 **Cierre fix7 (2026-11-14)** — commits: RED `1481584`; código `c4610e9` y `1230bb9`; ledger (el commit que añade este cierre). Réplica Linux COMPLETA de `ci.yml.MANUAL-COPY` (idéntica a `.github/workflows/ci.yml`: `diff -q` sin salida) sobre `HEAD` `1230bb9` (`python:3.11-slim`, Node 22, un solo contenedor `-m 1g --cpuset-cpus 0-3`, árbol de `git archive HEAD` con los blobs en LF, `HEAD` sin tocar), **0 failed / 0 errors en todos los pasos**:
 
-| Paso de la CI | passed | failed | skipped | Segundos | Resultado |
-|---|---|---|---|---|---|
-| Linter del plugin | — | — | — | 9 | exit 0, `10 agentes · 0 errores · 16 avisos` |
-| Manual PDF y fuentes (`check-handbook`) | — | — | — | 0 | exit 0 |
-| Evals estáticos | — | — | — | 0 | exit 0, `227 casos · 0 errores` |
-| pytest `-n auto -m "not serie"` | 12.529 | **0** (0 errors) | 67 | 937 | exit 0 |
-| pytest serie (solo los ficheros con el marcador) | 56 | **0** | 0 | 82 | exit 0 |
-| Bench SessionEnd | — | — | — | 2 | exit 0 (`p50=19,17 ms`, `p95=33,26 ms`, `p99=42,76 ms`) |
-| `export-interop --check` | — | — | — | 0 | exit 0, `88 ficheros al día` |
-| `node --test --test-concurrency=2 tests/*.test.mjs` | 517 | **0** | 25 | 208 | exit 0 (542 pruebas) |
-| Sintaxis de los `.py` | — | — | — | 5 | exit 0 |
-| JSONs + `release.py --check` | — | — | — | 0 | exit 0 |
-| **Total** | 13.102 | **0** | 92 | **1.243** | 0 fallos y 0 errores en todos los pasos (suma de los pasos = `TOTAL_SEGUNDOS`) |
+(Tabla de la réplica de fix7 condensada por el tope de lectura de 256 KiB del ledger: 0 fallos y 0 errores en todos los pasos; paralelo 12.529 passed en 937 s, serie 56 passed en 82 s, node 517 passed; total 13.102 passed, 92 skipped, 1.243 s.)
 
 Cómo se llegó a verde: la primera réplica (sobre `c4610e9`, 1.128 s) dio 5 rojos en el paso paralelo y cada uno tuvo causa o tratamiento: (a) `tests/test_graphiti_security.py` ×2: el pin `_LAUNCHER_NODE_HASH` de `hooks/run-hook.mjs` (el lanzador cambió; revisado: lee la entrada y busca la clave del rol con una regex, sin red ni procesos nuevos; pin actualizado); (b) `tests/test_console_encoding.py`: un subproceso en modo texto sin `encoding=` en el corpus 7 (corregido); (c) `agent-kits/shared/test_ledger_view.py::test_mil_tareas_…`: aserción de 2 s de pared que tardó 10 s en el paso paralelo cargado (llevaba el mismo defecto que su hermana de 5.000 filas, que ya era `serie`: pasa a serie); (d) `agent-kits/shared/test_journal.py::test_replay_con_recover_max_n_se_reparte_entre_drenaje_y_recuperacion` (`assert 2 == 3`, una sola vez en 12.530 tests): NO se pudo reproducir (0 fallos en 40 ejecuciones aisladas con 12 bucles de CPU y 6/6 sueltas con 8 bucles, y verde en la segunda réplica completa) y su código no lo toca esta iniciativa: causa NO identificada, anotada como aviso (posible dependencia de reloj/orden en el drenaje de la outbox bajo carga). La segunda réplica, con (a)-(c) corregidos, dio verde completo.
 
@@ -964,20 +916,16 @@ Frente a fix6 (paralelo 936 s, serie 105 s, total 1.284 s): el paralelo es igual
 
 **Puerta de redact: 10 pasadas sin rojo por plataforma con carga** (`pytest tests/test_redact_fix3.py -m serie -x`, 26 tests, `HEAD` `1230bb9`, ambas plataformas a la vez; la sonda ×4 se confirma con una segunda muestra y la demostración con reloj real da una razón FINITA):
 
-| Pasada | Linux (12 bucles de CPU, 4 CPU) | Segundos | Windows (6 bucles de CPU) | Segundos |
-|---|---|---|---|---|
-| 1 | 26 passed, 0 failed | 159.59 | 26 passed, 0 failed | 362.56 |
-| 2 | 26 passed, 0 failed | 153.54 | 26 passed, 0 failed | 425.21 |
-| 3 | 26 passed, 0 failed | 155.15 | 26 passed, 0 failed | 317.27 |
-| 4 | 26 passed, 0 failed | 183.31 | 26 passed, 0 failed | 350.66 |
-| 5 | 26 passed, 0 failed | 122.08 | 26 passed, 0 failed | 267.60 |
-| 6 | 26 passed, 0 failed | 156.60 | 26 passed, 0 failed | 235.23 |
-| 7 | 26 passed, 0 failed | 153.05 | 26 passed, 0 failed | 238.49 |
-| 8 | 26 passed, 0 failed | 145.41 | 26 passed, 0 failed | 215.04 |
-| 9 | 26 passed, 0 failed | 126.74 | 26 passed, 0 failed | 178.69 |
-| 10 | 26 passed, 0 failed | 133.15 | 26 passed, 0 failed | 173.26 |
+(Tabla de fix7 condensada por el tope de lectura de 256 KiB del ledger: Linux 10/10 pasadas con 26 passed, 122-183 s; Windows 10/10 con 26 passed, 173-425 s.)
 
 Horas medidas de fix7 `(medido)` (ventana compartida entre T-06, T-07 y T-23; se imputan a T-06): 1.33 h (`plugin-audit-2/T-06-fix7`), 1.33 h (`T-07-fix7`) y 1.33 h (`T-23-fix7`).
+
+**fix8 (revisión de dos lentes, intento 8: gaps 3, 10, 11, 12, 13 y 9; T-23 sigue `en-progreso`: falta la medida emparejada, que hace el orquestador)** — clave de medición `plugin-audit-2/T-23-fix8`. Gap 9: `Archivos` completado (`test_ledger_view.py` y `tests/test_graphiti_security.py`; el «sin ficheros nuevos» de fix7 era falso).
+
+- **Demo de redact** (gaps 10 y 11): ×4 con caso pequeño de 0,08 s y 2 muestras (11 s en Windows sin carga, antes 53 s), margen del tope 30 s ≥ 5× la muestra típica (comprobado por un test) y `inf` por tope y segunda sonda ×4 confirmados tras la pausa. Ver las 10+10 pasadas de arriba (T-06, fix8).
+- **Coste del corpus** (gap 12): `_estado_plantilla` (una vez por plantilla) y `_tiene` con caché.
+- **Journal** (gap 13): `journal-io.py` lee `CUSTOM_AGENTS_JOURNAL_IO_DEADLINE_SCALE` (1 a 60) solo bajo `PYTEST_CURRENT_TEST`; producción sin cambios (5 s). `test_replay_con_recover_max_n…` la usa y `test_journal_io_deadline.py` fija con un fsync de 6 s de reloj simulado que sin escala se pierde la escritura y con escala no.
+- **Gap 3:** la prueba de plazo del lanzador vuelve al paso serie (ver T-06).
 
 ### T-24 — Hooks: UserPromptSubmit asíncrono, un handler post-edición, carga perezosa (4.8)
 
@@ -1217,7 +1165,7 @@ Horas medidas de fix7 `(medido)` (ventana compartida entre T-06, T-07 y T-23; se
 
 ## Fase 6 — Higiene del roadmap
 
-**Estado**: borrador · **Est.**: 7h humanas · **Real**: — · 350 € · 500k tokens
+**Estado**: borrador · **Est.**: 10h humanas · **Real**: — · 500 € · 750k tokens
 
 ### T-36 — Cierres de iniciativas y estados rancios
 
@@ -1253,6 +1201,23 @@ Horas medidas de fix7 `(medido)` (ventana compartida entre T-06, T-07 y T-23; se
 **Criterios de aceptación**
 - [ ] Cada candidato tiene decisión escrita.
 - [ ] El índice `docs/knowledge/README.md` incluye los aprobados.
+
+### T-39 — Captura de SessionEnd que no se pierde sin aviso ante un atasco de E/S (hallazgo de la revisión 8, gap 15)
+
+- **Descripción**: La E/S acotada del journal tiene un plazo de pared fijo de 5 s (`journal-io.py`). Si el disco se atasca más en SessionEnd, `journal_io_deadline` sube como `OSError` y `capture_end` lo traga: la captura de la sesión se pierde con solo un aviso en stderr que nadie ve. Se decide (con el usuario) qué hacer: reintentar fuera del plazo del hook, dejar la entrada en la cola y avisar en el SessionStart siguiente, o subir el plazo. Fuera del alcance de la fase 1 (el plazo de producción NO cambió en fix8; solo es inyectable en tests).
+- **Changelog**: Una sesión cuyo cierre coincide con un disco atascado ya no pierde su entrada del journal sin avisar.
+- **Estado**: borrador
+- **Tiempo humano**: est. 3h · real —
+- **Tiempo IA (ejec.)**: est. 0.8h · real —
+- **Archivos**: `agent-kits/shared/journal-capture.py`, `agent-kits/shared/journal-io.py`, `agent-kits/shared/test_journal.py`, `docs/FLOWS.md`, `docs/en/FLOWS.md`
+- **Verificación**:
+  - `pytest -q agent-kits/shared/test_journal.py -k atasco` → `passed` (rojo antes: un fsync que pasa de 5 s pierde la captura sin que `SessionStart` lo diga)
+  - `python agent-kits/shared/ledger-lint.py docs/roadmap/2026-11-10-plugin-audit-2/tasks.md` → exit 0
+
+**Criterios de aceptación**
+- [ ] Un atasco de E/S de más de 5 s en SessionEnd no pierde la captura: queda en la cola o se reintenta.
+- [ ] Si no se puede capturar, el siguiente SessionStart lo dice en la línea del journal.
+- [ ] El plazo de producción solo cambia con una decisión escrita del usuario.
 
 ## Revisión de dos lentes — intento 1: Fase 1 (T-23, T-02..T-07) — 1 Critical, 6 Important, 11 Minor
 
@@ -1546,19 +1511,19 @@ Lentes: A+B+C+D sobre `00bdf50..5d99de6`. La memoria libre era menor de 1 GB, as
 
 | # | Grado | Gap | Tarea | Corrección | Evidencia |
 |---|---|---|---|---|---|
-| 1 | Important | `xargs -I{} sh -c 'git restore {}'` → allow. Al recursar en `sh -c`/`bash -c` no se hereda que «las rutas llegan por stdin», así que `{}`/`%` pasan como ruta literal. Igual con `xargs -I % bash -c 'git checkout -- %'` y `xargs -I{} sh -c 'echo {}; git restore -- {}'`. Es la forma habitual de un agente honesto | T-06 | pendiente | Lentes B y C: `guardrail-check.py:1591-1614`, `_subcomandos_shell:1169`; Git Bash, centinela perdido |
-| 2 | Important | `--replace`, `--eof` y `--max-lines` de GNU xargs llevan valor OPCIONAL, solo pegado con `=`. La tabla los trata como opciones con valor separado y se traga `git`. `xargs --replace git restore {}` → allow. Contradice `implementer.md:92` («se deniega siempre») | T-06 | pendiente | Lentes B y C: `guardrail-check.py:733-734,772`; xargs 4.10.0, centinela perdido |
-| 3 | Important | Assert de tiempo relajado para sacar el test del paso serie: `dt < 12` → `dt < 100`, con el hijo durmiendo 120 s. El hook tiene `timeout: 10` en `hooks.json`. Si una regresión hace que el lanzador espere unos 60 s, el runtime lo corta sin deny y el test sigue verde. Contradice el punto 10 del diseño (si la aserción lo impide, se queda en serie) | T-06, T-23 | pendiente | Lente A: `tests/test_native_guard_failclosed.py:139-142`, `hooks/hooks.json:10`, `tasks.md:301` |
-| 4 | Minor | `env -S` trocea el valor con `str.split()`, pero env quita comillas y procesa `\`. `env -S 'git reset "--hard"'`, `env -S 'git "reset" --hard'`, `env -S 'git restore "."'` y `env -S 'env -S "git -C .. restore a.txt"'` → allow, con pérdida de datos. Además el troceo repetido es cuadrático: 11,7 KB de `-S` → 1,06 s | T-06 | pendiente | Lentes B y D: `guardrail-check.py:846,878` |
-| 5 | Minor | Fallo abierto por encima de 16 MiB: el escáner deja de leer en `GUARD_SCAN_MAX` y, si la clave del rol va detrás, el resultado es continue | T-06 | pendiente | Lentes C y D: `run-hook.mjs:105,120-122,319`, `native-guardrail.py:64,362`; 17 MiB → continue |
-| 6 | Minor | OpenCode compara ubicaciones como texto: solo pasa a minúsculas en win32 y exige `workspaceID` estricto. El mismo proyecto con otra forma de ruta (enlace simbólico, nombre 8.3, mayúsculas en macOS) sale como ajeno y se salta el guard. No verificable sin runtime | T-06 | pendiente | Lente C: `opencode-plugin.js:61-63,224,288` y su espejo |
-| 7 | Minor | `docs/INTEROP.md:364` y `docs/en/INTEROP.md:359` siguen diciendo que la entrada de más de 64 KiB continúa | T-06 | pendiente | Lente A |
-| 8 | Minor | Punto 11 incompleto. (a) Faltan sondas en el corpus: `lc7` b51-b79, k84-k103, w23, w25-w28, w32, w35-w39, los 24 de `lb7/legit2.py` y los falsos deny previos `<<"EOF"`, `<<EOF` y `<<'EOF-1'`. (b) `trap 'cd ../main' DEBUG; git restore src` → allow y no está en LIMITE7. (c) `nice {D}` en `SIN_PARIDAD_7` contradice BAD6 (`test_guardrail_differential.py:220`) | T-06 | pendiente | Lente A: `test_guardrail_differential7.py:19-103` |
-| 9 | Minor | `Archivos` no recoge `agent-kits/shared/test_ledger_view.py` ni `tests/test_graphiti_security.py`, y T-23 dice «sin ficheros nuevos» | T-06, T-23 | pendiente | Lente A: `tasks.md:935` |
-| 10 | Minor | La demo de redact con reloj real tiene poco margen: `TOPE_CPU_DEMO` = 30 s frente a unos 12 s por muestra en Windows. La rama `tg > tope → inf` no se confirma, y la confirmación ×4 se toma sin pausa entre rondas | T-23 | pendiente | Lente B: `test_redact_fix3.py:350-354,366-367,443` |
-| 11 | Minor | La demo de redact cuesta 53 s en Windows sin carga y unos 88 s con carga, en el paso serie. Es evitable: la razón esperada es ≈16 frente a un umbral de 6, medida en CPU | T-23 | pendiente | Lente D: `test_redact_fix3.py:263,442-443` |
-| 12 | Minor | Coste evitable en el corpus: `_estado(copia)` lanza 2 procesos git en cada caso, aunque la copia es idéntica a la plantilla. `_tiene(programa)` no guarda el resultado. Son 40-80 s de CPU en Windows | T-06 | pendiente | Lente D: `test_guardrail_differential.py:355`, `test_guardrail_differential7.py:106` |
-| 13 | Minor | Test frágil: `test_journal.py::test_replay_con_recover_max_n…` depende del plazo de pared de 5 s de la E/S del journal. Con un fsync lento falla `2 == 3` | T-23 | pendiente | Lente B: reproducción `lb8/jexp.py` |
+| 1 | Important | `xargs -I{} sh -c 'git restore {}'` → allow. Al recursar en `sh -c`/`bash -c` no se hereda que «las rutas llegan por stdin», así que `{}`/`%` pasan como ruta literal. Igual con `xargs -I % bash -c 'git checkout -- %'` y `xargs -I{} sh -c 'echo {}; git restore -- {}'`. Es la forma habitual de un agente honesto | T-06 | corregido en fix8 | Lentes B y C: `guardrail-check.py:1591-1614`, `_subcomandos_shell:1169`; Git Bash, centinela perdido |
+| 2 | Important | `--replace`, `--eof` y `--max-lines` de GNU xargs llevan valor OPCIONAL, solo pegado con `=`. La tabla los trata como opciones con valor separado y se traga `git`. `xargs --replace git restore {}` → allow. Contradice `implementer.md:92` («se deniega siempre») | T-06 | corregido en fix8 | Lentes B y C: `guardrail-check.py:733-734,772`; xargs 4.10.0, centinela perdido |
+| 3 | Important | Assert de tiempo relajado para sacar el test del paso serie: `dt < 12` → `dt < 100`, con el hijo durmiendo 120 s. El hook tiene `timeout: 10` en `hooks.json`. Si una regresión hace que el lanzador espere unos 60 s, el runtime lo corta sin deny y el test sigue verde. Contradice el punto 10 del diseño (si la aserción lo impide, se queda en serie) | T-06, T-23 | corregido en fix8 | Lente A: `tests/test_native_guard_failclosed.py:139-142`, `hooks/hooks.json:10`, `tasks.md:301` |
+| 4 | Minor | `env -S` trocea el valor con `str.split()`, pero env quita comillas y procesa `\`. `env -S 'git reset "--hard"'`, `env -S 'git "reset" --hard'`, `env -S 'git restore "."'` y `env -S 'env -S "git -C .. restore a.txt"'` → allow, con pérdida de datos. Además el troceo repetido es cuadrático: 11,7 KB de `-S` → 1,06 s | T-06 | corregido en fix8 | Lentes B y D: `guardrail-check.py:846,878` |
+| 5 | Minor | Fallo abierto por encima de 16 MiB: el escáner deja de leer en `GUARD_SCAN_MAX` y, si la clave del rol va detrás, el resultado es continue | T-06 | corregido en fix8 | Lentes C y D: `run-hook.mjs:105,120-122,319`, `native-guardrail.py:64,362`; 17 MiB → continue |
+| 6 | Minor | OpenCode compara ubicaciones como texto: solo pasa a minúsculas en win32 y exige `workspaceID` estricto. El mismo proyecto con otra forma de ruta (enlace simbólico, nombre 8.3, mayúsculas en macOS) sale como ajeno y se salta el guard. No verificable sin runtime | T-06 | corregido en fix8 | Lente C: `opencode-plugin.js:61-63,224,288` y su espejo |
+| 7 | Minor | `docs/INTEROP.md:364` y `docs/en/INTEROP.md:359` siguen diciendo que la entrada de más de 64 KiB continúa | T-06 | corregido en fix8 | Lente A |
+| 8 | Minor | Punto 11 incompleto. (a) Faltan sondas en el corpus: `lc7` b51-b79, k84-k103, w23, w25-w28, w32, w35-w39, los 24 de `lb7/legit2.py` y los falsos deny previos `<<"EOF"`, `<<EOF` y `<<'EOF-1'`. (b) `trap 'cd ../main' DEBUG; git restore src` → allow y no está en LIMITE7. (c) `nice {D}` en `SIN_PARIDAD_7` contradice BAD6 (`test_guardrail_differential.py:220`) | T-06 | corregido en fix8 | Lente A: `test_guardrail_differential7.py:19-103` |
+| 9 | Minor | `Archivos` no recoge `agent-kits/shared/test_ledger_view.py` ni `tests/test_graphiti_security.py`, y T-23 dice «sin ficheros nuevos» | T-06, T-23 | corregido en fix8 | Lente A: `tasks.md:935` |
+| 10 | Minor | La demo de redact con reloj real tiene poco margen: `TOPE_CPU_DEMO` = 30 s frente a unos 12 s por muestra en Windows. La rama `tg > tope → inf` no se confirma, y la confirmación ×4 se toma sin pausa entre rondas | T-23 | corregido en fix8 | Lente B: `test_redact_fix3.py:350-354,366-367,443` |
+| 11 | Minor | La demo de redact cuesta 53 s en Windows sin carga y unos 88 s con carga, en el paso serie. Es evitable: la razón esperada es ≈16 frente a un umbral de 6, medida en CPU | T-23 | corregido en fix8 | Lente D: `test_redact_fix3.py:263,442-443` |
+| 12 | Minor | Coste evitable en el corpus: `_estado(copia)` lanza 2 procesos git en cada caso, aunque la copia es idéntica a la plantilla. `_tiene(programa)` no guarda el resultado. Son 40-80 s de CPU en Windows | T-06 | corregido en fix8 | Lente D: `test_guardrail_differential.py:355`, `test_guardrail_differential7.py:106` |
+| 13 | Minor | Test frágil: `test_journal.py::test_replay_con_recover_max_n…` depende del plazo de pared de 5 s de la E/S del journal. Con un fsync lento falla `2 == 3` | T-23 | corregido en fix8 | Lente B: reproducción `lb8/jexp.py` |
 | 14 | Minor | Rama: `git checkout FETCH_HEAD` → allow. Es la misma clase que `HEAD~1`, que ya se decidió permitir (ledger, línea 230): sin cambio, anotado | T-06 | descartado (rebatido) | Lente C |
 | 15 | Minor | Hallazgo de producto fuera de alcance: un atasco de E/S de más de 5 s en SessionEnd pierde la captura del journal con solo un aviso en stderr | — | deuda aceptada → tarea nueva en fase 6 | Lente B: `journal-capture.py:316-321` |
 
