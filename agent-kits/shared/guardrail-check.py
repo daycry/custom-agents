@@ -730,7 +730,7 @@ _OPCIONES_ENVOLTORIO = {
              ("--askpass", "--background", "--preserve-env", "--edit", "--set-home", "--login", "--non-interactive",
               "--preserve-groups", "--stdin", "--shell", "--reset-timestamp", "--remove-timestamp", "--list",
               "--validate", "--version", "--help", "--no-update"), ""),
-    "xargs": ("aEIdLnPs", ("--arg-file", "--eof", "--replace", "--delimiter", "--max-lines", "--max-args",
+    "xargs": ("aEIdLnPs", ("--arg-file", "--delimiter", "--max-args",
                            "--max-procs", "--max-chars", "--process-slot-var"), "0oprtxv",
               ("--null", "--open-tty", "--interactive", "--no-run-if-empty", "--verbose", "--exit", "--show-limits",
                "--help", "--version"), "eil"),
@@ -742,6 +742,9 @@ _OPCIONES_ENVOLTORIO = {
                "--version"), ""),
     "nohup": ("", (), "", ("--help", "--version"), ""),
 }
+# Opciones largas con valor OPCIONAL (GNU): el valor solo va pegado con `=`; separado, la palabra siguiente es el programa
+# (`xargs --replace git restore {}` ejecuta `git`). Mismo criterio que `cortas con valor OPCIONAL pegado` (fix8, gap 2).
+_LARGAS_OPCIONALES = {"xargs": ("--eof", "--replace", "--max-lines")}
 _ENV_LARGAS_SIN_VALOR = ("--null", "--debug", "--list-signal-handling", "--help", "--version")
 _ENV_LARGAS_CON_VALOR = ("--argv0", "--block-signal", "--default-signal", "--ignore-signal")
 _REDIRECCION_RE = re.compile(r"(?:[0-9]*|&)(?:<<<|<<|>>|>&|<&|<>|>\||>|<)(.*)\Z", re.DOTALL)
@@ -765,7 +768,7 @@ def _opcion_envoltorio(nombre, toks, i):
     o = toks[i]
     if o.startswith("--"):
         base = o.split("=", 1)[0]
-        todas = largas_v + largas_s
+        todas = largas_v + largas_s + _LARGAS_OPCIONALES.get(nombre, ())
         candidatas = [x for x in todas if x == base] or [x for x in todas if x.startswith(base)]
         if len(candidatas) != 1:
             return i + 1, False
@@ -808,7 +811,24 @@ def _saltar_envoltorio(toks, i):
     return i, chdir, None
 
 
-def _opciones_env(nombre, toks, i, bindings):
+_MAX_TROCEOS_S = 4
+_MAX_VALOR_S = 2048             # `shlex` lee carácter a carácter (~2 µs): un valor más largo no se trocea, se deniega con git
+
+
+def _trocea_s(valor, cortes):
+    """Palabras de un valor de `env -S` como las trocea env (comillas y barra invertida, `shlex` POSIX) o `None` si no se pueden
+    leer (comilla sin cerrar), si ya hubo `_MAX_TROCEOS_S` troceos en esta orden o si el valor pasa de `_MAX_VALOR_S` caracteres: cada troceo reconstruye la lista de
+    palabras, así que una cadena de `-S` anidados sería cuadrática (fix8, gap 4). `None` = opción desconocida."""
+    cortes[0] += 1
+    if cortes[0] > _MAX_TROCEOS_S or len(valor) > _MAX_VALOR_S:
+        return None
+    try:
+        return shlex.split(valor, posix=True)
+    except ValueError:
+        return None
+
+
+def _opciones_env(nombre, toks, i, bindings, cortes):
     """`env`/`command`/`exec` en `toks[i]`: `(índice del programa, toks, ¿cambia el directorio?, opción
     desconocida|None)`. Anota en `bindings` lo que `env` deja o quita del entorno; el valor de `env -S` (una línea de
     órdenes que env trocea y ejecuta) se ANALIZA entero: sus palabras sustituyen a la opción en `toks`."""
@@ -843,7 +863,10 @@ def _opciones_env(nombre, toks, i, bindings):
             elif nombre == "env" and (o == "--split-string" or o.startswith("--split-string=")):
                 valor, usados = ((o.split("=", 1)[1], 1) if "=" in o else
                                  (toks[i + 1] if i + 1 < len(toks) else "", 2))
-                toks = toks[:i] + valor.split() + toks[i + usados:]
+                palabras = _trocea_s(valor, cortes)
+                if palabras is None:
+                    return i, toks, chdir, o
+                toks = toks[:i] + palabras + toks[i + usados:]
             elif nombre == "env" and base in _ENV_LARGAS_SIN_VALOR:
                 i += 1
             elif nombre == "env" and base in _ENV_LARGAS_CON_VALOR:
@@ -875,7 +898,10 @@ def _opciones_env(nombre, toks, i, bindings):
                 elif letra == "C":
                     chdir = True
                 elif letra == "S":
-                    toks = toks[:i] + valor.split() + toks[i + usados:]
+                    palabras = _trocea_s(valor, cortes)
+                    if palabras is None:
+                        return i, toks, chdir, o
+                    toks = toks[:i] + palabras + toks[i + usados:]
                     usados = 0
                 i += usados
                 consumido = True
@@ -898,6 +924,7 @@ def _desenvuelve(toks, inherited=None):
     bindings = dict(inherited or {})
     toks = list(toks)
     i, chdir, desconocida, via_xargs = 0, False, None, False
+    cortes = [0]                        # troceos de `env -S` de esta invocación (tope: `_MAX_TROCEOS_S`)
     while i < len(toks):
         t = toks[i]
         asignacion = _ASSIGNMENT_RE.fullmatch(t)
@@ -916,7 +943,7 @@ def _desenvuelve(toks, inherited=None):
         else:
             nombre = _program_name(t)
             if nombre in ("env", "command", "exec"):
-                i, toks, cambia, desc = _opciones_env(nombre, toks, i, bindings)
+                i, toks, cambia, desc = _opciones_env(nombre, toks, i, bindings, cortes)
             elif nombre in _ENVOLTORIOS:
                 via_xargs = via_xargs or nombre == "xargs"
                 i, cambia, desc = _saltar_envoltorio(toks, i)
@@ -1541,18 +1568,18 @@ def _razon_restauracion(sub, args, base_cambiada=False):
     return None
 
 
-def check_git(command, branch, _depth=0, _env=None, _base=False):
+def check_git(command, branch, _depth=0, _env=None, _base=False, _xargs=False):
     """Razón de deny o None. `branch` = rama actual (None si no hay git).
     Recursivo SOLO sobre lo que una shell ejecutaría (`sh -c "git push --force"`, `bash -c '…'`,
     `eval "…"`); un mensaje de commit con «rm -rf .» dentro es texto y no se analiza.
     Si la orden lleva un heredoc, el deny añade cómo escribirlo (T-06 fix6): su cuerpo se analiza como órdenes."""
-    razon = _check_git(command, branch, _depth, _env, _base)
+    razon = _check_git(command, branch, _depth, _env, _base, _xargs)
     if razon and _depth == 0 and "<<" in command:
         razon += _NOTA_HEREDOC
     return razon
 
 
-def _check_git(command, branch, _depth=0, _env=None, _base=False):
+def _check_git(command, branch, _depth=0, _env=None, _base=False, _xargs=False):
     if _depth > 3:
         return ("orden con `bash -c`/`eval` anidados a más de 3 niveles bloqueada: el guardarraíl no la analiza "
                 "entera — escribe la orden sin anidar.")
@@ -1593,6 +1620,9 @@ def _check_git(command, branch, _depth=0, _env=None, _base=False):
             return (f"opción `{desconocida}` de un envoltorio (`timeout`, `nice`, `sudo`, `xargs`, `flock`, `env`…) no "
                     "reconocida en una orden con `git`: el guardarraíl no puede saber si consume un valor ni qué "
                     "orden ejecuta — escríbela sin esa opción o sin el envoltorio.")
+        # Las rutas por stdin se HEREDAN al recursar en `sh|bash -c`/`eval` lanzados por `xargs` (fix8, gap 1): dentro de
+        # `xargs -I{} sh -c 'git restore {}'` el `{}` es una ruta que el guardarraíl no ve, con o sin `{}` en la orden.
+        via_xargs = via_xargs or _xargs
         if via_xargs:
             k, _hooks = _git_invocation(toks)
             if k >= 0 and toks[k] in _XARGS_DESTRUCTIVOS:
@@ -1610,7 +1640,7 @@ def _check_git(command, branch, _depth=0, _env=None, _base=False):
         # arbitrarios (`git commit -m "rm -rf . en el mensaje"` es texto, no un comando; regresión
         # cazada en la revisión, intento 2).
         for sub in _subcomandos_shell(toks):
-            razon = check_git(sub, branch, _depth + 1, bindings, base_cambiada)
+            razon = check_git(sub, branch, _depth + 1, bindings, base_cambiada, via_xargs)
             if razon:
                 return razon
         razon = check_ordenes_externas(toks)

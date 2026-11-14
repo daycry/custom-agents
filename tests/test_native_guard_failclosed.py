@@ -129,17 +129,29 @@ def test_sin_interprete_se_deniega_para_el_rol_protegido(tmp_path, runtime):
     assert _decision(salida, runtime) == "continue", salida
 
 
+def _timeout_del_hook_claude():
+    """Timeout (s) de `hooks/hooks.json` para el guard nativo de Claude Code: el runtime corta el hook SIN deny al pasarlo."""
+    hooks = json.loads((ROOT / "hooks" / "hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
+    tiempos = [h["timeout"] for grupo in hooks for h in grupo["hooks"] if "native-guardrail" in h["command"]]
+    assert len(tiempos) == 1, tiempos
+    return tiempos[0]
+
+
+@pytest.mark.serie
 @pytest.mark.parametrize("runtime", ["claude", "opencode"])
 def test_plazo_agotado_se_deniega_para_el_rol_protegido(tmp_path, runtime):
     """Plazo simulado: el guard duerme MUCHO más que el presupuesto del lanzador (4,5 s). Antes: `continue` con el aviso
     «role guard unavailable». Ahora: deny para el implementer, y el lanzador no espera al hijo.
 
-    Fix7 (gap 16): corre en el paso PARALELO. El hijo duerme 120 s y la cota es 100 s: no mide tiempo de pared fino
-    (la carga de `-n auto` no la acerca), solo que el lanzador NO espera al hijo (con una espera, el test tardaría 120 s)."""
+    Fix8 (gap 3): de PUNTA A PUNTA. La cota es el timeout del hook de `hooks/hooks.json` menos 1 s (leído del propio
+    fichero): si una regresión hace que el lanzador espere (p. ej. unos 60 s), el runtime lo cortaría SIN deny y este
+    test falla. Mide tiempo de pared real, así que corre en el paso SERIE (la carga de `-n auto` la rompería); ya no
+    se relaja a una cota de 100 s (fix7)."""
     lanzador, proyecto = _arbol(tmp_path, guard_source="import sys,time\nsys.stdin.read()\ntime.sleep(120)\n")
-    salida, dt = _correr(lanzador, proyecto, runtime, _payload(runtime, IDS[runtime][0], "git status"), timeout=110)
+    cota = _timeout_del_hook_claude() - 1
+    salida, dt = _correr(lanzador, proyecto, runtime, _payload(runtime, IDS[runtime][0], "git status"), timeout=60)
     assert _decision(salida, runtime) == "deny", salida
-    assert dt < 100, dt
+    assert dt < cota, (dt, cota)
 
 
 @pytest.mark.parametrize("runtime", ["claude", "codex", "opencode"])

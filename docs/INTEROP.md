@@ -361,8 +361,9 @@ La guardia evalúa todas las rutas de mutación soportadas, incluyendo origen y
 destino de movimientos. Claude admite Write/Edit/MultiEdit/NotebookEdit y las
 reglas de comandos Bash/PowerShell; Codex admite `apply_patch` y comandos emitidos
 como Bash; OpenCode V2 admite write/edit/patch/shell (`path`, `oldString`/`newString`,
-`patchText`). Entrada no reconocida o mayor de 64 KiB continúa con diagnóstico;
-no inspecciona toda escritura indirecta desde shell o MCP.
+`patchText`). Entrada no reconocida continúa con diagnóstico; la de más de 64 KiB se deniega
+para `implementer` y `architect` (falla cerrado, ADR-023) y continúa con
+diagnóstico para el resto. No inspecciona toda escritura indirecta desde shell o MCP.
 
 La consulta de rama reconoce también HEAD simbólico antes del primer commit:
 main/master conserva su protección y una feature conserva las reglas de cambio

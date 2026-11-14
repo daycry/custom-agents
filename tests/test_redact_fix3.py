@@ -259,7 +259,8 @@ RAZON_RELATIVA_MAX = 6.0     # razón (t_grande / t_pequeño) / CRECIMIENTO máx
 SUELO_CPU = 0.05 if os.name == "nt" else 0.02  # s de CPU del caso pequeño (el reloj de Windows tiene 15,6 ms de resolución: 0,05 s = ~3 ticks, bastan con el umbral 6 y la mediana; con 0,1 s la puerta tardaba 7 min;
 #                                               en Linux 0,02 s: la puerta costaba ~9 s por caso con 0,05 s, T-23 fix5)
 TOPE_CARACTERES = 1_000_000  # tope de tamaño del caso pequeño (el grande es ×16: ≤ 16 MB)
-SUELO_DEMO = 0.03 if os.name == "nt" else 0.01   # suelo de las demostraciones de la propia puerta (funciones sintéticas)
+CRECIMIENTO_DEMO = 8          # la demo con reloj real usa ×8 (cuadrático = 64×, razón ≈ 8) y no ×16 (256×): la muestra grande pasa de ~19 s a ~4 s (fix8, gap 11)
+SUELO_DEMO = 0.02 if os.name == "nt" else 0.01   # suelo de las demostraciones de la propia puerta: una muestra ×16 cuesta SUELO_DEMO × 256 s (cuadrático), unos 5 s en Windows (fix8, gap 11: con 0,03 eran 7,7 s por muestra y la demo 53 s)
 TOPE_CPU_DEMO = 30.0         # s: tope de un caso grande en la demostración con reloj real del cuadrático (fix7, gap 15): con el
 #                              tope de la puerta (10 s) una sola muestra ×4 de Windows prometía `inf` y la mediana nunca se ejercitaba
 MUESTRAS = 3                 # muestras (pares pequeño/grande) por ronda: se toma la MEDIANA de las razones
@@ -311,7 +312,8 @@ def _prometido(tm, t, tope):
     return 0.0
 
 
-def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None, tope=None, paso=2):
+def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None, tope=None, paso=2, muestras=None,
+           crecimiento=None):
     """Mide `funcion` con una entrada pequeña (tamaño adaptado hasta superar `SUELO_CPU`) y otra ×16.
     Devuelve `(razon_relativa, t_chico, t_grande, salida_grande)`; `razon_relativa` es `None` si se llegó al
     tope de tamaño sin superar el suelo (la función es inocua a ese tamaño: no hay razón que medir) y se
@@ -326,6 +328,8 @@ def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None, top
     pausa = PAUSA_RONDAS if pausa is None else pausa
     rondas = RONDAS if rondas is None else rondas
     tope = TOPE_CPU_GRANDE if tope is None else tope
+    muestras = MUESTRAS if muestras is None else muestras
+    crecimiento = CRECIMIENTO if crecimiento is None else crecimiento
     n, gastado = n0, 0.0
     while True:
         chico = generador(n)
@@ -350,24 +354,33 @@ def _medir(funcion, generador, n0=1500, suelo=None, pausa=None, rondas=None, top
         # un `inf` de la sonda necesita CONFIRMACIÓN antes del rojo (fix7, gap 15): una sola medida ×4 inflada por la
         # carga (unas 3,5 veces bastan) volvía rojo un caso lineal sin segunda ronda. Se toma una segunda muestra ×4 y
         # se decide con la menor; si esa no promete pasar del tope, el caso sigue por la mediana de las razones.
+        if pausa:
+            time.sleep(pausa)              # fix8, gap 10: la segunda muestra ×4 también espera `pausa`, como las rondas
         tm = min(tm, _cpu(funcion, generador(n * 4))[0])
         prometido = _prometido(tm, t, tope)
         if prometido:
             return float("inf"), t, prometido, None
-    grande = generador(n * CRECIMIENTO)
+    grande = generador(n * crecimiento)
     razones, tcs, tgs, salida = [], [], [], None
     for ronda in range(rondas):
         if ronda:
             time.sleep(pausa)
         tomadas = 0
-        while tomadas < MUESTRAS:
+        while tomadas < muestras:
             tc = _cpu(funcion, chico)[0]
             tg, salida = _cpu(funcion, grande)
             if tg > tope:
-                return float("inf"), tc, tg, salida
+                # un `inf` por tope también necesita CONFIRMACIÓN (fix8, gap 10): una sola muestra grande inflada por la carga
+                # no vuelve rojo un caso lineal. Se espera `pausa` y se toma otra; solo si también pasa del tope es `inf`.
+                if pausa:
+                    time.sleep(pausa)
+                tg2, salida2 = _cpu(funcion, grande)
+                if tg2 > tope:
+                    return float("inf"), tc, min(tg, tg2), salida2
+                tg, salida = tg2, salida2
             tomadas += 1
-            if tc >= suelo / VALIDA_DIV and tg >= CRECIMIENTO * suelo / VALIDA_DIV:
-                razones.append((tg / tc) / CRECIMIENTO)
+            if tc >= suelo / VALIDA_DIV and tg >= crecimiento * suelo / VALIDA_DIV:
+                razones.append((tg / tc) / crecimiento)
                 tcs.append(tc)
                 tgs.append(tg)
             if tomadas == 2 and len(razones) >= 2 and _es_lineal(razones[-1]) == _es_lineal(razones[-2]):
@@ -440,9 +453,10 @@ def test_la_puerta_rechaza_la_regex_cuadratica_que_antes_quedaba_bajo_el_suelo()
     ×4 con un `inf` sacado de UNA sola muestra (5/5 en Windows) y la mediana nunca se ejercitaba: aquí el tope de un
     caso grande se sube (`tope`) para que el cuadrático dé muestras MEDIBLES, y se exige una razón FINITA."""
     relativa, tc, tg, _ = _medir(_regex_cuadratica, lambda n: "x" * n, n0=500, suelo=SUELO_DEMO, pausa=0,
-                                 rondas=1, tope=TOPE_CPU_DEMO, paso=1.25)
+                                 rondas=1, tope=TOPE_CPU_DEMO, paso=1.25, muestras=2,
+                                 crecimiento=CRECIMIENTO_DEMO)   # fix8: ×8 y 2 muestras: menos coste
     assert relativa is not None and math.isfinite(relativa), (relativa, tc, tg)   # la mediana, no un `inf` de la sonda
-    assert not _es_lineal(relativa), (relativa, tc, tg)
+    assert relativa > CRECIMIENTO_DEMO / 2, (relativa, tc, tg)   # cuadrático ⇒ ≈ el crecimiento (8); lineal ⇒ ≈ 1
     # (sin `tc >= suelo/8`: `_medir` solo devuelve muestras de al menos ese valor, la aserción no podía fallar)
     assert tg > tc                                          # el grande cuesta de verdad más que el pequeño
 
@@ -653,11 +667,12 @@ def test_el_umbral_es_6_y_la_demostracion_real_no_reintenta():
 
 # ---- fix8 (gaps 10 y 11): demo con reloj real más barata y confirmaciones con pausa ---------------------------------
 def test_fix8_margen_de_la_demo_entre_la_muestra_tipica_y_el_tope():
-    """Gap 10: una muestra típica de la demo cuesta `SUELO_DEMO × CRECIMIENTO²` s (cuadrático ×16 = 256×); el tope de
-    la demo (`TOPE_CPU_DEMO`) da al menos 5× de margen para que la rama `tg > tope` no sea un azar de la carga."""
-    tipica = SUELO_DEMO * CRECIMIENTO ** 2
+    """Gap 10: una muestra típica de la demo cuesta `SUELO_DEMO × CRECIMIENTO_DEMO²` s nominales (cuadrático ×8 = 64×) y,
+    medida en Windows, unas 3 veces más (el reloj de ticks y la caché): el tope de la demo (`TOPE_CPU_DEMO`) da al menos
+    5× de margen para que la rama `tg > tope` no sea un azar de la carga."""
+    tipica = SUELO_DEMO * CRECIMIENTO_DEMO ** 2 * 3
     assert TOPE_CPU_DEMO >= 5 * tipica, (TOPE_CPU_DEMO, tipica)
-    assert tipica <= 6.0, tipica                      # gap 11: una muestra de la demo (Windows sin carga) ≈ 5 s como mucho
+    assert tipica <= 6.0, tipica                      # gap 11: una muestra de la demo (Windows sin carga) ≈ 4 s como mucho
 
 
 def test_fix8_un_inf_por_tope_se_confirma_con_una_segunda_muestra_tras_la_pausa(monkeypatch):

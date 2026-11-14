@@ -21,11 +21,13 @@ indirecciones deliberadas. El cuerpo de un heredoc se analiza SIEMPRE como órde
 como programa, código por stdin hacia un intérprete, `find -exec`, heredoc a `python3`/`perl`) es un LÍMITE
 DOCUMENTADO: la lista `LIMITE` lo fija de forma explícita y comprueba que bash sí lo ejecuta.
 """
+import functools
 import importlib.util
 import json
 import os
 import shutil
 import subprocess
+from pathlib import Path
 import sys
 import time
 
@@ -345,6 +347,13 @@ def _estado(base):
     )
 
 
+@functools.lru_cache(maxsize=None)
+def _estado_plantilla(base):
+    """Estado de la plantilla, UNA vez por plantilla: la copia de cada caso es idéntica a ella (fix8, gap 12; antes eran
+    2 procesos git por caso solo para leer lo que ya se sabía)."""
+    return _estado(Path(base))
+
+
 def _ejecutar_en_bash(plantilla_repo, tmp_path, orden):
     """Copia el repo, ejecuta `orden` con bash real dentro de proj y devuelve (estado_antes, estado_despues)."""
     copia = tmp_path / "w"
@@ -352,7 +361,7 @@ def _ejecutar_en_bash(plantilla_repo, tmp_path, orden):
     # el `remote` apunta a la copia original: se rehace para que `push` actúe sobre la copia
     proj = copia / "outer" / "proj"
     _git(proj, "remote", "set-url", "origin", str(copia / "remoto.git"))
-    antes = _estado(copia)
+    antes = _estado_plantilla(str(plantilla_repo))
     script = copia / "orden.sh"
     script.write_bytes(orden.encode("utf-8"))
     env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull,

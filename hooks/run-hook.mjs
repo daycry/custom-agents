@@ -100,26 +100,55 @@ function guardNeedsPython(payload, runtime, path) {
 }
 // native-prefilter:end
 
-// Over GUARD_INPUT_MAX the role key is looked for in the WHOLE stream, bounded by this size (T-06 fix7, gap 10a): the
-// key order of a runtime payload is not a contract, so `agent_type`/`agent` may come after `tool_input`.
-const GUARD_SCAN_MAX = 16 * 1024 * 1024;
+// Over GUARD_INPUT_MAX the role key is looked for in the WHOLE stream, with no size bound (T-06 fix8, gap 5): the key order
+// of a runtime payload is not a contract, so `agent_type`/`agent` may come after `tool_input`. Constant memory: the launcher
+// keeps only the first GUARD_INPUT_MAX + 1 bytes for the child plus a sliding window of the last GUARD_WINDOW bytes, so a key
+// split across two reads is still found. Same pattern and same identity policy as `protectedRoleOf`.
+const GUARD_WINDOW = 1024;   // longer than any match: key + 64 blanks + `:` + 64 blanks + up to 256 escaped characters + quotes
 
-function readGuardInput(deadline) {
+function makeRoleScanner(name) {
+  const key = name === 'opencode' ? 'agent' : 'agent_type';
+  let roles = null, ids = null, tail = '', found = null;
+  try {
+    const mapping = JSON.parse(readFileSync(join(root, 'agent-kits', 'shared', 'native-roles.json'), 'utf8'));
+    roles = mapping?.runtimes?.[name]; ids = nativeProtectedIDs(mapping, name);
+  } catch { /* unreadable map: no role can be named */ }
+  const pattern = new RegExp('"' + key + '"\\s{0,64}:\\s{0,64}("(?:[^"\\\\\\r\\n]|\\\\.){0,256}")', 'g');
+  return {
+    feed(chunk) {
+      if (found || !ids || !roles) return;
+      try {
+        const text = tail + chunk.toString('latin1');
+        tail = text.slice(-GUARD_WINDOW);
+        for (const match of text.matchAll(pattern)) {
+          let identity;
+          try { identity = JSON.parse(match[1]); } catch { continue; }
+          const role = PROTECTED_GUARD_ROLES.find(r => typeof identity === 'string' && ids.has(identity) && roles[r] === identity) ?? null;
+          if (role) { found = role; return; }
+        }
+      } catch { /* a scanning failure leaves normal permissions, as before */ }
+    },
+    get role() { return found; },
+  };
+}
+
+function readGuardInput(deadline, scanner) {
   return new Promise(resolve => {
-    const chunks = [];
-    let size = 0, finished = false;
+    const head = [];
+    let kept = 0, total = 0, finished = false;
     const finish = available => {
       if (finished) return;
       finished = true; clearTimeout(timer);
       process.stdin.off('data', data); process.stdin.off('end', end); process.stdin.off('error', error);
-      // Drain what exceeds the scan bound without retaining it or keeping the launcher alive after its child.
+      // Drain anything still arriving without retaining it or keeping the launcher alive after its child.
       process.stdin.resume(); process.stdin.unref?.();
-      resolve({available, raw: Buffer.concat(chunks, size)});
+      resolve({available, raw: Buffer.concat(head, kept), total});
     };
     const data = chunk => {
-      const part = chunk.subarray(0, GUARD_SCAN_MAX + 1 - size);
-      chunks.push(part); size += part.length;
-      if (size > GUARD_SCAN_MAX) finish(true);
+      total += chunk.length;
+      scanner.feed(chunk);
+      const part = chunk.subarray(0, Math.max(0, GUARD_INPUT_MAX + 1 - kept));
+      if (part.length) { head.push(part); kept += part.length; }
     };
     const end = () => finish(true), error = () => finish(false);
     const timer = setTimeout(() => finish(false), Math.max(0, deadline - performance.now()));
@@ -312,9 +341,11 @@ async function main() {
   let input, guardDeadline;
   if (guard) {
     guardDeadline = performance.now() + childBudgetMs(hook, runtime, process.env);
-    const captured = await readGuardInput(guardDeadline);
+    const scanner = makeRoleScanner(runtime.slice('--runtime='.length));
+    const captured = await readGuardInput(guardDeadline, scanner);
     input = captured.raw;
-    guardRole = protectedRoleOf(input, runtime);
+    // Over 64 KiB the role comes from the scan of the whole stream; otherwise (or if the read was cut short) from the payload.
+    guardRole = captured.total > GUARD_INPUT_MAX ? scanner.role : (protectedRoleOf(input, runtime) ?? scanner.role);
     if (!captured.available) { warn('role guard input unavailable or timed out'); emitGuard(null, 'input-unavailable'); return; }
     if (input.length > GUARD_INPUT_MAX && guardRole) {
       // Over 64 KiB the guard cannot evaluate the payload: the protected role is denied without starting the child

@@ -4,6 +4,7 @@ This observes path identities at boundaries; it is not a sandbox against an
 arbitrary concurrent writer replacing directories with filesystem privileges.
 """
 import importlib.util
+import math
 import os
 from pathlib import Path
 import stat
@@ -28,6 +29,26 @@ def _load(name):
 def need(ok, reason):
     if not ok:
         raise ValueError(reason)
+
+
+_IO_DEADLINE = 5.0
+_IO_SCALE_VAR = 'CUSTOM_AGENTS_JOURNAL_IO_DEADLINE_SCALE'
+
+
+def deadline_seconds():
+    """Plazo de pared de una escritura acotada del journal: 5 s. Un test puede alargarlo (multiplicador de 1 a 60 en
+    `CUSTOM_AGENTS_JOURNAL_IO_DEADLINE_SCALE`) para no depender del reloj de la máquina, como la escala de plazos de
+    `agent-activity-store.py`: solo actúa bajo `PYTEST_CURRENT_TEST`, así que la producción NO cambia (T-23 fix8, gap 13).
+    Un valor ausente, no numérico, no finito o menor que 1 vale el plazo por defecto."""
+    if not os.environ.get('PYTEST_CURRENT_TEST'):
+        return _IO_DEADLINE
+    try:
+        scale = float(os.environ.get(_IO_SCALE_VAR, '1'))
+    except ValueError:
+        return _IO_DEADLINE
+    if not math.isfinite(scale) or scale < 1.0:
+        return _IO_DEADLINE
+    return _IO_DEADLINE * min(scale, 60.0)
 
 
 def guard(deadline):
@@ -66,7 +87,7 @@ def write(path, raw, *, owned_prefix=None, allow_degraded_sync=False):
         previous, identity = IO.read(path, MAX_BYTES)
         mode = stat.S_IMODE(path.stat().st_mode)
         need(owned_prefix is None or previous.startswith(owned_prefix), 'unowned_journal_index')
-    IO.write(path, raw, time.monotonic() + 5, expected=identity, mode=mode, allow_degraded_sync=allow_degraded_sync)
+    IO.write(path, raw, time.monotonic() + deadline_seconds(), expected=identity, mode=mode, allow_degraded_sync=allow_degraded_sync)
 
 
 def update(path, transform):
@@ -82,7 +103,7 @@ def update(path, transform):
             replacement = transform(raw)
             if replacement == raw:
                 return
-            IO.write(path, replacement, time.monotonic()+5, expected=identity, mode=mode)
+            IO.write(path, replacement, time.monotonic() + deadline_seconds(), expected=identity, mode=mode)
             return
         except FileExistsError:
             continue

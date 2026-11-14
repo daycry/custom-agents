@@ -11,6 +11,7 @@ anywhere in the stream, an exception inside the evaluator — the adapter (and, 
 """
 import argparse
 import importlib.util
+import io
 import json
 import re
 from pathlib import Path
@@ -59,36 +60,60 @@ def _evaluator():
 _TOO_LARGE_REASON = ("the role guard cannot evaluate an input over 64 KiB, so the call is denied for this protected "
                      "role - send a smaller payload: split the command, or the file content, into several shorter "
                      "operations")
-# The identity key is looked for in the WHOLE stream up to this bound (T-06 fix7, gap 10a): the runtime's key order is
-# not part of any contract, so it may come after `tool_input`.
-SCAN_MAX = 16 * 1024 * 1024
+# The identity key is looked for in the WHOLE stream, with no size bound (T-06 fix8, gap 5): the runtime's key order is not
+# part of any contract, so it may come after `tool_input`. The scan keeps a sliding window (constant memory): only the
+# last `_WINDOW` bytes of each chunk travel to the next one, so a key split across two reads is still found.
+_CHUNK = 1024 * 1024
+_WINDOW = 1024                  # longer than any match: `"agent_type"` + 64 blanks + `:` + 64 blanks + 256 escapes + quotes
 
 
-def _role_of_stream(raw, runtime):
-    """Protected role named by an identity key anywhere in the payload (`raw`, bounded by `SCAN_MAX`), or None.
+def _role_scanner(runtime):
+    """`feed(bytes) -> role|None`: protected role named by an identity key in the chunks fed so far, or None.
 
-    One linear regex scan, no JSON parse of the whole payload. A quoted string value cannot forge the key because JSON
-    escapes its quotes; a nested object that repeats the key can only make the guard stricter (fail closed). Anything
-    unreadable returns None (normal permissions)."""
+    One linear regex scan per chunk, no JSON parse of the whole payload. A quoted string value cannot forge the key because
+    JSON escapes its quotes; a nested object that repeats the key can only make the guard stricter (fail closed). Anything
+    unreadable returns None (normal permissions). Bytes are read as latin-1: the identities are ASCII and no UTF-8
+    continuation byte is a quote or a backslash, so the match is the same as over the decoded text."""
     try:
         mapping = _json_file(SHARED / "native-roles.json")
         candidates = mapping["runtimes"][runtime]
         key = "agent" if runtime == "opencode" else "agent_type"
-        pattern = re.compile(r'"' + key + r'"\s{0,64}:\s{0,64}("(?:[^"\\\r\n]|\\.){0,256}")')
-        for found in pattern.finditer(raw.decode("utf-8", "replace")):
-            try:
-                identity = json.loads(found.group(1))
-            except ValueError:
-                continue
-            role = next((role for role in PROTECTED if identity == candidates.get(role)), None)
-            if role:
-                return role
-        return None
+        pattern = re.compile(r'"' + key + r'"\s{0,64}:\s{0,64}("(?:[^"\\\r\n]|\.){0,256}")')
     except Exception:
+        return lambda chunk: None
+    tail = [b""]
+
+    def feed(chunk):
+        try:
+            data = tail[0] + chunk
+            tail[0] = data[-_WINDOW:]
+            for found in pattern.finditer(data.decode("latin-1")):
+                try:
+                    identity = json.loads(found.group(1))
+                except ValueError:
+                    continue
+                role = next((role for role in PROTECTED if identity == candidates.get(role)), None)
+                if role:
+                    return role
+        except Exception:
+            pass
         return None
+    return feed
 
 
-_role_of_prefix = _role_of_stream     # the previous name, kept for callers of the adapter module
+def _role_of_stream(head, rest, runtime):
+    """Protected role named anywhere in `head` plus the rest of the binary stream `rest` (read in `_CHUNK`s until EOF)."""
+    feed = _role_scanner(runtime)
+    role = feed(head)
+    while not role:
+        chunk = rest.read(_CHUNK)
+        if not chunk:
+            return None
+        role = feed(chunk)
+    return role
+
+
+_role_of_prefix = lambda raw, runtime: _role_of_stream(raw, io.BytesIO(b""), runtime)   # the previous name, kept for callers
 
 
 def _operation(tool, path, **fields):
@@ -359,7 +384,7 @@ def main():
         if len(raw) > MAX_INPUT:
             # Fail closed for the protected role (T-06 fix6, ADR-023): the payload cannot be evaluated, so a protected
             # identity is denied; any other identity (or none) keeps the diagnostic and normal permissions.
-            role = _role_of_stream(raw + sys.stdin.buffer.read(SCAN_MAX - len(raw)), args.runtime)
+            role = _role_of_stream(raw, sys.stdin.buffer, args.runtime)
             result = (_result(role, _TOO_LARGE_REASON, "input-too-large") if role
                       else _result(diagnostic="input-too-large"))
         else:

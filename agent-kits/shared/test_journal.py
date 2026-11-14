@@ -2416,10 +2416,13 @@ def test_recover_session_id_forzado_nunca_sobrescribe_via_replay_con_recover(tmp
     assert es[0]["cierre"] == "materializado", "el bypass degradó una entrada ya materializada (gap 82)"
 
 
-def test_replay_con_recover_max_n_se_reparte_entre_drenaje_y_recuperacion(tmp_path):
+def test_replay_con_recover_max_n_se_reparte_entre_drenaje_y_recuperacion(tmp_path, monkeypatch):
     """Gap 83: `max_n` es COMPARTIDO entre el drenaje de la outbox y `recover` — con 3 envelopes
     pendientes y `max_n=3`, drenar ya agota el tope: `recover` no debe materializar ninguna huérfana
     más (3 entradas en total, no 6)."""
+    # El plazo de pared de 5 s de la E/S del journal lo agota un fsync lento y la captura se pierde (2 envelopes en vez de
+    # 3, T-23 fix8, gap 13): el test fija el plazo en 60 s, sin depender del reloj de la máquina.
+    monkeypatch.setenv("CUSTOM_AGENTS_JOURNAL_IO_DEADLINE_SCALE", "12")
     proj, _ = proyecto(tmp_path, con_git=False)
     for i in range(3):
         journal.capture_end(str(proj), session_end_payload(proj, sid=f"env{i}"))

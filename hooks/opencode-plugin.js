@@ -1,6 +1,6 @@
 // OpenCode V2 server plugin. Business rules remain in the shared hook services.
 import { execFile, spawn } from 'node:child_process';
-import { constants, existsSync } from 'node:fs';
+import { constants, existsSync, realpathSync } from 'node:fs';
 import { lstat, open, readdir, readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
@@ -59,8 +59,18 @@ function summaryArgs(input) {
   return args;
 }
 const normalized = path => process.platform === 'win32' ? resolve(path).toLowerCase() : resolve(path);
+// Two locations are the same project when their REAL paths agree (symlinks, 8.3 names and directory case resolved: the same
+// project reached through another path form is not another project) and their workspace IDs do not CONTRADICT each other
+// (T-06 fix8, gap 6): an ID present on one side only never makes the session foreign. Case-insensitive file systems (Windows,
+// macOS) compare in lower case.
+const canonical = path => {
+  let real;
+  try { real = realpathSync.native(path); } catch { real = resolve(path); }
+  return process.platform === 'win32' || process.platform === 'darwin' ? real.toLowerCase() : real;
+};
 const sameLocation = (a, b) => typeof a?.directory === 'string' && typeof b?.directory === 'string'
-  && normalized(a.directory) === normalized(b.directory) && a.workspaceID === b.workspaceID;
+  && canonical(a.directory) === canonical(b.directory)
+  && (a.workspaceID == null || b.workspaceID == null || a.workspaceID === b.workspaceID);
 
 export default {
   id: 'custom-agents',

@@ -5,6 +5,7 @@ Mismo método que `test_guardrail_differential.py` (BAD / LEGIT / LIMITE, repo t
 Windows, el bash de Git): cada BAD se deniega y su efecto es real en bash (paridad); cada LEGIT se permite; cada LIMITE
 lo ejecuta bash y el guardarraíl no lo ve (frontera del modelo de amenaza decidido por el usuario).
 """
+import functools
 import os
 import shutil
 import subprocess
@@ -56,7 +57,7 @@ SIN_PARIDAD_7 = {
     "git checkout --detach HEAD~1", "git switch origin/main",
     # su efecto no se reproduce en este repo (o hace falta un programa que un bash puede no traer):
     "env -S 'git --work-tree=.. restore b.txt'", "sudo --user root {D}", "sudo -u root {D}",
-    "echo . | xargs -0 git restore", "git rm -rf --cached . ; git rm -rf .", "nice {D}",
+    "echo . | xargs -0 git restore", "git rm -rf --cached . ; git rm -rf .",
 }
 BAD7 += sorted(SIN_PARIDAD_7)
 
@@ -103,6 +104,120 @@ FALSO_DENY_ACEPTADO_7 = [
 ]
 
 
+# --- fix8 (gap 8a): todas las sondas de las lentes del intento 7 (`lc7` b51-b79, k84-k103, w23, w25-w28, w32, w35-w39 y
+# los 24 de `lb7/legit2.py`), clasificadas por lo que HACEN el guardarraíl y bash real. Con `cd ..` el repo exterior
+# (b.txt sucio) hace de «otro proyecto»; `git restore src` del original pasa a `git restore b.txt` para que el efecto
+# se vea en el centinela. ---------------------------------------------------------------------------------------------
+# BAD con efecto real en bash (paridad):
+BAD8_PARIDAD = [
+    'eval cd ..; git restore b.txt',
+    'eval "cd .. && git restore b.txt"',
+    'f(){ cd ..; }; f; git restore b.txt',
+    'f() { cd ..; }; f && git restore b.txt',
+    'function f { cd ..; }; f; git restore b.txt',
+    '. <(echo cd ..); git restore b.txt',
+    'source <(echo cd ..); git restore b.txt',
+    'pushd .. >/dev/null && git restore b.txt',
+    'cd -P .. && git restore b.txt',
+    'for d in ..; do cd $d; done; git restore b.txt',
+    'for d in ..; do cd "$d" && git restore b.txt; done',
+    'case x in x) cd ..;; esac; git restore b.txt',
+    '[ -d .. ] && cd .. && git restore b.txt',
+    'test -d .. && cd ..; git restore b.txt',
+    'cd .. 2>/dev/null; git restore b.txt',
+    '2>/dev/null cd ..; git restore b.txt',
+    '{ cd ..; } && git restore b.txt',
+    'if true; then cd ..; fi; git restore b.txt',
+    'exec 3<&0; cd ..; git restore b.txt',
+    'true && builtin cd .. && git restore b.txt',
+    'git -C .. restore b.txt',
+    "$BASH -c 'git reset --hard'",
+    "sh -lc 'git reset --hard'",
+    "bash -c -- 'git reset --hard'",
+    "bash --norc -c 'git reset --hard'",
+    "bash -o pipefail -c 'git reset --hard'",
+    "bash -e -c 'git reset --hard'",
+    'exec -a x git reset --hard',
+    'command -- git reset --hard',
+    'time timeout 9 git reset --hard',
+    'nohup timeout 9 nice -n 1 git reset --hard',
+    "git -c alias.x='!git reset --hard' x",
+    'git stash && git stash drop',
+    'git checkout HEAD -- .',
+    'timeout 30s git reset --hard',
+    'git -c core.x=y reset --hard',
+    'GIT_DIR=.git git reset --hard',
+    'git reset --hard HEAD',
+]
+# BAD sin efecto reproducible en el repo de prueba (no hay `main`, `$SHELL` puede no existir en un contenedor, un subshell o
+# un `coproc` no cambian el directorio de quien llama, …): se deniegan igual, sin paridad:
+SIN_PARIDAD_8 = [
+    'CDPATH=.. cd main && git restore b.txt',
+    'x=$(cd .. && pwd); git restore b.txt',
+    'select d in ..; do cd $d; break; done; git restore b.txt',
+    'coproc cd ..; git restore b.txt',
+    'cd .. | true; git restore b.txt',
+    'git --work-tree=.. restore b.txt',
+    '"$SHELL" -c \'git reset --hard\'',
+    'flock /tmp/l git reset --hard',
+    'git restore -s HEAD~1 -W .',
+    'git clean -fdx',
+    'git branch -D feat/x',
+    'git update-ref -d refs/heads/feat/x',
+    'command -p git restore .',
+    'setsid -w git reset --hard',
+    'git checkout -q -',
+    'git stash drop',
+    'git worktree remove -f ../w',
+    'git rm -r -f .',
+    'git read-tree -m -u HEAD',
+]
+# LEGIT: el flujo normal (restaurar UN fichero del propio proyecto, commit con heredoc, envoltorios sin git destructivo):
+LEGIT8 = [
+    'git restore --source=HEAD src',
+    'watch -n1 git status',
+    'source .venv/bin/activate && git restore src/a.py',
+    '. .venv/bin/activate; git checkout src/a.py',
+    'eval "$(ssh-agent -s)"; git push origin feat/x',
+    'f() { echo; }; git restore src/a.py',
+    'env FOO=1 git restore src/a.py',
+    'timeout 60 git restore src/a.py',
+    'nice -n 5 git status',
+    'xargs -a list.txt git add',
+    'git ls-files -z | xargs -0 git add',
+    'sudo -u me git status',
+    'time git status',
+    'git commit -m "$(cat <<\'EOF\'\nfix\nEOF\n)" --no-edit',
+    'git commit -m "$(cat <<\'EOF\'\nT-01: it\'s\nEOF\n)" && git push',
+    'git commit -m "$(cat <<\'EOF\'\nT-01: it\'s\n\nCo-Authored-By: X <x@y>\nEOF\n)"',
+    'git commit -m "$(cat <<\'EOF\'\n  EOF\nit\'s\nEOF\n)"',
+    'git commit --author="A B <a@b>" -m "$(cat <<\'EOF\'\nit\'s\nEOF\n)"',
+    'git commit -m "$(cat <<\'EOF\'\nit\'s\nEOF\n)"\n',
+    'cd /tmp/x && git commit -m "$(cat <<\'EOF\'\nit\'s\nEOF\n)"',
+    "git add a.txt; git commit -F - <<'EOF'\nit's\nEOF\ngit log -1",
+    'git commit -m "$(cat <<\'MSG\'\nit\'s\nMSG\n)"',
+    'git commit -m "$(cat <<\'END_MSG\'\nit\'s\nEND_MSG\n)"',
+]
+# LÍMITE (gap 8b, modelo de amenaza): `trap … DEBUG` ejecuta `cd` ANTES de cada orden y el guardarraíl no lo ve:
+LIMITE8 = [
+    "trap 'cd ..' DEBUG; git restore b.txt",
+]
+# Falsos deny aceptados: el heredoc con delimitador entrecomillado con `"` o sin comillas deja la forma fuera de la lista
+# blanca (solo se acepta `<<'D'`), y el delimitador `EOF-1` tampoco es la forma exacta:
+FALSO_DENY_ACEPTADO_8 = [
+    'git commit -m "$(cat <<"EOF"\nit\'s\nEOF\n)"',
+    'git commit -m "$(cat <<EOF\nit\'s\nEOF\n)"',
+    'git commit -m "$(cat <<\'EOF-1\'\nit\'s\nEOF-1\n)"',
+]
+BAD7 += BAD8_PARIDAD
+SIN_PARIDAD_7 |= set(SIN_PARIDAD_8)
+BAD7 += sorted(SIN_PARIDAD_8)
+LEGIT7 += LEGIT8
+LIMITE7 += LIMITE8
+FALSO_DENY_ACEPTADO_7 += FALSO_DENY_ACEPTADO_8
+
+
+@functools.lru_cache(maxsize=None)
 def _tiene(programa):
     try:
         r = subprocess.run([BASH, "-c", f"command -v {programa}"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)

@@ -356,8 +356,10 @@ Guards evaluate all supported mutation targets, including move sources and
 destinations. Claude supports Write/Edit/MultiEdit/NotebookEdit and Bash/PowerShell
 command rules; Codex supports `apply_patch` and commands emitted as Bash; OpenCode
 V2 supports write/edit/patch/shell (`path`, `oldString`/`newString`, `patchText`).
-Unrecognized input or input above 64 KiB continues with diagnostics; arbitrary
-indirect shell/MCP writes are not comprehensively inspected.
+Unrecognized input continues with diagnostics; input above 64 KiB is denied for
+`implementer` and `architect` (fails closed, ADR-023) and continues with
+diagnostics for every other identity. Arbitrary indirect shell/MCP writes are not
+comprehensively inspected.
 
 Branch lookup also recognizes symbolic HEAD before the first commit: main/master
 remains protected and a feature retains branch-switch rules. The fallback uses
