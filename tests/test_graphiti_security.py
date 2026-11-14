@@ -123,7 +123,7 @@ _BOOTSTRAP_NODE_HASHES = {
 # prompt capture; same local executables/imports, no network path (review 2026-10-29).
 # F2 T-09/T-10: fixed local marker and combined local parser only; self-audit in
 # testing/t10-egress-boundary-review-2026-10-29.json. Independent phase review remains T-19.
-_LAUNCHER_NODE_HASH = "7fbe17e8ec279a5dbdef238196fd2e5c65df8548182bd5d0770177d8876bf255"   # revisado 2026-11-13 (T-06 fix6): falla cerrado para el rol protegido (lee el mapa de roles local con readFileSync; sin red); revisado 2026-11-10 (T-14): JOB_EMPTY del supervisor y subagent-progress.py/journal-prompt.py locales, sin red
+_LAUNCHER_NODE_HASH = "f469de1362fbd958a730fd83e9c6b1f9eb5d5d395b4b9105d490632c7dc6e982"   # revisado 2026-11-14 (T-06 fix7): el lanzador retiene hasta 16 MiB de la entrada para hallar la clave del rol (regex lineal, sin red ni procesos nuevos) y deniega sin arrancar el hijo; revisado 2026-11-13 (T-06 fix6): falla cerrado para el rol protegido (lee el mapa de roles local con readFileSync; sin red); revisado 2026-11-10 (T-14): JOB_EMPTY del supervisor y subagent-progress.py/journal-prompt.py locales, sin red
 _EXT_RE = "|".join(_EXT_ESCANEABLES + _EXT_NO_ESCANEABLES)
 # Gap #155 (Important, fix1 Fase 4): el lookahead final quita los falsos positivos del escaneo de
 # CODIGO (`hashlib.sha256` casaba como `hashlib.sh`). Hace falta porque a partir de este fix una

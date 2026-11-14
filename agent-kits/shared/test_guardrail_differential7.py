@@ -105,7 +105,7 @@ FALSO_DENY_ACEPTADO_7 = [
 
 def _tiene(programa):
     try:
-        r = subprocess.run([BASH, "-c", f"command -v {programa}"], capture_output=True, text=True, timeout=30)
+        r = subprocess.run([BASH, "-c", f"command -v {programa}"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
         return r.returncode == 0
     except (OSError, subprocess.SubprocessError):
         return False

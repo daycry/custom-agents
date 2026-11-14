@@ -405,6 +405,7 @@ def _ledger_grande(tareas, filas, secciones=3):
     return "# Ledger\n\n" + cuerpo
 
 
+@pytest.mark.serie   # aserción de tiempo de pared (`< 2 s`): bajo `-n auto` la carga ajena la rompía (10 s, fix7 de plugin-audit-2)
 def test_mil_tareas_y_330_filas_por_seccion_se_proyectan_en_menos_de_2_s():
     """I3-5: el índice id -> secciones/filas se construye una vez por proyección (antes: tareas x filas x ids)."""
     import time
