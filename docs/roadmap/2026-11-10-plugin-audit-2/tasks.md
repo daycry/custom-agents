@@ -1373,3 +1373,74 @@ Lentes: A+B+C+D sobre `0fd3de2..HEAD` (`82d6922`). C se disparó por `.github/wo
    - 16: se corrige la fila Total, se quita el `Cerrada` de T-23 y se anota la deuda de orden.
 
 Tras este ciclo: réplica Linux completa sin rojo, medida emparejada de T-23 (orquestador) y verificación dirigida de las cuatro lentes. Si solo quedan Minor sin pérdida de datos, la fase cierra.
+
+## Revisión de dos lentes — intento 7: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix6: 4 Important, 15 Minor
+
+Lentes: A+B+C+D sobre `3512526..be61509`. Motivos de C y de D: `hooks/run-hook.mjs:161` (`exec`) y las rutas del guard.
+
+**Cerrado del intento 6:**
+- Fallo cerrado del rol protegido en el lanzador, `native-guardrail` y el puente de OpenCode: el plazo agotado, la entrada de más de 64 KiB con el rol delante, el evaluador caído y el JSON inválido deniegan.
+- Gap 5: cambio de base dentro de `eval`, funciones y `. <(…)`.
+- Gaps 9, 11, 13, 14 y 16.
+- `_aritmetica` lineal.
+- La puerta de redact con mediana y umbral 6.
+- El modelo de amenaza documentado.
+
+Las interpretaciones i1, i2 e i4 del implementer se aceptan. La i3 (rol sacado del prefijo) no es verificable y pasa al punto 6 del diseño.
+
+La fase **no** cierra: siguen 4 Important con pérdida de datos. Todos vienen de la lista blanca de commits o de envoltorios que se desenvuelven a medias, y bash real los ejecuta con el centinela perdido.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | Forma exacta con un heredoc que bash cierra antes. Dentro de `$(…)`, bash 5.2 acepta `D)` como cierre del heredoc; `_CUERPO` solo cierra con `D` sola en la línea y se traga lo que bash ejecuta entre dos commits: `git commit --allow-empty -m "$(cat <<'D'⏎msg⏎D)"⏎git restore .⏎D⏎)"` → allow | T-06 | pendiente | Lente C: `guardrail-check.py:567-570`, `:311`; Git Bash 5.2.37 y lanzador de punta a punta |
+| 2 | Important | Forma exacta detrás de un comentario: `true # ok; git commit -m "$(cat <<'EOF'⏎git restore .⏎EOF⏎)"` → allow. Para bash todo es comentario, no abre el heredoc y ejecuta el cuerpo. Lo mismo con `-F -` y con `&&` | T-06 | pendiente | Lente B: `guardrail-check.py:601-607` |
+| 3 | Important | `env -S` solo se desenvuelve en `_literal_invocation`; `_posicion_programa` no busca dentro el cambio de base. Desde `main/wt`, `env -S 'git -C .. restore a.txt'` → allow, y se pierde el cambio sin comitear | T-06 | pendiente | Lente A: `guardrail-check.py:689` frente a `:725-735`, `:898`, `:1436`; sonda `la7/envs` |
+| 4 | Important | `xargs` con las rutas por la entrada estándar: `git diff --name-only \| xargs git checkout --` → allow. Igual `xargs git restore --`, `xargs -r git checkout HEAD --` y `xargs -I{} git checkout -- {}`. Es el mismo caso que `--pathspec-from-file`, que sí se deniega | T-06 | pendiente | Lente B: `guardrail-check.py:649,697-720,1369-1396` |
+| 5 | Minor | Regresión: `$$'` se toma como comilla ANSI-C. `echo $$'\'; git reset --hard #'` → allow (deny en 3512526) | T-06 | pendiente | Lente C: `guardrail-check.py:447,418` |
+| 6 | Minor | Regresión: `&` como redirección sin mirar si `>`/`<` está escapado. `echo \>& git reset --hard` → allow (deny en 3512526) | T-06 | pendiente | Lente C: `guardrail-check.py:511` |
+| 7 | Minor | Envoltorios con el valor de la opción separado: `timeout --kill-after 5 30 git restore .`, `--signal KILL`, `nice --adjustment 5`, `stdbuf -o 0`/`-o L`, `sudo --user root`; `flock` no está en `_ENVOLTORIOS` → allow | T-06 | pendiente | Lentes B y C: `guardrail-check.py:651-652,666-691` |
+| 8 | Minor | Rama protegida: `git checkout @{-2}`, `git checkout origin/HEAD` y `git switch --detach origin/HEAD` → allow. Sin pérdida de datos | T-06 | pendiente | Lente C: `guardrail-check.py:925` |
+| 9 | Minor | `bash -c -- 'git reset --hard'` → allow: `--` se toma por la orden. Ya ocurría en 3512526 | T-06 | pendiente | Lente C (fuera de diff): `guardrail-check.py:1038` |
+| 10 | Minor | Fallo cerrado incompleto en tres puntos, ninguno reproducido con un runtime real: (a) con más de 64 KiB y la clave del rol detrás de `tool_input`, el implementer sigue sin deny (probado con `{tool_name, tool_input, agent_type}`); el orden real de Claude Code y Codex no consta; (b) un `ValueError`/`TypeError`/`KeyError` lanzado dentro de `evaluator.decide` sale como `input-unrecognized` y sigue; (c) en OpenCode, `project()` nulo hace `return` sin guard en vez de lanzar | T-06 | pendiente | Lentes A, B y C: `native-guardrail.py:60-63,317`; `opencode-plugin.js:281` |
+| 11 | Minor | `_quitar_mensajes_de_commit` es superlineal: `finditer` con backtracking de `_OPCIONES` y `_cerrado_sin_heredoc(previo)` por coincidencia. 15 KB de formas → 6-14 s y deny falso por plazo. Los comentarios «el guard nunca agota el plazo» son falsos | T-06 | pendiente | Lentes B y D: `guardrail-check.py:565-608,975,1420` |
+| 12 | Minor | Falso deny: `source .venv/bin/activate && git restore src/a.py`. El mensaje de deny tampoco nombra `source` | T-06 | pendiente | Lente B: `guardrail-check.py:917-918,1388-1390` |
+| 13 | Minor | Documentación contradictoria. El mermaid y la cita de FLOWS §6c ES/EN e INTEROP ES/EN siguen diciendo «sin Python / timeout → permisos normales». En `implementer.md:70` `git checkout -` sale como denegado y como permitido. El texto de deny de Write con más de 64 KiB dice «write files with the edit tool». La docstring de la demo de redact dice «razón ≈ 8» | T-06, T-23 | pendiente | Lentes A y B: `docs/FLOWS.md:596-603`, `docs/en/FLOWS.md:597,603`, `docs/INTEROP.md:492-494`, `docs/en/INTEROP.md:484-486`, `native-guardrail.py:55-56` |
+| 14 | Minor | Assert relajado sin anotar en el ledger: `razon and "descarta" in razon` → `razon` | T-06 | pendiente | Lente A: `test_guardrail_check.py:962` |
+| 15 | Minor | En Windows, la demostración con reloj real del cuadrático nunca pasa por la mediana: la resuelve siempre la sonda ×4 con `inf` sacado de una sola muestra. Ese `inf` no tiene segunda ronda: un lineal sale rojo si una sola medida ×4 se infla unas 3,5 veces | T-23 | pendiente | Lente B: `test_redact_fix3.py:334-339,418-424`; 5/5 `inf` |
+| 16 | Minor | Coste evitable en el paso serie. Las dos pruebas de plazo esperan con `sleep` (≥ 4,5 s cada una) y la cota `dt < 12` aguanta la carga. Los 3 hostiles por el lanzador no tienen aserción de tiempo. Juntos suman ≈13-15 s de los +40 s | T-23 | pendiente | Lente D: `test_native_guard_failclosed.py:132-141`; `test_guardrail_differential.py:601-621` |
+
+Fuera de gap: `test_ca08` no lo toca la iniciativa (Lente D: sin commits en `57fb054..be61509`).
+
+**Diseño fijado por el orquestador para fix7.** Dentro del modelo de amenaza que decidió el usuario; ante la duda, deny.
+
+1. **Lista blanca a prueba de bash** (gaps 1, 2 y 11).
+   - (a) Una forma deja de estar en la lista blanca si alguna línea del cuerpo, quitando tabuladores al principio, EMPIEZA por el delimitador sin ser la línea de cierre exacta. Así entran `D)`, `D;` y `D x`.
+   - (b) La forma solo vale si empieza al principio de una sentencia según el tokenizador real, es decir, fuera de comentario, comilla o heredoc. En el caso conservador: no vale si la última línea de `previo` tiene un `#` sin comillas.
+   - (c) Coste lineal. Las posiciones de `git commit` las da una sola pasada del tokenizador con el estado de cierre acumulado, y las opciones se acotan a la línea, sin `finditer` con backtracking.
+   - Test: los hostiles de las lentes B y D (16 KB) en menos de 0,3 s y sin deny por plazo. Se corrigen los comentarios «nunca agota el plazo».
+2. **Envoltorios con una sola implementación** (gaps 3, 7 y 9). `_literal_invocation` y `_posicion_programa` llaman a la MISMA función.
+   - El valor de `env -S` se analiza entero, incluido el cambio de base.
+   - Se consumen las opciones largas con el valor separado (`timeout --kill-after/--signal`, `nice --adjustment/-n`, `sudo -u/--user/-g/…`, `stdbuf -o/-i/-e`). Se añade `flock [opts] <fichero> <orden>`.
+   - Una opción DESCONOCIDA de un envoltorio, en una orden con `git`, se deniega.
+   - En `bash -c --`, se salta el `--`.
+3. **`xargs` y rutas desconocidas** (gap 4): `xargs … git <subcomando destructivo de ficheros>` (restore, checkout con o sin `--`, reset, clean, rm, checkout-index…) se deniega siempre, incluido con `-I{}`. Se trata igual que `--pathspec-from-file`.
+4. **Regresiones del tokenizador** (gaps 5 y 6): `$$` es el PID y no abre ANSI-C, y un `>`/`<` escapado no forma redirección con `&`.
+5. **Rama protegida** (gap 8): `checkout`/`switch` a `@{-N}`, a una ref remota o con `--detach` se deniega.
+6. **Fallo cerrado completo** (gap 10).
+   - (a) Si la entrada pasa de 64 KiB, la clave del rol (`agent_type`/`agent`) se busca en TODO el flujo con un escáner lineal acotado (p. ej. 16 MiB), sin parsear el JSON entero. Test con la clave al final → deny para el implementer y continue para qa.
+   - (b) Solo la validación del esquema ANTES de evaluar produce `input-unrecognized`. Cualquier excepción dentro de `evaluator.decide` es `evaluator-unavailable`, y por tanto deny para el rol protegido.
+   - (c) En OpenCode, si `project()` es nulo con un rol protegido, el adaptador lanza (deny), con test del adaptador.
+   - Se regenera interop.
+7. **`source`/`.`** (gap 12). Con un fichero normal no cuenta como cambio de base: es un límite conocido y va al modelo de amenaza. Con `/dev/stdin`, `<(…)` o un heredoc se sigue analizando. El mensaje de deny nombra la causa real.
+8. **Documentación y ledger** (gaps 13 y 14):
+   - FLOWS §6c (cita y mermaid) e INTEROP, en ES y EN, dicen fallo cerrado para el rol protegido.
+   - Se corrigen `implementer.md:70`, el texto de deny de Write y la docstring de la demo.
+   - El assert relajado queda anotado en el ledger.
+9. **Puerta de redact** (gap 15).
+   - La demostración con reloj real usa un tamaño con el que el cuadrático da muestras medibles (no `inf`) en Linux y en Windows, y la que se comprueba es la mediana.
+   - Un `inf` de la sonda ×4 necesita confirmación (una segunda muestra) antes del rojo.
+   - Otra vez 10 pasadas en Linux y 10 en Windows con carga.
+10. **Paso serie** (gap 16): las pruebas de plazo con `sleep` y los hostiles por el lanzador pasan al paso paralelo, salvo que una aserción de tiempo lo impida (entonces se justifica en el ledger).
+11. **Corpus:** todas las sondas del intento 7 (scratchpad `la7/`, `lb7/`, `lc7/`, `ld7/`) entran en el corpus diferencial como BAD, LEGIT o LIMITE.
+
+Tras este ciclo: réplica Linux completa sin rojo, medida emparejada de T-23 (la hace el orquestador) y verificación dirigida de las cuatro lentes. Si solo quedan Minor sin pérdida de datos, la fase cierra.
