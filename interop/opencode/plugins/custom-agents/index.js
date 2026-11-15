@@ -63,7 +63,10 @@ const normalized = path => process.platform === 'win32' ? resolve(path).toLowerC
 // `realpath` (symlinks, 8.3 names and directory case resolved: the same project reached through another path form is not
 // another project), and their workspace IDs do not CONTRADICT each other (T-06 fix8, gap 6): an ID present on one side only
 // never makes the session foreign. The union only widens which sessions are kept: a failed or stale `realpath` can no longer
-// turn the plugin's own session foreign for good (fix10, gap 2).
+// turn the plugin's own session foreign for good (fix10, gap 2). A `realpath` that FAILED for either side (a cached failure
+// included) leaves the comparison INDETERMINATE and the session is kept (fix11, gap 9): keeping one too many only runs the
+// hook with the session's own cwd, dropping one loses the own session. `ENOENT`/`ENOTDIR` is not a failure of that kind: a
+// path that does not exist cannot be another form of a project that does.
 // `realpathSync.native` is a blocking system call (on SMB or a VPN it stalls the event loop on every tool call and every
 // event), so every resolution goes through ONE per-string cache, the plugin's own directory included (it is resolved again,
 // not fixed at `setup`: a re-pointed link is followed, gap 3). The cache keeps successes AND failures for a short window
@@ -74,15 +77,22 @@ const canonicalCache = new Map();
 const caseless = path => process.platform === 'win32' || process.platform === 'darwin' ? path.toLowerCase() : path;
 const canonical = path => {
   const now = Date.now(), cached = canonicalCache.get(path);
-  if (cached !== undefined && now >= cached.at && now - cached.at < CANONICAL_TTL_MS) return cached.value;
-  let real;
-  try { real = realpathSync.native(path); } catch { real = resolve(path); }
-  const value = caseless(real);
+  if (cached !== undefined && now >= cached.at && now - cached.at < CANONICAL_TTL_MS) return cached;
+  let real, indeterminate = false;
+  try { real = realpathSync.native(path); } catch (error) {
+    real = resolve(path);
+    indeterminate = error?.code !== 'ENOENT' && error?.code !== 'ENOTDIR';
+  }
+  const entry = { value: caseless(real), indeterminate, at: now };
   if (!canonicalCache.has(path) && canonicalCache.size >= CANONICAL_CACHE_MAX) canonicalCache.clear();
-  canonicalCache.set(path, { value, at: now });
-  return value;
+  canonicalCache.set(path, entry);
+  return entry;
 };
-const sameDirectory = (a, b) => caseless(resolve(a)) === caseless(resolve(b)) || canonical(a) === canonical(b);
+const sameDirectory = (a, b) => {
+  if (caseless(resolve(a)) === caseless(resolve(b))) return true;
+  const x = canonical(a), y = canonical(b);
+  return x.indeterminate || y.indeterminate || x.value === y.value;
+};
 const sameLocation = (a, b) => typeof a?.directory === 'string' && typeof b?.directory === 'string'
   && sameDirectory(a.directory, b.directory)
   && (a.workspaceID == null || b.workspaceID == null || a.workspaceID === b.workspaceID);
