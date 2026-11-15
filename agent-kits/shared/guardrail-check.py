@@ -392,41 +392,81 @@ def _aritmetica(command, j, st):
     return None if tabla.invalida(j, k) else k + 2
 
 
-_PREFIJOS_ORDEN = frozenset({"then", "do", "else", "elif", "if", "while", "until", "!", "{", "time"})
+# Patrón de `case` que el lector sigue: sin comillas, escapes, corchetes, agrupaciones ni expansiones (fix11, punto 1).
+_PATRON_CASE_RE = re.compile(r"[\w.*?/+=,:%@^~-]+")
+_ANSI_SIMPLES = {"a": "\a", "b": "\b", "e": "\x1b", "E": "\x1b", "f": "\f", "n": "\n", "r": "\r", "t": "\t", "v": "\v",
+                 "\\": "\\", "'": "'", '"': '"', "?": "?"}
 
 
-def _empieza_orden(cur):
-    """`cur` (las palabras ya leídas de la orden) está vacío o solo lleva palabras reservadas de cabecera (`then case …`)."""
-    return all(w in _PREFIJOS_ORDEN for w in cur)
+def _ansi_c(command, i, st):
+    r"""Escape de `$'…'` con la semántica de bash (fix11, punto 3): `i` apunta al carácter que sigue a la barra. Devuelve
+    `(texto, posición siguiente)`. `\a \b \e \E \f \n \r \t \v \\ \' \" \?`, octal de 1 a 3 cifras, `\xHH`, `\uHHHH`, `\UHHHHHHHH`
+    y `\cX`; un escape desconocido conserva la barra y el carácter. Lineal (cada escape consume lo que lee)."""
+    n, c = len(command), command[i]
+    if c in _ANSI_SIMPLES:
+        return _ANSI_SIMPLES[c], i + 1
+    if c in "01234567":
+        j = i
+        while j < n and j < i + 3 and command[j] in "01234567":
+            j += 1
+        return chr(int(command[i:j], 8) & 0xFF), j
+    if c in "xuU":
+        j, tope = i + 1, i + 1 + {"x": 2, "u": 4, "U": 8}[c]
+        while j < n and j < tope and command[j] in "0123456789abcdefABCDEF":
+            j += 1
+        if j == i + 1:
+            return "\\" + c, i + 1             # sin cifras: bash deja la barra
+        try:
+            return chr(int(command[i + 1:j], 16)), j
+        except (ValueError, OverflowError):
+            st.incompleta = True
+            return "", j
+    if c == "c" and i + 1 < n:
+        return chr(ord(command[i + 1]) & 0x1F), i + 2
+    return "\\" + c, i + 1
 
 
-def _case_palabra(cases, palabra, cur, st):
-    """Seguimiento de la gramática de `case` DENTRO de una sustitución `$(…)`/`<(…)`/`>(…)` (fix10, gap 1). Allí un `)` cierra
-    la sustitución, salvo el que cierra un patrón de `case`: sin este seguimiento `cat <(case x in x) git reset --hard;; esac)`
-    se leía como `cat <(case x in x)` seguido de argumentos de `cat`, y el `git` se perdía. `cases` es la pila de estados:
-    `w` (espera el sujeto), `i` (espera `in`), `p` (en patrones) y `b` (en el cuerpo de una cláusula). Un `case` anidado, un
-    `in` ausente o un `esac` que no llega dejan la lectura `incompleta`: sin certeza se deniega si hay git o cambio de base.
+def _case_palabra(cases, palabra, plana, cur, par, fin, st):
+    """Seguimiento del `case` DENTRO de una sustitución `$(…)`/`<(…)`/`>(…)` por LISTA BLANCA (fix11, punto 1; el lector
+    de gramática completa del fix10 no convergía: cada lente hallaba otra forma que bash ejecuta). Solo se sigue la forma
+    simple: `case` sin comillas ni escapes como primera palabra de una orden, a profundidad 0 de la sustitución y sin
+    prefijos (`time`, `coproc`, `function`, `!`, `{`…); `in` como palabra propia seguida de blanco; patrones sin comillas ni
+    escapes ni `esac`; y `esac` como primera palabra. CUALQUIER otra aparición de `case`/`esac` deja la lectura `incompleta`
+    (se deniega si hay git o cambio de base). `cases` es la pila de estados: `w` (espera el sujeto), `i` (espera `in`), `p`
+    (en patrones) y `b` (en el cuerpo de una cláusula); `plana` es True si la palabra no llevaba comillas, escapes ni
+    sustituciones (su texto coincide con lo escrito); `fin` es el carácter que la termina. O(1) por palabra.
     Devuelve True cuando la palabra es el `in` que abre los patrones (el llamador descarta la cabecera)."""
     top = cases[-1] if cases else None
-    primero = _empieza_orden(cur)
+    primero = not cur and par == 0
+    reservada = palabra in ("case", "esac")
     if top == "w":
-        cases[-1] = "i"
+        if reservada:
+            st.incompleta = True
+            cases.pop()
+        else:
+            cases[-1] = "i"
     elif top == "i":
-        if palabra == "in":
+        if palabra == "in" and plana and fin in " \t\n":
             cases[-1] = "p"
             return True                  # `case x in` no es una orden: el llamador descarta la cabecera
+        st.incompleta = True
+        cases.pop()
+    elif top == "p":
+        if palabra == "esac" and plana and primero and fin in " \t\n;)":
+            cases.pop()                  # `esac|*)` es un patrón, no el cierre: cae a `incompleta`
+        elif reservada or not (plana and _PATRON_CASE_RE.fullmatch(palabra)):
+            st.incompleta = True
+    elif palabra == "case":
+        if plana and primero and top is None:
+            cases.append("w")
         else:
             st.incompleta = True
+    elif palabra == "esac":
+        if plana and primero and top == "b":
             cases.pop()
-    elif top == "p":
-        if primero and palabra == "esac":
-            cases.pop()
-    elif primero and palabra == "case":
-        if cases:
+        else:
             st.incompleta = True
-        cases.append("w")
-    elif top == "b" and primero and palabra == "esac":
-        cases.pop()
+    return False
 
 
 def _leer(command, i, modo, st, prof):
@@ -442,8 +482,12 @@ def _leer(command, i, modo, st, prof):
     cur, word, started, quote, pend, par, cierre = [], [], False, None, [], 0, False
     cases = []              # pila del seguimiento de `case` (solo dentro de una sustitución, fix10)
     ult_redir = -2          # posición del último `<`/`>` SIN escapar ni entrecomillar (fix7, gap 6)
+    wini = 0                # dónde empieza la palabra en curso en `command`: «plana» = su texto coincide con lo escrito (fix11)
+    nul = False             # un `\0` dentro de `$'…'` corta el resto de esa cadena (bash)
     while i < n:
         c = command[i]
+        if not started:
+            wini = i
         if quote is None and c == "\n" and pend:
             if started:
                 cur.append("".join(word))
@@ -460,14 +504,18 @@ def _leer(command, i, modo, st, prof):
             started, st.incompleta = True, True
             break
         if quote == "$'":
-            # ANSI-C `$'…'`: la barra escapa el carácter siguiente (también la comilla simple) (fix6, lente C)
+            # ANSI-C `$'…'`: la barra se decodifica como bash (`\t`, `\x20`, `\040`, `é`…, fix11; antes tomaba el carácter
+            # crudo y `env -S $'git\trestore .'` no se veía como git). `\'` sigue sin cerrar la cadena.
             if c == "\\" and i + 1 < n:
-                word.append(command[i + 1])
-                i += 2
+                texto, i = _ansi_c(command, i + 1, st)
+                if texto == "\x00":
+                    nul = True               # bash corta la cadena en el NUL
+                elif not nul:
+                    word.append(texto)
                 continue
             if c == "'":
                 quote = None
-            else:
+            elif not nul:
                 word.append(c)
             i += 1
             continue
@@ -496,7 +544,7 @@ def _leer(command, i, modo, st, prof):
             continue
         if c == "$" and quote is None and command.startswith(("$'", '$"'), i):
             # `$'…'` (ANSI-C) y `$"…"` (traducción): la `$` no es parte de la palabra
-            quote, started = ("$'" if command[i + 1] == "'" else '"'), True
+            quote, started, nul = ("$'" if command[i + 1] == "'" else '"'), True, False
             i += 2
             continue
         if c == "$" and command.startswith("$(", i):
@@ -567,25 +615,34 @@ def _leer(command, i, modo, st, prof):
             continue
         elif c == "(" and cases and cases[-1] == "p" and par == 0 and not started and not cur:
             i += 1                        # `(` opcional delante de un patrón de `case`: no abre un grupo
+            cur.append("(")               # y el patrón que sigue ya no es la primera palabra (`(esac)` no cierra el `case`)
             continue
         elif c == ")" and modo == "sub" and par == 0 and cases and cases[-1] == "p" \
-                and not (started and "".join(word) == "esac" and _empieza_orden(cur)):
+                and not (started and "".join(word) == "esac" and command[wini:i] == "esac" and not cur):
+            if started:
+                _case_palabra(cases, "".join(word), command[wini:i] == "".join(word), cur, par, c, st)   # valida el patrón
+            else:
+                st.incompleta = True      # patrón vacío
             word, started, cur = [], False, []   # `)` que cierra un patrón de `case`: no cierra la sustitución
-            cases[-1] = "b"
+            if cases:
+                cases[-1] = "b"
         elif c == ";" and cases and cases[-1] == "b" and par == 0 and command.startswith((";;", ";&"), i):
             if started:
-                _case_palabra(cases, "".join(word), cur, st)
-                cur.append("".join(word))
+                texto = "".join(word)
+                _case_palabra(cases, texto, command[wini:i] == texto, cur, par, c, st)
+                cur.append(texto)
                 word, started = [], False
             if cur:
                 st.out.append(cur)
                 cur = []
-            cases[-1] = "p"               # `;;`, `;&` y `;;&` terminan la cláusula: sigue otro patrón
+            if cases:
+                cases[-1] = "p"           # `;;`, `;&` y `;;&` terminan la cláusula: sigue otro patrón
             i += 3 if command.startswith(";;&", i) else 2
             continue
         elif c == ")" and modo == "sub" and par == 0:
-            if started and cases:
-                _case_palabra(cases, "".join(word), cur, st)
+            if started:
+                texto = "".join(word)
+                _case_palabra(cases, texto, command[wini:i] == texto, cur, par, c, st)
             i += 1
             cierre = True
             break
@@ -594,12 +651,17 @@ def _leer(command, i, modo, st, prof):
             started = True
         elif c in " \t\n;&|()":           # el CR NO separa: en bash es un carácter normal (fix6, gap 9)
             if started:
-                if modo == "sub" and _case_palabra(cases, "".join(word), cur, st):
+                texto = "".join(word)
+                if modo == "sub" and _case_palabra(cases, texto, command[wini:i] == texto, cur, par, c, st):
                     cur = []
                 else:
-                    cur.append("".join(word))
+                    cur.append(texto)
                 word, started = [], False
-            if c in "\n;&|()" and cur:
+            if modo == "sub" and cases and (c in ";&|()" if cases[-1] in "wi" else c in ";&(" if cases[-1] == "p" else False):
+                st.incompleta = True      # fuera de la forma simple: `case x; in`, `x;)`, `@(x|y)`…
+            if modo == "sub" and cases and cases[-1] == "p" and (c == "|" or (c == "\n" and cur == ["|"])):
+                cur = ["|"]               # tras `|` sigue un patrón: un `esac` ahí NO cierra el `case`
+            elif c in "\n;&|()" and cur:
                 if not (cases and cases[-1] == "p"):          # lo que hay entre patrones no es una orden
                     st.out.append(cur)
                 cur = []
