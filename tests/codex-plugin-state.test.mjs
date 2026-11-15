@@ -199,8 +199,8 @@ test('run-hook launches hook children with NoDefaultCurrentDirectoryInExePath se
 // Revisión intento 3 (C6): `candidates()` de run-hook descarta entradas vacías o relativas del PATH.
 test('run-hook candidates ignore relative PATH entries',()=>{
   const source=readFileSync(fileURLToPath(new URL('../hooks/run-hook.mjs',import.meta.url)),'utf8')
-  const helper=source.match(/function absolutePathEntry\([\s\S]*?\n}\n/)
-  const fn=source.match(/function candidates\(names\) \{[\s\S]*?\n}\n/)
+  const helper=source.match(/function absolutePathEntry\([\s\S]*?\r?\n}\r?\n/)
+  const fn=source.match(/function candidates\(names\) \{[\s\S]*?\r?\n}\r?\n/)
   assert.ok(helper && fn,'candidates() must use absolutePathEntry()')
   const make=new Function('env','windows','existsSync','join','delimiter','isAbsolute',
     `${helper[0]}\n${fn[0]}\nreturn candidates`)
