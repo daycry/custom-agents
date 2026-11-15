@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs, { mkdtempSync, mkdirSync, existsSync, rmSync, rmdirSync, symlinkSync } from 'node:fs';
+import fs, { mkdtempSync, mkdirSync, existsSync, rmSync, rmdirSync, symlinkSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import plugin from '../hooks/opencode-plugin.js';
@@ -18,6 +18,8 @@ function project(tag) {
   return dir;
 }
 const link = (target, path) => symlinkSync(target, path, 'junction');
+// Quita el enlace sin tocar su destino: un enlace simbolico (Linux) se borra con unlink; una juncion de Windows, como directorio.
+const unlink = path => { try { unlinkSync(path); } catch { try { rmdirSync(path); } catch { /* ya no existe */ } } };
 const saved = (dir, id) => existsSync(join(dir, '.claude', `session-prompts-${id}.log`));
 const prompt = (ctx, id) => ctx.hooks.get('session.prompt')({ sessionID: id, prompt: { text: 'turno de prueba' } });
 function withClock(fn) {
@@ -48,7 +50,7 @@ test('fix10 gap 2: a failed first realpath never leaves the project foreign for 
       await prompt(ctx, 'own');
     });
     assert.equal(saved(p, 'own'), true, 'la sesion del propio proyecto debe guardarse tras caducar el fallo (antes: para siempre foreign)');
-  } finally { restore?.(); await cleanup?.(); try { rmdirSync(j); } catch {} rmSync(p, { recursive: true, force: true }); }
+  } finally { restore?.(); await cleanup?.(); unlink(j); rmSync(p, { recursive: true, force: true }); }
 });
 
 test('fix10 gap 2: equal paths still match when every realpath fails (union with resolve())', async () => {
@@ -73,12 +75,12 @@ test('fix10 gap 3: a re-pointed link is followed once the cached entry expires',
       cleanup = await plugin.setup(ctx);
       await prompt(ctx, 'before');
       assert.equal(saved(p, 'before'), false, 'el enlace apunta a otro proyecto: sesion ajena');
-      rmdirSync(j); link(p, j);
+      unlink(j); link(p, j);
       advance(WINDOW);
       await prompt(ctx, 'after');
     });
     assert.equal(saved(p, 'after'), true, 'tras re-apuntar el enlace y caducar la entrada, la sesion es propia');
-  } finally { await cleanup?.(); try { rmdirSync(j); } catch {} rmSync(p, { recursive: true, force: true }); rmSync(x, { recursive: true, force: true }); }
+  } finally { await cleanup?.(); unlink(j); rmSync(p, { recursive: true, force: true }); rmSync(x, { recursive: true, force: true }); }
 });
 
 test('fix10 gap 4: a path that cannot be resolved costs one realpath per window', async () => {
