@@ -20,9 +20,11 @@ def load_context():
     return module
 
 
-def project(root):
+def project(root, timeout_ms=30000):
+    # T-23 fix10: el presupuesto de lectura de la politica es de PARED; con 1.200 ms un snapshot bajo `-n auto` en pocas CPU lo agotaba
+    # (1 de 12.983 en la replica Linux). Solo los tests que dependen del valor concreto lo piden (`timeout_ms=1200`).
     cfg = {'export_dir': 'projection', 'health': {'url': 'http://127.0.0.1:8080/health'},
-           'read': {'enabled': True, 'timeout_ms': 1200},
+           'read': {'enabled': True, 'timeout_ms': timeout_ms},
            'router': {'intents': {'documental': True}}}
     taxonomy = {'version': 1, 'id_prefix': 'synthetic',
         'backends': {'docs': {'type': 'markdown-export', 'enabled': True, 'config': cfg}},
@@ -41,7 +43,7 @@ def project(root):
 
 
 def test_authorization_binds_current_policy_raw_canon_and_same_refresh_deadline(tmp_path):
-    cfg, taxonomy, policy, entry = project(tmp_path)
+    cfg, taxonomy, policy, entry = project(tmp_path, timeout_ms=1200)
     module = load_context()
     original = copy.deepcopy(cfg)
     result = module.prepare(tmp_path, 'docs', 'documental', expected_config=cfg)
@@ -105,7 +107,7 @@ def test_expired_deadline_fails_before_loading_any_reader(tmp_path, monkeypatch)
 
 
 def test_authorization_stops_new_local_io_when_deadline_expires(tmp_path, monkeypatch):
-    cfg, taxonomy, policy, first = project(tmp_path)
+    cfg, taxonomy, policy, first = project(tmp_path, timeout_ms=1200)
     for number in range(40):
         raw = first.read_bytes().replace(b'synthetic.DECISION.one', f'synthetic.DECISION.item{number}'.encode())
         (first.parent / f'item{number}.md').write_bytes(raw)
@@ -201,7 +203,7 @@ def test_invalid_policy_selectors_fail_before_reader(tmp_path, monkeypatch, back
 
 
 def test_disabled_read_and_excess_deadline_fail_before_corpus_snapshot(tmp_path, monkeypatch):
-    cfg, _, _, _ = project(tmp_path)
+    cfg, _, _, _ = project(tmp_path, timeout_ms=1200)
     module = load_context()
     original = module._load
     def policy_only(name):
@@ -241,7 +243,7 @@ def test_empty_canon_never_mints_an_authorizing_context(tmp_path):
 
 
 def test_predicate_cannot_extend_deadline_or_mutate_canonical_policy(tmp_path, monkeypatch):
-    cfg, _, _, entry = project(tmp_path)
+    cfg, _, _, entry = project(tmp_path, timeout_ms=1200)
     module = load_context()
     clock = [100.0]
     monkeypatch.setattr(time, 'monotonic', lambda: clock[0])
