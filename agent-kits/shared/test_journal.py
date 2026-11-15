@@ -3371,3 +3371,19 @@ def test_la_rama_de_escritura_espera_al_ganador_de_la_carrera(tmp_path, monkeypa
     finally:
         hilo.join()
     assert open(marcador, "rb").read() == b""
+
+
+def test_settling_distingue_asentado_en_curso_y_plantado(tmp_path):
+    JIO = journal._capture_mod.JIO
+    a = tmp_path / "f"
+    a.write_bytes(b"x")
+    assert JIO.settling(a) is True                      # un solo enlace: nada que esperar, se reintenta
+    plantado = tmp_path / "plantado"
+    os.link(a, plantado)
+    assert JIO.settling(a) is False                     # dos enlaces sin `.tmp-` hermano: no va a asentarse
+    os.remove(plantado)
+    tmp = tmp_path / ".tmp-x"
+    os.link(a, tmp)
+    assert JIO.settling(a) is True                      # inicializacion en curso
+    os.remove(tmp)
+    assert JIO.settling(a) is True                      # el temporal se borro: ya esta asentado

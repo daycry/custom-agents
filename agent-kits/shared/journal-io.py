@@ -91,14 +91,28 @@ def initializing(path):
         info = os.lstat(path)
         with os.scandir(path.parent) as listing:
             names = [item.name for item in listing if item.name.startswith('.tmp-')]
-        now = time.time()
-        for name in names:
-            other = os.lstat(path.parent / name)   # `DirEntry.stat()` no trae el inodo en Windows
-            if (other.st_dev, other.st_ino) == (info.st_dev, info.st_ino) and abs(now - max(other.st_mtime, other.st_ctime)) < _TMP_RECIENTE:
-                return True
     except OSError:
         return False
+    now = time.time()
+    for name in names:
+        try:
+            other = os.lstat(path.parent / name)   # `DirEntry.stat()` no trae el inodo en Windows
+        except OSError:
+            continue                               # el ganador acaba de borrar su temporal
+        if (other.st_dev, other.st_ino) == (info.st_dev, info.st_ino) and abs(now - max(other.st_mtime, other.st_ctime)) < _TMP_RECIENTE:
+            return True
     return False
+
+
+def settling(path):
+    """True si merece la pena reintentar: `path` ya tiene un solo enlace, o tiene dos y hay una inicializacion en curso (o el
+    temporal se acaba de borrar y el fichero se asento entre las dos lecturas)."""
+    def links():
+        try:
+            return os.lstat(path).st_nlink
+        except OSError:
+            return None
+    return links() == 1 or initializing(path) or links() == 1
 
 
 def settled(operation, path):
@@ -118,7 +132,7 @@ def settled(operation, path):
             if os.path.lexists(path):
                 info = path.lstat()
                 need(stat.S_ISREG(info.st_mode) and not IO.reader._redirected(info) and info.st_nlink in (1, 2), 'unsafe_state')
-                need(info.st_nlink == 1 or initializing(path), 'unsafe_state')   # dos enlaces sin temporal en curso: al instante
+                need(settling(path), 'unsafe_state')   # dos enlaces sin temporal en curso: al instante
             if attempt == 39:
                 raise
             time.sleep(min(0.002 * 2 ** attempt, 0.02))
@@ -168,7 +182,7 @@ def update(path, transform):
                 info = path.lstat()
                 need(stat.S_ISREG(info.st_mode) and not IO.reader._redirected(info)
                      and info.st_nlink in (1, 2), 'unsafe_state')
-                need(info.st_nlink == 1 or initializing(path), 'unsafe_state')
+                need(settling(path), 'unsafe_state')
             time.sleep(min(0.002 * 2 ** attempt, 0.02))
     raise ValueError('journal_update_conflict')
 
