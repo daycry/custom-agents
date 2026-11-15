@@ -79,12 +79,35 @@ def read(path, maximum=MAX_BYTES):
     return IO.read(path, maximum)[0]
 
 
+_TMP_RECIENTE = 5.0   # segundos: un `.tmp-` mas viejo es de un inicializador muerto, no de uno en curso
+
+
+def initializing(path):
+    """True solo si `path` esta en el estado transitorio de una creacion exclusiva EN CURSO (T-23 fix11, gaps 8 y 10): el
+    inodo de `path` tiene un `.tmp-*` HERMANO con el mismo (dispositivo, inodo) y reciente. Un enlace duro sin ese temporal
+    (plantado, o de un inicializador muerto entre `os.link` y el `unlink`) no se espera: no va a desaparecer."""
+    path = Path(path)
+    try:
+        info = os.lstat(path)
+        with os.scandir(path.parent) as listing:
+            names = [item.name for item in listing if item.name.startswith('.tmp-')]
+        now = time.time()
+        for name in names:
+            other = os.lstat(path.parent / name)   # `DirEntry.stat()` no trae el inodo en Windows
+            if (other.st_dev, other.st_ino) == (info.st_dev, info.st_ino) and abs(now - max(other.st_mtime, other.st_ctime)) < _TMP_RECIENTE:
+                return True
+    except OSError:
+        return False
+    return False
+
+
 def settled(operation, path):
     """Run `operation()` (a guarded read of `path`) and, if it fails with `unsafe_state` because the file is in the TRANSIENT
     state of an exclusive creation, wait for it to settle (T-23 fix10, gap 9). The winner of `os.link(temporary, path)` leaves
     the inode with two links until it removes its private temporary, and the guards refuse that state (`nlink != 1`: they
     exist against hard-linked files). Like `update`, wait for it, never adopt it: a link that stays (a planted hard link)
-    exhausts the bound (about 0.75 s) and the original `unsafe_state` is raised."""
+    exhausts the bound (about 0.75 s) and the original `unsafe_state` is raised. Only an initialization IN PROGRESS is waited for
+    (a recent sibling `.tmp-*` with the same inode, `initializing`): a hard link without it fails at once (fix11, gap 10)."""
     for attempt in range(40):
         try:
             return operation()
@@ -95,6 +118,7 @@ def settled(operation, path):
             if os.path.lexists(path):
                 info = path.lstat()
                 need(stat.S_ISREG(info.st_mode) and not IO.reader._redirected(info) and info.st_nlink in (1, 2), 'unsafe_state')
+                need(info.st_nlink == 1 or initializing(path), 'unsafe_state')   # dos enlaces sin temporal en curso: al instante
             if attempt == 39:
                 raise
             time.sleep(min(0.002 * 2 ** attempt, 0.02))
@@ -144,6 +168,7 @@ def update(path, transform):
                 info = path.lstat()
                 need(stat.S_ISREG(info.st_mode) and not IO.reader._redirected(info)
                      and info.st_nlink in (1, 2), 'unsafe_state')
+                need(info.st_nlink == 1 or initializing(path), 'unsafe_state')
             time.sleep(min(0.002 * 2 ** attempt, 0.02))
     raise ValueError('journal_update_conflict')
 

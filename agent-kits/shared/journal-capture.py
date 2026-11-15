@@ -300,6 +300,10 @@ def _asegurar_gitignore_local(dirpath):
                 JIO.write(path, raw)
             except FileExistsError:
                 JIO.read_settled(path)  # Another cooperating initializer won; never overwrite (its two links settle first).
+            except ValueError as error:
+                if str(error) != 'unsafe_state' or not os.path.lexists(path):
+                    raise
+                JIO.read_settled(path)  # The winner linked between our check and `write`'s own: the same bounded wait (fix11, gap 8).
         else:
             JIO.read_settled(path)
 
