@@ -259,8 +259,10 @@ BAD10_PARIDAD = [
     "echo $(echo $(case x in x) {D};; esac))",
     "x=$(case x in x) {D};; esac)",
 ]
-# `env -S` separa SOLO por espacio y tabulador (GNU env): un LF, VT, FF o CR literal es parte de la palabra y un `#` tras ellos
-# NO abre un comentario (fix10, gap 5). El centinela cambia en bash real: `git -c user.name=c⏎#y restore .` es un `restore`.
+# `env -S` con un LF, VT, FF o CR suelto es AMBIGUO (fix10, gap 5): coreutils 8.x separa solo por espacio y tabulador (esas formas
+# ejecutan un `restore`: `git -c user.name=c⏎#y restore .`) y coreutils 9.x tambien por ellos y abre un comentario tras el `#` (la
+# misma orden NO restaura; lo midio la replica Linux, coreutils 9.7). El guardarrail deniega la forma ambigua; la paridad con efecto
+# solo se exige donde `env` es 8.x (`_env_gnu_8`); donde es 9.x esas formas se comprueban solo como denegadas.
 BAD10_ENV = [
     "env -S $'git -c user.name=c\\x0b#y restore .'",
     "env -S $'git -c user.name=c\\x0c#y restore .'",
@@ -284,6 +286,17 @@ BAD7 += sorted(SIN_PARIDAD_8)
 LEGIT7 += LEGIT8
 LIMITE7 += LIMITE8
 FALSO_DENY_ACEPTADO_7 += FALSO_DENY_ACEPTADO_8
+
+
+@functools.lru_cache(maxsize=None)
+def _env_gnu_8():
+    """True si el `env` de este bash es de coreutils 8.x (solo espacio y tabulador separan `-S`); False con 9.x o sin `env`."""
+    try:
+        r = subprocess.run([BASH, "-c", "env --version | head -1"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        palabras = (r.stdout.split() or [""])[-1].split(".")
+        return palabras[0].isdigit() and int(palabras[0]) < 9
+    except (OSError, subprocess.SubprocessError):
+        return False
 
 
 @functools.lru_cache(maxsize=None)
@@ -319,6 +332,8 @@ def test_falso_deny_aceptado_7(plantilla, en_proj):
 @pytest.mark.parametrize("plantilla", [p for p in BAD7 if p not in SIN_PARIDAD_7],
                          ids=[_id(p) for p in BAD7 if p not in SIN_PARIDAD_7])
 def test_paridad7_cada_bad_cambia_el_centinela_en_bash_real(plantilla, plantilla_repo, tmp_path):
+    if plantilla in BAD10_ENV and not _env_gnu_8():
+        pytest.skip("coreutils 9.x separa `env -S` por LF/VT/FF/CR: la forma es ambigua, solo se exige que se deniegue")
     orden = _expandir(plantilla, D_RESTORE, "/nada")
     programa = orden.split()[0]
     if programa in PROGRAMAS_OPCIONALES and not _tiene(programa):

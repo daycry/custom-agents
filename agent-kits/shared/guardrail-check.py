@@ -888,7 +888,7 @@ _MAX_TROCEOS_S = 4
 _MAX_VALOR_S = 2048             # un valor más largo no se trocea: se deniega SIEMPRE (el troceo es carácter a carácter)
 _ESCAPES_ENV = {"t": "\t", "n": "\n", "v": "\v", "f": "\f", "r": "\r", "\\": "\\", "'": "'", '"': '"', "#": "#",
                 "$": "$"}
-_BLANCOS_ENV = " \t"       # GNU env separa SOLO por espacio y tabulador: LF, VT, FF y CR literales son parte de la palabra (fix10, gap 5)
+_BLANCOS_ENV = " \t"       # coreutils 8.x separa SOLO por espacio y tabulador; 9.x también por LF, VT, FF y CR: estos cuatro, sueltos, son ambiguos (fix10)
 
 
 class _OpcionIlegible(str):
@@ -905,7 +905,7 @@ class _SinTroceo(Exception):
 
 def _trocea_s(valor, cortes):
     r"""Palabras de un valor de `env -S` TROCEADO COMO LO HACE GNU env (fix9, gap 4; antes `shlex`, que no conoce sus
-    escapes): solo el espacio y el tabulador separan (un LF, VT, FF o CR literal es parte de la palabra); las comillas simples son literales salvo `\\` y `\'`; las dobles admiten escapes; fuera
+    escapes): solo el espacio y el tabulador separan (un LF, VT, FF o CR suelto es ambiguo entre coreutils 8.x y 9.x: se deniega con git); las comillas simples son literales salvo `\\` y `\'`; las dobles admiten escapes; fuera
     de comillas `\_` separa y `\c` corta; `\t \n \v \f \r \\ \' \" \# \$` son el carácter; un `#` al empezar palabra abre un
     comentario. Lanza `_SinTroceo(siempre=True)` si ya hubo `_MAX_TROCEOS_S` troceos en esta orden (cada uno reconstruye la
     lista: una cadena de `-S` anidados sería cuadrática, fix8, gap 4), si el valor pasa de `_MAX_VALOR_S` caracteres o si
@@ -960,6 +960,10 @@ def _trocea_s(valor, cortes):
             comilla, en_palabra = c, True
         elif c in _BLANCOS_ENV:
             cierra()
+        elif c in "\n\v\f\r":
+            # Forma AMBIGUA (fix10): coreutils 8.x no separa por ellos y 9.x sí (y tras ellos un `#` abre un comentario). Lo que
+            # ejecuta cada env es distinto: se deniega, con o sin comillas del shell alrededor, si la orden contiene git.
+            raise _SinTroceo(False)
         elif c == "#" and not en_palabra:
             break
         else:

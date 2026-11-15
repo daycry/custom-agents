@@ -2642,9 +2642,12 @@ def test_t10fix5_197_validation_ilegible_por_json_o_esquema_nunca_es_al_dia(tmp_
 
 
 def _medir(fn):
-    t0 = time.perf_counter()
-    fn()
-    return time.perf_counter() - t0
+    # T-23 fix10: tiempo de CPU del proceso, no de pared. Bajo `-n auto` (varios workers en pocas CPU) el reloj de pared midio 2,5x
+    # (58 ms frente a 23 ms) con el mismo codigo, y la comparacion entre las dos medidas dejaba de decir nada sobre el algoritmo.
+    t0 = time.process_time()
+    for _ in range(8):             # 8 repeticiones: el reloj de CPU de Windows avanza a saltos de 15,6 ms y la operacion dura ~23 ms
+        fn()
+    return time.process_time() - t0
 
 
 def test_t10fix4_196_marca_con_benchmark_enorme_como_mucho_3_serializaciones(monkeypatch):
@@ -2675,8 +2678,8 @@ def test_t10fix4_196_marca_con_benchmark_enorme_como_mucho_3_serializaciones(mon
     assert len(datos) <= asm.TOPE_MARCA and asm._motivo_marca(leida) is None, len(datos)
     assert len(vistas) <= 3, len(vistas)
     assert leida["parametros"]["benchmark"] == "100000 familias" and leida["omitidos_muestra"] == muestra, leida
-    base = min(_medir(lambda: asm._serializar_marca(marca)) for _ in range(5))
-    nuevo = min(_medir(lambda: asm._bytes_marca(marca)) for _ in range(5))
+    base = min(_medir(lambda: asm._serializar_marca(marca)) for _ in range(3))
+    nuevo = min(_medir(lambda: asm._bytes_marca(marca)) for _ in range(3))
     assert nuevo < 2 * base, (nuevo, base)
     largas = [dict(OMISION_OK, ref="ñ" * 190 + f"@v{i:03d}") for i in range(10)]
     datos = contar(dict(MARCA_OK, omitidos=11, omitidos_muestra=largas))
