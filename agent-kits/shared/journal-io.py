@@ -80,6 +80,7 @@ def read(path, maximum=MAX_BYTES):
 
 
 _TMP_RECIENTE = 5.0   # segundos: un `.tmp-` mas viejo es de un inicializador muerto, no de uno en curso
+_ESPERA_MAX = 0.75    # segundos de reloj monotonico: tope TOTAL de la espera del estado transitorio (fix12, gap 6)
 
 
 def initializing(path):
@@ -120,13 +121,14 @@ def settled(operation, path):
     state of an exclusive creation, wait for it to settle (T-23 fix10, gap 9). The winner of `os.link(temporary, path)` leaves
     the inode with two links until it removes its private temporary, and the guards refuse that state (`nlink != 1`: they
     exist against hard-linked files). Like `update`, wait for it, never adopt it: a link that stays (a planted hard link)
-    exhausts the bound (about 0.75 s) and the original `unsafe_state` is raised. Only an initialization IN PROGRESS is waited for
+    exhausts the bound (a TOTAL of 0.75 s of monotonic clock, `_ESPERA_MAX`, fix12: every attempt lists the directory) and the original `unsafe_state` is raised. Only an initialization IN PROGRESS is waited for
     (a recent sibling `.tmp-*` with the same inode, `initializing`): a hard link without it fails at once (fix11, gap 10)."""
+    limit = time.monotonic() + _ESPERA_MAX
     for attempt in range(40):
         try:
             return operation()
         except ValueError as error:
-            if str(error) != 'unsafe_state':
+            if str(error) != 'unsafe_state' or time.monotonic() >= limit:   # tope TOTAL (fix12): cada intento lista el directorio
                 raise
             path = Path(path).absolute(); IO.dirs(path.parent)
             if os.path.lexists(path):
@@ -157,6 +159,7 @@ def write(path, raw, *, owned_prefix=None, allow_degraded_sync=False):
 def update(path, transform):
     """Retry observed cooperating conflicts without losing another writer's bytes."""
     path = Path(path).absolute()
+    limit = time.monotonic() + _ESPERA_MAX
     for attempt in range(12):
         IO.dirs(path.parent)
         try:
@@ -174,6 +177,8 @@ def update(path, transform):
         except ValueError as error:
             if str(error) != 'unsafe_state':
                 raise
+            if time.monotonic() >= limit:
+                break                              # tope TOTAL de la espera (fix12): `journal_update_conflict`
             # An exclusive atomic creation briefly has two links until its
             # private temporary is removed. Wait, but never read/adopt that
             # shared inode. Persistent hardlinks still exhaust this bound.
