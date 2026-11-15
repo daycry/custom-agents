@@ -26,7 +26,9 @@ export function opencodeContext(directory) {
   };
 }
 
-export async function until(predicate, ms = 15000) {
+// fix15 (gap 13): 120 s por defecto, acorde a la carga (con 12 bucles de CPU los tests que lanzan node en serie tardaban mas de 15 s: 2 de 44 en rojo);
+// solo se agota cuando el efecto no ocurre, asi que no encarece los tests verdes.
+export async function until(predicate, ms = 120000) {
   const deadline = Date.now() + ms;
   while (!predicate()) {
     if (Date.now() > deadline) throw new Error('Adapter effect was not observed');

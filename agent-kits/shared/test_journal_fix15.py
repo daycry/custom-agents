@@ -44,12 +44,76 @@ def test_el_plazo_se_mide_desde_el_arranque_no_desde_la_primera_espera(tmp_path,
     assert espera <= JIO._PRESUPUESTO_PROCESO - 0.20 + 0.06, f"{espera:.3f} s simulados: el arranque no cuenta en el plazo"
 
 
-def test_un_plazo_ya_agotado_por_el_arranque_no_espera_nada(tmp_path, monkeypatch):
+def test_un_plazo_ya_agotado_por_el_arranque_solo_espera_el_minimo(tmp_path, monkeypatch):
+    """El proceso ya agoto su plazo (arranque lento): la espera del estado transitorio recibe el minimo (`_ESPERA_MINIMA`, i10) y ni un ms mas."""
     JIO = journal._capture_mod.JIO
     f = _con_tmp_vivo(tmp_path / "a", "f")
     reloj = _reloj_inyectado(monkeypatch, JIO)
     espera = _espera_en(JIO, reloj, f, desde=1000.0 - 5.0)
-    assert espera <= 0.01, f"{espera:.3f} s: el proceso ya agoto su plazo, la primera espera falla al instante"
+    assert 0.0 < espera <= JIO._ESPERA_MINIMA + 0.03, f"{espera:.3f} s: plazo agotado, la espera debe ser el minimo de {JIO._ESPERA_MINIMA} s"
+
+
+@pytest.mark.parametrize("duracion", [0.02, 0.05, 0.09])
+def test_el_arranque_lento_no_omite_una_inicializacion_legitima_corta(tmp_path, monkeypatch, duracion):
+    """Interpretacion i10 (regresion medida): con la maquina saturada el arranque del hijo consumia los 0,35 s y la primera espera de un estado
+    transitorio (nlink 2 durante unos ms) se daba por agotada: captura omitida. Con el minimo por espera se lee."""
+    JIO = journal._capture_mod.JIO
+    f, reloj = _inicializador_legitimo(monkeypatch, JIO, tmp_path / "q", duracion)
+    JIO.begin_budget(desde=1000.0 - 5.0)                       # el arranque ya gasto todo el plazo del proceso
+    try:
+        assert JIO.read_settled(str(f)) == b"x"
+    finally:
+        JIO.end_budget()
+
+
+def test_la_segunda_espera_comparte_el_plazo_ya_agotado(tmp_path, monkeypatch):
+    """El minimo es solo de la PRIMERA espera del proceso: la segunda comparte el plazo (el contrato de fix14: un solo plazo por proceso)."""
+    JIO = journal._capture_mod.JIO
+    a, b = _con_tmp_vivo(tmp_path / "a", "f"), _con_tmp_vivo(tmp_path / "b", "f")
+    reloj = _reloj_inyectado(monkeypatch, JIO)
+    JIO.begin_budget(desde=1000.0 - 5.0)
+    try:
+        for fichero in (a, b):
+            with pytest.raises(ValueError, match="unsafe_state"):
+                JIO.read_settled(str(fichero))
+    finally:
+        JIO.end_budget()
+    assert reloj["t"] - 1000.0 <= JIO._ESPERA_MINIMA + 0.03, "dos esperas con el plazo agotado suman un solo minimo, no uno por espera"
+
+
+@pytest.mark.parametrize("entradas", [3, 100, 255])
+def test_queue_recorre_siempre_las_primeras_255_entradas_aunque_el_plazo_este_agotado(tmp_path, monkeypatch, entradas):
+    """Una cola normal (outbox, processing, done…) se valida entera aunque el arranque lento haya agotado el plazo del proceso (i10)."""
+    JIO = journal._capture_mod.JIO
+    cola = tmp_path / "cola"
+    cola.mkdir()
+    for i in range(entradas):
+        (cola / f"e{i}.json").write_bytes(b"")
+    _reloj_inyectado(monkeypatch, JIO)
+    JIO.begin_budget(desde=1000.0 - 5.0)
+    try:
+        JIO.queue(str(cola))                                    # no lanza `journal_queue_budget`
+    finally:
+        JIO.end_budget()
+
+
+def test_el_minimo_no_amplia_el_recorrido_de_queue(tmp_path, monkeypatch):
+    """`queue()` sigue acotada por el plazo del proceso a partir de la entrada 256, sin minimo: un listado largo no puede alargar el cierre."""
+    JIO = journal._capture_mod.JIO
+    cola = tmp_path / "cola"
+    cola.mkdir()
+    for i in range(1200):
+        (cola / f"e{i}.json").write_bytes(b"")
+    reloj = _reloj_inyectado(monkeypatch, JIO)
+    real = JIO.IO.file
+    monkeypatch.setattr(JIO.IO, "file", lambda p: (reloj.__setitem__("t", reloj["t"] + 0.001), real(p))[1])
+    JIO.begin_budget(desde=1000.0 - 5.0)
+    try:
+        with pytest.raises(ValueError, match="journal_queue_budget"):
+            JIO.queue(str(cola))
+    finally:
+        JIO.end_budget()
+    assert reloj["t"] - 1000.0 <= 0.3, "queue() recorrio con el plazo del proceso agotado: el minimo no aplica a los listados"
 
 
 def test_sin_origen_el_plazo_sigue_empezando_en_la_primera_espera(tmp_path, monkeypatch):

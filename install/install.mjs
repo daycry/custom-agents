@@ -1264,6 +1264,10 @@ export const argCmd = (a) => String(a).split("%").map(citarCmd).join("^%")
  * pero no a su nieto: la CLI colgada seguía viva consumiendo el terminal (comprobado con
  * `tasklist`). En Windows eso es `taskkill /T /F`; en el resto, el grupo de procesos.
  */
+// fix15 (gap 11): tope de la caza de huérfanos en Windows (`wmic`/PowerShell + CIM). Era de 15 s; con 12 bucles de CPU la consulta CIM tarda más y el
+// nieto de la CLI colgada sobrevivía (1 rojo de 5 pasadas). Solo corre tras un timeout, así que un tope holgado no cuesta nada en el camino normal.
+const TIMEOUT_CAZA = 90_000
+
 function matarArbol(pid) {
   if (!pid) return
   if (process.platform !== "win32") {
@@ -1291,14 +1295,14 @@ function matarArbol(pid) {
   try {
     execFileSync(deSistema(join("wbem", "WMIC.exe"), "wmic"),
       ["process", "where", `(ParentProcessId=${pid})`, "call", "terminate"],
-      { stdio: "ignore", timeout: 15_000 })
+      { stdio: "ignore", timeout: TIMEOUT_CAZA })
   } catch {
     try {
       execFileSync(deSistema(join("WindowsPowerShell", "v1.0", "powershell.exe"), "powershell"),
         ["-NoProfile", "-NonInteractive", "-Command",
           `Get-CimInstance Win32_Process -Filter 'ParentProcessId=${pid}' `
           + `| ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`],
-        { stdio: "ignore", timeout: 15_000 })
+        { stdio: "ignore", timeout: TIMEOUT_CAZA })
     } catch { /* ni siquiera PowerShell: mejor esfuerzo, nunca peor que antes */ }
   }
 }
