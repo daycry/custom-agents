@@ -275,6 +275,109 @@ LEGIT10 = [
     "diff <(case a in a) git show HEAD:a.txt;; esac) /dev/null",
     "cat <(case x in x) git diff --name-only;; esac)",
 ]
+# --- fix11 (gaps 1, 2, 3, 5, 6, 7 del intento 11): el lector de `case` dentro de sustituciones sigue SOLO la forma simple; todas las
+# sondas de las lentes A, B y C del intento 11 (`la11/`, `lb11/`, `lc11/`). Cualquier otra aparicion de `case`/`esac` (en un subshell,
+# tras un prefijo, citada, escapada, `in(`, `esac` como patron) deja la lectura incompleta y se deniega si hay git. ---
+BAD11_PARIDAD = [
+    "echo $( (case x in x) {D};; esac) )",
+    "cat <( (case x in x) {D};; esac) )",
+    "cat <( (case x in x) {D};; esac); true)",
+    "echo $(true; (case x in x) {D};; esac))",
+    "echo $(echo $( (case x in x) {D};; esac) ))",
+    "tee >( (case x in x) {D};; esac) ) </dev/null",
+    "x=$( (case x in x) {D};; esac) )",
+    "echo $(true && (case x in x) {D};; esac))",
+    "cat >( (case x in x) {D};; esac) )",
+    "echo $(true; (case \"$f\" in *) {D};; esac))",
+    'echo "$( (case x in x) {D};; esac) )"',
+    "echo $(if true; then (case x in x) {D};; esac); fi)",
+    "echo $(f() (case x in x) {D};; esac); f)",
+    "echo `(case x in x) {D};; esac)`",
+    "echo $( { case x in x) {D};; esac; } )",
+    "echo $({ case x in x) {D};; esac; })",
+    "echo $(if true; then case x in x) {D};; esac; fi)",
+    "echo $(while case x in x) {D};; esac; do break; done)",
+    "echo $(time case x in x) {D};; esac)",
+    "echo $(! case x in x) {D};; esac)",
+    "cat <(time -p case x in x) {D};; esac)",
+    "echo $(time -p case x in x) {D};; esac)",
+    "cat <(time -- case x in x) {D};; esac)",
+    "cat <(time -p ! case x in x) {D};; esac)",
+    "cat <(coproc case x in x) {D};; esac)",
+    "cat <(coproc C case x in x) {D};; esac)",
+    "cat <(function f case x in x) {D};; esac; f)",
+    "cat <(f () case x in x) {D};; esac; f)",
+    "cat <(x=1 case x in x) {D};; esac)",
+    "cat <(case x in(x) {D};; esac)",
+    "echo $(case x in(x) {D};; esac)",
+    "cat <(case x in \"esac\"|*) {D};; esac)",
+    "cat <(case esac in x|esac) {D};; esac)",
+    "cat <(case esac in \"esac\") {D};; esac)",
+    "cat <(case esac in " + _BS + "esac) {D};; esac)",
+    "cat <(\"case\" x in; {D}; \"esac\")",
+    "cat <(\"then\" case x in ; {D}; \"esac\")",
+    "cat <(" + _BS + "then case x in ; {D}; " + _BS + "esac)",
+    "echo $(case x in x) echo esac; {D};; esac)",
+    "echo $(case x in x) { {D}; };; esac)",
+    "echo $(case x in x|y) {D};; esac)",
+    "echo $(case x in\n(x) {D};; esac)",
+    "echo $(case x\nin x) {D};; esac)",
+    "echo $(case x in\n  x) {D}\n  ;;\nesac)",
+    "echo $(case x in x) # esac )\n{D};; esac)",
+    "echo $(case x in x) true;& y) {D};; esac)",
+    "cat <(case x in x) : ;& y) {D};; esac)",
+    "cat <(case x in x) : ;;& x) {D};; esac)",
+    "echo $(case $(echo x) in x) {D};; esac)",
+    "echo $(case x in x) ({D});; esac)",
+    "echo $(case x in x) echo $({D});; esac)",
+    "echo $(case x in x) true;; esac | {D})",
+    "echo $(case x in x) true;; esac && {D})",
+    "echo $(case x in x) echo a;; esac; {D})",
+    "cat <(for case in a; do {D}; done)",
+    "cat <(case x in x) cat <<E\n)\nE\n{D};; esac)",
+    "echo $(case x in x) cat <<E\n)\nE\n{D};; esac)",
+    'echo "$(case x in x) {D};; esac)"',
+    # gap 7: `$'…'` con una barra invertida en el valor de `env -S` (bash lo decodifica; el lector tomaba el caracter crudo)
+    "env -S $'git\\x20restore\\x20.'",
+    "env -S $'git\\trestore .'",
+    "env -S $'git restore\\x20.'",
+]
+# Deny sin efecto reproducible en bash (sintaxis invalida o `esac` como patron cierra el `case`): solo se exige el deny.
+SIN_PARIDAD_11 = [
+    "cat <(case x in (esac|*) {D};; esac)",
+    "cat <(case x in esac|*) {D};; esac)",
+    "cat <(case y in x|esac) {D};; esac)",
+    "cat <(case esac in (esac) {D};; esac)",
+    "cat <(case x in [" + _BS + ")]) {D};; esac)",
+    "cat <(case x in x) echo esac;; esac) {D}",
+]
+LEGIT11 = [
+    "echo $(case \"$f\" in *.py|*.js) git status;; esac)",
+    "cat <(case x in x) echo case;; esac)",
+    "cat <( (case x in x) echo ok;; esac) )",
+    "echo $( (echo a) )",
+    "echo $(case x in x) git diff --stat;; y) git log -1;; esac)",
+]
+# Falso deny aceptado (diseño del fix11): la lectura es incompleta y la orden lleva git, aunque el git sea inocuo.
+FALSO_DENY_ACEPTADO_11 = [
+    "echo $( (case x in x) git status;; esac) )",
+    "echo $(echo case; git status)",
+    "git log --grep=\"$(echo esac)\"",
+]
+# Limite documentado: la palabra de mando es una sustitucion y bash ejecuta lo que sigue como orden (indireccion).
+LIMITE11 = [
+    "`true` {D}",
+    "cat <(`true` {D})",
+    "cat <(case x in x) `true` {D};; esac)",
+    "cat <(case x in x) $(true) {D};; esac)",
+    "echo $(case x in x) $(true) {D};; esac)",
+]
+BAD7 += BAD11_PARIDAD
+BAD7 += SIN_PARIDAD_11
+SIN_PARIDAD_7 |= set(SIN_PARIDAD_11)
+LEGIT7 += LEGIT11
+FALSO_DENY_ACEPTADO_7 += FALSO_DENY_ACEPTADO_11
+LIMITE7 += LIMITE11
 BAD7 += BAD8_PARIDAD
 BAD7 += BAD9_PARIDAD
 BAD7 += BAD10_PARIDAD

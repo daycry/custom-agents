@@ -3298,3 +3298,76 @@ def test_inicializador_de_la_cola_sigue_rechazando_un_enlace_duro_persistente(tm
         journal._asegurar_gitignore_local(dir_)
     assert os.path.lexists(extra)
 
+
+
+# --- T-23 fix11, gaps 8 y 10 del intento 11: la espera del estado transitorio solo vale con un `.tmp-*` hermano con el MISMO
+# inodo (inicializacion en curso) y reciente; sin el, `unsafe_state` al instante. La rama de escritura recibe la misma espera. ---
+def _enlace_plantado(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    dir_ = journal._journal_queue_dir(str(proj))
+    journal._asegurar_gitignore_local(dir_)
+    marcador = os.path.join(dir_, ".custom-agents-journal")
+    plantado = tmp_path / "plantado"                 # fuera de la cola: un enlace duro que NO es un temporal del inicializador
+    os.link(marcador, plantado)
+    return dir_, marcador
+
+
+def test_un_enlace_duro_plantado_sin_tmp_hermano_falla_al_instante(tmp_path):
+    dir_, marcador = _enlace_plantado(tmp_path)
+    JIO = journal._capture_mod.JIO
+    for operacion in (lambda: JIO.read_settled(marcador), lambda: JIO.queue(dir_), lambda: journal._asegurar_gitignore_local(dir_)):
+        t = time.perf_counter()
+        with pytest.raises(ValueError, match="unsafe_state"):
+            operacion()
+        assert time.perf_counter() - t < 0.05, "no hay inicializacion en curso: no hay nada que esperar"
+
+
+def test_un_tmp_hermano_con_otro_inodo_no_justifica_la_espera(tmp_path):
+    dir_, marcador = _enlace_plantado(tmp_path)
+    with open(os.path.join(dir_, ".tmp-otro"), "wb"):
+        pass                                          # un `.tmp-` que no comparte inodo con el marcador
+    t = time.perf_counter()
+    with pytest.raises(ValueError, match="unsafe_state"):
+        journal._capture_mod.JIO.read_settled(marcador)
+    assert time.perf_counter() - t < 0.05
+
+
+def test_un_tmp_hermano_antiguo_con_el_mismo_inodo_falla_al_instante(tmp_path, monkeypatch):
+    dir_, extra = _dos_enlaces(tmp_path)              # `.tmp-carrera` comparte inodo con el marcador
+    real = time.time
+    monkeypatch.setattr(journal._capture_mod.JIO.time, "time", lambda: real() + 3600)   # el temporal tiene una hora
+    t = time.perf_counter()
+    with pytest.raises(ValueError, match="unsafe_state"):
+        journal._capture_mod.JIO.read_settled(os.path.join(dir_, ".custom-agents-journal"))
+    assert time.perf_counter() - t < 0.05, "un inicializador muerto no se espera"
+
+
+def test_la_rama_de_escritura_espera_al_ganador_de_la_carrera(tmp_path, monkeypatch):
+    """El ganador hizo `os.link` entre el `lexists` de `_asegurar_gitignore_local` y el de `write`: `IO.read` lanzaba
+    `unsafe_state` sin esperar (excepcion, sin perdida). Con el mismo temporal reciente se espera y no se sobrescribe."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    dir_ = journal._journal_queue_dir(str(proj))
+    JIO = journal._capture_mod.JIO
+    JIO.directory(dir_, create=True)
+    marcador = os.path.join(dir_, ".custom-agents-journal")
+    open(os.path.join(dir_, ".gitignore"), "wb").write(b"*\n")
+    tmp = os.path.join(dir_, ".tmp-B")
+    open(tmp, "wb").close()
+    os.link(tmp, marcador)                            # el ganador, en su ventana: dos enlaces
+    real, primera = os.path.lexists, {"v": True}
+
+    def lexists(p):
+        if str(p) == marcador and primera["v"]:
+            primera["v"] = False
+            return False                              # el perdedor comprobo ANTES del link del ganador
+        return real(p)
+
+    monkeypatch.setattr(os.path, "lexists", lexists)
+    monkeypatch.setattr(JIO, "queue", lambda p: None)
+    hilo = threading.Timer(0.15, lambda: os.remove(tmp))
+    hilo.start()
+    try:
+        journal._asegurar_gitignore_local(dir_)       # antes: ValueError('unsafe_state') sin esperar
+    finally:
+        hilo.join()
+    assert open(marcador, "rb").read() == b""
