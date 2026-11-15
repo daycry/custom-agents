@@ -105,8 +105,9 @@ const cli = (args, opts = {}) => {
     ['XDG_CONFIG_HOME',join(ownedHome,'.config')],['CLAUDE_CONFIG_DIR',join(ownedHome,'.claude')]]) {
     if(!requested[key] || requested[key]===process.env[key]) env[key]=fallback
   }
-  const {beforeImport,...execOpts}=opts
+  const {beforeImport,spawnAsync,...execOpts}=opts
   const runner=beforeImport ? ['--input-type=module','-e',beforeImport,CLI,...args] : [CLI,...args]
+  if(spawnAsync) return spawn(process.execPath,runner,{env,stdio:['ignore','pipe','pipe']})   // fix15: para mandarle una señal al instalador
   return execFileSync(process.execPath,runner,{encoding:"utf8",...execOpts,env})
 }
 
@@ -1950,7 +1951,10 @@ function codexColgado(bin) {
       "})",
       "",
     ].join("\n"))
-    writeFileSync(p, ["@echo off", "\"" + process.execPath + "\" \"%~dp0colgado.cjs\" %*", "exit /b %errorlevel%", ""].join("\r\n"))
+    // fix15, gap 11: `--version` lo responde el propio `.cmd` SIN arrancar node (con carga node tarda una mediana de 3,7 s en arrancar y el
+    // plazo del test es de 8 s o mas): la sonda de version ya no consume el plazo del instalador.
+    writeFileSync(p, ["@echo off", "if \"%~1\"==\"--version\" (", "  echo codex-cli 0.130.0", "  exit /b 0", ")",
+      "\"" + process.execPath + "\" \"%~dp0colgado.cjs\" %*", "exit /b %errorlevel%", ""].join("\r\n"))
   } else {
     writeFileSync(p, [
       "#!/bin/sh",
@@ -1967,6 +1971,53 @@ function codexColgado(bin) {
   }
 }
 
+/** Plazo del `codex` colgado del test: 2 s en Linux; en Windows 10 s, porque arrancar node cuesta una mediana de 3,7 s con carga (medido) y
+ *  el plazo corre desde el lanzamiento (fix15, gap 11: con 2 s la sonda y el arranque agotaban el plazo y no se creaba `inicio.flag`). La cota
+ *  de 30 s desde que arranca la CLI colgada no se relaja. */
+const PLAZO_CLI_TEST = process.platform === "win32" ? "10000" : "2000"
+
+/** Espera (hasta `ms`) a que `cond()` sea verdadera; devuelve si lo fue. */
+async function esperar(cond, ms) {
+  const limite = Date.now() + ms
+  while (Date.now() < limite) {
+    if (await cond()) return true
+    await new Promise((r) => setTimeout(r, 50))
+  }
+  return await cond()
+}
+
+// fix15, gap 5 (SOLO Linux/macOS: el `detached: true` de fix14 saca a la CLI del grupo de la terminal; en Windows no hay grupos). Una señal al
+// instalador mientras la CLI cuelga debe terminar al instalador Y a todo el grupo de la CLI en menos de 3 s, sin dejar huerfano al nieto.
+for (const senal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+  test(`gap 5 (fix15): ${senal} al instalador con una CLI colgada mata al instalador y a su grupo en menos de 3 s`,
+    { skip: process.platform === "win32" ? "Windows no tiene grupos de procesos POSIX: el arbol se mata con taskkill (otro test)" : false },
+    async () => {
+      const tmp = tmpProj()
+      let instalador
+      try {
+        const hogar = join(tmp, "home"), bin = join(tmp, "bin")
+        mkdirSync(join(hogar, ".codex"), { recursive: true })
+        mkdirSync(bin)
+        codexColgado(bin)
+        const env = conPath([bin, SIN_CLI].join(delimiter),
+          { HOME: hogar, USERPROFILE: hogar, CUSTOM_AGENTS_EXEC_TIMEOUT_MS: "120000" })
+        instalador = cli(["install", "-p", "codex", "--scope", "user", "-y"], { env, spawnAsync: true })
+        const cerrado = new Promise((resolver) => instalador.on("close", (codigo, s) => resolver({ codigo, s })))
+        assert.ok(await esperar(() => registrados(bin).length >= 1, 120_000), "la CLI colgada no llego a arrancar su nieto")
+        const t0 = Date.now()
+        instalador.kill(senal)
+        const fin = await Promise.race([cerrado, new Promise((r) => setTimeout(() => r(null), 3000))])
+        assert.ok(fin, `${senal}: el instalador sigue vivo 3 s despues (con el manejador activo y la CLI bloqueando, la señal no se atiende)`)
+        const quedan = await esperar(async () => (await vivosDe(bin)).length === 0, Math.max(0, 3000 - (Date.now() - t0)))
+        assert.ok(quedan, `${senal}: el grupo de la CLI sigue vivo (PIDs ${(await vivosDe(bin)).map((x) => x.pid).join(", ")}) 3 s despues: quedo huerfano`)
+      } finally {
+        try { instalador?.kill("SIGKILL") } catch { /* ya no esta */ }
+        await matarHuerfanos(join(tmp, "bin"))
+        rmSync(tmp, { recursive: true, force: true })
+      }
+    })
+}
+
 test("gap 8: una CLI colgada no bloquea el instalador (timeout) y se dice qué se está ejecutando", async () => {
   const tmp = tmpProj()
   let vivos = []
@@ -1976,7 +2027,7 @@ test("gap 8: una CLI colgada no bloquea el instalador (timeout) y se dice qué s
     mkdirSync(bin)
     codexColgado(bin)
     const env = conPath([bin, SIN_CLI].join(delimiter),
-      { HOME: hogar, USERPROFILE: hogar, CUSTOM_AGENTS_EXEC_TIMEOUT_MS: "2000" })
+      { HOME: hogar, USERPROFILE: hogar, CUSTOM_AGENTS_EXEC_TIMEOUT_MS: PLAZO_CLI_TEST })
     const out = cli(["install", "-p", "codex", "--scope", "user", "-y"], { env })
     const fin = Date.now()
     vivos = await vivosDe(bin)

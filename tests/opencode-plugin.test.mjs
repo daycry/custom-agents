@@ -15,6 +15,13 @@ function project() {
   return dir;
 }
 
+// fix15 (gap 13): el adaptador solo lanza el handler de actividad con `sesion.actividad: true` en `.claude/dev.json` del proyecto.
+function projectActividad(valor = true) {
+  const dir = project();
+  writeFileSync(join(dir, '.claude', 'dev.json'), JSON.stringify({ sesion: { actividad: valor } }));
+  return dir;
+}
+
 test('V2 default definition registers native domains and cleans up', async () => {
   const dir = project();
   try {
@@ -427,7 +434,7 @@ test('failed writes, reads and broken payloads degrade without claiming edits', 
 
 
 test('native execution start informs activity without premature session capture', async () => {
-  const dir = project(); let cleanup;
+  const dir = projectActividad(); let cleanup;
   try {
     const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
       let input=''; process.stdin.setEncoding('utf8'); process.stdin.on('data',chunk=>input+=chunk);
@@ -451,6 +458,44 @@ test('native execution start informs activity without premature session capture'
 // panel-redesign T-47 (design O5, I-05, CA-42): OpenCode tool activity is a catalog binding of its own on
 // tool.execute.after. The event promise resolves before the child ends (no await of the launcher) and the
 // child is tracked for cleanup. Only the keys the store's summary whitelist reads cross the boundary.
+const traza = r => `import fs from 'node:fs';
+  let input=''; process.stdin.setEncoding('utf8'); process.stdin.on('data',chunk=>input+=chunk);
+  process.stdin.on('end',()=>{ fs.appendFileSync('lanzados.log', process.argv[2] + '\\n'); });`;
+
+for (const [titulo, preparar] of [
+  ['without dev.json', dir => {}],
+  ['with sesion.actividad false', dir => writeFileSync(join(dir, '.claude', 'dev.json'), JSON.stringify({ sesion: { actividad: false } }))],
+  ['with sesion absent', dir => writeFileSync(join(dir, '.claude', 'dev.json'), '{}')],
+]) {
+  test('fix15 gap 13: activity events launch no handler ' + titulo, async () => {
+    const dir = project(); let cleanup;
+    try {
+      preparar(dir);
+      const adapter = await isolatedPlugin(dir, traza());
+      const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+      // started only feeds the activity binding; a tool event feeds the tool-activity binding
+      ctx.emit({ type: 'session.execution.started', data: { sessionID: 'off' } });
+      await ctx.hooks.get('tool.execute.after')({ sessionID: 'off', tool: 'read', status: 'completed', input: {} });
+      // a capturing event proves the loop did run: the capture handler IS launched
+      ctx.emit({ type: 'session.execution.succeeded', data: { sessionID: 'off' } });
+      await until(() => existsSync(join(dir, 'lanzados.log')) && readFileSync(join(dir, 'lanzados.log'), 'utf8').includes('session-journal.sh'));
+      const lanzados = readFileSync(join(dir, 'lanzados.log'), 'utf8').split('\n').filter(Boolean);
+      assert.deepEqual(lanzados.filter(name => name === 'agent-activity'), [], 'no node per activity event while sesion.actividad is not true: ' + lanzados);
+    } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+  });
+}
+
+test('fix15 gap 13: with sesion.actividad true the activity handler is launched for events and tool calls', async () => {
+  const dir = projectActividad(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, traza());
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    ctx.emit({ type: 'session.execution.started', data: { sessionID: 'on' } });
+    await ctx.hooks.get('tool.execute.after')({ sessionID: 'on', tool: 'read', status: 'completed', input: {} });
+    await until(() => existsSync(join(dir, 'lanzados.log')) && readFileSync(join(dir, 'lanzados.log'), 'utf8').split('\n').filter(n => n === 'agent-activity').length >= 2);
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('catalog declares tool activity apart from the post and session activity bindings', async () => {
   const source = readFileSync(new URL('../hooks/opencode-plugin.js', import.meta.url), 'utf8');
   const catalog = JSON.parse(source.match(/hook-catalog:start\r?\nconst hookCatalog = JSON\.parse\(`([\s\S]*?)`\);/)[1]);
@@ -463,7 +508,7 @@ test('catalog declares tool activity apart from the post and session activity bi
 });
 
 test('tool activity resolves before its child ends and sends only summary arguments', async () => {
-  const dir = project(); let cleanup;
+  const dir = projectActividad(); let cleanup;
   const heldLookups = [];
   const releaseLookups = () => { for (const release of heldLookups.splice(0)) release(); };
   try {
@@ -517,7 +562,7 @@ test('tool activity resolves before its child ends and sends only summary argume
 });
 
 test('tool activity child is tracked and cleanup terminates it', async () => {
-  const dir = project(); let cleanup, pid;
+  const dir = projectActividad(); let cleanup, pid;
   try {
     const adapter = await isolatedPlugin(dir, `import {spawn} from 'node:child_process'; import fs from 'node:fs';
       if(process.argv[2]==='agent-activity'){const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});
@@ -538,7 +583,7 @@ test('tool activity child is tracked and cleanup terminates it', async () => {
 });
 
 test('tool activity ignores foreign sessions and keeps the post notifications', async () => {
-  const dir = project(); let cleanup;
+  const dir = projectActividad(); let cleanup;
   try {
     const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
       let input=''; process.stdin.setEncoding('utf8'); process.stdin.on('data',chunk=>input+=chunk);
@@ -561,7 +606,7 @@ test('tool activity ignores foreign sessions and keeps the post notifications', 
 // panel-redesign T-47 fix1 (B2): the unawaited activity binding is dispatched BEFORE the awaited post
 // handlers share execute.after, so its observed_at is not delayed by the serial notifications.
 test('tool activity is dispatched before the awaited post handlers of the same event', async () => {
-  const dir = project(); let cleanup;
+  const dir = projectActividad(); let cleanup;
   try {
     const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
       fs.appendFileSync('starts.jsonl', JSON.stringify({ handler: process.argv[2], at: Date.now() }) + '\\n');
@@ -603,6 +648,7 @@ const flowLauncher = `import fs from 'node:fs';
       'materializado_en: "' + stamp + '"', 'decisiones: []', 'marcadores_cerrados:', '  - "m-' + stamp + '"', '---', '', '# Journal'].join('\\n'));
     fs.writeFileSync('docs/knowledge/journal/README.md', 'index ' + stamp);
     fs.appendFileSync('captures.log', 'x\\n');
+    process.on('exit', () => fs.appendFileSync('captures.exit', 'x\\n'));   // fix15: el hijo ya termino (condicion, no un setTimeout)
   }`;
 
 async function runFlowTurn(ctx, dir, sessionID, captured) {
@@ -610,8 +656,9 @@ async function runFlowTurn(ctx, dir, sessionID, captured) {
   ctx.emit({ type: 'session.execution.started', data: { sessionID } });
   ctx.emit({ type: 'session.execution.succeeded', data: { sessionID } });
   ctx.emit({ type: 'session.status', data: { sessionID, status: { type: 'idle' } } });
-  await until(() => existsSync(join(dir, 'captures.log')) && readFileSync(join(dir, 'captures.log'), 'utf8').split('\n').filter(Boolean).length >= captured);
-  await new Promise(resolve => setTimeout(resolve, 150));
+  // fix15 (gap 13): condicion en lugar de `setTimeout(150)`, y un plazo acorde a la carga (un turno son 2 node en serie; con 12 bucles de CPU ~18 s).
+  const lineas = nombre => existsSync(join(dir, nombre)) ? readFileSync(join(dir, nombre), 'utf8').split('\n').filter(Boolean).length : 0;
+  await until(() => lineas('captures.log') >= captured && lineas('captures.exit') >= captured, 120000);
 }
 
 test('f4fix1 gap 3: the context survives real turn events when what it quotes did not change', async () => {
@@ -662,9 +709,13 @@ test('f4fix1 gap 10: a medium project tree still yields a reusable signature', a
     for (let i = 0; i < 1500; i++) writeFileSync(join(dir, 'docs', 'knowledge', 'adr', `ADR-${i}.md`), 'x');
     const adapter = await isolatedPlugin(dir, flowLauncher);
     const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
-    const event = { sessionID: 'big', system: [] }; await ctx.hooks.get('session.context')(event);
-    const again = { sessionID: 'big', system: [] }; await ctx.hooks.get('session.context')(again);
-    assert.equal(again.system[0].text, 'context 1');
+    // fix15 (gap 13): la firma tiene un plazo de pared de 1.000 ms (`Date.now() > deadline`) y con carga 1.500 ficheros lo pasan: se congela el reloj.
+    const relojReal = Date.now; Date.now = () => 1_700_000_000_000;
+    try {
+      const event = { sessionID: 'big', system: [] }; await ctx.hooks.get('session.context')(event);
+      const again = { sessionID: 'big', system: [] }; await ctx.hooks.get('session.context')(again);
+      assert.equal(again.system[0].text, 'context 1');
+    } finally { Date.now = relojReal; }
   } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
 });
 

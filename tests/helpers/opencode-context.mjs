@@ -26,8 +26,8 @@ export function opencodeContext(directory) {
   };
 }
 
-export async function until(predicate) {
-  const deadline = Date.now() + 15000;
+export async function until(predicate, ms = 15000) {
+  const deadline = Date.now() + ms;
   while (!predicate()) {
     if (Date.now() > deadline) throw new Error('Adapter effect was not observed');
     await new Promise(resolve => setTimeout(resolve, 25));
