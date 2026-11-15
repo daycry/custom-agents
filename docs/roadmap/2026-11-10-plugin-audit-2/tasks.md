@@ -1311,49 +1311,60 @@ Tras este ciclo, verificación dirigida con las cuatro lentes, con el corpus dif
 - 2026-11-15 · «Revisión de dos lentes — intento 10: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix9: 2 Important, 7 Minor» → [execution-history.md](execution-history.md) · SHA-256 `84599c0fd709810da0c69dacc4dc44dd1ed2779cbd3b43a53b2af6925d439153`
 - 2026-11-15 · «Revisión de dos lentes — intento 11: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix10: 4 Important, 8 Minor» → [execution-history.md](execution-history.md) · SHA-256 `86e07fb16541591b6bbbe0316308e2176077dd1cff1e5d0b1ed5eb68a0609cd7`
 - 2026-11-15 · «Revisión de dos lentes — intento 12: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix11: 2 Important, 9 Minor» → [execution-history.md](execution-history.md) · SHA-256 `9aa8dd06084d4eb2fb5f1204c3a17a37843b5ad2eef8c59912e9722cdee215ec`
+- 2026-11-15 · «Revisión de dos lentes — intento 13: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix12: 1 Important, 9 Minor» → [execution-history.md](execution-history.md) · SHA-256 `5bd917906bc1b12c42fc1bb76eb25d05b7ef856d35227a9c474ee2c2a1b469f5`
 
-## Revisión de dos lentes — intento 13: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix12: 1 Important, 9 Minor
+## Revisión de dos lentes — intento 14: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix13: 2 Important, 10 Minor
 
-Lentes: A+B+C+D sobre `5bed9d0..7e286db`, dos a dos por memoria. El orquestador verificó las puertas: `ledger-lint` 0 incoherencias, `scope-check --base 57fb054` exit 0, `lint_plugin` 0 errores, `export-interop --check` 88, `check-handbook`, `cmp ci.yml` y `git grep` de datos personales vacío.
+Lentes: A+B+C+D sobre `016de94..430a426`, dos a dos por memoria. El orquestador verificó las puertas (`ledger-lint` 0, `scope-check --base 57fb054` exit 0, `lint_plugin` 0 errores, `export-interop --check` 88, `check-handbook`, `cmp ci.yml`, `git grep` de datos personales vacío) y las tres formas del gap 1 del intento 13 (deny).
 
-**Cerrado del intento 12:**
-- Los gaps 1 a 9.
-- **`$'…'`.** Lente A: 75 sondas de `lb12`/`lc12` en bash real, 0 divergencias. Lente B: 2.690 órdenes propias no generadas por el implementer, y fuera del gap 1 ninguna ejecuta git con allow. Fuzz de `case` (1.560 y 67.584 órdenes): 0 regresiones frente a 5bed9d0.
-- **Fallo cerrado de `pre-tool`.** Un JSON anidado de 100 K niveles da deny; en 5bed9d0 daba allow. Ningún rol no protegido pasa a deny (`native-guardrail.py:369` usa `decide`).
-- **Journal.** Con dos procesos reales y esperas legítimas de hasta 0,70 s no hay error. Seis inicializadores × 15 rondas: 0 errores, 0 pérdidas, 0 duplicados.
-- **Instalador.** Un instalador mutado sin `timeout` hace fallar el test (39.667 ms). La cota de 30 s está intacta.
-- **Coste.** El nuevo `$'…'` es lineal: 406 ms de CPU a 250 K (453 ms en 5bed9d0). Con 12 bucles de CPU, 5 pasadas: 0 rojos.
-- **Orden TDD.** Contra el código previo, fix12 da 27 failed y el journal 3 failed. Las 5 regresiones del gap 7 pasan contra el código viejo, como declara el ledger.
+**Cerrado del intento 13:**
+- Los gaps 2-9 (el 10 sigue como deuda aceptada).
+- **Journal.** La espera se queda en 0,500-0,521 s de pared con 10 K + 1 K y con 50 K + 5 K. Las inicializaciones legítimas de 0,05-0,45 s se leen bien con 0, 2.000 y 20.000 entradas. Seis inicializadores × 15 rondas × 4, sin pérdidas ni duplicados.
+- **Coste.** Las mutaciones de `_ansi_decodificar`, `_ansi_fin` y del lector (K=128) dan rojo. Con 12 bucles de CPU, 5 pasadas: 0 rojos. El tope de 2,5 s (i2) está declarado; lo que detecta es la razón entre tamaños.
+- **Ledger.** Las cifras perdidas se recuperaron literales de `5bed9d0`; fix1-fix9 se movieron con el SHA-256 coincidente; las 14,51 h de T-06 suman bien.
+- **Instalador.** El mutante de `matarArbol` sin efecto da rojo en Windows y no quedan huérfanos.
+- **Sin regresiones.** El diferencial de 2.690 órdenes y el fuzz de `case` (1.560 y 67.584) dan 0 regresiones frente a 016de94.
 
 | # | Grado | Gap | Tarea | Corrección | Evidencia |
 |---|---|---|---|---|---|
-| 1 | Important | **`\c` seguido de un carácter no ASCII.** El guard aplica `& 0x1F` al punto de código; bash lo aplica al primer byte UTF-8 y conserva los bytes de continuación. Hay tres efectos. (a) NUL solo en el guard (à, Ā, 😀): el guard corta la cadena. (b) Tabulador solo en el guard (é, ĉ): toma el resto por comentario. (c) Salto de línea solo en bash (ʁ, ꂡ): bash cierra el comentario. También llega por `\u`/`\U` anidados. Ejemplos con allow en los que bash real ejecuta `git reset --hard` (LANG sin definir y C.UTF-8): `sh -c $'echo \cà; git reset --hard'`, `bash -c $'echo a\cé#;git reset --hard'` y `bash -c $'true #\cʁ;git reset --hard'`. 13+ formas. Es regresión del fix11 frente a d938cab y 8e7c0a0 en (a) y (b), y no lo es en (c). Verificado por el orquestador | T-06 | corregido (RED `bc6054d`, código `f1aa8ec`): `\c` + no ASCII deja la lectura incompleta; diferencial con bash real en los dos locales, 0 divergencias | Lentes B y C: `guardrail-check.py:440-454,465-466`; `lb13/mb.py`, `lb13/mb2.py`, `lc13/cx.py`, `lc13/c1-c3.txt` |
-| 2 | Minor | La espera del journal tiene un tope de 0,75 s, pero el listado que viene detrás no tiene cota: 0,77-1,11 s con 10 K + 1 K y ~1,27 s calculado con 50 K + 5 K. El «< 1 s» se midió en CPU sin declararlo. Ni con 0,75 s exactos cabe el arranque de Python en los 800 ms de SessionEnd | T-23 | corregido (RED `bc6054d`, código `f1aa8ec`): el tope se comprueba dentro del listado y baja a 0,5 s; 50 K + 5 K simulados ≤ 0,55 s | Lentes A (M3) y D (D1): `journal-io.py:93-104,131,180`; `test_journal.py:3443-3450`; `ld13/fixj` |
-| 3 | Minor | Ningún test de coste contiene `$'`. Una mutación cuadrática en `_ansi_decodificar` (176 s a 250 K) deja los 46 tests en verde | T-06 | corregido (regresión sin RED, `bc6054d`): 6 formas con `$'…'` en `_es_lineal`; la mutación cuadrática de `_ansi_decodificar` y de `_ansi_fin` hace fallar los tests (ver T-06 fix13) | Lente D (D2) |
-| 4 | Minor | `_es_lineal` compara 16 K con 64 K, pero sin git se analizan órdenes de hasta 256 K. Un cuadrático moderado pasa y cuesta entre 3,6 y 6,9 s a 250 K. Ya ocurría en fix11 | T-06 | corregido (regresión sin RED, `bc6054d`): `_es_lineal` compara 64 KB con 250 KB, con tope absoluto de CPU | Lente D (D3) |
-| 5 | Minor | Los 7 tests `con-git` de `test_guardrail_fix12.py:192-206` no ejercitan el analizador: el recorte de más de 16 KB con git los deniega antes. Ya ocurría en fix11 | T-06 | corregido (regresión sin RED, `bc6054d`): los `con-git` van por debajo del recorte y afirman que el motivo no es el del recorte; el recorte tiene su propio test | Lente D (D4) |
-| 6 | Minor | 4 formas de `lb12` que ejecutan git no entraron al corpus con bash real: `\c\' x`, su variante con tres barras, `\cx\' x` y `$'git\0x'`. Las dos últimas no están en ningún test, y la selección no se declara. Hoy el guard deniega las cuatro | T-06 | corregido (`bc6054d`): `BAD13_PARIDAD` con las 4 formas de lb12 con paridad en bash real | Lente A (M4): `test_guardrail_differential7.py:378-415`, `tasks.md:362` |
-| 7 | Minor | `docs/agents/implementer.md:143-144` dice que un error interno del script permite, y eso contradice `:127-132` y `guardrail-check.py:69-71,2103-2107`. ADR-007 (memoria local) repite «error interno → allow» | T-06 | corregido (`f1aa8ec`): `implementer.md` dice que un error interno deniega; ADR-007 propuesto a `knowledge-curator` | Lente A (M2) |
-| 8 | Minor | Al condensar fix10/fix11 se perdieron cifras que no están en ningún otro fichero: la evidencia OpenCode de fix10 (1 llamada en 8 prompts y 2 tras la ventana), «13059 passed», «1 de 12.983», «58 frente a 23 ms», «3,29 GB», el desglose de evals 145/82/1 y la línea de puertas del cierre de fix11 | T-06, T-23 | corregido: fix1 a fix9 de T-06 y las cifras de fix10 y fix11 íntegras en `execution-history.md` (recuperadas de 5bed9d0) | Lente A (M1): `tasks.md:354,356,358,1003` |
-| 9 | Minor | El test del instalador no detecta un `matarArbol` que no hace nada (queda un `PING.EXE` huérfano). Si la CLI se lanza varias veces, `inicio.flag` se sobrescribe y solo mide desde la última vez. No es regresión | T-23 | corregido (`bc6054d`): el test comprueba que el árbol de la CLI muere (mutante de `matarArbol`: rojo) y `inicio.flag` registra el primer lanzamiento, con `lanzamientos.txt` apendado | Lentes A y B: `tests/installer.test.mjs` |
-| 10 | Minor | Coste de la suite: el test del journal con 10 K + 1 K tarda 16 s en reposo y 47-61 s con carga; el diferencial de 458 órdenes con bash, ~75 s | T-23 | deuda aceptada (como el gap 11 del intento 12: solo si hay que recortar CI) | Lente D (D5) |
+| 1 | Important | **La lectura incompleta solo deniega si `git` aparece literal y en minúsculas.** El deny de reserva busca `\bgit\b` sin `re.I` y solo en el texto crudo o en los tokens (`guardrail-check.py:1408,1868,1872,1884`). Lo saltan `GIT`/`Git` (git en Windows y macOS), git escapado (`\x67it`, `\147it`, `git`, `\x{67}it`) y git partido (`"g"'it'`, `g$'it'`). Además, `bash -c`/`eval` reanalizan el contenido recortado sin la marca. Fuentes afectadas: `\c` + no ASCII (`:452-457`), `\U` > 0x10FFFF (`:445-449`), anidado > `_MAX_ANIDADO` (`:530-532,745-747`) y `case` fuera de la lista blanca (`:495-519,668,704,718`). Lentes B y C: en bash real, 120 de 480 órdenes del barrido de `\c` y 31 de una muestra de 500 del barrido de `case` (50.040 permitidas) ejecutan git. Regresión de fix13 frente a 016de94 en 24 órdenes (`bash -c $'echo \cʁ#;\x67it reset --hard'`); otras lo son frente a d938cab/8e7c0a0. Verificado por el orquestador | T-06 | pendiente | Lentes B y C: `lb14/`, `lc14/p1.json`, `lc14/p2.json` (H, U, N, Q), `lc14/fz.py` |
+| 2 | Important | `env -S` con un LF/VT/FF/CR suelto: el token queda como `-Sgit…`, sin frontera de palabra, y solo deniega con `git` literal (`:1068-1071` → `:1884`). Las comillas de env y `GIT` también lo saltan. Allow en S4, S7, S8 y S9; coreutils 8.32 ejecuta git con sus argumentos destructivos (`env -v`). Regresión frente a d938cab, desde fix10 (`926a8ef`) | T-06 | pendiente | Lente C: `lc14/p2.json` (S) |
+| 3 | Minor | Una opción de envoltorio que el guard no conoce pero GNU nice acepta (`-+N`, `--N`) detiene el desenvuelto. Ni se analiza el programa ni se entra en `bash -c`. Allow en W1-W3, W6 y W7, y bash ejecuta git. No es regresión | T-06 | pendiente | Lente C: `guardrail-check.py:981-983,1884` |
+| 4 | Minor | `tasks.md:247` dice «todas las formas de lb13 y lc13», pero 26 formas con `\c` + no ASCII que ejecutan git no están en el corpus con bash real (heredoc a `bash`, `$(eval …)`, `eval 'bash -c …'`, U+00C0, U+0280, U+02A0…). La selección no se declara | T-06 | pendiente | Lente A (M1) |
+| 5 | Minor | En Linux el test de huérfanos no detecta nada: el stub hace `exec sleep` (`tests/installer.test.mjs:1936`), así que no hay nieto. El mutante solo se probó en Windows y el ledger no lo dice | T-23 | pendiente | Lente A (M2) |
+| 6 | Minor | `lanzamientos >= 1` siempre se cumple: un mutante que relanza la CLI tras el timeout pasa (`installer.test.mjs:1964-1965`). Además, el test mata cualquier `PING.EXE -l 3719` del sistema, así que dos suites a la vez se interfieren | T-23 | pendiente | Lentes B y D |
+| 7 | Minor | El desglose del RED (`tasks.md:244`) no cuadra aunque los totales sí: son 9 × 2 formas, no 10 × 2, porque una ya se denegaba, y 64 casos más un test aparte, no 65 | T-06 | pendiente | Lente A (M3) |
+| 8 | Minor | `docs/agents/implementer.md:144` todavía dice «sin python3 … no bloquea», contra `:117` y `hooks/run-hook.mjs:397`, que deniegan al rol protegido. El candidato de ADR-007 lo repite | T-06 | pendiente | Lente A (M4) |
+| 9 | Minor | El tope de 0,5 s se aplica en cada llamada a `settled` y no en todo el proceso. Si falla el directorio del journal configurado, se vuelve al de por defecto y se esperan otros 0,5 s: 1.204-1.269 ms (antes 1.708-2.108). En frío, el hijo de SessionEnd con una sola espera llega a 819-830 ms | T-23 | pendiente | Lente D (D1): `journal-io.py:135`, `journal-capture.py:110,151-153` |
+| 10 | Minor | `queue()` comprueba cada entrada sin límite de tiempo: 2,9-10,5 s con 50 K + 5 K ficheros ajenos en `.claude/journal`. Está fuera del diff y no es realista | T-23 | pendiente | Lente D (D2): `journal-io.py:243-259` |
+| 11 | Minor | Ningún test de coste cubre los separadores (`;`, pipe, `&`, salto de línea). Con una mutación cuadrática pasan los 59 tests y cuesta 160-171 s a 250 K. Sin mutar, HEAD ya gasta 1,7-4,3 s de CPU en `echo a;a;…` sin git a 250 K (hasta 4,7 s de pared, cerca del plazo de lectura del hook). No es regresión: 016de94 llega a 5,5 s | T-06 | pendiente | Lente D (D3): `guardrail-check.py:720` |
+| 12 | Minor | Sin cobertura de la combinación «marca de incompleta + `GIT`/git escapado/anidado > 20» ni de `-Sgit` pegado con un LF suelto | T-06 | pendiente | Lente C |
 
-**Diseño fijado por el orquestador para fix13:**
+**Diseño fijado por el orquestador para fix14** (criterio de la Lente C, probado en su prototipo `lc14/proto.py`: 0 allow en todas las sondas y barridos; 1 deny nuevo en 2.690 órdenes y 0 en 7.056 `case` inocuos):
 
-1. **`\c` + no ASCII** (gap 1).
-   - Un `\c` seguido de un carácter no ASCII (también el que sale de `\u`/`\U`) marca la lectura como **incompleta**: deny si la orden contiene git o un cambio de base. No se emula el byte UTF-8, porque depende del locale.
-   - Corpus diferencial con bash real, en los dos locales (LANG sin definir y C.UTF-8): todas las formas de `lb13` y `lc13` como BAD y un barrido de `\c` + un carácter de cada clase (múltiplo de 32, ≡ 9 mod 32, bytes iniciales 0xCA/0xEA, 4 bytes). Exigido: 0 divergencias con efecto.
-2. **Journal acotado de verdad** (gap 2).
-   - `settling`/`initializing` reciben el límite y lo comprueban dentro del listado (cada 256 entradas o 64 `lstat`).
-   - El tope total baja a **0,5 s**, para que el hijo de SessionEnd salga con error limpio dentro de los 800 ms.
-   - Test con 50 K + 5 K: tiempo de pared inyectado/monótono ≤ tope + margen declarado. Se repite la carrera legítima de dos procesos para comprobar que una inicialización viva de menos de 0,5 s sigue leyendo bien.
-3. **Tests de coste que discriminan** (gaps 3, 4 y 5).
-   - `_es_lineal` incluye formas con `$'…'` (escapes, `\x{`, `\c`, `\u`) y compara 64 K con 256 K.
-   - Los tests `con-git` usan tamaños por debajo del recorte de 16 KB, o se declaran como prueba del recorte.
-   - Mutación cuadrática en `_ansi_decodificar` y en el lector: los tests fallan. Se declara en el ledger.
-4. **Corpus** (gap 6). Las 4 formas al corpus con bash real; si alguna no tiene paridad, en SIN_PARIDAD con el motivo.
-5. **Docs** (gap 7). Se corrige `implementer.md:143-144` y se propone la revisión de ADR-007 en la memoria local (sin versionar).
-6. **Ledger** (gap 8). Se recuperan las cifras perdidas desde `5bed9d0` y se dejan en `execution-history.md` junto a sus secciones archivadas.
-7. **Instalador** (gap 9). El test comprueba que el árbol de la CLI colgada muere (sin huérfano) y `inicio.flag` registra cada lanzamiento por separado (append), midiendo desde el primero. Suite node de Windows con 0 fail.
+1. **Lectura opaca → deny incondicional para el rol protegido** (gaps 1, 2 y 12). Se considera opaca:
+   - `\c` + no ASCII;
+   - `\U` fuera de rango;
+   - un anidamiento mayor que `_MAX_ANIDADO`;
+   - un LF/VT/FF/CR suelto en `env -S`.
+
+   El motivo del deny nombra la forma. No hace falta que aparezca git: ante la duda, deny.
+2. **Resto de lecturas incompletas** (`case` fuera de la lista blanca y las demás). git se busca con `re.I` en el texto crudo **y** en cada palabra decodificada (sin comillas, sin `$'…'`, con escapes aplicados). La marca se hereda al reanalizar con `bash -c`/`eval`. Ninguna decisión de seguridad depende de `\bgit\b` en minúsculas: se revisan todas las apariciones (`:1408,1868,1872,1884` y cualquier otra).
+3. **Opciones de envoltorio desconocidas** (gap 3): con `re.I`, y deny si detrás viene un intérprete (`sh`, `bash`, `eval`, `env -S`…).
+4. **Corpus y tests** (gaps 4 y 12).
+   - Entran al corpus diferencial, como BAD con bash real en los dos locales, todas las formas de `lb14/`, `lc14/p1.json`, `lc14/p2.json`, la muestra de los 31 hits del barrido de `case`, los W de nice y las 26 formas de la Lente A. Si alguna no tiene paridad, va a SIN_PARIDAD con el motivo.
+   - El barrido `lc14/fz.py` (50.040) se ejecuta y debe dar 0 allow.
+   - Los tests que hoy fijan «permitir sin git» en formas opacas (32 de fix13 y 6 de `env -S` de fix10) se reescriben como deny y se declaran como cambio de contrato.
+   - Falsos deny: el corpus de 2.690 y los 7.056 `case` inocuos se ejecutan; cada deny nuevo se lista en el ledger.
+5. **Separadores lineales** (gap 11). La partición por `;`, `|`, `&` y saltos de línea queda en O(n) amortizado. `echo a;a;…` sin git a 250 K debe costar menos de 1 s de CPU. `_es_lineal` incluye formas con separadores y una mutación cuadrática del separador da rojo.
+6. **Journal con presupuesto por proceso** (gaps 9 y 10).
+   - Un único plazo monótono para todo el proceso de captura, que comparten `settled`, el directorio de reserva y `queue()` (comprobación cada 256 entradas).
+   - El hijo de SessionEnd en frío (primera ejecución, arranque de Python incluido) debe salir con error limpio en menos de 800 ms con 50 K + 5 K y directorio configurado fallido: 10 ejecuciones en frío. Si no cabe, se baja el plazo con la medida en el ledger.
+   - La carrera legítima de dos procesos se repite.
+7. **Instalador** (gaps 5 y 6).
+   - En Linux el stub lanza un nieto real (sin `exec`) y el mutante de `matarArbol` sin efecto da rojo en Linux y en Windows.
+   - `lanzamientos === 1`.
+   - El test solo mata los PID que el stub registró, nunca por línea de órdenes.
+8. **Docs y traza** (gaps 7 y 8). Se corrige el desglose del RED de fix13 y `implementer.md:144`, junto con el candidato local de ADR-007. `implementer.md` documenta la lectura opaca.
 
 Tras este ciclo: réplica Linux completa sin rojo, suite node de Windows sin rojo, medida emparejada de T-23 con el equipo libre (la hace el orquestador) y verificación dirigida de las cuatro lentes. Si solo quedan Minor sin pérdida de datos, la fase cierra.
