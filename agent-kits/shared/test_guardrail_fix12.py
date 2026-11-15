@@ -185,10 +185,11 @@ def _cpu(orden):
 def _es_lineal(construir, chico=16384, grande=65536):
     """CPU de `construir(chico)` frente a `construir(grande)`: multiplicar la entrada por ~4 no multiplica el coste por 16 (fix13:
     sin git se analizan entera las ordenes de hasta 256 KB, asi que se compara 64 KB con 250 KB; con git, por debajo del recorte).
-    Cada medida es la mejor de dos (el ruido de la CPU solo suma)."""
+    Cada medida es la mejor de dos (el ruido de la CPU solo suma). Tope absoluto 2,5 s de CPU a 250 KB: en reposo estas formas
+    cuestan 0,02 a 0,63 s y con la maquina saturada se midio 1,06 s; un cuadratico moderado cuesta 3,6 s o mas (lente D, intento 13)."""
     c = min(_cpu(construir(chico)) for _ in range(2))
     g = min(_cpu(construir(grande)) for _ in range(2))
-    assert g < 10 * max(c, 0.08) + 0.05 and g < 1.0, f"{c:.3f}s -> {g:.3f}s al pasar de {chico} a {grande}"
+    assert g < 10 * max(c, 0.08) + 0.05 and g < 2.5, f"{c:.3f}s -> {g:.3f}s al pasar de {chico} a {grande}"
 
 
 @pytest.mark.parametrize("prefijo", ["! ", "{ ", "then ", "if ", "time -p ", "do "])
