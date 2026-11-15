@@ -9,6 +9,7 @@ import functools
 import os
 import shutil
 import subprocess
+import tempfile
 
 import pytest
 
@@ -372,6 +373,50 @@ LIMITE11 = [
     "cat <(case x in x) $(true) {D};; esac)",
     "echo $(case x in x) $(true) {D};; esac)",
 ]
+# fix12 (T-06, intento 12): `$'…'` se delimita por pares `\X` como el lexer de bash y despues se decodifica. Todas las sondas de las
+# lentes B (`lb12`) y C (`lc12`) con efecto en bash real. Los escapes llevan barras invertidas: cadenas crudas.
+BAD12_PARIDAD = [
+    r"echo $'\c'; {D} #'",
+    "echo $'\\c'\n{D}\n#'",
+    r"echo $'\c\\'; {D} #'",
+    r"echo $'\cc'; {D} #'",
+    r"echo $'\c\c'; {D} #'",
+    r"echo $'\c\x'; {D} #'",
+    r"$'\x67it' restore .",
+    r"$'\147it' restore .",
+    r"$'\u0067it' restore .",
+    r"LANG=C; LC_ALL=C; $'\u0067it' restore .",
+    r"env -S $'git\trestore .'",
+    r"env -S $'git\x20restore\x20.'",
+    r"env -S $'git\040restore .'",
+    r"env -S $'\x67it restore .'",
+    r"env -S $'\u0067it restore .'",
+    r"echo $'\x27'; {D} #'",
+]
+# Deny sin efecto en bash (la cadena queda abierta o el resto es un comentario): solo se exige el deny.
+SIN_PARIDAD_12 = [
+    r"x=$'\c' && {D} && echo '",
+    r"echo $'\c\\' x'; {D} #'",
+]
+# `\x{H…}` (bash >= 5.2): con un bash anterior no se decodifica, asi que la paridad se salta y solo se exige el deny.
+BAD12_LLAVES = [
+    r"$'\x{67}it' restore .",
+    r"$'\x{67}'it restore .",
+    r"$'\x{0067}it' restore .",
+    r"bash -c $'\x{67}it reset --hard'",
+    r"env -S $'\x{67}it reset --hard'",
+    r"eval $'\x{67}it reset --hard'",
+    r"echo $'\x{27}'; {D} #'",
+]
+LEGIT12 = [
+    r"echo $'a\cb'; git status",
+    r"echo $'\c\' x; git reset --hard #'",
+]
+BAD7 += BAD12_PARIDAD
+BAD7 += BAD12_LLAVES
+BAD7 += SIN_PARIDAD_12
+SIN_PARIDAD_7 |= set(SIN_PARIDAD_12)
+LEGIT7 += LEGIT12
 BAD7 += BAD11_PARIDAD
 BAD7 += SIN_PARIDAD_11
 SIN_PARIDAD_7 |= set(SIN_PARIDAD_11)
@@ -398,6 +443,20 @@ def _env_gnu_8():
         r = subprocess.run([BASH, "-c", "env --version | head -1"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
         palabras = (r.stdout.split() or [""])[-1].split(".")
         return palabras[0].isdigit() and int(palabras[0]) < 9
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+@functools.lru_cache(maxsize=None)
+def _bash_decodifica_llaves():
+    """True si este bash decodifica la secuencia de escape hexadecimal con llaves como `g` (bash >= 5.2)."""
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            ruta = os.path.join(d, "p.sh")
+            with open(ruta, "wb") as f:
+                f.write(("printf '%s' $'" + _BS + "x{67}'" + chr(10)).encode())
+            r = subprocess.run([BASH, ruta], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+            return r.stdout == "g"
     except (OSError, subprocess.SubprocessError):
         return False
 
@@ -435,6 +494,8 @@ def test_falso_deny_aceptado_7(plantilla, en_proj):
 @pytest.mark.parametrize("plantilla", [p for p in BAD7 if p not in SIN_PARIDAD_7],
                          ids=[_id(p) for p in BAD7 if p not in SIN_PARIDAD_7])
 def test_paridad7_cada_bad_cambia_el_centinela_en_bash_real(plantilla, plantilla_repo, tmp_path):
+    if plantilla in BAD12_LLAVES and not _bash_decodifica_llaves():
+        pytest.skip("este bash (< 5.2) no decodifica la forma `x{H…}`: solo se exige que se deniegue")
     if plantilla in BAD10_ENV and not _env_gnu_8():
         pytest.skip("coreutils 9.x separa `env -S` por LF/VT/FF/CR: la forma es ambigua, solo se exige que se deniegue")
     orden = _expandir(plantilla, D_RESTORE, "/nada")

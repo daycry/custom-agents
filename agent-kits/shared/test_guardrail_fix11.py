@@ -77,30 +77,8 @@ def test_la_forma_simple_con_git_destructivo_dentro_del_cuerpo_se_deniega():
         assert decide(orden) and "incompleta" not in decide(orden), orden
 
 
-@pytest.mark.parametrize("prefijo", ["! ", "{ ", "then ", "if ", "time -p ", "do "])
-@pytest.mark.parametrize("con_git", [False, True], ids=["sin-git", "con-git"])
-def test_las_palabras_de_prefijo_no_son_cuadraticas(prefijo, con_git):
-    n = 65536 // len(prefijo)
-    orden = ("git status; " if con_git else "") + "echo $(" + prefijo * n + ")"
-    t = time.perf_counter()
-    decide(orden)
-    dt = time.perf_counter() - t
-    assert dt < 0.3, f"{dt:.2f}s con {len(orden)} caracteres"
-
-
-@pytest.mark.parametrize("con_git", [False, True], ids=["sin-git", "con-git"])
-def test_los_patrones_y_cuerpos_de_prefijos_son_lineales(con_git):
-    cabeza = "git status; " if con_git else ""
-    for orden in (
-        cabeza + "echo $(case x in " + "x) ! ! ! ;; " * 5000 + "esac)",
-        cabeza + "echo $(case x in x) " + "! " * 30000 + ";; esac)",
-        cabeza + "echo $({ " * 3000 + "a; " + "} )" * 3000,
-        cabeza + "echo $(" + "{ " * 30000 + ")",
-    ):
-        t = time.perf_counter()
-        decide(orden)
-        dt = time.perf_counter() - t
-        assert dt < 0.3, f"{dt:.2f}s con {len(orden)} caracteres"
+# Los dos tests de coste de este bloque (palabras de prefijo; patrones y cuerpos de prefijos) midieron con el reloj de pared
+# y fallaban con la maquina cargada: pasan a CPU del proceso + razon de linealidad en `test_guardrail_fix12.py` (fix12, punto 3).
 
 
 @pytest.mark.parametrize("orden", [

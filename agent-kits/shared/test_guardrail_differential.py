@@ -518,9 +518,9 @@ def test_un_cuerpo_fuera_de_la_forma_exacta_se_analiza_aunque_el_delimitador_est
 
 # --- cota de entrada y coste lineal (gaps 1 y 6; lente D) ---
 def _tiempo(orden):
-    t = time.perf_counter()
+    t = time.process_time()                 # CPU del proceso, no reloj de pared (fix12, gap 5)
     razon = gc.check_git(orden, "feat/x")
-    return time.perf_counter() - t, razon
+    return time.process_time() - t, razon
 
 
 @pytest.mark.parametrize("orden", [
