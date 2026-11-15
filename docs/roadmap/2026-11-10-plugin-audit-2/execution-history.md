@@ -401,3 +401,71 @@ Fuera de gap (límite, indirección): `$(true) git reset --hard` y `` `true` git
 
 Tras este ciclo: réplica Linux completa sin rojo, medida emparejada de T-23 con el equipo libre (la hace el orquestador) y verificación dirigida de las cuatro lentes. Si solo quedan Minor sin pérdida de datos, la fase cierra.
 
+
+## Archivado 2026-11-15 — Revisión de dos lentes — intento 12: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix11: 2 Important, 9 Minor (bytes sin cambios)
+
+SHA-256 del bloque: `9aa8dd06084d4eb2fb5f1204c3a17a37843b5ad2eef8c59912e9722cdee215ec`.
+
+## Revisión de dos lentes — intento 12: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix11: 2 Important, 9 Minor
+
+Lentes: A+B+C+D sobre `e4b2f7f..a5ba181`, dos a dos por memoria. Más la suite node de Windows, que corrió el orquestador.
+
+**Cerrado del intento 11:**
+- Los gaps 1 a 12.
+- **Lista blanca de `case`.** Fuzz de la Lente B con 67.584 órdenes: git en el cuerpo, 16 cabeceras, 11 patrones, 3 terminadores y 8 envolturas. Da 0 regresiones frente a d938cab y frente a 8e7c0a0. Las 31 formas en bash real ejecutan git y el guard las deniega.
+- **Coste lineal.** `bang_64k` pasa de 97,8 s a 0,33 s. A 256 KB todo queda por debajo de 0,8 s.
+- **Journal.** Un enlace duro plantado sin `.tmp-` falla en 16-124 ms.
+- **OpenCode.** Un `realpath` indeterminado guarda la sesión.
+- **`implementer.md:92`.** Corregido.
+- **RED real.** Con el código de e4b2f7f fallan 29 tests y pasan 18; en HEAD pasan 47.
+
+**Interpretaciones aceptadas:**
+- **i1:** un `ENOENT` es una respuesta cierta. Un UNC inalcanzable da `UNKNOWN`, que es indeterminado.
+- **i2:** `x=1 case …` es un error de sintaxis en bash.
+- **i5:** el deny nuevo alcanza formas plausibles como `git log -- $(grep -rl case src)`. Es lo que pide el diseño: ante la duda, deny.
+- **i6.**
+
+**Rojo fuera de las lentes, en Windows.** El orquestador corrió la suite node completa.
+- `tests/codex-plugin-state.test.mjs`: la regex no aceptaba CRLF. Lo corrigió el orquestador en `6e41dfe`, declarado en `Archivos` de T-23.
+- `tests/installer.test.mjs`: 184 pass y 1 fail (gap 2).
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | **Regresión del fix11.** Al buscar el cierre de `$'…'`, `_ansi_c` hace que `\c` consuma un carácter más. Bash delimita la cadena por pares `\X` y decodifica `\cX` después. `echo $'\c'; git reset --hard #'` → allow, cuando en d938cab y 8e7c0a0 daba deny. Bash real ejecuta git. Lo mismo con `\c\\`, `\c\' x` y `x=$'\c' && …`. Verificado por el orquestador | T-06 | fix12 `8105752` (RED `28f1308`): `_ansi_fin` delimita por pares `\X` y `_ansi_decodificar` decodifica después; diferencial generado 0 divergencias; las formas de `lb12` entran en `BAD12_PARIDAD` | Lente B: `guardrail-check.py:424-425,509-510`; `lb12/rb2.py`, `c1`-`c5` |
+| 2 | Important | Rojo en Windows: `installer.test.mjs:1909` («gap 8: una CLI colgada no bloquea el instalador»). Con `CUSTOM_AGENTS_EXEC_TIMEOUT_MS=2000`, el instalador tardó 30.163 ms (la cota es < 30.000). Pasa en Linux. La causa no está aislada | T-23 | fix12 `4c52705`: causa raíz medida (colocar los 495 ficheros, no la CLI colgada); el test mide desde el arranque del `codex` colgado, cota de 30 s intacta | Orquestador: `node --test tests/installer.test.mjs` en Windows, 184 pass y 1 fail en 1.624 s; `install/install.mjs:1294,1301,1315` |
+| 3 | Minor | **Regresión del fix11, fallo abierto en la ruta heredada.** `$'\ud800'` se decodifica a un surrogate suelto. `_destino_es_el_propio_directorio` solo captura `OSError`, y en POSIX `realpath` lanza `UnicodeEncodeError`. El `except Exception` de `main()` acaba en allow. `cd $'\ud800'; git reset --hard` → allow en `guardrail-check.py pre-tool`, la única protección en modo copia; en e4b2f7f era deny. La ruta nativa falla cerrada | T-06 | fix12 `8105752`: `(OSError, ValueError)` en el destino; una excepción interna de `main()` en `pre-tool` deniega con motivo explícito | Lente C: `guardrail-check.py:1250-1253,2066`; `lc12/sur2.py` |
+| 4 | Minor | `_ansi_c` no implementa `\x{H…}`, que bash 5.2 sí decodifica. `bash -c $'\x{67}it reset --hard'` → allow, y ya era así en las tres versiones. Contradice «semántica de bash» (`implementer.md:102`). Ofuscación deliberada | T-06 | fix12 `8105752`: `\x{H…}` con cualquier número de cifras módulo 256 (medido con bash 5.2.37); `BAD12_LLAVES` | Lente C: `guardrail-check.py:413-422`; `lc12/p3.sh` |
+| 5 | Minor | Test intermitente: `dt < 0.3` con reloj de pared. En reposo da 0,28 s; con 12 bucles de CPU falla 2 de 3 veces (0,51 s). Los `< 0.05` de `test_journal.py:3322,3332,3342` tienen un margen parecido | T-06, T-23 | fix12 `8105752` y `d3a9764`: CPU del proceso + razón de linealidad en el guardarraíl; reloj inyectado en el journal; 20/20 pasadas con 12 bucles de CPU, 0 rojos | Lentes B y D: `test_guardrail_fix11.py:80-87,92-103` |
+| 6 | Minor | Con un `.tmp-` vivo, la espera de `settling`/`initializing` vuelve a listar el directorio en cada uno de los 40 intentos. El coste deja de estar acotado a unos 0,75 s: 1,55 s con 2.000 entradas y 4,9 s con 10 K + 1 K `.tmp-`. En SessionEnd (800 ms) el hijo muere en vez de dar un error limpio. Solo en un estado anómalo | T-23 | fix12 `da384fb`: tope total de 0,75 s de reloj monotónico en `settled` y `update`; 10 K + 1 K bajo 1 s de CPU | Lente D: `journal-io.py:92-93,135,185`; `ld12/j1.py` |
+| 7 | Minor | Tres ramas de deny nuevas sin RED previo ni declaración: `\U` fuera de rango, patrón vacío y separador en los estados `w`/`i`. Todas son sintaxis inválida; el defecto es de traza | T-06 | fix12 `28f1308`: 5 tests de regresión de las tres ramas; declarado en T-06 (pasan contra a5ba181, no son un RED) | Lente A: `guardrail-check.py:421,625,660`; `la12/nr.py` |
+| 8 | Minor | Recuentos del ledger desfasados: `BAD11_PARIDAD` tiene 59 formas (no 60) y `SIN_PARIDAD_11` 8 (no 7). En el RED fallan 29 de 47 tests, no 27 de 45 | T-06 | fix12: recuentos corregidos en T-06 (59 y 8; 29 de 47) | Lente A: `tasks.md:368` |
+| 9 | Minor | El modelo de amenaza no nombra la clase `LIMITE11`, una sustitución como palabra de mando: `$(true) git reset --hard` | T-06 | fix12 `6dc998c`: `LIMITE11` en el modelo de amenaza de `implementer.md` | Lente A: `implementer.md:100-111` |
+| 10 | Minor | Un `realpath` indeterminado (EACCES, EIO, ELOOP) también guarda las sesiones ajenas durante 5 s: entre 1,0 y 1,5 s de hook por evento | T-06 | deuda aceptada (compromiso del gap 9 del intento 11: guardar de más solo ejecuta el guard) | Lente D: `opencode-plugin.js:81-94` |
+| 11 | Minor | El corpus con bash real crece en 64 ejecuciones, unos 80 s más en Windows. Es el método establecido y no tiene `sleep` evitables | T-23 | deuda aceptada (solo si hay que recortar CI) | Lente D: `test_guardrail_differential7.py:437,450` |
+
+**Avisos de método.**
+- `bash.EXE -c` lanzado desde Python en Windows altera las barras invertidas. Las sondas con escapes van en ficheros `.sh`.
+- En Linux, el primer test de `opencode-realpath-fix11` (`:36-53`) no discrimina, porque no hay nombres 8.3.
+
+**Diseño fijado por el orquestador para fix12:**
+
+1. **`$'…'` como lo lee bash** (gaps 1 y 4).
+   - Primero se delimita la cadena por pares `\X`, como el lexer de bash.
+   - Después se decodifica el contenido ya delimitado. `\cX` se aplica solo dentro de ese contenido.
+   - Se añade `\x{H…}` con la semántica de bash 5.2.
+   - Diferencial con bash real, ejecutado desde ficheros `.sh`: cada escape de bash (`\c`, `\x`, `\x{}`, `\u`, `\U`, `\0NNN`, `\e`) seguido de `'`, `\\` o `\'` y de `; git reset --hard #'`. Resultado exigido: 0 divergencias con efecto.
+   - Todas las formas de `lb12` y `lc12` entran al corpus como BAD.
+2. **Fallo cerrado en la ruta heredada** (gap 3).
+   - `_destino_es_el_propio_directorio` captura `(OSError, ValueError)`.
+   - `guardrail-check.py pre-tool` lo lanzan solo los hooks del rol protegido. Por eso, cualquier excepción interna de su `main()` deniega con un motivo explícito y nunca permite.
+   - Test con el surrogate y con una excepción inyectada.
+3. **Tests sin reloj de pared** (gap 5). Los umbrales de coste del guard pasan a medir CPU del proceso o una razón de linealidad entre dos tamaños. Los `< 0.05` del journal pasan a un reloj inyectado o a CPU. Verificación: 20 pasadas con 12 bucles de CPU, 0 rojos.
+4. **Espera del journal acotada en tiempo** (gap 6). Un tope total con reloj monótono de unos 0,75 s, y como mucho un listado del directorio por intento acotado. Test: 10 K entradas + 1 K `.tmp-`, < 1 s.
+5. **Instalador en Windows** (gap 2). Se aplica `debug-root-cause` para ver de dónde salen los 30 s con un plazo de 2 s: el `--version` de 15 s ×2, la resolución del shim `sh` en Windows o el árbol de procesos sin matar. Arreglo con test de regresión que pase en Windows y en Linux, sin relajar la cota. Después, la suite node completa en Windows debe dar 0 fail.
+6. **Traza y documentación** (gaps 7, 8 y 9).
+   - RED de las tres ramas de deny como tests de regresión, declarando en el ledger que llegan después.
+   - Recuentos corregidos.
+   - `LIMITE11` en el modelo de amenaza de `implementer.md`.
+
+Tras este ciclo: réplica Linux completa sin rojo, suite node de Windows sin rojo, medida emparejada de T-23 con el equipo libre (la hace el orquestador) y verificación dirigida de las cuatro lentes. Si solo quedan Minor sin pérdida de datos, la fase cierra.
+
