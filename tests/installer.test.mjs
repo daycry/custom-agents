@@ -14,6 +14,7 @@ import { tmpdir, homedir } from "node:os"
 import { join, dirname, resolve, delimiter } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { execFileSync, spawnSync } from "node:child_process"
+import { connect } from "node:net"
 import { createHash } from 'node:crypto'
 import * as installerModule from '../install/install.mjs'
 import {signManifest,manifestContext} from '../install/manifest-auth.mjs'
@@ -1887,26 +1888,45 @@ test("gap 7: el marketplace del usuario NO se borra sin permiso; --force-marketp
 /** Segundos que el nieto de la CLI colgada seguiria vivo si nadie mata su ARBOL (fix14: ya no se busca por linea de ordenes). */
 const MARCA_HUERFANO = "3719"
 
-/** ¿Sigue vivo el proceso `pid`? En Linux un zombi (muerto y sin recoger) cuenta como muerto. */
-function vivo(pid) {
-  try { process.kill(pid, 0) } catch (e) { return e.code === "EPERM" }
-  if (process.platform === "linux") {
-    try { return readFileSync(`/proc/${pid}/stat`, "utf8").split(") ")[1][0] !== "Z" } catch { return false }
+/** ¿Sigue vivo el nieto REGISTRADO `{pid, port}`? Windows reutiliza los PID enseguida (el último liberado es el primero que se
+ *  asigna), así que «hay un proceso con ese PID» no prueba que sea el stub: el stub registra además el puerto de un servidor que
+ *  mantiene abierto en 127.0.0.1 y solo él lo atiende (vivo = acepta la conexión). En Linux el PID se confirma por su línea de
+ *  órdenes (`sleep 3719`) y un zombi cuenta como muerto. Así nunca se da por vivo —ni se mata— un proceso ajeno que heredó el PID. */
+async function vivo({ pid, port }) {
+  if (process.platform === "win32") {
+    return await new Promise((resolve) => {
+      const s = connect({ host: "127.0.0.1", port })
+      const plazo = setTimeout(() => { s.destroy(); resolve(false) }, 1500)
+      s.on("connect", () => { clearTimeout(plazo); s.destroy(); resolve(true) })
+      s.on("error", () => { clearTimeout(plazo); resolve(false) })
+    })
   }
-  return true
+  try {
+    const args = readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0")
+    if (!(args[0].endsWith("sleep") && args.includes(MARCA_HUERFANO))) return false
+    return readFileSync(`/proc/${pid}/stat`, "utf8").split(") ")[1][0] !== "Z"
+  } catch { return false }
 }
 
-/** PIDs que el STUB registró en `pids.txt` (su nieto: el `sleep` de Linux, el propio nodo de Windows). Fix14, gaps 5 y 6: ni se
- *  busca por línea de órdenes (dos suites a la vez se mataban entre sí) ni se mata nada que el stub no haya registrado. */
+/** Lo que el STUB registró en `pids.txt` (su nieto: el `sleep` de Linux, el propio nodo de Windows con su puerto), como
+ *  `{pid, port}`. Fix14, gaps 5 y 6: ni se busca por línea de órdenes ni se mata nada que el stub no haya registrado. */
 function registrados(bin) {
   const f = join(bin, "pids.txt")
-  return existsSync(f) ? readFileSync(f, "utf8").split(/\s+/).filter(Boolean).map(Number) : []
+  if (!existsSync(f)) return []
+  return readFileSync(f, "utf8").split("\n").filter(Boolean).map((l) => {
+    const [pid, port] = l.trim().split(/\s+/).map(Number)
+    return { pid, port }
+  })
 }
 
-function matarHuerfanos(pids) {
-  for (const pid of pids) {
-    if (!vivo(pid)) continue
-    try { process.kill(pid, "SIGKILL") } catch { /* ya no esta */ }
+async function vivosDe(bin) {
+  const r = registrados(bin)
+  return (await Promise.all(r.map(async (x) => ((await vivo(x)) ? x : null)))).filter(Boolean)
+}
+
+async function matarHuerfanos(bin) {
+  for (const x of await vivosDe(bin)) {
+    try { process.kill(x.pid, "SIGKILL") } catch { /* ya no esta */ }
   }
 }
 
@@ -1923,8 +1943,11 @@ function codexColgado(bin) {
       "fs.appendFileSync(path.join(__dirname, 'lanzamientos.txt'), 'x\\n')",
       "const flag = path.join(__dirname, 'inicio.flag')",
       "if (!fs.existsSync(flag)) fs.writeFileSync(flag, '')",
-      "fs.appendFileSync(path.join(__dirname, 'pids.txt'), process.pid + '\\n')",
-      "setTimeout(() => {}, " + MARCA_HUERFANO + "000)",
+      "const srv = require('net').createServer(() => {})",
+      "srv.listen(0, '127.0.0.1', () => {",
+      "  fs.appendFileSync(path.join(__dirname, 'pids.txt'), process.pid + ' ' + srv.address().port + '\\n')",
+      "  setTimeout(() => {}, " + MARCA_HUERFANO + "000)",
+      "})",
       "",
     ].join("\n"))
     writeFileSync(p, ["@echo off", "\"" + process.execPath + "\" \"%~dp0colgado.cjs\" %*", "exit /b %errorlevel%", ""].join("\r\n"))
@@ -1936,7 +1959,7 @@ function codexColgado(bin) {
       "echo x >> \"$d/lanzamientos.txt\"",
       "[ -e \"$d/inicio.flag\" ] || : > \"$d/inicio.flag\"",
       "sleep " + MARCA_HUERFANO + " &",
-      "echo $! >> \"$d/pids.txt\"",
+      "echo \"$! 0\" >> \"$d/pids.txt\"",
       "wait",
       "",
     ].join("\n"))
@@ -1944,7 +1967,7 @@ function codexColgado(bin) {
   }
 }
 
-test("gap 8: una CLI colgada no bloquea el instalador (timeout) y se dice qué se está ejecutando", () => {
+test("gap 8: una CLI colgada no bloquea el instalador (timeout) y se dice qué se está ejecutando", async () => {
   const tmp = tmpProj()
   let vivos = []
   try {
@@ -1956,7 +1979,7 @@ test("gap 8: una CLI colgada no bloquea el instalador (timeout) y se dice qué s
       { HOME: hogar, USERPROFILE: hogar, CUSTOM_AGENTS_EXEC_TIMEOUT_MS: "2000" })
     const out = cli(["install", "-p", "codex", "--scope", "user", "-y"], { env })
     const fin = Date.now()
-    vivos = registrados(bin).filter(vivo)
+    vivos = await vivosDe(bin)
     // Causa raiz (fix12, gap 2): el instalador entero tarda de 7 s (reposo) a 30 s (CPU saturada) o mas (antivirus) solo en
     // colocar los 495 ficheros, ANTES de lanzar la CLI colgada: la cota de 30 s no mide el timeout sino el disco. Se mide
     // desde que arranca el PRIMER `codex` colgado (el mtime de `inicio.flag`, que solo se crea una vez; `lanzamientos.txt` apenda
@@ -1967,12 +1990,12 @@ test("gap 8: una CLI colgada no bloquea el instalador (timeout) y se dice qué s
     assert.equal(lanzamientos, 1, "la CLI colgada se lanza UNA vez: un relanzamiento tras el timeout sumaría plazos (fix14, gap 6)")
     assert.ok(registrados(bin).length >= 1, "el nieto de la CLI colgada se registró: sin él, el test no comprobaría el árbol")
     // fix13, gap 9: matar el ARBOL de la CLI colgada. Un `matarArbol` que no hace nada deja el `ping`/`sleep` huerfano vivo.
-    assert.deepEqual(vivos, [], `la CLI colgada dejó procesos huérfanos vivos (PIDs ${vivos.join(", ")}): matarArbol no mató el árbol`)
+    assert.deepEqual(vivos, [], `la CLI colgada dejó procesos huérfanos vivos (PIDs ${vivos.map((x) => x.pid).join(", ")}): matarArbol no mató el árbol`)
     assert.match(out, /ejecutando/, "antes de lanzar hay que decir qué se lanza")
     assert.match(out, /codex plugin marketplace add/)
     assert.ok(!existsSync(join(hogar, ".codex", "config.toml")), "sin registro exitoso no se habilita")
   } finally {
-    matarHuerfanos(vivos.concat(registrados(join(tmp, "bin"))))
+    await matarHuerfanos(join(tmp, "bin"))
     rmSync(tmp, { recursive: true, force: true })
   }
 })
