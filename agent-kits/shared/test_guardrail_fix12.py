@@ -172,7 +172,7 @@ def test_regresion_de_las_tres_ramas_de_deny_declaradas_sin_red(orden):
     segs, incompleta = gc._segmentos(orden)
     assert incompleta, (orden, segs)
     razon = decide(orden)
-    assert razon and "incompleta" in razon, (orden, razon)
+    assert razon and ("incompleta" in razon or "opaca" in razon), (orden, razon)   # fix14: `\UFFFFFFFF` es opaca
 
 
 # --------------------------------------------------------------------------- punto 3: coste sin reloj de pared ----
@@ -182,14 +182,14 @@ def _cpu(orden):
     return time.process_time() - t
 
 
-def _es_lineal(construir, chico=16384, grande=65536):
+def _es_lineal(construir, chico=16384, grande=65536, absoluto=2.5):
     """CPU de `construir(chico)` frente a `construir(grande)`: multiplicar la entrada por ~4 no multiplica el coste por 16 (fix13:
     sin git se analizan entera las ordenes de hasta 256 KB, asi que se compara 64 KB con 250 KB; con git, por debajo del recorte).
-    Cada medida es la mejor de dos (el ruido de la CPU solo suma). Tope absoluto 2,5 s de CPU a 250 KB: en reposo estas formas
+    Cada medida es la mejor de dos (el ruido de la CPU solo suma). Tope absoluto (`absoluto`, 2,5 s de CPU a 250 KB por defecto; 1,0 s en los separadores de fix14): en reposo estas formas
     cuestan 0,02 a 0,63 s y con la maquina saturada se midio 1,06 s; un cuadratico moderado cuesta 3,6 s o mas (lente D, intento 13)."""
     c = min(_cpu(construir(chico)) for _ in range(2))
     g = min(_cpu(construir(grande)) for _ in range(2))
-    assert g < 10 * max(c, 0.08) + 0.05 and g < 2.5, f"{c:.3f}s -> {g:.3f}s al pasar de {chico} a {grande}"
+    assert g < 10 * max(c, 0.08) + 0.05 and g < absoluto, f"{c:.3f}s -> {g:.3f}s al pasar de {chico} a {grande}"
 
 
 @pytest.mark.parametrize("prefijo", ["! ", "{ ", "then ", "if ", "time -p ", "do "])

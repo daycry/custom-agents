@@ -58,7 +58,7 @@ def test_case_que_no_se_puede_seguir_pero_sin_git_no_se_deniega(orden):
 def test_env_s_con_un_blanco_de_control_suelto_es_ambiguo(valor):
     with pytest.raises(gc._SinTroceo) as e:
         gc._trocea_s(valor, [0])
-    assert e.value.siempre is False
+    assert e.value.siempre is True      # fix14 (cambio de contrato): ya no depende de que haya git, es lectura opaca
 
 
 def test_env_s_con_el_blanco_de_control_entrecomillado_o_escapado_se_trocea():
@@ -68,6 +68,7 @@ def test_env_s_con_el_blanco_de_control_entrecomillado_o_escapado_se_trocea():
     assert gc._trocea_s("git\tstatus  -s", [0]) == ["git", "status", "-s"]
 
 
-def test_env_s_ambiguo_se_deniega_con_git_y_se_permite_sin_el():
+def test_env_s_ambiguo_se_deniega_con_git_y_sin_el():
+    """fix14 (cambio de contrato): antes un `env -S` ambiguo sin git se permitia; es una lectura opaca y deniega siempre."""
     assert decide("env -S 'git status\n#x'")
-    assert decide("env -S 'echo a\n#x'") is None
+    assert decide("env -S 'echo a\n#x'")

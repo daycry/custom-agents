@@ -62,10 +62,16 @@ def test_c_con_un_caracter_no_ascii_con_git_se_deniega(orden):
 @pytest.mark.parametrize("plantilla", [
     "echo $'a" + BS + "c{K}b'; ls",
     "x=$'" + BS + "c{K}'; echo $x",
-    "cat <<E" + chr(10) + "{K}" + chr(10) + "E",
 ])
-def test_c_con_no_ascii_sin_git_ni_cambio_de_base_se_permite(plantilla, k):
-    assert decide(plantilla.replace("{K}", k)) is None, plantilla
+def test_c_con_no_ascii_sin_git_ni_cambio_de_base_se_deniega_por_opaca(plantilla, k):
+    """fix14 (cambio de contrato): en fix13 esto se PERMITIA sin git; la lectura opaca deniega siempre al rol protegido."""
+    razon = decide(plantilla.replace("{K}", k))
+    assert razon and "opaca" in razon, plantilla
+
+
+@pytest.mark.parametrize("k", TODOS, ids=lambda k: f"U+{ord(k):04X}")
+def test_un_caracter_no_ascii_en_un_heredoc_sin_c_se_permite(k):
+    assert decide("cat <<E" + chr(10) + k + chr(10) + "E") is None
 
 
 def test_c_con_no_ascii_marca_incompleta_y_el_ascii_sigue_igual():
