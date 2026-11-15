@@ -182,28 +182,48 @@ def _cpu(orden):
     return time.process_time() - t
 
 
-def _es_lineal(construir):
-    """CPU de `construir(16 KB)` frente a `construir(64 KB)`: cuadruplicar la entrada no multiplica el coste por 16."""
-    chico, grande = _cpu(construir(16384)), _cpu(construir(65536))
-    assert grande < 8 * max(chico, 0.03) + 0.05 and grande < 1.0, f"{chico:.3f}s -> {grande:.3f}s al cuadruplicar la entrada"
+def _es_lineal(construir, chico=16384, grande=65536):
+    """CPU de `construir(chico)` frente a `construir(grande)`: multiplicar la entrada por ~4 no multiplica el coste por 16 (fix13:
+    sin git se analizan entera las ordenes de hasta 256 KB, asi que se compara 64 KB con 250 KB; con git, por debajo del recorte).
+    Cada medida es la mejor de dos (el ruido de la CPU solo suma)."""
+    c = min(_cpu(construir(chico)) for _ in range(2))
+    g = min(_cpu(construir(grande)) for _ in range(2))
+    assert g < 10 * max(c, 0.08) + 0.05 and g < 1.0, f"{c:.3f}s -> {g:.3f}s al pasar de {chico} a {grande}"
 
 
 @pytest.mark.parametrize("prefijo", ["! ", "{ ", "then ", "if ", "time -p ", "do "])
-@pytest.mark.parametrize("con_git", [False, True], ids=["sin-git", "con-git"])
-def test_las_palabras_de_prefijo_son_lineales_en_cpu(prefijo, con_git):
-    _es_lineal(lambda tam: ("git status; " if con_git else "") + "echo $(" + prefijo * (tam // len(prefijo)) + ")")
+def test_las_palabras_de_prefijo_son_lineales_en_cpu(prefijo):
+    _es_lineal(lambda tam: "echo $(" + prefijo * (tam // len(prefijo)) + ")", chico=65536, grande=250000)
 
 
-@pytest.mark.parametrize("con_git", [False, True], ids=["sin-git", "con-git"])
-def test_los_patrones_y_cuerpos_de_prefijos_son_lineales_en_cpu(con_git):
-    cabeza = "git status; " if con_git else ""
+@pytest.mark.parametrize("prefijo", ["! ", "{ ", "then ", "if ", "time -p ", "do "])
+def test_las_palabras_de_prefijo_con_git_por_debajo_del_recorte_llegan_al_analizador(prefijo):
+    """Con git delante y mas de 16 KB o 4.000 palabras el recorte deniega antes de analizar: aqui 1 KB y 4 KB (fix13)."""
+    for tam in (1024, 4096):
+        orden = "git status; echo $(" + prefijo * (tam // (2 * len(prefijo))) + ")"
+        assert "demasiado larga" not in (decide(orden) or ""), (tam, orden[:40])
+    _es_lineal(lambda tam: "git status; echo $(" + prefijo * (tam // (2 * len(prefijo))) + ")", chico=1024, grande=4096)
+
+
+def test_los_patrones_y_cuerpos_de_prefijos_son_lineales_en_cpu():
     for construir in (
-        lambda tam: cabeza + "echo $(case x in " + "x) ! ! ! ;; " * (tam // 12) + "esac)",
-        lambda tam: cabeza + "echo $(case x in x) " + "! " * (tam // 2) + ";; esac)",
-        lambda tam: cabeza + "echo $({ " * (tam // 21) + "a; " + "} )" * (tam // 21),
-        lambda tam: cabeza + "echo $(" + "{ " * (tam // 2) + ")",
+        lambda tam: "echo $(case x in " + "x) ! ! ! ;; " * (tam // 12) + "esac)",
+        lambda tam: "echo $(case x in x) " + "! " * (tam // 2) + ";; esac)",
+        lambda tam: "echo $({ " * (tam // 21) + "a; " + "} )" * (tam // 21),
+        lambda tam: "echo $(" + "{ " * (tam // 2) + ")",
     ):
-        _es_lineal(construir)
+        _es_lineal(construir, chico=65536, grande=250000)
+
+
+def test_los_patrones_y_cuerpos_de_prefijos_con_git_por_debajo_del_recorte_llegan_al_analizador():
+    for construir in (
+        lambda tam: "git status; echo $(case x in " + "x) ! ! ! ;; " * (tam // 24) + "esac)",
+        lambda tam: "git status; echo $(case x in x) " + "! " * (tam // 4) + ";; esac)",
+        lambda tam: "git status; echo $({ " * 1 + "{ " * (tam // 8) + "a; " + "} " * (tam // 8) + ")",
+    ):
+        for tam in (1024, 4096):
+            assert "demasiado larga" not in (decide(construir(tam)) or ""), tam
+        _es_lineal(construir, chico=1024, grande=4096)
 
 
 # --------------------------------------------------------------------------- punto 1: diferencial generado con bash real ----

@@ -413,6 +413,26 @@ LEGIT12 = [
     r"echo $'a\cb'; git status",
     r"echo $'\c\' x; git reset --hard #'",
 ]
+# fix13 (T-06, intento 13): `\c` seguido de un caracter NO ASCII (bash aplica el control al primer byte UTF-8; el guardarrail no lo
+# emula y marca la lectura incompleta) y las 4 formas de lb12 que ejecutan git y no estaban en el corpus con bash real (gap 6).
+# Verificadas con bash 5.2 en los dos locales (LANG sin definir y C.UTF-8).
+BAD13_PARIDAD = [
+    "sh -c $'echo \\cà; {D}'",                 # NUL solo en el guardarrail viejo: cortaba la cadena
+    "bash -c $'echo \\cĀ; {D}'",
+    "bash -c $'echo \\c😀; {D}'",
+    "eval $'true \\cĀ && {D}'",
+    "bash -c $'echo a\\cé#;{D}'",              # tabulador solo en el guardarrail viejo: tomaba el resto por comentario
+    "eval $'echo a\\cĉ#;{D}'",
+    "bash -c $'true #\\cʁ;{D}'",               # salto de linea solo en bash: cierra el comentario
+    "eval $'true #\\cꀁ;{D}'",
+    "bash -c $'echo \\cà\\n{D}'",
+    "bash -c $'cat <<E\\cê;{D}\\nE'",
+    r"echo $'\c\' x'; {D} #'",                         # gap 6: las 4 formas de lb12
+    r"echo $'\c\\\' x'; {D} #'",
+    r"echo $'\cx\' x'; {D} #'",
+    r"$'git\0x' restore .",
+]
+BAD7 += BAD13_PARIDAD
 BAD7 += BAD12_PARIDAD
 BAD7 += BAD12_LLAVES
 BAD7 += SIN_PARIDAD_12

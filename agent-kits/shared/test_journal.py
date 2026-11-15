@@ -3425,10 +3425,10 @@ def test_la_espera_con_un_tmp_vivo_esta_acotada_en_tiempo_total_con_reloj_inyect
     escaneos = []
     original = JIO.initializing
 
-    def inicializando(path):
+    def inicializando(path, *limite):
         escaneos.append(1)
         reloj["t"] += 0.1                              # cada listado del directorio «cuesta» 0,1 s de reloj monotonico
-        return original(path)
+        return original(path, *limite)
 
     monkeypatch.setattr(JIO, "initializing", inicializando)
     with pytest.raises(ValueError, match="unsafe_state|journal_update_conflict"):
@@ -3436,7 +3436,7 @@ def test_la_espera_con_un_tmp_vivo_esta_acotada_en_tiempo_total_con_reloj_inyect
             JIO.read_settled(fichero)
         else:
             JIO.update(fichero, lambda raw: raw + b"y")
-    assert reloj["t"] - 1000.0 < 1.2, f"espera simulada de {reloj['t'] - 1000.0:.2f} s: no hay tope total"
+    assert reloj["t"] - 1000.0 < 0.7, f"espera simulada de {reloj['t'] - 1000.0:.2f} s: no hay tope total"
     assert len(escaneos) <= 10, f"{len(escaneos)} listados del directorio: la espera se acota por intentos, no por tiempo"
 
 
@@ -3448,3 +3448,88 @@ def test_con_10k_entradas_y_1k_tmp_la_espera_cuesta_menos_de_un_segundo_de_cpu(t
         JIO.read_settled(fichero)
     gastado = time.process_time() - inicio
     assert gastado < 1.0, f"{gastado:.2f} s de CPU con 10.000 entradas + 1.000 `.tmp-`"
+
+# --- T-23 fix13, gap 2 del intento 13: el tope total (0,5 s) se comprueba DENTRO del listado del directorio (cada 256 entradas del
+# scandir y cada 64 `lstat`), no solo entre intentos: con 50 K + 5 K entradas un solo listado costaba ~0,5 s y la espera pasaba de 1 s. ---
+def _scandir_sintetico(monkeypatch, reloj, directorio, entradas, temporales, coste=1e-5):
+    """`os.scandir(directorio)` devuelve `entradas` + `temporales` entradas FALSAS (cada una avanza `coste` s el reloj inyectado) y
+    despues las reales; el `lstat` de un `.tmp-` falso avanza el reloj y falla (el ganador ya lo borro). Sin crear 55.000 ficheros."""
+    real_scandir, real_lstat = os.scandir, os.lstat
+    destino = os.path.abspath(directorio)
+
+    def falso():
+        for i in range(entradas):
+            reloj["t"] += coste
+            yield SimpleNamespace(name=f"e{i}.json")
+        for i in range(temporales):
+            reloj["t"] += coste
+            yield SimpleNamespace(name=f".tmp-falso{i}")
+        with real_scandir(directorio) as reales:
+            yield from reales
+
+    def scandir(path="."):
+        if os.path.abspath(os.fspath(path)) != destino:
+            return real_scandir(path)
+        return contextlib.nullcontext(falso())
+
+    def lstat(path, *a, **k):
+        if os.path.basename(os.fspath(path)).startswith(".tmp-falso"):
+            reloj["t"] += coste
+            raise FileNotFoundError(path)
+        return real_lstat(path, *a, **k)
+
+    monkeypatch.setattr(os, "scandir", scandir)
+    monkeypatch.setattr(os, "lstat", lstat)
+
+
+@pytest.mark.parametrize("operacion", ["read_settled", "update"])
+def test_el_listado_de_un_directorio_enorme_tambien_esta_acotado_por_el_tope_total(tmp_path, monkeypatch, operacion):
+    JIO = journal._capture_mod.JIO
+    fichero = _directorio_grande(tmp_path, 50, 5)
+    reloj = _reloj_inyectado(monkeypatch, JIO)
+    _scandir_sintetico(monkeypatch, reloj, os.path.dirname(fichero), 50000, 5000)
+    with pytest.raises(ValueError, match="unsafe_state|journal_update_conflict"):
+        if operacion == "read_settled":
+            JIO.read_settled(fichero)
+        else:
+            JIO.update(fichero, lambda raw: raw + b"y")
+    espera = reloj["t"] - 1000.0
+    # tope 0,5 s + margen declarado: 256 entradas de comprobacion (2,6 ms) + un `sleep` de hasta 20 ms antes de volver a mirar.
+    assert espera <= 0.5 + 0.05, f"{espera:.3f} s simulados: el listado de 55.000 entradas no esta acotado por el tope total"
+
+
+def test_el_tope_total_de_la_espera_es_de_medio_segundo_para_caber_en_los_800_ms_de_sessionend():
+    assert journal._capture_mod.JIO._ESPERA_MAX == 0.5
+
+
+def _inicializacion_viva(tmp_path, monkeypatch, termina_a):
+    """Un `.tmp-vivo` con el MISMO inodo que `f`: inicializacion en curso que termina a los `termina_a` s de reloj inyectado."""
+    JIO = journal._capture_mod.JIO
+    d = tmp_path / "carrera"
+    d.mkdir()
+    f, tmp = d / "f", d / ".tmp-vivo"
+    f.write_bytes(b"hola")
+    os.link(f, tmp)
+    reloj = _reloj_inyectado(monkeypatch, JIO)
+    dormir_real = JIO.time.sleep
+
+    def dormir(segundos):
+        dormir_real(segundos)
+        if reloj["t"] - 1000.0 >= termina_a and tmp.exists():
+            os.remove(tmp)                             # el inicializador hace `unlink` del temporal
+
+    JIO.time.sleep = dormir
+    return JIO, str(f)
+
+
+@pytest.mark.parametrize("termina_a", [0.05, 0.3, 0.4])
+def test_una_inicializacion_viva_de_menos_de_medio_segundo_sigue_leyendo_bien(tmp_path, monkeypatch, termina_a):
+    JIO, f = _inicializacion_viva(tmp_path, monkeypatch, termina_a)
+    assert JIO.read_settled(f) == b"hola"
+
+
+def test_una_inicializacion_que_pasa_de_medio_segundo_agota_el_tope_con_unsafe_state(tmp_path, monkeypatch):
+    JIO, f = _inicializacion_viva(tmp_path, monkeypatch, 0.8)
+    with pytest.raises(ValueError, match="unsafe_state"):
+        JIO.read_settled(f)
+
