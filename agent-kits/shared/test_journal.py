@@ -16,6 +16,7 @@ import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from types import SimpleNamespace
 
 import pytest
 
@@ -3302,6 +3303,19 @@ def test_inicializador_de_la_cola_sigue_rechazando_un_enlace_duro_persistente(tm
 
 # --- T-23 fix11, gaps 8 y 10 del intento 11: la espera del estado transitorio solo vale con un `.tmp-*` hermano con el MISMO
 # inodo (inicializacion en curso) y reciente; sin el, `unsafe_state` al instante. La rama de escritura recibe la misma espera. ---
+def _reloj_inyectado(monkeypatch, JIO, inicio=1000.0, reloj_pared=time.time):
+    """Reloj del modulo `journal-io` inyectado (fix12, gap 5): `monotonic` solo avanza al dormir y `sleep` no duerme, asi que
+    un test mide cuantas veces y cuanto se ESPERA, sin depender de la carga de la maquina."""
+    estado = {"t": inicio, "dormido": []}
+
+    def dormir(segundos):
+        estado["dormido"].append(segundos)
+        estado["t"] += segundos
+
+    monkeypatch.setattr(JIO, "time", SimpleNamespace(monotonic=lambda: estado["t"], sleep=dormir, time=reloj_pared))
+    return estado
+
+
 def _enlace_plantado(tmp_path):
     proj, _ = proyecto(tmp_path, con_git=False)
     dir_ = journal._journal_queue_dir(str(proj))
@@ -3312,34 +3326,33 @@ def _enlace_plantado(tmp_path):
     return dir_, marcador
 
 
-def test_un_enlace_duro_plantado_sin_tmp_hermano_falla_al_instante(tmp_path):
+def test_un_enlace_duro_plantado_sin_tmp_hermano_falla_al_instante(tmp_path, monkeypatch):
     dir_, marcador = _enlace_plantado(tmp_path)
     JIO = journal._capture_mod.JIO
+    reloj = _reloj_inyectado(monkeypatch, JIO)
     for operacion in (lambda: JIO.read_settled(marcador), lambda: JIO.queue(dir_), lambda: journal._asegurar_gitignore_local(dir_)):
-        t = time.perf_counter()
         with pytest.raises(ValueError, match="unsafe_state"):
             operacion()
-        assert time.perf_counter() - t < 0.05, "no hay inicializacion en curso: no hay nada que esperar"
+        assert reloj["dormido"] == [], "no hay inicializacion en curso: no hay nada que esperar (ni una dormida)"
 
 
-def test_un_tmp_hermano_con_otro_inodo_no_justifica_la_espera(tmp_path):
+def test_un_tmp_hermano_con_otro_inodo_no_justifica_la_espera(tmp_path, monkeypatch):
     dir_, marcador = _enlace_plantado(tmp_path)
     with open(os.path.join(dir_, ".tmp-otro"), "wb"):
         pass                                          # un `.tmp-` que no comparte inodo con el marcador
-    t = time.perf_counter()
+    reloj = _reloj_inyectado(monkeypatch, journal._capture_mod.JIO)
     with pytest.raises(ValueError, match="unsafe_state"):
         journal._capture_mod.JIO.read_settled(marcador)
-    assert time.perf_counter() - t < 0.05
+    assert reloj["dormido"] == []
 
 
 def test_un_tmp_hermano_antiguo_con_el_mismo_inodo_falla_al_instante(tmp_path, monkeypatch):
     dir_, extra = _dos_enlaces(tmp_path)              # `.tmp-carrera` comparte inodo con el marcador
     real = time.time
-    monkeypatch.setattr(journal._capture_mod.JIO.time, "time", lambda: real() + 3600)   # el temporal tiene una hora
-    t = time.perf_counter()
+    reloj = _reloj_inyectado(monkeypatch, journal._capture_mod.JIO, reloj_pared=lambda: real() + 3600)   # el temporal tiene una hora
     with pytest.raises(ValueError, match="unsafe_state"):
         journal._capture_mod.JIO.read_settled(os.path.join(dir_, ".custom-agents-journal"))
-    assert time.perf_counter() - t < 0.05, "un inicializador muerto no se espera"
+    assert reloj["dormido"] == [], "un inicializador muerto no se espera"
 
 
 def test_la_rama_de_escritura_espera_al_ganador_de_la_carrera(tmp_path, monkeypatch):
@@ -3387,3 +3400,51 @@ def test_settling_distingue_asentado_en_curso_y_plantado(tmp_path):
     assert JIO.settling(a) is True                      # inicializacion en curso
     os.remove(tmp)
     assert JIO.settling(a) is True                      # el temporal se borro: ya esta asentado
+
+
+# --- T-23 fix12, gap 6 del intento 12: con un `.tmp-` vivo la espera esta acotada en TIEMPO TOTAL (reloj monotonico), no en
+# intentos: antes cada uno de los 40 intentos volvia a listar el directorio (4,9 s con 10 K entradas + 1 K `.tmp-`). ---
+def _directorio_grande(tmp_path, entradas, temporales):
+    d = tmp_path / "grande"
+    d.mkdir()
+    for i in range(entradas):
+        (d / f"e{i}.json").write_bytes(b"")
+    for i in range(temporales):
+        (d / f".tmp-{i}").write_bytes(b"")
+    fichero = d / "f"
+    fichero.write_bytes(b"x")
+    os.link(fichero, d / ".tmp-vivo")                  # inicializacion en curso que no acaba nunca
+    return str(fichero)
+
+
+@pytest.mark.parametrize("operacion", ["read_settled", "update"])
+def test_la_espera_con_un_tmp_vivo_esta_acotada_en_tiempo_total_con_reloj_inyectado(tmp_path, monkeypatch, operacion):
+    JIO = journal._capture_mod.JIO
+    fichero = _directorio_grande(tmp_path, 50, 5)
+    reloj = _reloj_inyectado(monkeypatch, JIO)
+    escaneos = []
+    original = JIO.initializing
+
+    def inicializando(path):
+        escaneos.append(1)
+        reloj["t"] += 0.1                              # cada listado del directorio «cuesta» 0,1 s de reloj monotonico
+        return original(path)
+
+    monkeypatch.setattr(JIO, "initializing", inicializando)
+    with pytest.raises(ValueError, match="unsafe_state|journal_update_conflict"):
+        if operacion == "read_settled":
+            JIO.read_settled(fichero)
+        else:
+            JIO.update(fichero, lambda raw: raw + b"y")
+    assert reloj["t"] - 1000.0 < 1.2, f"espera simulada de {reloj['t'] - 1000.0:.2f} s: no hay tope total"
+    assert len(escaneos) <= 10, f"{len(escaneos)} listados del directorio: la espera se acota por intentos, no por tiempo"
+
+
+def test_con_10k_entradas_y_1k_tmp_la_espera_cuesta_menos_de_un_segundo_de_cpu(tmp_path):
+    fichero = _directorio_grande(tmp_path, 10000, 1000)
+    JIO = journal._capture_mod.JIO
+    inicio = time.process_time()
+    with pytest.raises(ValueError, match="unsafe_state"):
+        JIO.read_settled(fichero)
+    gastado = time.process_time() - inicio
+    assert gastado < 1.0, f"{gastado:.2f} s de CPU con 10.000 entradas + 1.000 `.tmp-`"
