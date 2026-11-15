@@ -102,7 +102,9 @@ sin corrección**: variables como programa u opción (`g=git; $g reset --hard`,
 `X='git restore .'; eval "$X"`), código por stdin hacia un intérprete
 (`echo '…' | bash`, `bash <<< '…'`, `bash <(echo …)`), `find -exec git …`,
 `source ./script.sh` cuyo contenido cambia de directorio o lanza git, `trap 'cd …' DEBUG`
-(se ejecuta ANTES de cada orden: fix8, `LIMITE7`), `xargs git …` con un
+(se ejecuta ANTES de cada orden: fix8, `LIMITE7`), una sustitución como palabra de mando
+(`$(true) git reset --hard`, `` `true` git restore . ``: bash ejecuta lo que sigue; fix11,
+`LIMITE11`), `xargs git …` con un
 subcomando no destructivo de ficheros, un heredoc a `python3`/`perl`/`ex` con
 código que arranca git por dentro, y los ficheros de configuración o scripts que
 escriba el propio agente (ADR-023, ADR-007). `test_guardrail_differential.py`
@@ -122,7 +124,12 @@ sesión de otra ubicación CONOCIDA conserva el salto documentado; dos ubicacion
 la clave del rol se busca en TODO el flujo (un escáner lineal con una ventana deslizante de memoria
 constante y SIN tope de tamaño, sin parsear el JSON entero), porque el orden de las claves no es contrato; el adaptador Python y el lanzador usan el mismo patrón y un test de paridad les pasa el mismo corpus (fix9). Límite del modelo de amenaza (fix9): la lectura del lanzador tiene un plazo de 4,5 s, así que un payload hostil de claves densas de 128 MiB o más agota el plazo antes de llegar al rol y sale `continue` (antes de fix8 ocurría ya por encima de 16 MiB); ninguna herramienta de un agente honesto produce una entrada así; una excepción
 dentro del evaluador es `evaluator-unavailable` (deniega) y solo la validación del
-esquema antes de evaluar produce `input-unrecognized` (permisos normales).
+esquema antes de evaluar produce `input-unrecognized` (permisos normales). El modo `pre-tool` de
+`guardrail-check.py` (la ruta heredada de la copia del paquete) sigue el mismo criterio (fix12): una
+excepción interna de su `main()` (también un `realpath` que lanza `ValueError` o `UnicodeEncodeError` con un
+surrogate suelto) deniega con un motivo explícito; un stdin que no es JSON se sigue permitiendo. `$'…'` se
+delimita por pares `\X` como el lexer de bash y solo después se decodifica (`\cX`, `\xHH`, `\x{H…}` de
+bash 5.2, octal, `\u`, `\U`).
 Los tres runtimes pasan por el mismo lanzador y se comportan igual
 (`tests/test_native_guard_failclosed.py`, `tests/hook-guard-failclosed.test.mjs`).
 
