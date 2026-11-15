@@ -5,6 +5,8 @@ Gaps 9 y 10: el tope de 0,5 s era por llamada a `settled`, asi que con el direct
 tambien se esperaba dos veces (1,2 s de proceso), y `queue()` recorria sin cota (2,9 a 10,5 s con 50 K + 5 K entradas ajenas).
 Ahora hay UN plazo monotonico para todo el proceso de captura (`begin_budget`, que abre `capture_end`) compartido por `settled`,
 `update`, el directorio de reserva y `queue()` (que lo mira cada 256 entradas). Relojes inyectados: no dependen de la maquina.
+El plazo del proceso es de 0,35 s (`_PRESUPUESTO_PROCESO`): con 0,5 s el hijo en frio midio 624-855 ms con 50 K + 5 K y la cola
+configurada fallida (2 de 10 por encima de los 800 ms del hook); cada llamada suelta de `read_settled` conserva su tope de 0,5 s.
 """
 import json
 import os
@@ -14,7 +16,12 @@ import pytest
 
 from test_journal import _directorio_grande, _reloj_inyectado, journal, proyecto, session_end_payload
 
-TOPE = 0.5
+TOPE = 0.35                                            # `_PRESUPUESTO_PROCESO`; el tope de cada llamada suelta sigue siendo 0,5 s (`_ESPERA_MAX`)
+
+
+def test_el_presupuesto_del_proceso_es_de_0_35_s_y_el_tope_de_una_llamada_suelta_sigue_en_0_5_s():
+    JIO = journal._capture_mod.JIO
+    assert JIO._PRESUPUESTO_PROCESO == TOPE and JIO._ESPERA_MAX == 0.5
 
 
 def _con_tmp_vivo(carpeta, nombre):
@@ -49,7 +56,7 @@ def test_sin_presupuesto_cada_llamada_conserva_su_propio_tope(tmp_path, monkeypa
     for fichero in (a, b):
         with pytest.raises(ValueError, match="unsafe_state"):
             JIO.read_settled(str(fichero))
-    assert reloj["t"] - 1000.0 > TOPE + 0.3, "sin begin_budget cada llamada espera su tope"
+    assert reloj["t"] - 1000.0 > 0.9, "sin begin_budget cada llamada espera su tope propio de 0,5 s"
 
 
 def test_end_budget_reinicia_el_plazo_para_la_siguiente_captura(tmp_path, monkeypatch):
@@ -63,7 +70,7 @@ def test_end_budget_reinicia_el_plazo_para_la_siguiente_captura(tmp_path, monkey
                 JIO.read_settled(str(fichero))
         finally:
             JIO.end_budget()
-    assert reloj["t"] - 1000.0 > TOPE + 0.3, "el segundo proceso de captura recibe un plazo NUEVO, no el agotado del primero"
+    assert reloj["t"] - 1000.0 > 2 * TOPE - 0.05, "el segundo proceso de captura recibe un plazo NUEVO, no el agotado del primero"
 
 
 def _cola_de_ficheros(tmp_path, n):

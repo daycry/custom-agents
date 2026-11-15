@@ -129,8 +129,15 @@ esquema antes de evaluar produce `input-unrecognized` (permisos normales). El mo
 excepción interna de su `main()` (también un `realpath` que lanza `ValueError` o `UnicodeEncodeError` con un
 surrogate suelto) deniega con un motivo explícito; un stdin que no es JSON se sigue permitiendo. `$'…'` se
 delimita por pares `\X` como el lexer de bash y solo después se decodifica (`\cX`, `\xHH`, `\x{H…}` de
-bash 5.2, octal, `\u`, `\U`); un `\c` seguido de un carácter no ASCII deja la lectura incompleta (fix13: bash
-aplica el control al primer byte UTF-8 y el resultado depende del locale, así que no se emula; con git o cambio de base se deniega).
+bash 5.2, octal, `\u`, `\U`); un `\c` seguido de un carácter no ASCII es una lectura **opaca** (fix13 lo marcó incompleta; fix14 lo deniega siempre: bash
+aplica el control al primer byte UTF-8 y el resultado depende del locale, así que no se emula, y git puede llegar escapado o partido
+sin el texto `git`). Son lecturas **opacas** —el guardarraíl pierde texto o no sabe qué ejecuta— `\c` + no ASCII, `\U` fuera de rango,
+un anidado de más de 20 niveles y un LF/VT/FF/CR suelto en el valor de `env -S` (coreutils 8 y 9 lo leen distinto): se **deniegan
+siempre** para el rol protegido, con o sin git, y el motivo nombra la forma. En el resto de lecturas incompletas (`case` fuera de la lista
+blanca, comillas o heredoc sin cerrar) git se busca sin distinguir mayúsculas (`GIT`, `Git`) en el texto crudo, en cada palabra decodificada
+y en un texto aplanado (escapes numéricos aplicados, sin comillas ni barras), y la marca se hereda al reanalizar `bash -c`/`eval`. Una
+opción de envoltorio que el guardarraíl no conoce (p. ej. `nice -+5`) deniega con git en cualquier grafía o con un intérprete (`bash`,
+`sh`, `eval`, `env`, `xargs`…) detrás.
 Los tres runtimes pasan por el mismo lanzador y se comportan igual
 (`tests/test_native_guard_failclosed.py`, `tests/hook-guard-failclosed.test.mjs`).
 
@@ -141,8 +148,9 @@ sus asignaciones y scripts quedan fuera de esta gramática literal. No
 constituye un sandbox. `{"git": false}` desactiva esta regla en
 `.claude/dev.json` → `guardrails`.
 
-Degradación: sin `python3` el hook avisa una vez (`systemMessage`) y no bloquea; un error interno
-del script **deniega** con un motivo explícito (falla cerrado, fix12: el modo `pre-tool` solo lo lanzan
+Degradación: con el lanzador del plugin (`hooks/run-hook.mjs`), sin `python3` se **deniega** al rol protegido (intérprete ausente, ver
+arriba) y se continúa para el resto; solo el envoltorio heredado `hooks/implementer-guardrail.sh` avisa una vez (`systemMessage`) y no
+bloquea. Un error interno del script **deniega** con un motivo explícito (falla cerrado, fix12: el modo `pre-tool` solo lo lanzan
 los hooks del rol protegido, implementer y architect; permitir ante una excepción abriría justo la
 protección que existe para ellos), y un stdin que no es JSON sigue permitiéndose. Desactivación: `.claude/dev.json` →
 `"guardrails": false` (todo, con aviso) o `{"alcance": false, …}` por regla. **Un DENY no es un

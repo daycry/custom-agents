@@ -318,11 +318,14 @@ SCHEMA_ACEPTADOS = _schema_aceptados(SCHEMA_VERSION)
 
 
 def capture_end(root, payload):
+    JIO.begin_budget()             # fix14: UN plazo para todo el proceso de captura (esperas, reserva y recorrido de la cola)
     try:
         return _capture_end(root, payload)
     except (OSError, ValueError, AttributeError):
         print('journal: captura omitida por almacenamiento inseguro o no disponible', file=sys.stderr)
         return None
+    finally:
+        JIO.end_budget()
 
 
 def main(argv=None):

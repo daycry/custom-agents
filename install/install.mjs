@@ -1313,6 +1313,9 @@ function correr(cmd, args, cwd, env = process.env) {
     // para siempre y sin una línea en pantalla. 120 s de sobra; `CUSTOM_AGENTS_EXEC_TIMEOUT_MS`
     // para quien tenga una máquina lenta o quiera apretarlo en CI.
     timeout: TIMEOUT_EXEC,
+    // fix14: fuera de Windows el hijo lidera su propio grupo de procesos (`setsid`), así `matarArbol` puede matar con `kill(-pid)` al
+    // grupo entero cuando expira (sin esto el `kill(-pid)` daba ESRCH y el nieto —la CLI nativa de verdad— se quedaba vivo).
+    ...(process.platform === "win32" ? {} : { detached: true }),
   }
   const real = rutaDe(cmd)
   if (!real) {

@@ -195,19 +195,22 @@ def _ejecutar_en_locale(tmp_path, ordenes, locale):
     base.mkdir()
     shim = base / "shim"
     shim.mkdir()
-    (shim / "git").write_bytes(b"#!/bin/sh\necho GITRAN\n")
-    os.chmod(shim / "git", 0o755)
+    for nombre in ("git", "GIT", "Git"):         # en un sistema de ficheros sin distinguir mayusculas (Windows) los tres son el mismo fichero
+        (shim / nombre).write_bytes(b"#!/bin/sh\necho GITRAN\n")
+        os.chmod(shim / nombre, 0o755)
     cabecera = "".join(f"{n}() {{ echo GITRAN; }}\nexport -f {n}\n" for n in ("git", "GIT", "Git"))
     for k, orden in enumerate(ordenes):
         (base / f"s_{k}.sh").write_bytes((cabecera + orden + "\n").encode("utf-8"))
     entorno = ("export LANG=" + locale + "\n") if locale else "unset LANG LC_ALL LC_CTYPE\n"
     lanzador = base / "l.sh"
     lanzador.write_bytes((entorno + "export PATH=\"$PWD/shim:$PATH\"\nexport GIT_DIR=/inexistente-fix14\n"
+                          "for n in git GIT Git; do case \"$(type -P $n)\" in \"$PWD\"/shim/*) ;; *) echo \"SHIM-NO-$n\"; exit 3;; esac; done\n"
                           f"for k in $(seq 0 {len(ordenes) - 1}); do echo \"@@$k\"; bash \"s_$k.sh\" 2>/dev/null </dev/null; done\n").encode())
     env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
     env.pop("LANG", None), env.pop("LC_ALL", None)
     r = subprocess.run([BASH, str(lanzador)], cwd=str(base), env=env, capture_output=True, text=True, encoding="utf-8",
                        errors="replace", timeout=900, stdin=subprocess.DEVNULL)
+    assert "SHIM-NO-" not in r.stdout, f"el git falso no es el primero del PATH: {r.stdout[:80]!r}"
     corre, actual = {}, None
     for linea in r.stdout.splitlines():
         if linea.startswith("@@"):

@@ -84,6 +84,32 @@ _ESPERA_MAX = 0.5     # segundos de reloj monotonico: tope TOTAL de la espera de
                       # el hijo de SessionEnd salga con error limpio dentro de los 800 ms del hook, arranque de Python incluido)
 
 
+_PRESUPUESTO_PROCESO = 0.35   # segundos: plazo de TODO el proceso de captura (fix14; medido: con 0,5 s el hijo de SessionEnd en frio tardaba
+                              # 624-855 ms con 50 K + 5 K y la cola configurada fallida, 2 de 10 por encima de los 800 ms del hook)
+_PRESUPUESTO = {'activo': False, 'limite': None}   # fix14: plazo POR PROCESO de la captura, compartido por todas las esperas
+
+
+def begin_budget():
+    """Abre el presupuesto POR PROCESO de la captura (fix14, gaps 9 y 10): UN plazo monotonico de `_PRESUPUESTO_PROCESO`, fijado en la primera
+    espera o recorrido, que comparten `settled`, `update`, el directorio de reserva y `queue()`. Sin el, cada llamada tenia su propio
+    tope y la reserva esperaba otros 0,5 s tras fallar la cola configurada. Lo abre `capture_end` (el hijo de SessionEnd) y lo cierra
+    `end_budget`; fuera de la captura cada llamada conserva su tope propio."""
+    _PRESUPUESTO['activo'], _PRESUPUESTO['limite'] = True, None
+
+
+def end_budget():
+    _PRESUPUESTO['activo'], _PRESUPUESTO['limite'] = False, None
+
+
+def _plazo():
+    """Limite (reloj monotonico) de la espera que empieza ahora: el del proceso si hay presupuesto abierto, si no uno nuevo."""
+    if not _PRESUPUESTO['activo']:
+        return time.monotonic() + _ESPERA_MAX
+    if _PRESUPUESTO['limite'] is None:
+        _PRESUPUESTO['limite'] = time.monotonic() + _PRESUPUESTO_PROCESO
+    return _PRESUPUESTO['limite']
+
+
 def initializing(path, limit=None):
     """True solo si `path` esta en el estado transitorio de una creacion exclusiva EN CURSO (T-23 fix11, gaps 8 y 10): el
     inodo de `path` tiene un `.tmp-*` HERMANO con el mismo (dispositivo, inodo) y reciente. Un enlace duro sin ese temporal
@@ -132,7 +158,7 @@ def settled(operation, path):
     exist against hard-linked files). Like `update`, wait for it, never adopt it: a link that stays (a planted hard link)
     exhausts the bound (a TOTAL of 0.5 s of monotonic clock, `_ESPERA_MAX`, fix12/fix13: every attempt lists the directory, and the listing itself checks the bound) and the original `unsafe_state` is raised. Only an initialization IN PROGRESS is waited for
     (a recent sibling `.tmp-*` with the same inode, `initializing`): a hard link without it fails at once (fix11, gap 10)."""
-    limit = time.monotonic() + _ESPERA_MAX
+    limit = _plazo()
     for attempt in range(40):
         try:
             return operation()
@@ -168,7 +194,7 @@ def write(path, raw, *, owned_prefix=None, allow_degraded_sync=False):
 def update(path, transform):
     """Retry observed cooperating conflicts without losing another writer's bytes."""
     path = Path(path).absolute()
-    limit = time.monotonic() + _ESPERA_MAX
+    limit = _plazo()
     for attempt in range(12):
         IO.dirs(path.parent)
         try:
@@ -248,8 +274,11 @@ def queue(path):
     path = Path(path).absolute()
     if not directory(path):
         return
+    limit = _plazo() if _PRESUPUESTO['activo'] else None   # fix14 (gap 10): con presupuesto, el recorrido tambien esta acotado
     with os.scandir(path) as listing:
-        for item in listing:
+        for k, item in enumerate(listing):
+            if limit is not None and not k & 255 and time.monotonic() >= limit:
+                raise ValueError('journal_queue_budget')        # cada 256 entradas: 50 K ajenas ya no cuestan segundos
             if item.name.startswith('.tmp-'):continue  # Never adopt another initializer's private temporary.
             target = Path(item.path); info = target.lstat()
             need(not IO.reader._redirected(info), 'unsafe_journal_queue')
