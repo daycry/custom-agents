@@ -1887,10 +1887,12 @@ test("gap 7: el marketplace del usuario NO se borra sin permiso; --force-marketp
 /** Un `codex` que no termina nunca (para el timeout). */
 function codexColgado(bin) {
   const p = join(bin, process.platform === "win32" ? "codex.cmd" : "codex")
+  // Marca el INICIO del cuelgue (el mtime de `inicio.flag`): el test mide desde ahi, no el instalador entero (fix12, gap 2).
   if (process.platform === "win32") {
     writeFileSync(p, [
       "@echo off",
       "if \"%~1\"==\"--version\" (echo codex-cli 0.130.0& exit /b 0)",
+      "copy /y nul \"%~dp0inicio.flag\" > nul",
       "ping -n 40 127.0.0.1 > nul",
       "exit /b 0",
       "",
@@ -1899,6 +1901,7 @@ function codexColgado(bin) {
     writeFileSync(p, [
       "#!/bin/sh",
       "if [ \"$1\" = \"--version\" ]; then echo 'codex-cli 0.130.0'; exit 0; fi",
+      ": > \"$(dirname \"$0\")/inicio.flag\"",
       "sleep 40",
       "",
     ].join("\n"))
@@ -1915,10 +1918,13 @@ test("gap 8: una CLI colgada no bloquea el instalador (timeout) y se dice qué s
     codexColgado(bin)
     const env = conPath([bin, SIN_CLI].join(delimiter),
       { HOME: hogar, USERPROFILE: hogar, CUSTOM_AGENTS_EXEC_TIMEOUT_MS: "2000" })
-    const t0 = Date.now()
     const out = cli(["install", "-p", "codex", "--scope", "user", "-y"], { env })
-    const tardo = Date.now() - t0
-    assert.ok(tardo < 30_000, `el timeout no cortó: ${tardo} ms`)
+    const fin = Date.now()
+    // Causa raiz (fix12, gap 2): el instalador entero tarda de 7 s (reposo) a 30 s (CPU saturada) o mas (antivirus) solo en
+    // colocar los 495 ficheros, ANTES de lanzar la CLI colgada: la cota de 30 s no mide el timeout sino el disco. Se mide
+    // desde que arranca el `codex` colgado (el mtime de su marca): plazo de 2 s + matar el arbol, cota de 30 s intacta.
+    const tardo = fin - statSync(join(bin, "inicio.flag")).mtimeMs
+    assert.ok(tardo < 30_000, `el timeout no cortó: ${tardo} ms desde que arrancó la CLI colgada`)
     assert.match(out, /ejecutando/, "antes de lanzar hay que decir qué se lanza")
     assert.match(out, /codex plugin marketplace add/)
     assert.ok(!existsSync(join(hogar, ".codex", "config.toml")), "sin registro exitoso no se habilita")
