@@ -1309,12 +1309,12 @@ function matarArbol(pid) {
  * no hacía nada hasta el plazo de 120 s; sin él, el instalador moría y la CLI quedaba huérfana). Dos piezas, ninguna en JS:
  *  1) mientras espera, se QUITAN los manejadores de SIGINT/SIGTERM/SIGHUP: la acción por defecto termina al instalador al instante;
  *  2) el hijo se lanza tras un VIGILANTE de `sh` (un subproceso del propio grupo): mientras el instalador y la CLI viven, espera; si el
- *     instalador desaparece por cualquier vía (señal, SIGKILL, fallo), mata el grupo entero (`kill -KILL -- -pgid`), nieto incluido. Si es la CLI
+ *     instalador desaparece por cualquier vía (señal, SIGKILL, fallo), mata el grupo entero (`kill -9 -pgid`: `dash` no admite `--` tras la señal), nieto incluido. Si es la CLI
  *     la que acaba, el vigilante sale solo (y `matarArbol` se ocupa del timeout). El vigilante no tiene stdio: no retiene las tuberías.
  */
 const SENALES_DE_PARADA = ["SIGINT", "SIGTERM", "SIGHUP"]
 const VIGILANTE = 'p=$1; shift; m=$$; ( while kill -0 "$p" 2>/dev/null && kill -0 "$m" 2>/dev/null; do sleep 0.2 2>/dev/null || sleep 1; done; '
-  + 'kill -0 "$p" 2>/dev/null || kill -KILL -- "-$m" 2>/dev/null ) </dev/null >/dev/null 2>&1 & exec "$@"'
+  + 'kill -0 "$p" 2>/dev/null || kill -9 "-$m" 2>/dev/null ) </dev/null >/dev/null 2>&1 & exec "$@"'
 
 function sinManejadoresDeSenal(fn) {
   const guardados = SENALES_DE_PARADA.map((s) => [s, process.listeners(s)])
