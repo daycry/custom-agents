@@ -287,7 +287,6 @@ BAD11_PARIDAD = [
     "tee >( (case x in x) {D};; esac) ) </dev/null",
     "x=$( (case x in x) {D};; esac) )",
     "echo $(true && (case x in x) {D};; esac))",
-    "cat >( (case x in x) {D};; esac) )",
     "echo $(true; (case \"$f\" in *) {D};; esac))",
     'echo "$( (case x in x) {D};; esac) )"',
     "echo $(if true; then (case x in x) {D};; esac); fi)",
@@ -343,6 +342,7 @@ BAD11_PARIDAD = [
 ]
 # Deny sin efecto reproducible en bash (sintaxis invalida o `esac` como patron cierra el `case`): solo se exige el deny.
 SIN_PARIDAD_11 = [
+    "cat >( (case x in x) {D};; esac) )",           # `cat >(…)` se cuelga en Linux (cat lee el extremo de escritura): sin paridad; `tee >(…) </dev/null` la conserva
     "cat <(x=1 case x in x) {D};; esac)",           # `x=1 case`: en bash NO es un case (asignacion antes de la reservada)
     "cat <(case x in (esac|*) {D};; esac)",
     "cat <(case x in esac|*) {D};; esac)",
