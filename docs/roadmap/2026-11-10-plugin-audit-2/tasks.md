@@ -1456,48 +1456,67 @@ Tras este ciclo, verificación dirigida con las cuatro lentes, con el corpus dif
 - 2026-11-14 · «Revisión de dos lentes — intento 9: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix8: 2 Important, 6 Minor» → [execution-history.md](execution-history.md) · SHA-256 `1b1b64ce4682195575ef02b8c5d3959a52d6ef75f1414f85145000fd4b88c9d7`
 - 2026-11-15 · «Revisión de dos lentes — intento 6: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix5: 7 Important, 9 Minor; cambio de modelo decidido por el usuario» → [execution-history.md](execution-history.md) · SHA-256 `6715d672c9310ff6f6f2982c80fde254dfc9f379b7a5f14ad09e38735c8d7c5c`
 - 2026-11-15 · «Revisión de dos lentes — intento 10: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix9: 2 Important, 7 Minor» → [execution-history.md](execution-history.md) · SHA-256 `84599c0fd709810da0c69dacc4dc44dd1ed2779cbd3b43a53b2af6925d439153`
+- 2026-11-15 · «Revisión de dos lentes — intento 11: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix10: 4 Important, 8 Minor» → [execution-history.md](execution-history.md) · SHA-256 `86e07fb16541591b6bbbe0316308e2176077dd1cff1e5d0b1ed5eb68a0609cd7`
 
-## Revisión de dos lentes — intento 11: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix10: 4 Important, 8 Minor
+## Revisión de dos lentes — intento 12: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix11: 2 Important, 9 Minor
 
-Lentes: A+B+C+D sobre `d938cab..8e7c0a0`, dos a dos por memoria.
+Lentes: A+B+C+D sobre `e4b2f7f..a5ba181`, dos a dos por memoria. Más la suite node de Windows, que corrió el orquestador.
 
-**Cerrado del intento 10:**
-- Gaps 2-9. OpenCode compara por `resolve()` ∪ `realpath`, la caché de 5 s guarda fallos y no fija la ruta en `setup`; tests 4/4.
-- `env -S` solo por espacio y tabulador, con LF/VT/FF/CR sueltos denegados (8.x y 9.x difieren).
-- Paridad `[ \t\n\r]`, presupuestos del journal con reloj congelado y comentarios de la demo.
-- Carrera `nlink == 2` del journal en la rama de lectura: 0 errores en 60 rondas.
-- Las formas del gap 1 dan deny. Réplica Linux de fix10: 13.001 + 58 passed, node 528, 0 rojos.
+**Cerrado del intento 11:**
+- Los gaps 1 a 12.
+- **Lista blanca de `case`.** Fuzz de la Lente B con 67.584 órdenes: git en el cuerpo, 16 cabeceras, 11 patrones, 3 terminadores y 8 envolturas. Da 0 regresiones frente a d938cab y frente a 8e7c0a0. Las 31 formas en bash real ejecutan git y el guard las deniega.
+- **Coste lineal.** `bang_64k` pasa de 97,8 s a 0,33 s. A 256 KB todo queda por debajo de 0,8 s.
+- **Journal.** Un enlace duro plantado sin `.tmp-` falla en 16-124 ms.
+- **OpenCode.** Un `realpath` indeterminado guarda la sesión.
+- **`implementer.md:92`.** Corregido.
+- **RED real.** Con el código de e4b2f7f fallan 29 tests y pasan 18; en HEAD pasan 47.
 
-**Interpretaciones del implementer:** i2 (test de fix9 reescrito), i3 (`case` anidado → deny) e i4 (las dos condiciones de `env -S`) se aceptan. La i1 (fallo de `realpath` cacheado ⇒ sesión propia `foreign` 5 s) **no** se acepta: choca con el fallo cerrado (gap 9).
+**Interpretaciones aceptadas:**
+- **i1:** un `ENOENT` es una respuesta cierta. Un UNC inalcanzable da `UNKNOWN`, que es indeterminado.
+- **i2:** `x=1 case …` es un error de sintaxis en bash.
+- **i5:** el deny nuevo alcanza formas plausibles como `git log -- $(grep -rl case src)`. Es lo que pide el diseño: ante la duda, deny.
+- **i6.**
 
-**El lector de `case` no converge.** Cada lente encuentra una forma nueva que bash ejecuta y el lector no sigue. El fuzz de fix10 solo ponía el git destructivo FUERA del `case`; con git dentro del cuerpo da 144 regresiones en 1.560 órdenes.
-
-Incidente de la Lente C, sin efecto: su primera pasada usó el bash de WSL y ejecutó un `git reset --hard` real en el scratchpad, que no es un repositorio (fatal). Repetido con el bash de Git for Windows y un `git` falso.
+**Rojo fuera de las lentes, en Windows.** El orquestador corrió la suite node completa.
+- `tests/codex-plugin-state.test.mjs`: la regex no aceptaba CRLF. Lo corrigió el orquestador en `6e41dfe`, declarado en `Archivos` de T-23.
+- `tests/installer.test.mjs`: 184 pass y 1 fail (gap 2).
 
 | # | Grado | Gap | Tarea | Corrección | Evidencia |
 |---|---|---|---|---|---|
-| 1 | Important | Regresión del fix10: un `case` dentro de un subshell `( … )` en una sustitución. Con `par>0` el `)` del patrón cae al separador, el estado sigue en patrones, el cuerpo se descarta y `esac` cierra sin `incompleta`. `cat <( (case x in x) git restore .;; esac) )` → allow (deny en d938cab), con el centinela perdido en bash 5.2.37. También con `;`, `&&`, `if`, funciones y anidado. Verificado por el orquestador | T-06 | fix11 p1: `case` por lista blanca (subshell → incompleta) | Lentes A y B: `guardrail-check.py:571,575,586,603,606,613`; `la11/p1.py`, `lb11/fuzz11b.py` |
-| 2 | Important | Regresión del fix10: `in(` sin espacio. `echo $(case x in(x) git reset --hard;; esac)` → allow (deny en d938cab). Verificado por el orquestador | T-06 | fix11 p1: `in(` → incompleta | Lente B: `guardrail-check.py:568,597,603,606` |
-| 3 | Important | No es regresión. Tras `time -p`, `time --`, `coproc` o `function f`, bash reconoce `case` como reservada y el lector no: el primer `)` cierra `<(…)`. `cat <(time -p case x in x) git reset --hard;; esac)` → allow, git ejecutado | T-06 | fix11 p1: tras `time`/`coproc`/`function`/`!` → incompleta | Lente C: `guardrail-check.py:395-400,411-414` (`_PREFIJOS_ORDEN`); `lc11/c1.txt` |
-| 4 | Important | `_empieza_orden` recorre todo `cur` por cada palabra de una sustitución: O(n²) con palabras de prefijo. `echo $(! ! … )` de 32 KB → 12 s y de 64 KB → 47 s (d938cab: 0,09 s). Pasa el plazo de 10 s del hook: deny falso tras 9 s de bloqueo. Con git, 0,35 s. Rompe la garantía lineal documentada | T-06 | fix11 p2: `_empieza_orden` retirado, O(1) por palabra (64 KB: 0,1 s) | Lente D: `guardrail-check.py:398-399,411,597,1295-1299`; `ld11/b1.py` |
-| 5 | Minor | Palabras de cabecera citadas o escapadas cuentan como reservadas (`"case"`, `"esac"`, `"then"`, `\then`). `cat <("case" x in; git reset --hard; "esac")` y `cat <("then" case x in ; git reset --hard; "esac")` → allow (deny en d938cab). Son formas deliberadas | T-06 | fix11 p1: palabra «plana» (citada o escapada → incompleta) | Lentes B y C: `guardrail-check.py:395-400,577,587,597,603` |
-| 6 | Minor | `esac` como patrón (`case esac in "esac")`, `\esac)`, `x\|esac)`) cierra la sustitución. Ya en d938cab | T-06 | fix11 p1: `esac` como patrón o argumento → incompleta | Lente C: `guardrail-check.py:571-572,586-588` |
-| 7 | Minor | `$'…'` toma el carácter crudo tras la barra: `env -S $'git\trestore .'` y `$'git\x20restore\x20.'` → allow, bash ejecuta git restore. Ya en d938cab; codificación deliberada | T-06 | fix11 p3: `$'…'` se decodifica como bash | Lente B: `guardrail-check.py:462-467` |
-| 8 | Minor | Carrera del gap 9 del intento 10 en la rama de escritura: si el ganador hace `os.link` entre el `lexists` de `_asegurar_gitignore_local` y el de `write`, `IO.read` lanza `unsafe_state` sin esperar. Excepción, sin pérdida | T-23 | fix11 p4: rama write con la misma espera | Lente B: `journal-capture.py:297-299`, `journal-io.py:110-111`; `lb11/jr.py` |
-| 9 | Minor | i1 no aceptada: si falla el primer `realpath` y la sesión llega con otra forma de ruta, la sesión propia sale `foreign` durante 5 s, sin guard para el rol protegido. La Lente C confirma que guardar de más solo ejecuta el guard con el cwd de la sesión | T-06 | fix11 p5: fallo de `realpath` → indeterminada → guardada | Lentes B y C: `opencode-plugin.js:79-81,248-249,312-314` y espejo; `lb11/oc11.test.mjs` |
-| 10 | Minor | Con un enlace duro persistente (plantado, o un inicializador muerto entre `os.link` y el `unlink` del `.tmp-`), cada `JIO.queue`/`read_settled` paga 0,75-0,87 s antes del mismo `unsafe_state`. En SessionEnd consume el presupuesto de 800 ms del hijo y lo matan en vez de salir con error limpio | T-23 | fix11 p4: espera solo con `.tmp-` hermano del mismo inodo | Lente D: `journal-io.py:82-100,203`, `run-hook.mjs:13-16`; `ld11/j1.py` |
-| 11 | Minor | El deny de LF/VT/FF/CR sueltos en `env -S` (`926a8ef`) entró sin RED previo; sus tests llegan en `fcd182e` y el ledger no lo declara | T-06 | declarado: sin RED previo (bloque fix11 de T-06) | Lente A: `guardrail-check.py:963-966`, `test_guardrail_fix10.py:56-71` |
-| 12 | Minor | `docs/agents/implementer.md:92` dice que LF/VT/FF/CR son parte de la palabra; el código los deniega como forma ambigua | T-06 | fix11 p6: `implementer.md:92` | Lente A |
+| 1 | Important | **Regresión del fix11.** Al buscar el cierre de `$'…'`, `_ansi_c` hace que `\c` consuma un carácter más. Bash delimita la cadena por pares `\X` y decodifica `\cX` después. `echo $'\c'; git reset --hard #'` → allow, cuando en d938cab y 8e7c0a0 daba deny. Bash real ejecuta git. Lo mismo con `\c\\`, `\c\' x` y `x=$'\c' && …`. Verificado por el orquestador | T-06 | pendiente | Lente B: `guardrail-check.py:424-425,509-510`; `lb12/rb2.py`, `c1`-`c5` |
+| 2 | Important | Rojo en Windows: `installer.test.mjs:1909` («gap 8: una CLI colgada no bloquea el instalador»). Con `CUSTOM_AGENTS_EXEC_TIMEOUT_MS=2000`, el instalador tardó 30.163 ms (la cota es < 30.000). Pasa en Linux. La causa no está aislada | T-23 | pendiente | Orquestador: `node --test tests/installer.test.mjs` en Windows, 184 pass y 1 fail en 1.624 s; `install/install.mjs:1294,1301,1315` |
+| 3 | Minor | **Regresión del fix11, fallo abierto en la ruta heredada.** `$'\ud800'` se decodifica a un surrogate suelto. `_destino_es_el_propio_directorio` solo captura `OSError`, y en POSIX `realpath` lanza `UnicodeEncodeError`. El `except Exception` de `main()` acaba en allow. `cd $'\ud800'; git reset --hard` → allow en `guardrail-check.py pre-tool`, la única protección en modo copia; en e4b2f7f era deny. La ruta nativa falla cerrada | T-06 | pendiente | Lente C: `guardrail-check.py:1250-1253,2066`; `lc12/sur2.py` |
+| 4 | Minor | `_ansi_c` no implementa `\x{H…}`, que bash 5.2 sí decodifica. `bash -c $'\x{67}it reset --hard'` → allow, y ya era así en las tres versiones. Contradice «semántica de bash» (`implementer.md:102`). Ofuscación deliberada | T-06 | pendiente | Lente C: `guardrail-check.py:413-422`; `lc12/p3.sh` |
+| 5 | Minor | Test intermitente: `dt < 0.3` con reloj de pared. En reposo da 0,28 s; con 12 bucles de CPU falla 2 de 3 veces (0,51 s). Los `< 0.05` de `test_journal.py:3322,3332,3342` tienen un margen parecido | T-06, T-23 | pendiente | Lentes B y D: `test_guardrail_fix11.py:80-87,92-103` |
+| 6 | Minor | Con un `.tmp-` vivo, la espera de `settling`/`initializing` vuelve a listar el directorio en cada uno de los 40 intentos. El coste deja de estar acotado a unos 0,75 s: 1,55 s con 2.000 entradas y 4,9 s con 10 K + 1 K `.tmp-`. En SessionEnd (800 ms) el hijo muere en vez de dar un error limpio. Solo en un estado anómalo | T-23 | pendiente | Lente D: `journal-io.py:92-93,135,185`; `ld12/j1.py` |
+| 7 | Minor | Tres ramas de deny nuevas sin RED previo ni declaración: `\U` fuera de rango, patrón vacío y separador en los estados `w`/`i`. Todas son sintaxis inválida; el defecto es de traza | T-06 | pendiente | Lente A: `guardrail-check.py:421,625,660`; `la12/nr.py` |
+| 8 | Minor | Recuentos del ledger desfasados: `BAD11_PARIDAD` tiene 59 formas (no 60) y `SIN_PARIDAD_11` 8 (no 7). En el RED fallan 29 de 47 tests, no 27 de 45 | T-06 | pendiente | Lente A: `tasks.md:368` |
+| 9 | Minor | El modelo de amenaza no nombra la clase `LIMITE11`, una sustitución como palabra de mando: `$(true) git reset --hard` | T-06 | pendiente | Lente A: `implementer.md:100-111` |
+| 10 | Minor | Un `realpath` indeterminado (EACCES, EIO, ELOOP) también guarda las sesiones ajenas durante 5 s: entre 1,0 y 1,5 s de hook por evento | T-06 | deuda aceptada (compromiso del gap 9 del intento 11: guardar de más solo ejecuta el guard) | Lente D: `opencode-plugin.js:81-94` |
+| 11 | Minor | El corpus con bash real crece en 64 ejecuciones, unos 80 s más en Windows. Es el método establecido y no tiene `sleep` evitables | T-23 | deuda aceptada (solo si hay que recortar CI) | Lente D: `test_guardrail_differential7.py:437,450` |
 
-Fuera de gap (límite, indirección): `$(true) git reset --hard` y `` `true` git … `` → allow en d938cab y HEAD.
+**Avisos de método.**
+- `bash.EXE -c` lanzado desde Python en Windows altera las barras invertidas. Las sondas con escapes van en ficheros `.sh`.
+- En Linux, el primer test de `opencode-realpath-fix11` (`:36-53`) no discrimina, porque no hay nombres 8.3.
 
-**Diseño fijado por el orquestador para fix11:**
+**Diseño fijado por el orquestador para fix12:**
 
-1. **`case` por lista blanca, no por gramática completa** (gaps 1, 2, 3, 5 y 6). Dentro de `$(…)`, `<(…)`, `>(…)` y backticks, el lector solo sigue la forma simple: `case` sin comillas ni escape, como primera palabra de una orden a profundidad 0 de la sustitución y sin prefijos (`time`, `coproc`, `function`, `!`…); `in` como palabra propia sin comillas; patrones sin comillas, sin escapes y sin `esac`, con `(` opcional separado. Cualquier otra aparición de `case` o `esac` (citada, escapada, tras un prefijo, en un subshell, `in(`, `esac` en patrón) marca la lectura como **incompleta** → deny si la orden contiene git o un cambio de base. Corpus diferencial con bash real: TODAS las formas de `la11/`, `lb11/` y `lc11/` como BAD. Fuzz con el git destructivo DENTRO del cuerpo, en subshells, tras prefijos y con cabeceras citadas: 0 regresiones frente a d938cab y frente a 8e7c0a0.
-2. **Coste lineal** (gap 4). Saber si una palabra empieza orden es O(1) por palabra (estado incremental, sin recorrer `cur`). Test con `$(! ! …)`, `$({ { …)` y patrones/cuerpos de prefijos de 64 KB, con y sin git: < 0,3 s.
-3. **`$'…'` en `env -S`** (gap 7). Un valor de `-S` que viene de `$'…'` con una barra invertida se deniega si la orden contiene git (forma ambigua), salvo que se decodifique con la semántica de bash y haya test con las dos formas del gap.
-4. **Journal** (gaps 8 y 10). La espera de `settled` solo se aplica si existe un `.tmp-*` hermano con el mismo inodo (inicialización en curso) y reciente; en otro caso, `unsafe_state` al instante. La rama de escritura recibe la misma espera acotada. Tests: carrera en la rama write; enlace duro plantado sin `.tmp-` → fallo en < 50 ms.
-5. **OpenCode** (gap 9). Si `realpath` falló (fallo cacheado) para cualquiera de los dos lados, la comparación es **indeterminada** y la sesión se guarda. Test: primer `realpath` fallido + forma de ruta distinta → guardada. Interop regenerado.
-6. **Ledger y docs** (gaps 11 y 12). Se declara en el ledger que el deny de LF/VT/FF/CR no tuvo RED previo. Se corrige `implementer.md:92` (y INTEROP ES/EN si repiten la frase).
+1. **`$'…'` como lo lee bash** (gaps 1 y 4).
+   - Primero se delimita la cadena por pares `\X`, como el lexer de bash.
+   - Después se decodifica el contenido ya delimitado. `\cX` se aplica solo dentro de ese contenido.
+   - Se añade `\x{H…}` con la semántica de bash 5.2.
+   - Diferencial con bash real, ejecutado desde ficheros `.sh`: cada escape de bash (`\c`, `\x`, `\x{}`, `\u`, `\U`, `\0NNN`, `\e`) seguido de `'`, `\\` o `\'` y de `; git reset --hard #'`. Resultado exigido: 0 divergencias con efecto.
+   - Todas las formas de `lb12` y `lc12` entran al corpus como BAD.
+2. **Fallo cerrado en la ruta heredada** (gap 3).
+   - `_destino_es_el_propio_directorio` captura `(OSError, ValueError)`.
+   - `guardrail-check.py pre-tool` lo lanzan solo los hooks del rol protegido. Por eso, cualquier excepción interna de su `main()` deniega con un motivo explícito y nunca permite.
+   - Test con el surrogate y con una excepción inyectada.
+3. **Tests sin reloj de pared** (gap 5). Los umbrales de coste del guard pasan a medir CPU del proceso o una razón de linealidad entre dos tamaños. Los `< 0.05` del journal pasan a un reloj inyectado o a CPU. Verificación: 20 pasadas con 12 bucles de CPU, 0 rojos.
+4. **Espera del journal acotada en tiempo** (gap 6). Un tope total con reloj monótono de unos 0,75 s, y como mucho un listado del directorio por intento acotado. Test: 10 K entradas + 1 K `.tmp-`, < 1 s.
+5. **Instalador en Windows** (gap 2). Se aplica `debug-root-cause` para ver de dónde salen los 30 s con un plazo de 2 s: el `--version` de 15 s ×2, la resolución del shim `sh` en Windows o el árbol de procesos sin matar. Arreglo con test de regresión que pase en Windows y en Linux, sin relajar la cota. Después, la suite node completa en Windows debe dar 0 fail.
+6. **Traza y documentación** (gaps 7, 8 y 9).
+   - RED de las tres ramas de deny como tests de regresión, declarando en el ledger que llegan después.
+   - Recuentos corregidos.
+   - `LIMITE11` en el modelo de amenaza de `implementer.md`.
 
-Tras este ciclo: réplica Linux completa sin rojo, medida emparejada de T-23 con el equipo libre (la hace el orquestador) y verificación dirigida de las cuatro lentes. Si solo quedan Minor sin pérdida de datos, la fase cierra.
+Tras este ciclo: réplica Linux completa sin rojo, suite node de Windows sin rojo, medida emparejada de T-23 con el equipo libre (la hace el orquestador) y verificación dirigida de las cuatro lentes. Si solo quedan Minor sin pérdida de datos, la fase cierra.
