@@ -66,8 +66,9 @@ Salida: contrato oficial de PreToolUse (https://code.claude.com/docs/en/hooks.md
   deny  → stdout {"hookSpecificOutput": {"hookEventName": "PreToolUse",
                   "permissionDecision": "deny", "permissionDecisionReason": "…"}} · exit 0
   allow → sin stdout · exit 0 (sin decisión: sigue el flujo normal de permisos)
-Nunca exit ≠ 0 por error interno: se registra en stderr y se permite (un guardrail roto no
-debe convertirse en un bloqueo fantasma).
+Nunca exit ≠ 0 por error interno: se registra en stderr y se DENIEGA con un motivo explícito (fix12: este modo
+solo lo lanzan los hooks del rol protegido —implementer/architect—; permitir ante una excepción abriría justo la
+protección que existe para ellos). Un stdin que no es JSON sigue permitiéndose (no es un error interno).
 """
 import argparse
 import bisect
@@ -393,15 +394,34 @@ def _aritmetica(command, j, st):
 
 
 # Patrón de `case` que el lector sigue: sin comillas, escapes, corchetes, agrupaciones ni expansiones (fix11, punto 1).
+_HEX = "0123456789abcdefABCDEF"
 _PATRON_CASE_RE = re.compile(r"[\w.*?/+=,:%@^~-]+")
 _ANSI_SIMPLES = {"a": "\a", "b": "\b", "e": "\x1b", "E": "\x1b", "f": "\f", "n": "\n", "r": "\r", "t": "\t", "v": "\v",
                  "\\": "\\", "'": "'", '"': '"', "?": "?"}
 
 
+def _ansi_fin(command, i):
+    r"""Delimita `$'…'` como el lexer de bash (fix12, punto 1): `i` apunta al primer carácter DESPUÉS de `$'`. Cada par `\X`
+    se salta entero (sea `X` lo que sea: `\c'`, `\x'`, `\\`) y el primer `'` sin escapar cierra la cadena. Devuelve la posición
+    del `'` de cierre o `-1` si no hay. La decodificación va DESPUÉS, sobre el contenido ya delimitado."""
+    n = len(command)
+    while i < n:
+        c = command[i]
+        if c == "\\":
+            i += 2
+        elif c == "'":
+            return i
+        else:
+            i += 1
+    return -1
+
+
 def _ansi_c(command, i, st):
-    r"""Escape de `$'…'` con la semántica de bash (fix11, punto 3): `i` apunta al carácter que sigue a la barra. Devuelve
-    `(texto, posición siguiente)`. `\a \b \e \E \f \n \r \t \v \\ \' \" \?`, octal de 1 a 3 cifras, `\xHH`, `\uHHHH`, `\UHHHHHHHH`
-    y `\cX`; un escape desconocido conserva la barra y el carácter. Lineal (cada escape consume lo que lee)."""
+    r"""Escape de `$'…'` con la semántica de bash sobre el CONTENIDO ya delimitado (fix11 punto 3, fix12 punto 1): `i` apunta al
+    carácter que sigue a la barra y `command` acaba donde acaba la cadena. Devuelve `(texto, posición siguiente)`.
+    `\a \b \e \E \f \n \r \t \v \\ \' \" \?`, octal de 1 a 3 cifras, `\xHH`, `\x{H…}` (cualquier número de cifras, módulo 256;
+    sin cifras da NUL), `\uHHHH`, `\UHHHHHHHH` y `\cX` (`\c\\` consume las dos barras; `\c` al final queda tal cual); un
+    escape desconocido conserva la barra y el carácter. Lineal (cada escape consume lo que lee)."""
     n, c = len(command), command[i]
     if c in _ANSI_SIMPLES:
         return _ANSI_SIMPLES[c], i + 1
@@ -410,9 +430,15 @@ def _ansi_c(command, i, st):
         while j < n and j < i + 3 and command[j] in "01234567":
             j += 1
         return chr(int(command[i:j], 8) & 0xFF), j
+    if c == "x" and command.startswith("{", i + 1):
+        j = i + 2
+        while j < n and command[j] in _HEX:
+            j += 1
+        valor = int(command[i + 2:j], 16) & 0xFF if j > i + 2 else 0
+        return chr(valor), (j + 1 if command.startswith("}", j) else j)
     if c in "xuU":
         j, tope = i + 1, i + 1 + {"x": 2, "u": 4, "U": 8}[c]
-        while j < n and j < tope and command[j] in "0123456789abcdefABCDEF":
+        while j < n and j < tope and command[j] in _HEX:
             j += 1
         if j == i + 1:
             return "\\" + c, i + 1             # sin cifras: bash deja la barra
@@ -422,8 +448,27 @@ def _ansi_c(command, i, st):
             st.incompleta = True
             return "", j
     if c == "c" and i + 1 < n:
-        return chr(ord(command[i + 1]) & 0x1F), i + 2
+        k, j = command[i + 1], i + 2
+        if k == "\\" and command.startswith("\\", j):
+            j += 1                              # POSIX: `$'\c\\'` es una sola barra de control
+        return (chr(0x7F) if k == "?" else chr(ord(k.upper() if k.isascii() else k) & 0x1F)), j
     return "\\" + c, i + 1
+
+
+def _ansi_decodificar(contenido, st):
+    r"""Decodifica el contenido (ya delimitado) de un `$'…'`: un `\0` corta el resto de la cadena, como en bash."""
+    out, i, n = [], 0, len(contenido)
+    while i < n:
+        c = contenido[i]
+        if c == "\\" and i + 1 < n:
+            texto, i = _ansi_c(contenido, i + 1, st)
+            if texto == "\x00":
+                break
+            out.append(texto)
+        else:
+            out.append(c)
+            i += 1
+    return "".join(out)
 
 
 def _case_palabra(cases, palabra, plana, cur, par, fin, st):
@@ -483,7 +528,6 @@ def _leer(command, i, modo, st, prof):
     cases = []              # pila del seguimiento de `case` (solo dentro de una sustitución, fix10)
     ult_redir = -2          # posición del último `<`/`>` SIN escapar ni entrecomillar (fix7, gap 6)
     wini = 0                # dónde empieza la palabra en curso en `command`: «plana» = su texto coincide con lo escrito (fix11)
-    nul = False             # un `\0` dentro de `$'…'` corta el resto de esa cadena (bash)
     while i < n:
         c = command[i]
         if not started:
@@ -503,22 +547,6 @@ def _leer(command, i, modo, st, prof):
             word.append(c)           # escape final: la orden está incompleta
             started, st.incompleta = True, True
             break
-        if quote == "$'":
-            # ANSI-C `$'…'`: la barra se decodifica como bash (`\t`, `\x20`, `\040`, `é`…, fix11; antes tomaba el carácter
-            # crudo y `env -S $'git\trestore .'` no se veía como git). `\'` sigue sin cerrar la cadena.
-            if c == "\\" and i + 1 < n:
-                texto, i = _ansi_c(command, i + 1, st)
-                if texto == "\x00":
-                    nul = True               # bash corta la cadena en el NUL
-                elif not nul:
-                    word.append(texto)
-                continue
-            if c == "'":
-                quote = None
-            elif not nul:
-                word.append(c)
-            i += 1
-            continue
         if c == "\\" and quote != "'" and i + 1 < n:
             following = command[i + 1]
             if following == "\n":
@@ -542,9 +570,18 @@ def _leer(command, i, modo, st, prof):
             started = True
             i += 2
             continue
-        if c == "$" and quote is None and command.startswith(("$'", '$"'), i):
-            # `$'…'` (ANSI-C) y `$"…"` (traducción): la `$` no es parte de la palabra
-            quote, started, nul = ("$'" if command[i + 1] == "'" else '"'), True, False
+        if c == "$" and quote is None and command.startswith("$'", i):
+            # ANSI-C `$'…'` como bash (fix12): primero se delimita por pares `\X` y después se decodifica el contenido.
+            fin = _ansi_fin(command, i + 2)
+            word.append(_ansi_decodificar(command[i + 2:n if fin < 0 else fin], st))
+            started = True
+            if fin < 0:
+                st.incompleta = True         # sin comilla de cierre
+            i = n if fin < 0 else fin + 1
+            continue
+        if c == "$" and quote is None and command.startswith('$"', i):
+            # `$"…"` (traducción): la `$` no es parte de la palabra
+            quote, started = '"', True
             i += 2
             continue
         if c == "$" and command.startswith("$(", i):
@@ -1250,8 +1287,8 @@ def _destino_es_el_propio_directorio(destino, memo=None):
             memo["cwd"] = os.path.normcase(os.path.realpath(cwd))
         real_cwd = memo["cwd"] if memo is not None else os.path.normcase(os.path.realpath(cwd))
         propio = os.path.normcase(os.path.realpath(os.path.join(cwd, d))) == real_cwd
-    except OSError:
-        propio = False
+    except (OSError, ValueError):                 # fix12: `UnicodeEncodeError` (surrogate suelto) y `ValueError` son indeterminados
+        propio = False                            # = «cambia la base»: falla cerrado
     if memo is not None:
         memo["dest"][destino] = propio
     return propio
@@ -2063,8 +2100,10 @@ def main():
         if razon:
             print(deny_json(razon))
         return 0
-    except Exception as e:  # noqa: BLE001 — un guardrail roto nunca bloquea
-        print(f"guardrail-check: error interno ({e!r}) — se permite", file=sys.stderr)
+    except Exception as e:  # noqa: BLE001 — fix12: este modo solo lo lanzan los hooks del rol protegido: ante la duda, se DENIEGA
+        print(f"guardrail-check: error interno ({e!r}) — se deniega", file=sys.stderr)
+        print(deny_json(f"error interno del guardarraíl ({e!r}): no se puede comprobar la orden, así que se deniega "
+                        "(falla cerrado). Reintenta; si persiste, avisa para corregir el guardarraíl."))
         return 0
 
 

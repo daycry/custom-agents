@@ -55,7 +55,7 @@ def test_la_cadena_ansi_c_se_delimita_por_pares_como_bash(orden):
 
 
 def test_ansi_c_delimita_primero_y_decodifica_despues():
-    assert gc._ansi_fin("ab" + BS + "c'x'", 0) == 5                    # `\c` es un par; la comilla siguiente CIERRA
+    assert gc._ansi_fin("ab" + BS + "c'x'", 0) == 4                    # `\c` es un par; la comilla siguiente CIERRA
     assert gc._ansi_fin("a" + BS + "'b'c", 0) == 4                    # `\'` es un par que no cierra
     assert gc._ansi_fin("sin cierre" + BS, 0) == -1
     segs, _ = gc._segmentos("echo $'" + BS + "c'; git status")
