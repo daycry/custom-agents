@@ -80,22 +80,31 @@ def read(path, maximum=MAX_BYTES):
 
 
 _TMP_RECIENTE = 5.0   # segundos: un `.tmp-` mas viejo es de un inicializador muerto, no de uno en curso
-_ESPERA_MAX = 0.75    # segundos de reloj monotonico: tope TOTAL de la espera del estado transitorio (fix12, gap 6)
+_ESPERA_MAX = 0.5     # segundos de reloj monotonico: tope TOTAL de la espera del estado transitorio (fix12, gap 6; fix13: 0,5 s, para que
+                      # el hijo de SessionEnd salga con error limpio dentro de los 800 ms del hook, arranque de Python incluido)
 
 
-def initializing(path):
+def initializing(path, limit=None):
     """True solo si `path` esta en el estado transitorio de una creacion exclusiva EN CURSO (T-23 fix11, gaps 8 y 10): el
     inodo de `path` tiene un `.tmp-*` HERMANO con el mismo (dispositivo, inodo) y reciente. Un enlace duro sin ese temporal
-    (plantado, o de un inicializador muerto entre `os.link` y el `unlink`) no se espera: no va a desaparecer."""
+    (plantado, o de un inicializador muerto entre `os.link` y el `unlink`) no se espera: no va a desaparecer. `limit` (reloj
+    monotonico, fix13) acota el propio listado: se mira cada 256 entradas del scandir y cada 64 `lstat`; agotado, devuelve False."""
     path = Path(path)
+    names = []
     try:
         info = os.lstat(path)
         with os.scandir(path.parent) as listing:
-            names = [item.name for item in listing if item.name.startswith('.tmp-')]
+            for k, item in enumerate(listing):
+                if limit is not None and not k & 255 and time.monotonic() >= limit:
+                    return False                   # tope total agotado a mitad del listado: no se espera mas
+                if item.name.startswith('.tmp-'):
+                    names.append(item.name)
     except OSError:
         return False
     now = time.time()
-    for name in names:
+    for k, name in enumerate(names):
+        if limit is not None and not k & 63 and time.monotonic() >= limit:
+            return False
         try:
             other = os.lstat(path.parent / name)   # `DirEntry.stat()` no trae el inodo en Windows
         except OSError:
@@ -105,7 +114,7 @@ def initializing(path):
     return False
 
 
-def settling(path):
+def settling(path, limit=None):
     """True si merece la pena reintentar: `path` ya tiene un solo enlace, o tiene dos y hay una inicializacion en curso (o el
     temporal se acaba de borrar y el fichero se asento entre las dos lecturas)."""
     def links():
@@ -113,7 +122,7 @@ def settling(path):
             return os.lstat(path).st_nlink
         except OSError:
             return None
-    return links() == 1 or initializing(path) or links() == 1
+    return links() == 1 or initializing(path, limit) or links() == 1
 
 
 def settled(operation, path):
@@ -121,7 +130,7 @@ def settled(operation, path):
     state of an exclusive creation, wait for it to settle (T-23 fix10, gap 9). The winner of `os.link(temporary, path)` leaves
     the inode with two links until it removes its private temporary, and the guards refuse that state (`nlink != 1`: they
     exist against hard-linked files). Like `update`, wait for it, never adopt it: a link that stays (a planted hard link)
-    exhausts the bound (a TOTAL of 0.75 s of monotonic clock, `_ESPERA_MAX`, fix12: every attempt lists the directory) and the original `unsafe_state` is raised. Only an initialization IN PROGRESS is waited for
+    exhausts the bound (a TOTAL of 0.5 s of monotonic clock, `_ESPERA_MAX`, fix12/fix13: every attempt lists the directory, and the listing itself checks the bound) and the original `unsafe_state` is raised. Only an initialization IN PROGRESS is waited for
     (a recent sibling `.tmp-*` with the same inode, `initializing`): a hard link without it fails at once (fix11, gap 10)."""
     limit = time.monotonic() + _ESPERA_MAX
     for attempt in range(40):
@@ -134,7 +143,7 @@ def settled(operation, path):
             if os.path.lexists(path):
                 info = path.lstat()
                 need(stat.S_ISREG(info.st_mode) and not IO.reader._redirected(info) and info.st_nlink in (1, 2), 'unsafe_state')
-                need(settling(path), 'unsafe_state')   # dos enlaces sin temporal en curso: al instante
+                need(settling(path, limit), 'unsafe_state')   # dos enlaces sin temporal en curso: al instante
             if attempt == 39:
                 raise
             time.sleep(min(0.002 * 2 ** attempt, 0.02))
@@ -187,7 +196,10 @@ def update(path, transform):
                 info = path.lstat()
                 need(stat.S_ISREG(info.st_mode) and not IO.reader._redirected(info)
                      and info.st_nlink in (1, 2), 'unsafe_state')
-                need(settling(path), 'unsafe_state')
+                if not settling(path, limit):
+                    if time.monotonic() >= limit:
+                        break                      # el listado agoto el tope total: `journal_update_conflict`
+                    raise ValueError('unsafe_state')
             time.sleep(min(0.002 * 2 ** attempt, 0.02))
     raise ValueError('journal_update_conflict')
 

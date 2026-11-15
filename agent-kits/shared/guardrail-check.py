@@ -449,9 +449,15 @@ def _ansi_c(command, i, st):
             return "", j
     if c == "c" and i + 1 < n:
         k, j = command[i + 1], i + 2
+        if not k.isascii():
+            # fix13 (gap 1 del intento 13): bash aplica `& 0x1F` al PRIMER BYTE UTF-8 y conserva los de continuacion, y el
+            # control resultante (NUL, tabulador, salto de linea…) depende del byte y del locale: no se emula. La lectura queda
+            # incompleta (deny si hay git o cambio de base) y el resto del contenido se decodifica sin este caracter.
+            st.incompleta = True
+            return "", j
         if k == "\\" and command.startswith("\\", j):
             j += 1                              # POSIX: `$'\c\\'` es una sola barra de control
-        return (chr(0x7F) if k == "?" else chr(ord(k.upper() if k.isascii() else k) & 0x1F)), j
+        return (chr(0x7F) if k == "?" else chr(ord(k.upper()) & 0x1F)), j
     return "\\" + c, i + 1
 
 

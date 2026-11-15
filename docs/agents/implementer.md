@@ -129,7 +129,8 @@ esquema antes de evaluar produce `input-unrecognized` (permisos normales). El mo
 excepción interna de su `main()` (también un `realpath` que lanza `ValueError` o `UnicodeEncodeError` con un
 surrogate suelto) deniega con un motivo explícito; un stdin que no es JSON se sigue permitiendo. `$'…'` se
 delimita por pares `\X` como el lexer de bash y solo después se decodifica (`\cX`, `\xHH`, `\x{H…}` de
-bash 5.2, octal, `\u`, `\U`).
+bash 5.2, octal, `\u`, `\U`); un `\c` seguido de un carácter no ASCII deja la lectura incompleta (fix13: bash
+aplica el control al primer byte UTF-8 y el resultado depende del locale, así que no se emula; con git o cambio de base se deniega).
 Los tres runtimes pasan por el mismo lanzador y se comportan igual
 (`tests/test_native_guard_failclosed.py`, `tests/hook-guard-failclosed.test.mjs`).
 
@@ -141,7 +142,9 @@ constituye un sandbox. `{"git": false}` desactiva esta regla en
 `.claude/dev.json` → `guardrails`.
 
 Degradación: sin `python3` el hook avisa una vez (`systemMessage`) y no bloquea; un error interno
-del script permite (nunca bloqueo fantasma). Desactivación: `.claude/dev.json` →
+del script **deniega** con un motivo explícito (falla cerrado, fix12: el modo `pre-tool` solo lo lanzan
+los hooks del rol protegido, implementer y architect; permitir ante una excepción abriría justo la
+protección que existe para ellos), y un stdin que no es JSON sigue permitiéndose. Desactivación: `.claude/dev.json` →
 `"guardrails": false` (todo, con aviso) o `{"alcance": false, …}` por regla. **Un DENY no es un
 error**: el agente lee la razón y cambia de fichero o rama.
 
