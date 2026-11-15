@@ -393,10 +393,9 @@ BAD12_PARIDAD = [
     r"env -S $'\u0067it restore .'",
     r"echo $'\x27'; {D} #'",
 ]
-# Deny sin efecto en bash (la cadena queda abierta o el resto es un comentario): solo se exige el deny.
+# Deny sin efecto en bash (la comilla queda abierta y bash no llega a ejecutar nada): solo se exige el deny.
 SIN_PARIDAD_12 = [
     r"x=$'\c' && {D} && echo '",
-    r"echo $'\c\\' x'; {D} #'",
 ]
 # `\x{H…}` (bash >= 5.2): con un bash anterior no se decodifica, asi que la paridad se salta y solo se exige el deny.
 BAD12_LLAVES = [
@@ -409,6 +408,8 @@ BAD12_LLAVES = [
     r"echo $'\x{27}'; {D} #'",
 ]
 LEGIT12 = [
+    # la cadena cierra tras las dos barras de la secuencia de control; lo que sigue es una palabra y otra cadena: bash no ejecuta git (se permite)
+    r"echo $'\c\\' x'; {D} #'",
     r"echo $'a\cb'; git status",
     r"echo $'\c\' x; git reset --hard #'",
 ]
