@@ -10,11 +10,12 @@ interprete. Punto 4: corpus con bash real en dos locales. Punto 5: los separador
 import itertools
 import os
 import subprocess
+import time
 
 import pytest
 
 from test_guardrail_differential import BASH, necesita_bash
-from test_guardrail_fix12 import _es_lineal, decide, gc
+from test_guardrail_fix12 import _cpu, _es_lineal, decide, gc
 from test_guardrail_fix14_corpus import ENV_S14, FORMAS14
 
 BS = chr(92)
@@ -162,6 +163,34 @@ def test_opcion_de_envoltorio_desconocida_sin_git_ni_interprete_se_permite(orden
 
 
 # --------------------------------------------------------------------------- punto 5: separadores lineales ----
+_REF_REPOSO = 0.16          # CPU (s) de la tarea de referencia con la maquina en reposo (medida en la de desarrollo: 0,156 a 0,188)
+
+
+def _cpu_referencia():
+    t = time.process_time()
+    x = 0
+    for i in range(3_000_000):
+        x += i & 7
+    return time.process_time() - t
+
+
+def _es_lineal_normalizado(construir, chico, grande, nominal):
+    """Como `_es_lineal`, pero el absoluto es `nominal` s de CPU EN REPOSO escalado por lo que cuesta, justo antes y justo despues de cada
+    medida, la tarea fija de referencia (el peor de los dos): con 12 bucles de CPU la misma orden de 250 KB costo 2 a 3 veces mas
+    (medido) y un absoluto fijo de 1,0 s daba rojo de forma intermitente. El factor nunca baja de 1. La razon de linealidad no
+    depende de la carga y el cuadratico (160 s a 250 KB) queda muy por encima en cualquier maquina."""
+    c = min(_cpu(construir(chico)) for _ in range(2))
+    medidas = []
+    for _ in range(3):
+        antes = _cpu_referencia()
+        g = _cpu(construir(grande))
+        factor = max(1.0, max(antes, _cpu_referencia()) / _REF_REPOSO)
+        medidas.append((g / factor, g, factor))
+    _, g, factor = min(medidas)
+    assert g < 10 * max(c, 0.08) + 0.05 and g < nominal * factor, \
+        f"{c:.3f}s -> {g:.3f}s al pasar de {chico} a {grande} (cota {nominal * factor:.2f}s, factor de carga {factor:.2f})"
+
+
 def _sep_formas(tam):
     return [
         "echo " + "a;" * (tam // 2),
@@ -175,8 +204,8 @@ def _sep_formas(tam):
 
 @pytest.mark.parametrize("k", range(6))
 def test_los_separadores_son_lineales_de_64k_a_250k_sin_git(k):
-    """Sin git se analiza entera: `echo a;a;…` a 250 KB debe costar menos de 1 s de CPU (antes 1,8 a 4,3 s)."""
-    _es_lineal(lambda tam: _sep_formas(tam)[k], chico=65536, grande=250000, absoluto=1.0)
+    """Sin git se analiza entera: `echo a;a;…` a 250 KB debe costar menos de 1 s de CPU en reposo (antes 1,8 a 4,3 s; ahora ~0,45 s)."""
+    _es_lineal_normalizado(lambda tam: _sep_formas(tam)[k], chico=65536, grande=250000, nominal=1.0)
 
 
 @pytest.mark.parametrize("k", range(6))
