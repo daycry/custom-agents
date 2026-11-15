@@ -84,17 +84,22 @@ _ESPERA_MAX = 0.5     # segundos de reloj monotonico: tope TOTAL de la espera de
                       # el hijo de SessionEnd salga con error limpio dentro de los 800 ms del hook, arranque de Python incluido)
 
 
-_PRESUPUESTO_PROCESO = 0.35   # segundos: plazo de TODO el proceso de captura (fix14; medido: con 0,5 s el hijo de SessionEnd en frio tardaba
-                              # 624-855 ms con 50 K + 5 K y la cola configurada fallida, 2 de 10 por encima de los 800 ms del hook)
+_ARRANQUE = time.monotonic()   # fix15: marca MONOTONICA del arranque del proceso (la toma el primer modulo del proceso de captura al importarse)
+_PRESUPUESTO_PROCESO = 0.35   # segundos: plazo de TODO el proceso de captura, MEDIDO DESDE SU ARRANQUE (fix15, gaps 9 y 10). Se conserva el valor de fix14, que
+                              # ahora SI se cumple de extremo a extremo: hijo en frio con 50 K + 5 K ajenos y la cola configurada fallida, 0,35 s desde el
+                              # arranque -> 482-605 ms (0,45 s -> 581-628 ms y 0,50 s -> 630-842 ms, 2 de 10 por encima de los 800 ms del hook). Una inicializacion
+                              # legitima que dura 0,30 s o mas desde el arranque del proceso se omite (`unsafe_state`); la recupera `recover`
 _PRESUPUESTO = {'activo': False, 'limite': None}   # fix14: plazo POR PROCESO de la captura, compartido por todas las esperas
 
 
-def begin_budget():
-    """Abre el presupuesto POR PROCESO de la captura (fix14, gaps 9 y 10): UN plazo monotonico de `_PRESUPUESTO_PROCESO`, fijado en la primera
-    espera o recorrido, que comparten `settled`, `update`, el directorio de reserva y `queue()`. Sin el, cada llamada tenia su propio
-    tope y la reserva esperaba otros 0,5 s tras fallar la cola configurada. Lo abre `capture_end` (el hijo de SessionEnd) y lo cierra
-    `end_budget`; fuera de la captura cada llamada conserva su tope propio."""
-    _PRESUPUESTO['activo'], _PRESUPUESTO['limite'] = True, None
+def begin_budget(desde=None):
+    """Abre el presupuesto POR PROCESO de la captura (fix14, gaps 9 y 10): UN plazo monotonico que comparten `settled`, `update`, el
+    directorio de reserva y `queue()`. Sin el, cada llamada tenia su propio tope y la reserva esperaba otros 0,5 s tras fallar la cola
+    configurada. Lo abre `capture_end` (el hijo de SessionEnd) y lo cierra `end_budget`; fuera de la captura cada llamada conserva su tope propio.
+    Fix15 (gap 9): `desde` (reloj monotonico) ancla el plazo al ARRANQUE del proceso (`_ARRANQUE`): el arranque de Python y los imports
+    (192-584 ms medidos con carga) cuentan, y el plazo ya no empieza en la primera espera. Sin `desde`, empieza en la primera espera (otros usos)."""
+    _PRESUPUESTO['activo'] = True
+    _PRESUPUESTO['limite'] = None if desde is None else desde + _PRESUPUESTO_PROCESO
 
 
 def end_budget():

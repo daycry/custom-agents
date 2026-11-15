@@ -4,6 +4,7 @@
 Only stdlib and the shared atomic outbox are loaded at teardown. journal.py
 reuses this policy and writer; replay/recover remain in the materializer.
 """
+import time as _tiempo
 import argparse
 import contextlib
 import datetime as _dt
@@ -20,6 +21,9 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
     try: _s.reconfigure(encoding="utf-8", errors="replace")
     except Exception: pass
 
+# fix15 (gap 9): marca MONOTONICA del arranque del proceso, tomada lo antes posible tras los imports de la libreria estandar y el snippet de
+# consola (el linter exige que ninguna otra sentencia de modulo vaya antes): el plazo de la captura cuenta desde aqui.
+_ARRANQUE = _tiempo.monotonic()
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOG_DIR_REL = ".claude"
 LOG_PREFIX = "session-prompts-"
@@ -317,8 +321,8 @@ def log_path(root, session_id):
 SCHEMA_ACEPTADOS = _schema_aceptados(SCHEMA_VERSION)
 
 
-def capture_end(root, payload):
-    JIO.begin_budget()             # fix14: UN plazo para todo el proceso de captura (esperas, reserva y recorrido de la cola)
+def capture_end(root, payload, desde=None):
+    JIO.begin_budget(desde=desde)  # fix14: UN plazo para todo el proceso de captura (esperas, reserva y recorrido de la cola); fix15: desde su arranque
     try:
         return _capture_end(root, payload)
     except (OSError, ValueError, AttributeError):
@@ -340,7 +344,7 @@ def main(argv=None):
         payload = json.loads(raw)
         root = args.root or os.environ.get("CLAUDE_PROJECT_DIR") or (payload.get("cwd") if isinstance(payload, dict) else None) or "."
         if os.path.isdir(str(root)):
-            capture_end(str(root), payload)
+            capture_end(str(root), payload, desde=_ARRANQUE)
     except Exception:
         pass  # Informational: durable capture never blocks termination.
     return 0

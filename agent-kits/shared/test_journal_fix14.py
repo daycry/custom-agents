@@ -6,7 +6,8 @@ tambien se esperaba dos veces (1,2 s de proceso), y `queue()` recorria sin cota 
 Ahora hay UN plazo monotonico para todo el proceso de captura (`begin_budget`, que abre `capture_end`) compartido por `settled`,
 `update`, el directorio de reserva y `queue()` (que lo mira cada 256 entradas). Relojes inyectados: no dependen de la maquina.
 El plazo del proceso es de 0,35 s (`_PRESUPUESTO_PROCESO`): con 0,5 s el hijo en frio midio 624-855 ms con 50 K + 5 K y la cola
-configurada fallida (2 de 10 por encima de los 800 ms del hook); cada llamada suelta de `read_settled` conserva su tope de 0,5 s.
+configurada fallida (2 de 10 por encima de los 800 ms del hook); en fix15 se mide desde el ARRANQUE del proceso (test_journal_fix15.py);
+cada llamada suelta de `read_settled` conserva su tope de 0,5 s.
 """
 import json
 import os

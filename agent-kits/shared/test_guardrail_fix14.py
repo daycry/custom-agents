@@ -178,17 +178,21 @@ def _es_lineal_normalizado(construir, chico, grande, nominal):
     """Como `_es_lineal`, pero el absoluto es `nominal` s de CPU EN REPOSO escalado por lo que cuesta, justo antes y justo despues de cada
     medida, la tarea fija de referencia (el peor de los dos): con 12 bucles de CPU la misma orden de 250 KB costo 2 a 3 veces mas
     (medido) y un absoluto fijo de 1,0 s daba rojo de forma intermitente. El factor nunca baja de 1. La razon de linealidad no
-    depende de la carga y el cuadratico (160 s a 250 KB) queda muy por encima en cualquier maquina."""
-    c = min(_cpu(construir(chico)) for _ in range(2))
-    medidas = []
+    depende de la carga y el cuadratico (160 s a 250 KB) queda muy por encima en cualquier maquina.
+    Fix15 (gap 12): la talla chica y la grande se miden INTERCALADAS en cada repeticion y comparten la MISMA referencia (la peor de las dos
+    tareas fijas que las rodean): si la carga cambiaba entre una medida y otra, la razon de linealidad podia dar rojo sin regresion (casi-rojo
+    1,453 frente a 1,46). Pasa si alguna de las tres repeticiones cumple las dos cotas (el ruido de la CPU solo suma)."""
+    orden_chica, orden_grande = construir(chico), construir(grande)
+    repeticiones = []
     for _ in range(3):
         antes = _cpu_referencia()
-        g = _cpu(construir(grande))
+        c = _cpu(orden_chica)
+        g = _cpu(orden_grande)
         factor = max(1.0, max(antes, _cpu_referencia()) / _REF_REPOSO)
-        medidas.append((g / factor, g, factor))
-    _, g, factor = min(medidas)
-    assert g < 10 * max(c, 0.08) + 0.05 and g < nominal * factor, \
-        f"{c:.3f}s -> {g:.3f}s al pasar de {chico} a {grande} (cota {nominal * factor:.2f}s, factor de carga {factor:.2f})"
+        repeticiones.append((c / factor, g / factor, factor))
+    buenas = [r for r in repeticiones if r[1] < 10 * max(r[0], 0.08) + 0.05 and r[1] < nominal]
+    assert buenas, ("; ".join(f"{c:.3f}s -> {g:.3f}s (factor de carga {f:.2f})" for c, g, f in repeticiones)
+                    + f" al pasar de {chico} a {grande} (cota absoluta {nominal:.2f}s normalizada)")
 
 
 def _sep_formas(tam):

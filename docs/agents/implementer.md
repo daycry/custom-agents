@@ -105,7 +105,9 @@ sin corrección**: variables como programa u opción (`g=git; $g reset --hard`,
 (se ejecuta ANTES de cada orden: fix8, `LIMITE7`), una sustitución como palabra de mando
 (`$(true) git reset --hard`, `` `true` git restore . ``: bash ejecuta lo que sigue; fix11,
 `LIMITE11`), `xargs git …` con un
-subcomando no destructivo de ficheros, un heredoc a `python3`/`perl`/`ex` con
+subcomando no destructivo de ficheros, expansiones en la palabra de mando (`{git,} reset --hard`, `{g..g}it reset --hard`, `x=; g${x}it reset --hard`,
+`g$()it reset --hard`, un glob como `./g[i]t`, y `${VAR}` dentro de `env -S`; fix15, `LIMITE15`), `xargs git` con el subcomando por stdin
+(`echo reset --hard | xargs git`), un NUL crudo `g<NUL>it` (bash lo ignora o no según la versión), un heredoc a `python3`/`perl`/`ex` con
 código que arranca git por dentro, y los ficheros de configuración o scripts que
 escriba el propio agente (ADR-023, ADR-007). `test_guardrail_differential.py`
 fija esos casos en una lista `LIMITE` (comprueba que bash los ejecuta y que el
@@ -137,7 +139,13 @@ siempre** para el rol protegido, con o sin git, y el motivo nombra la forma. En 
 blanca, comillas o heredoc sin cerrar) git se busca sin distinguir mayúsculas (`GIT`, `Git`) en el texto crudo, en cada palabra decodificada
 y en un texto aplanado (escapes numéricos aplicados, sin comillas ni barras), y la marca se hereda al reanalizar `bash -c`/`eval`. Una
 opción de envoltorio que el guardarraíl no conoce (p. ej. `nice -+5`) deniega con git en cualquier grafía o con un intérprete (`bash`,
-`sh`, `eval`, `env`, `xargs`…) detrás.
+`sh`, `eval`, `env`, `xargs`…) detrás: el intérprete se busca en TODA la orden simple, sin ventana de palabras (fix15). Los envoltorios van en
+una tabla única (`nohup`, `time`, `timeout`, `nice`, `flock`, `su`, `sudo`, `doas`, `chrt`, `taskset`, `winpty`, `stdbuf`, `ionice`, `setsid`, `xargs`, `env`…): cada
+uno declara sus opciones, sus argumentos propios y si admite `--`, y se normaliza por el nombre base (`/usr/bin/time`); `flock -c` y `su -c`
+(también `--command`) analizan su cadena como `bash -c`, heredando la marca; las abreviaturas de `env -S` (`--split`, `--s`, `--split=`) equivalen a `-S`.
+La decodificación de los escapes numéricos de una lectura incompleta se repite hasta un **punto fijo** (8 rondas; si aún cambia, es lectura
+opaca y se deniega), de modo que un git codificado dos veces (`$'\x24\x27\x5cx67it\x27'`) tampoco pasa. La rama de trabajo se consulta **siempre**
+(`decide()` llama a `branch_fn` en cualquier orden Bash no vacía): ninguna decisión depende de que aparezca `git` en minúsculas.
 Los tres runtimes pasan por el mismo lanzador y se comportan igual
 (`tests/test_native_guard_failclosed.py`, `tests/hook-guard-failclosed.test.mjs`).
 

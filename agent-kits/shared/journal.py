@@ -156,6 +156,7 @@ aviso y cuenta como omitida. Ningún extractor las rellena: `latest`/`select` y 
 (solo decisión `ok/reason`, y en SessionEnd la salida se ignora) — eso sigue siendo cierto y por eso el
 hook `command` no devuelve nada: ESCRIBE (ADR-010, revisada 2026-09-08 por memory-retrieval T-12/T-13).
 """
+import time as _tiempo
 import argparse
 import calendar
 import contextlib
@@ -177,6 +178,8 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
     try: _s.reconfigure(encoding="utf-8", errors="replace")
     except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
 
+# fix15 (gap 9): marca MONOTONICA del arranque del proceso (`capture-end` ancla su plazo aquí); tras el snippet de consola, que el linter exige antes.
+_ARRANQUE = _tiempo.monotonic()
 HERE = os.path.dirname(os.path.abspath(__file__))
 JOURNAL_REL = os.path.join("docs", "knowledge", "journal")
 TOP_FICHEROS = 10
@@ -2613,7 +2616,7 @@ def cmd_capture_end(a):
         payload = json.load(sys.stdin)
         root = a.root or os.environ.get("CLAUDE_PROJECT_DIR") or (payload.get("cwd") if isinstance(payload, dict) else None) or "."
         if os.path.isdir(str(root)):
-            capture_end(str(root), payload)
+            capture_end(str(root), payload, desde=_ARRANQUE)
     except Exception:  # noqa: BLE001 — el cierre de la sesión no se entera de nada de lo que pase aquí
         pass
     return 0

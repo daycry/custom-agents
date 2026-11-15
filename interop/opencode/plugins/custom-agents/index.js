@@ -1,6 +1,6 @@
 // OpenCode V2 server plugin. Business rules remain in the shared hook services.
 import { execFile, spawn } from 'node:child_process';
-import { constants, existsSync, realpathSync } from 'node:fs';
+import { closeSync, constants, existsSync, lstatSync, openSync, readSync, realpathSync } from 'node:fs';
 import { lstat, open, readdir, readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
@@ -310,6 +310,27 @@ export default {
       });
     }
 
+    // fix15 (gap 13): el opt-in `sesion.actividad: true` de `.claude/dev.json` se comprueba AQUÍ, antes de lanzar un `node` por evento o por
+    // herramienta (el hook sale en ~80 ms sin Python si está apagado, pero cada evento arrancaba un node). Solo lee un fichero regular de
+    // hasta 64 KiB; ausente (ENOENT) = apagado. Cualquier otra duda (enlace, tamaño, JSON ilegible) delega en el dueño (`agent-activity-store.py`,
+    // que revalida con su lector estricto), así que este filtro nunca activa lo que el store apagaría. SÍNCRONA a propósito: un fichero de
+    // hasta 64 KiB cuesta microsegundos y, sin `await`, la actividad conserva su turno delante de los handlers posteriores (T-47 fix1: con
+    // lecturas asíncronas la actividad arrancaba ~500 ms después de ellos).
+    function activityEnabled(cwd) {
+      let fd;
+      try {
+        const config = join(cwd, '.claude', 'dev.json');
+        const info = lstatSync(config);
+        if (!info.isFile() || info.isSymbolicLink() || info.size > 65536) return true;
+        fd = openSync(config, 'r');
+        const buffer = Buffer.alloc(65537);
+        const bytesRead = readSync(fd, buffer, 0, buffer.length, 0);
+        if (bytesRead > 65536) return true;
+        return JSON.parse(buffer.subarray(0, bytesRead).toString('utf8').replace(/^\uFEFF/, ''))?.sesion?.actividad === true;
+      } catch (error) { return error?.code !== 'ENOENT'; }
+      finally { if (fd !== undefined) try { closeSync(fd); } catch { /* ya cerrado */ } }
+    }
+
     const callbacks = { guard: async event => {
       let decision, protectedRole = false;
       try {
@@ -389,7 +410,7 @@ export default {
         try {
           if (!event || typeof event.tool !== 'string' || !event.tool) return;
           const cwd = await project(event.sessionID);
-          if (!cwd) return;
+          if (!cwd || !activityEnabled(cwd)) return;
           const data = { sessionID: event.sessionID, tool: event.tool, status: event.status,
             ...(typeof event.agent === 'string' && event.agent ? { agent: event.agent } : {}), args: summaryArgs(event.input) };
           await run(bindings['tool-activity'].handlers[0], { type: 'tool.execute.after', data, cwd });
@@ -464,7 +485,7 @@ export default {
             const cwd = await project(event.data?.sessionID);
             if (cwd) {
               // Only metadata crosses this boundary; no prompt, response, error or transcript.
-              if (activity) await run(bindings.activity.handlers[0], { type: event.type,
+              if (activity && activityEnabled(cwd)) await run(bindings.activity.handlers[0], { type: event.type,
                 data: { sessionID: event.data.sessionID,
                   ...(event.type === 'session.status' ? { status: { type: event.data.status.type } } : {}) }, cwd });
               if (capture) await run(bindings.capture.handlers[0], {

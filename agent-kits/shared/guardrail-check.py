@@ -910,10 +910,11 @@ def _program_name(token):
 # esa posición (`echo cd`, `git restore src/cd`, `git commit -m env` no cambian nada). FUENTE ÚNICA (fix7, gaps 3, 7 y 9):
 # `_desenvuelve` es lo que llaman `_check_git` (qué git se invoca) y `_cambia_base_en` (qué cambia la base); ya no hay dos
 # implementaciones que se desincronicen (`env -S` solo se desenvolvía en una de ellas).
-_CONTROL = frozenset(("if", "then", "else", "elif", "while", "until", "do", "{", "!", "time", "coproc", "nohup",
-                      "builtin"))
+# fix15 (gaps 3, 4, 6 y 7): `time` y `nohup` ya NO son palabras de control: son envoltorios de la tabla (`/usr/bin/time -f %e git …` y
+# `nohup -- git …` tienen opciones y `--`, que una palabra de control no salta), igual que `chrt`, `taskset`, `doas`, `winpty` y `su`.
+_CONTROL = frozenset(("if", "then", "else", "elif", "while", "until", "do", "{", "!", "coproc", "builtin"))
 _ENVOLTORIOS = frozenset(("env", "command", "builtin", "exec", "sudo", "nohup", "nice", "xargs", "stdbuf",
-                          "timeout", "setsid", "ionice", "flock"))
+                          "timeout", "setsid", "ionice", "flock", "time", "chrt", "taskset", "doas", "winpty", "su"))
 # Opciones de cada envoltorio (salvo `env`/`command`/`exec`, que tienen su propia rama): `(cortas con valor, largas con
 # valor, cortas sin valor, largas sin valor, cortas con valor OPCIONAL pegado)`. Una opción que no figura aquí es
 # DESCONOCIDA: el guardarraíl no sabe si consume un valor y, en una orden con `git`, se deniega.
@@ -938,12 +939,42 @@ _OPCIONES_ENVOLTORIO = {
               ("--shared", "--exclusive", "--unlock", "--nonblock", "--nb", "--no-fork", "--close", "--help",
                "--version"), ""),
     "nohup": ("", (), "", ("--help", "--version"), ""),
+    # fix15: la palabra reservada `time` solo admite `-p` y `--`; `/usr/bin/time` (GNU) admite ademas `-f`, `-o`, `-a`, `-v`… Se aceptan las de
+    # los dos: leer de mas solo analiza mas (`time -f %e git …` no ejecuta nada en la palabra reservada y ejecuta git con el binario).
+    "time": ("fo", ("--format", "--output"), "ahpqvV", ("--append", "--help", "--portability", "--quiet", "--verbose",
+                                                         "--version"), ""),
+    # `chrt [opciones] prioridad orden…` y `taskset [opciones] mascara orden…`: tras las opciones va UN argumento propio (la prioridad / la mascara o
+    # la lista de CPU de `-c`), como la duracion de `timeout`.
+    "chrt": ("TPD", ("--sched-runtime", "--sched-period", "--sched-deadline"), "abdefhimoprRvV",
+             ("--all-tasks", "--batch", "--deadline", "--ext", "--fifo", "--help", "--idle", "--max", "--other", "--pid",
+              "--reset-on-fork", "--rr", "--verbose", "--version"), ""),
+    "taskset": ("", (), "achpV", ("--all-tasks", "--cpu-list", "--help", "--pid", "--version"), ""),
+    "doas": ("Cu", (), "Lns", (), ""),
+    "winpty": ("", (), "hV", ("--help", "--version", "--showkey", "--mouse"), ""),
+    "su": ("cgGsw", ("--command", "--session-command", "--group", "--supp-group", "--shell", "--whitelist-environment"),
+           "lmpfPhV", ("--login", "--fast", "--preserve-environment", "--pty", "--help", "--version"), ""),
 }
+# Argumentos propios (no son opciones) que van tras las opciones y antes del programa.
+_POSICIONALES = {"timeout": 1, "flock": 1, "chrt": 1, "taskset": 1}
+# Opciones que se aceptan por PREFIJO (`winpty -Xallow-non-tty`, `-Xplain`).
+_PREFIJOS_OPCION = {"winpty": ("-X",)}
+# Opcion que lleva la ORDEN en una cadena (`flock F -c 'git …'`, `su -c 'git …'`): la cadena se analiza como `sh -c`, heredando la marca.
+_CADENA_CORTAS = {"flock": "sexnuo", "su": "lmpfP"}
+_CADENA_LARGAS = {"flock": ("--command",), "su": ("--command", "--session-command")}
 # Opciones largas con valor OPCIONAL (GNU): el valor solo va pegado con `=`; separado, la palabra siguiente es el programa
 # (`xargs --replace git restore {}` ejecuta `git`). Mismo criterio que `cortas con valor OPCIONAL pegado` (fix8, gap 2).
 _LARGAS_OPCIONALES = {"xargs": ("--eof", "--replace", "--max-lines")}
 _ENV_LARGAS_SIN_VALOR = ("--null", "--debug", "--list-signal-handling", "--help", "--version")
 _ENV_LARGAS_CON_VALOR = ("--argv0", "--block-signal", "--default-signal", "--ignore-signal")
+_ENV_LARGAS = ("--ignore-environment", "--unset", "--chdir", "--split-string") + _ENV_LARGAS_SIN_VALOR + _ENV_LARGAS_CON_VALOR
+
+
+def _env_larga(o):
+    """La opcion larga CANONICA de `env` que `o` abrevia (cualquier prefijo unico, como getopt: `--split`, `--s`, `--split=…`) o None si no
+    existe o es ambigua (`--i`: `--ignore-environment` o `--ignore-signal`)."""
+    base = o.split("=", 1)[0]
+    candidatas = [x for x in _ENV_LARGAS if x == base] or [x for x in _ENV_LARGAS if x.startswith(base)]
+    return candidatas[0] if len(candidatas) == 1 and len(base) >= 3 else None
 _REDIRECCION_RE = re.compile(r"(?:[0-9]*|&)(?:<<<|<<|>>|>&|<&|<>|>\||>|<)(.*)\Z", re.DOTALL)
 _MAX_RESOLUCIONES = 64
 
@@ -981,13 +1012,48 @@ def _opcion_envoltorio(nombre, toks, i):
     return i + 1, True
 
 
+def _cadena_de_orden(nombre, toks, i):
+    """La opcion de `toks[i]` lleva la orden en una cadena (`flock -c|--command`, `su -c|--command|--session-command`)? `(indice siguiente,
+    cadena)` o None. Valida cualquier prefijo unico de la larga, la corta suelta (`-c cadena`), pegada (`-cCADENA`) y en cluster (`-xc cadena`)."""
+    o = toks[i]
+    if o.startswith("--"):
+        base = o.split("=", 1)[0]
+        largas = _CADENA_LARGAS[nombre]
+        candidatas = [x for x in largas if x == base] or [x for x in largas if x.startswith(base)]
+        if len(candidatas) != 1 or len(base) < 3:
+            return None
+        if "=" in o:
+            return i + 1, o.split("=", 1)[1]
+        return i + 2, (toks[i + 1] if i + 1 < len(toks) else "")
+    if not o.startswith("-") or o == "-":
+        return None
+    for k in range(1, len(o)):
+        if o[k] == "c":
+            pegada = o[k + 1:]
+            if pegada:
+                return i + 1, pegada
+            return i + 2, (toks[i + 1] if i + 1 < len(toks) else "")
+        if o[k] not in _CADENA_CORTAS[nombre]:
+            return None
+    return None
+
+
 def _saltar_envoltorio(toks, i):
-    """`(índice tras el envoltorio de `toks[i]` y sus opciones, ¿cambia el directorio?, opción desconocida|None)`:
-    salta opciones (con el valor de las que lo toman) y los argumentos propios de `timeout` (la duración) y `flock` (el
-    fichero). `sudo -D`/`--chdir` cambia el directorio de trabajo."""
+    """`(índice tras el envoltorio de `toks[i]` y sus opciones, ¿cambia el directorio?, opción desconocida|None, cadena de orden|None)`:
+    salta opciones (con el valor de las que lo toman) y los argumentos propios (`_POSICIONALES`: la duración de `timeout`, el fichero
+    de `flock`, la prioridad de `chrt`, la máscara de `taskset`). `sudo -D`/`--chdir` cambia el directorio de trabajo. Una opción de
+    orden en cadena (`flock -c`, `su -c`) devuelve la cadena: el llamante la analiza como `sh -c` (fix15, gap 3). Lineal en `toks`."""
     nombre = _program_name(toks[i])
     n, chdir = len(toks), False
     i += 1
+    if nombre == "su":
+        # `su [opciones] [-] [usuario [argumentos]]`: sin `-c` no hay programa que ejecutar (abre una shell); con `-c`, la cadena es la orden,
+        # antes o despues del usuario.
+        for k in range(i, n):
+            cadena = _cadena_de_orden(nombre, toks, k)
+            if cadena:
+                return cadena[0], chdir, None, cadena[1]
+        return n, chdir, None, None
     while i < n:
         o = toks[i]
         if o == "--":
@@ -997,15 +1063,26 @@ def _saltar_envoltorio(toks, i):
             break
         if nombre == "sudo" and (o.startswith("--chdir") or (not o.startswith("--") and "D" in o[1:])):
             chdir = True
+        if nombre == "flock":
+            cadena = _cadena_de_orden(nombre, toks, i)
+            if cadena:
+                return cadena[0], chdir, None, cadena[1]          # `flock -c 'git …' f` o `flock --command='git …' f`
+        if any(o.startswith(p) for p in _PREFIJOS_OPCION.get(nombre, ())):
+            i += 1
+            continue
         j, conocida = _opcion_envoltorio(nombre, toks, i)
         if not conocida:
-            return i, chdir, o
+            return i, chdir, o, None
         i = j
-    if nombre == "flock" and i < n and toks[i] in ("-c", "--command"):
-        return i, chdir, toks[i]                    # `flock f -c 'git …'`: la orden va en una cadena que no se ve
-    if nombre in ("timeout", "flock") and i < n:
-        i += 1                                      # la duración / el fichero de bloqueo
-    return i, chdir, None
+    i = min(n, i + _POSICIONALES.get(nombre, 0))
+    if nombre == "flock":
+        # `flock F -c 'git …'`: la orden en cadena va DESPUÉS del fichero, la forma canónica de flock
+        while i < n and toks[i].startswith("-") and toks[i] != "-":
+            cadena = _cadena_de_orden(nombre, toks, i)
+            if not cadena:
+                break
+            return cadena[0], chdir, None, cadena[1]
+    return i, chdir, None, None
 
 
 _MAX_TROCEOS_S = 4
@@ -1129,23 +1206,21 @@ def _opciones_env(nombre, toks, i, bindings, cortes):
                 return i, toks, chdir, None        # `command -v git` consulta, no ejecuta
             return i, toks, chdir, o
         if o.startswith("--"):
-            base = o.split("=", 1)[0]
-            if nombre == "env" and o in ("--ignore-environment",):
+            canon = _env_larga(o) if nombre == "env" else None     # fix15 (gap 7): `--split`, `--s`, `--split=` equivalen a `--split-string`
+            if canon == "--ignore-environment":
                 bindings.clear()
                 i += 1
-            elif nombre == "env" and o == "--unset" and i + 1 < len(toks):
-                bindings.pop(toks[i + 1], None)
-                i += 2
-            elif nombre == "env" and o.startswith("--unset="):
-                bindings.pop(o.split("=", 1)[1], None)
-                i += 1
-            elif nombre == "env" and (o == "--chdir" and i + 1 < len(toks)):
+            elif canon == "--unset" and ("=" in o or i + 1 < len(toks)):
+                if "=" in o:
+                    bindings.pop(o.split("=", 1)[1], None)
+                    i += 1
+                else:
+                    bindings.pop(toks[i + 1], None)
+                    i += 2
+            elif canon == "--chdir" and ("=" in o or i + 1 < len(toks)):
                 chdir = True
-                i += 2
-            elif nombre == "env" and o.startswith("--chdir="):
-                chdir = True
-                i += 1
-            elif nombre == "env" and (o == "--split-string" or o.startswith("--split-string=")):
+                i += 1 if "=" in o else 2
+            elif canon == "--split-string":
                 valor, usados = ((o.split("=", 1)[1], 1) if "=" in o else
                                  (toks[i + 1] if i + 1 < len(toks) else "", 2))
                 try:
@@ -1153,9 +1228,9 @@ def _opciones_env(nombre, toks, i, bindings, cortes):
                 except _SinTroceo as ilegible:
                     return i, toks, chdir, _opcion_ilegible(o, ilegible.siempre, ilegible.motivo)
                 toks = toks[:i] + palabras + toks[i + usados:]
-            elif nombre == "env" and base in _ENV_LARGAS_SIN_VALOR:
+            elif canon in _ENV_LARGAS_SIN_VALOR:
                 i += 1
-            elif nombre == "env" and base in _ENV_LARGAS_CON_VALOR:
+            elif canon in _ENV_LARGAS_CON_VALOR:
                 i += 1 if "=" in o else 2
             else:
                 return i, toks, chdir, o
@@ -1233,10 +1308,7 @@ def _desenvuelve(toks, inherited=None):
         elif t == "function" and i + 1 < len(toks):
             i += 2                      # `function f { git … }`: el nombre y la llave no son el programa
         elif t in _CONTROL:
-            i += 1          # `{ git restore .; }`, `then git restore .`, `time git …`: el programa sigue después
-            if t == "time":
-                while i < len(toks) and toks[i] in ("-p", "--"):
-                    i += 1
+            i += 1          # `{ git restore .; }`, `then git restore .`, `! git …`: el programa sigue después
         elif _salta_redireccion(toks, i) != i:
             i = _salta_redireccion(toks, i)
         else:
@@ -1245,7 +1317,11 @@ def _desenvuelve(toks, inherited=None):
                 i, toks, cambia, desc = _opciones_env(nombre, toks, i, bindings, cortes)
             elif nombre in _ENVOLTORIOS:
                 via_xargs = via_xargs or nombre == "xargs"
-                i, cambia, desc = _saltar_envoltorio(toks, i)
+                i, cambia, desc, cadena = _saltar_envoltorio(toks, i)
+                if cadena is not None:
+                    # `flock F -c 'git …'`, `su -c 'git …'`: la cadena es una orden de shell, igual que `sh -c '…'` (fix15, gap 3)
+                    toks, i, chdir = ["sh", "-c", cadena], 0, chdir or cambia
+                    continue
             else:
                 break
             chdir = chdir or cambia
@@ -1874,22 +1950,48 @@ def _razon_restauracion(sub, args, base_cambiada=False):
 _ESCAPE_NUMERICO_RE = re.compile(r"\\(?:x\{([0-9a-fA-F]+)\}?|x([0-9a-fA-F]{1,2})|u([0-9a-fA-F]{1,4})|U([0-9a-fA-F]{1,8})|([0-7]{1,3}))")
 
 
+class _DecodificacionInestable(Exception):
+    """Los escapes numéricos de la orden siguen cambiando tras `_RONDAS_ESCAPES` rondas: lectura OPACA (fix15, gap 2)."""
+
+
+_RONDAS_ESCAPES = 8       # más que la profundidad 3 de `bash -c`/`eval` con holgura; si no se estabiliza, el guardarraíl no sabe qué se forma
+
+
+def _numerico(m):
+    for valor, base in zip(m.groups(), (16, 16, 16, 16, 8)):
+        if valor:
+            try:
+                return chr(int(valor, base))
+            except (ValueError, OverflowError):
+                return ""
+    return m.group(0)
+
+
 def _aplanado(command):
-    """El texto sin la sintaxis que esconde palabras: escapes numéricos de `$'…'` aplicados y sin comillas, barras ni `$`.
+    """El texto sin la sintaxis que esconde palabras: escapes numéricos de `$'…'` aplicados HASTA UN PUNTO FIJO y sin comillas, barras ni `$`.
     Vista TERCERA y generosa para una lectura incompleta (fix14): el guardarraíl no sabe dónde acaban las comillas y las
-    sustituciones, así que `"$(… *) g''it status …)"` o `$'\\x67it'` quedan como texto que no se decodifica."""
-    def numerico(m):
-        for valor, base in zip(m.groups(), (16, 16, 16, 16, 8)):
-            if valor:
-                try:
-                    return chr(int(valor, base))
-                except (ValueError, OverflowError):
-                    return ""
-        return m.group(0)
-    return _ESCAPE_NUMERICO_RE.sub(numerico, command).translate(_SIN_SINTAXIS)
+    sustituciones, así que `"$(… *) g''it status …)"` o `$'\\x67it'` quedan como texto que no se decodifica. Una orden de nivel N
+    (`bash -c $'$\\'\\x5cx67it\\''`) lleva el git codificado N veces: cada ronda decodifica un nivel (fix15, gap 2). Lineal: como mucho
+    `_RONDAS_ESCAPES` + 1 pasadas. Lanza `_DecodificacionInestable` si tras `_RONDAS_ESCAPES` rondas aún cambia."""
+    texto = command
+    if "\\" in texto:
+        for _ in range(_RONDAS_ESCAPES):
+            nuevo = _ESCAPE_NUMERICO_RE.sub(_numerico, texto)
+            if nuevo == texto:
+                break
+            texto = nuevo
+        else:
+            if _ESCAPE_NUMERICO_RE.sub(_numerico, texto) != texto:
+                raise _DecodificacionInestable()
+    return texto.translate(_SIN_SINTAXIS)
 
 
 _SIN_SINTAXIS = {ord(c): None for c in "'\"\\$"}
+
+
+_OPACA_ESCAPES = (f"orden con lectura opaca bloqueada (los escapes numéricos `\\xHH`/`\\u`/`\\U`/octal se anidan a más de {_RONDAS_ESCAPES} "
+                  "niveles): el guardarraíl no puede saber qué texto forman y, ante la duda, no la da por inocua — escríbela sin codificar "
+                  "caracteres dentro de otros escapes.")
 
 
 def _contiene_git(command, segmentos):
@@ -1933,7 +2035,11 @@ def _check_git(command, branch, _depth=0, _env=None, _base=False, _xargs=False, 
                 "la da por inocua — escríbela sin esa construcción (`\\c` solo con ASCII, sin anidar tanto).")
     # El CR es un carácter normal en bash: `git status\r` no es `git status` y `echo x\r# …` no abre un comentario
     # (fix6, gap 9). En una orden con `git` (en cualquier grafía, fix14) no se intenta adivinar: se deniega.
-    if "\r" in command and _contiene_git(command, segmentos):
+    try:
+        con_cr_y_git = "\r" in command and _contiene_git(command, segmentos)
+    except _DecodificacionInestable:
+        return _OPACA_ESCAPES
+    if con_cr_y_git:
         return ("orden con retorno de carro (CR) y `git` bloqueada: bash trata el CR como parte de la palabra y el "
                 "guardarraíl no puede saber qué ejecuta — escríbela con saltos de línea LF.")
     # La base cambia si CUALQUIER punto de la orden la cambia (o la heredó el `bash -c`/`eval` que la
@@ -1942,7 +2048,10 @@ def _check_git(command, branch, _depth=0, _env=None, _base=False, _xargs=False, 
     base_local = _cambia_base_en(segmentos)
     base_cambiada = _base or base_local
     incompleta = incompleta or _inc        # fix14: la marca se HEREDA al reanalizar el contenido de `bash -c`/`eval`
-    contiene_git = bool(incompleta) and _contiene_git(command, segmentos)     # solo se necesita con una lectura incompleta
+    try:
+        contiene_git = bool(incompleta) and _contiene_git(command, segmentos)     # solo se necesita con una lectura incompleta
+    except _DecodificacionInestable:
+        return _OPACA_ESCAPES
     # Invariante de cierre (T-06 fix5): lo que el guardarraíl no pudo leer entero no se da por inocuo. Con algo
     # abierto al terminar de tokenizar (comilla, `$(`, backtick, heredoc sin cierre, escape final) la orden
     # ENTERA se deniega si contiene `git` o cambia la base; ya no se mira solo el último segmento.
@@ -1962,7 +2071,7 @@ def _check_git(command, branch, _depth=0, _env=None, _base=False, _xargs=False, 
                     f"caracteres o más de {_MAX_TROCEOS_S} `-S` anidados): el guardarraíl no puede saber qué orden "
                     "ejecuta env — escríbela sin `-S`, con el programa y sus argumentos en palabras separadas.")
         if desconocida and (any(_GIT_TEXTO_RE.search(t) for t in crudo) or any(_GIT_TEXTO_RE.search(t) for t in toks)
-                            or any(_program_name(t) in _INTERPRETES or _program_name(t).startswith("$") for t in toks[:6])):
+                            or any(_program_name(t) in _INTERPRETES or _program_name(t).startswith("$") for t in toks)):
             return (f"opción `{desconocida}` de un envoltorio (`timeout`, `nice`, `sudo`, `xargs`, `flock`, `env`…) no "
                     "reconocida en una orden con `git` o con un intérprete (`bash`, `sh`, `eval`, `env`, `xargs`…) detrás: el "
                     "guardarraíl no puede saber si consume un valor ni qué orden ejecuta — escríbela sin esa opción o sin el "
@@ -2134,7 +2243,9 @@ def decide(payload, project_dir, cfg=None, branch=None, branch_fn=None, agent="i
     if tool == "Bash" and cfg.get("git", True):
         cmd = tool_input.get("command") if isinstance(tool_input, dict) else None
         if isinstance(cmd, str) and cmd.strip():
-            if branch is None and branch_fn is not None and re.search(r"\bgit\b", cmd):
+            # fix15 (gap 1): la rama se consulta SIEMPRE, en cualquier orden Bash no vacia. Ninguna decision de seguridad depende de
+            # `\bgit\b` en minusculas del texto crudo: `GIT switch main`, `g''it switch main` o `$'\x67it' checkout main` ejecutan git.
+            if branch is None and branch_fn is not None:
                 branch = branch_fn(project_dir)
             return check_git(cmd, branch)
     return None

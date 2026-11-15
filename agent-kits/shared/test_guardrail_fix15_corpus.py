@@ -123,3 +123,9 @@ SIN_PARIDAD15 = {
     "chrt -r 1 GIT reset --hard": "`-r` es SCHED_RR y necesita CAP_SYS_NICE (falla sin privilegios)",
     "chrt -f 10 git reset --hard": "`-f` es SCHED_FIFO y necesita CAP_SYS_NICE (falla sin privilegios)",
 }
+SIN_PARIDAD15.update({o: "`coproc` lanza el `case` en segundo plano: el efecto no es observable de forma determinista"
+                      for o in DOBLE15 + HITS15 if "coproc" in o})
+SIN_PARIDAD15.update({o: "`<( )` no se ejecuta si el comando que lo recibe (`echo`) no lee el descriptor"
+                      for o in DOBLE15 + HITS15 if o.startswith("echo <(")})
+SIN_PARIDAD15.update({o: "`winpty` exige una terminal (stdin no es un tty en el arnes) y no lanza el programa"
+                      for o, b in ENVOLTORIOS15 if b == "winpty"})
