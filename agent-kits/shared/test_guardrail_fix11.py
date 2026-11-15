@@ -39,6 +39,8 @@ def decide(cmd):
     "cat <(case x in [a-z]) git status;; esac)",                       # patron fuera de la lista blanca
     "cat <(case x in @(x|y)) git status;; esac)",
     "cat <(case x in x;) git status;; esac)",
+    "cat <(case y in x|esac) git status;; esac)",                     # `esac` tras `|` es un patron
+    "cat <(case y in x|\nesac) git status;; esac)",
 ])
 def test_toda_forma_fuera_de_la_lista_blanca_deja_la_lectura_incompleta(orden):
     segs, incompleta = gc._segmentos(orden)

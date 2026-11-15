@@ -307,7 +307,6 @@ BAD11_PARIDAD = [
     "cat <(coproc C case x in x) {D};; esac)",
     "cat <(function f case x in x) {D};; esac; f)",
     "cat <(f () case x in x) {D};; esac; f)",
-    "cat <(x=1 case x in x) {D};; esac)",
     "cat <(case x in(x) {D};; esac)",
     "echo $(case x in(x) {D};; esac)",
     "cat <(case x in \"esac\"|*) {D};; esac)",
@@ -344,6 +343,7 @@ BAD11_PARIDAD = [
 ]
 # Deny sin efecto reproducible en bash (sintaxis invalida o `esac` como patron cierra el `case`): solo se exige el deny.
 SIN_PARIDAD_11 = [
+    "cat <(x=1 case x in x) {D};; esac)",           # `x=1 case`: en bash NO es un case (asignacion antes de la reservada)
     "cat <(case x in (esac|*) {D};; esac)",
     "cat <(case x in esac|*) {D};; esac)",
     "cat <(case y in x|esac) {D};; esac)",
