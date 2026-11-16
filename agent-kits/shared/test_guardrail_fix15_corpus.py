@@ -43,7 +43,7 @@ HITS15 = [
 
 
 def codificado(n):
-    """`git` codificado `n` veces con `\\x5c`: hacen falta `n` rondas de decodificacion para llegar a `\\x67it`."""
+    """`git` codificado `n` veces con `\\x5c`: hacen falta `n` + 1 rondas de decodificacion para llegar a `git`."""
     return BS + "x5c" + "x5c" * (n - 1) + "x67it"
 
 
@@ -98,6 +98,9 @@ LEGITIMAS15 = [
     "/usr/bin/time -f %e make", "time -p make", "env --split 'make test'", "env --s 'A=1 make'", "timeout 5 make",
     "git status", "nohup -- git status", "flock F -c 'git status'", "chrt 10 git status", "taskset -c 0 git log -1",
     "doas git status", "winpty git log --oneline -3", "/usr/bin/time -p git diff --stat", "env --split 'git status'",
+    # la cadena de `flock`/`su` ANTES del fichero y con `--command=`: sin git destructivo se analiza y se permite (un mutante que no la reconoce deniega por opcion desconocida)
+    "flock -c 'git status' F", "flock --command='git status' F", "flock -n -c 'git log -1' F", "su -c 'git status' root", "su root -c 'make test'",
+    "env --s 'git log -1'", "env --spli 'git diff --stat'", "env --split='git status'",
 ]
 
 # Lo que bash ejecuta como git y el guardarrail NO ve: LIMITE declarado (expansiones en la palabra de mando, xargs con el

@@ -88,14 +88,16 @@ def test_git_codificado_dos_veces_en_una_lectura_incompleta_se_deniega(orden):
     assert decide(orden), orden
 
 
-@pytest.mark.parametrize("n", [2, 3, 5, 8])
+@pytest.mark.parametrize("n", [2, 3, 5, 7])
 def test_git_codificado_n_veces_hasta_8_rondas_se_deniega_por_git(n):
+    """`codificado(n)` necesita n + 1 rondas (n de `\x5c` y la ultima de `\x67`): con n = 7 son 8, el maximo."""
     orden = "echo $(time -p case x in *) bash -c $'" + codificado(n) + " reset --hard';; esac)"
     razon = decide(orden)
     assert razon, (n, orden)
+    assert "opaca" not in razon, (n, razon)              # hasta 8 rondas se DECODIFICA y se deniega por git: no por no poder leerla (mata el mutante de 1 ronda)
 
 
-@pytest.mark.parametrize("n", [9, 10, 20])
+@pytest.mark.parametrize("n", [8, 9, 10, 20])
 def test_si_la_decodificacion_no_se_estabiliza_en_8_rondas_es_lectura_opaca(n):
     orden = "echo $(time -p case x in *) bash -c $'" + codificado(n) + " reset --hard';; esac)"
     razon = decide(orden)
