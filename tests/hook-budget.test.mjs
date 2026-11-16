@@ -7,6 +7,7 @@ const launcher = readFileSync(new URL('../hooks/run-hook.mjs', import.meta.url),
 const block = launcher.match(/\/\/ child-budget:start[\s\S]*?\/\/ child-budget:end/)
 if (!block) throw new Error('child-budget block not found in hooks/run-hook.mjs')
 const childBudgetMs = new Function(`${block[0]}\nreturn childBudgetMs`)()
+const cleanupConfirmationMs = new Function(`${block[0]}\nreturn cleanupConfirmationMs`)()
 
 // SessionEnd en Claude Code: 1,5 s globales por defecto. El hijo de la captura tiene 800 ms y el resto
 // es margen para arrancar el launcher y cerrar el árbol. Si el usuario eleva el presupuesto con
@@ -113,8 +114,8 @@ test('activity opt-in: the launcher checks it before discovering or spawning Pyt
 
 test('hook budget: the cleanup confirmation is 10 s only for OpenCode informational hooks (fix16, gap 22); guard and the other runtimes keep 500 ms', () => {
   const src = readFileSync(new URL('../hooks/run-hook.mjs', import.meta.url), 'utf8')
-  assert.match(src, /warn\('child cleanup confirmation timed out'\); abandon\(\);\s*\}, cleanupConfirmationMs\)/)
-  assert.match(src, /const cleanupConfirmationMs = runtime === '--runtime=opencode' && !guard \? 10000 : 500;/)
+  assert.match(src, /warn\('child cleanup confirmation timed out'\); abandon\(\);\s*\}, confirmMs\)/)
+  assert.match(src, /const confirmMs = cleanupConfirmationMs\(runtime, guard, performance\.now\(\)\);/)
 })
 
 // fix17 (gap 20): OpenCode no impone plazo a sus hooks informativos, pero su catalogo declara 20 s desde que el adaptador lanza el launcher. Arranque del launcher + captura (8 s) +

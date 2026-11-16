@@ -167,8 +167,8 @@ claiming a native capture guarantee.
 
 The launcher invokes canonical `journal-capture.py` using isolated Python
 (`-I -S`); `journal.py capture-end` reuses that writer. Teardown does not load
-the materializer or consumer Python packages. Child work has 800 ms in Claude
-and 2,200 ms in Codex/OpenCode, selected by a literal adapter argument. On
+the materializer or consumer Python packages. Child work has 800 ms in Claude,
+2,200 ms in Codex and 8,000 ms in OpenCode, selected by a literal adapter argument. On
 timeout, the launcher terminates its child tree and waits for closure; the
 retained prompt log remains available to `recover`.
 

@@ -32,6 +32,15 @@ function childBudgetMs(hook, runtime, env) {
   const budget = Math.min(sessionEndBudgetMs(env), SESSION_END_HOOK_TIMEOUT_MS);
   return Math.max(SESSION_END_CHILD_MS, budget - LAUNCHER_MARGIN_MS);
 }
+
+// fix17 (gap 20): la confirmacion de la limpieza de los hooks informativos de OpenCode (que no impone plazo) toma lo que queda de la ventana de 20 s del catalogo del adaptador, que corre
+// desde que lanza este launcher (`performance.now()` cuenta desde el arranque del proceso): arranque + captura (8 s) + confirmacion caben en 20 s POR CONSTRUCCION, con un tope de 10 s y un
+// minimo de 250 ms. El guard y los demas runtimes conservan 500 ms: su plazo lo impone el anfitrion.
+const OPENCODE_CATALOG_MS = 20000;
+function cleanupConfirmationMs(runtime, guard, uptimeMs) {
+  if (runtime !== '--runtime=opencode' || guard) return 500;
+  return Math.max(250, Math.min(10000, OPENCODE_CATALOG_MS - 1000 - uptimeMs));
+}
 // child-budget:end
 const JOB_EMPTY = 1 << 24;   // hooks/runtime-supervisor.py JOB_EMPTY (H-29): the job holds no other process
 
@@ -450,16 +459,16 @@ async function main() {
     const stop = () => {
       if (stopping) return stopping;
       stopping = new Promise(done => {
-        // fix16 (gap 22): OpenCode (que no impone plazo a sus hooks informativos) espera 10 s la confirmacion de la limpieza: 500 ms no alcanzaba (0,61-0,78 s medidos) y 2 s tampoco con 12 bucles de CPU
-        // (el arranque del supervisor en Python: p50 1,1 s, p95 2,0 s, max 2,5 s; con 2 s quedaban huerfanos). El guard y los demas runtimes conservan 500 ms: su plazo lo impone el anfitrion.
-        const cleanupConfirmationMs = runtime === '--runtime=opencode' && !guard ? 10000 : 500;
+        // fix16 (gap 22): OpenCode (que no impone plazo a sus hooks informativos) espera hasta 10 s la confirmacion de la limpieza: 500 ms no alcanzaba (0,61-0,78 s medidos) y 2 s tampoco con 12 bucles de CPU
+        // (el arranque del supervisor en Python: p50 1,1 s, p95 2,0 s, max 2,5 s; con 2 s quedaban huerfanos). fix17 (gap 20): lo que queda de los 20 s del catalogo, con ese tope (`cleanupConfirmationMs`).
+        const confirmMs = cleanupConfirmationMs(runtime, guard, performance.now());
         if (inheritedGroup || (windows && jobHandle)) {
           const operation = inheritedGroup ? ['close-group', String(process.pid)] : ['close', String(process.pid), jobHandle];
           const cleanup = spawn(py.command, [...py.args, '-I', '-S', join(here, 'runtime-supervisor.py'),
             ...operation], { env, windowsHide: true, detached: inheritedGroup, stdio: 'ignore' });
           const cleanupTimer = setTimeout(() => {
             cleanup.kill('SIGKILL'); warn('child cleanup confirmation timed out'); abandon();
-          }, cleanupConfirmationMs);
+          }, confirmMs);
           cleanup.on('error', () => { clearTimeout(cleanupTimer); warn('child job cleanup unavailable'); abandon(); done(); });
           cleanup.on('close', code => {
             clearTimeout(cleanupTimer);

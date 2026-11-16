@@ -457,8 +457,9 @@ remain independent.
 
 Codex caps SessionEnd at 3 s; the exporter adjusts that timeout. Claude Code has
 1.5 s by default even though this plugin declares 5 s. The internal child deadline
-is 800 ms in Claude and 2,200 ms in Codex/OpenCode, selected by a literal adapter
-argument. Timeout waits for child-tree closure. Final headless Claude 2.1.287 and
+is 800 ms in Claude, 2,200 ms in Codex and 8,000 ms in OpenCode (whose catalog
+declares 20 s: startup + capture + cleanup confirmation fit by construction),
+selected by a literal adapter argument. Timeout waits for child-tree closure. Final headless Claude 2.1.287 and
 Codex 0.161.0 fixtures verify capture and closure; they establish no universal latency,
 TUI exit or functional guard guarantee. OpenCode V2 captures on execution end and materializes
 with bounded replay in the next `session.context`. Start a new session after updating a plugin; payload tests do not

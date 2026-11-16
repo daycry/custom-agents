@@ -32,7 +32,7 @@ import { fileURLToPath } from "node:url"
 import { createInterface, emitKeypressEvents } from "node:readline"
 import { execFileSync } from "node:child_process"
 import { tmpdir, homedir } from "node:os"
-import { queryCodexPlugin, terminateProcessTree } from "../agent-kits/shared/codex-plugin-state.mjs"
+import { queryCodexPlugin, runBounded } from "../agent-kits/shared/codex-plugin-state.mjs"
 import {validateDelivery,planProfileCopies,resolveSelection,verifyProfileTarget} from './modules.mjs'
 import {
   PROVIDERS, IDS, getProvider, buildPlan, MANIFEST, MANIFEST_PLUGIN, MANIFIESTOS,
@@ -1260,26 +1260,12 @@ const citarCmd = (t) => {
 export const argCmd = (a) => String(a).split("%").map(citarCmd).join("^%")
 
 /**
- * Mata el ÁRBOL de un proceso que ha expirado. `execFileSync` mata al hijo directo (el `cmd.exe`),
- * pero no a su nieto: la CLI colgada seguía viva consumiendo el terminal (comprobado con
- * `tasklist`). En Windows eso es `taskkill /T /F`; en el resto, el grupo de procesos.
+ * Mata el ÁRBOL de un proceso que ha expirado (Linux y macOS: el grupo de procesos, `detached`). En Windows el plazo lo guarda un worker (`runBounded`, fix17 gap 5) que mata el árbol
+ * con la raíz VIVA (`taskkill /T /F`) antes de salir: aquí ya no hay nada que barrer.
  */
-// fix16 (gap 18): tope de la caza de huérfanos en Windows (taskkill + barrido CIM). fix15 lo subió a 90 s apoyado en una hipótesis no demostrada y se pedía volver a 15 s «o justificarlo con una
-// medida»: con 12 bucles de CPU y 15 s el árbol de la CLI colgada sobrevivió en 1 de 3 pasadas de `gap 8` (barrido y confirmación en paralelo, sin agotar el tope); con 60 s, 0 de 3.
-// El tope solo CORTA el peor caso: la limpieza vuelve en cuanto el sondeo confirma la muerte (segundos en reposo) y solo corre tras un timeout.
-const TIMEOUT_CAZA = 60_000
-
 function matarArbol(pid) {
-  if (!pid) return
-  if (process.platform !== "win32") {
-    try { process.kill(-pid, "SIGKILL") } catch { /* sin grupo propio: nada que barrer */ }
-    return
-  }
-  // fix16 (gap 18): en Windows se reutiliza `terminateProcessTree` (`taskkill /T /F` en segundo plano y barrido por `ParentProcessId` con PowerShell + CIM, el sustituto
-  // oficial de `wmic`, que Windows 11 24H2 ya no trae), EN PARALELO y con la muerte CONFIRMADA por sondeo, dentro de un tope total de 15 s. Al expirar, Node ya ha matado
-  // al hijo directo (el `cmd.exe`), asi que `taskkill /T` no encuentra a quien seguir: el barrido pesca a los huerfanos por el pid muerto. En serie, con 12 bucles de CPU
-  // sumaban 36 s y el test de CLI colgada (cota de 30 s) daba rojo; en paralelo caben en el tope.
-  terminateProcessTree(pid, TIMEOUT_CAZA, TIMEOUT_CAZA)
+  if (!pid || process.platform === "win32") return
+  try { process.kill(-pid, "SIGKILL") } catch { /* sin grupo propio: nada que barrer */ }
 }
 
 /**
@@ -1326,10 +1312,25 @@ function correr(cmd, args, cwd, env = process.env) {
     throw err
   }
   try {
-    if (process.platform === "win32" && real && /\.(cmd|bat)$/i.test(real)) {
+    if (process.platform === "win32") {
+      // fix17 (gap 5): en Windows el plazo lo guarda un worker (`runBounded`, el patron de `--query-worker`): `execFileSync` con `timeout` mata PRIMERO la raiz (`cmd.exe`) y el arbol solo
+      // se recuperaba con el barrido CIM (3,3-4,8 s; mas de 20 s con la CPU saturada); el dueño del plazo mata con la raiz VIVA (`taskkill /T`, ~1 s). El worker no hereda la salida: la devuelve.
+      const cmdWin = /\.(cmd|bat)$/i.test(real)
       const linea = [real, ...args].map(argCmd).join(" ")
-      return execFileSync(process.env.COMSPEC || "cmd.exe", ["/d", "/s", "/c", `"${linea}"`],
-        { ...opciones, windowsVerbatimArguments: true })
+      const r = runBounded({ file: cmdWin ? (process.env.COMSPEC || "cmd.exe") : real, args: cmdWin ? ["/d", "/s", "/c", `"${linea}"`] : args,
+        cwd, env: opciones.env, timeoutMs: TIMEOUT_EXEC, verbatim: cmdWin })
+      if (r.expirado) {
+        const err = new Error(`Command timed out: ${cmd}`)
+        err.code = "ETIMEDOUT"; err.stdout = r.stdout; err.stderr = r.stderr      // sin `pid`: el worker ya mato el arbol
+        throw err
+      }
+      if (r.error) { const err = new Error(`spawn ${cmd} ${r.error}`); err.code = r.error; throw err }
+      if (r.status !== 0) {
+        const err = new Error(`Command failed: ${cmd} ${args.join(" ")}\n${r.stderr}`)
+        err.status = r.status; err.stdout = r.stdout; err.stderr = r.stderr
+        throw err
+      }
+      return r.stdout
     }
     if (process.platform !== "win32" && existsSync("/bin/sh"))
       return sinManejadoresDeSenal(() => execFileSync("/bin/sh", ["-c", VIGILANTE, "sh", String(process.pid), real, ...args], opciones))

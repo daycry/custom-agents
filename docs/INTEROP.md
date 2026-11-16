@@ -464,8 +464,9 @@ multilínea conservan la ejecución anterior. Los handlers siguen independientes
 
 Codex limita SessionEnd a 3 s; el exportador ajusta ese timeout. Claude Code dispone
 de 1,5 s por defecto, aunque nuestro plugin declare 5 s. El deadline interno del
-hijo es 800 ms en Claude y 2.200 ms en Codex/OpenCode, por argumento literal del
-adaptador. Se espera el cierre del árbol de procesos al agotar el tiempo. Las fixtures
+hijo es 800 ms en Claude, 2.200 ms en Codex y 8.000 ms en OpenCode (cuyo catálogo
+declara 20 s: arranque + captura + confirmación de la limpieza caben por
+construcción), por argumento literal del adaptador. Se espera el cierre del árbol de procesos al agotar el tiempo. Las fixtures
 headless finales Claude 2.1.287 y Codex 0.161.0 verifican captura y cierre; no acreditan
 latencia universal, salida TUI ni guardias. OpenCode V2 captura al terminar la ejecución y materializa
 con replay acotado en el siguiente contexto. Tras actualizar un plugin hay que iniciar una sesión nueva; las

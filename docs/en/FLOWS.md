@@ -805,12 +805,15 @@ flowchart LR
 
 ## Reading native Codex plugin state
 
-The shared reader queries state and returns sanitized JSON. Its 3,000 ms
-deadline includes worker and CLI startup: synchronous process creation
-consumes that budget. Output received after the deadline is discarded and
-returns `unknown` with `cli-timeout`; the wrapper reserves a bounded margin
-for process cleanup and output collection. This read leaves project
-configuration unchanged.
+The shared reader queries state and returns sanitized JSON. Its 6,000 ms
+deadline (`CUSTOM_AGENTS_CODEX_QUERY_TIMEOUT_MS` raises it, from 1,000 to
+60,000) runs from the moment the worker is ready and is clipped to the outer
+cap (limit + 3 s, minimum 7 s) minus a 2 s cleanup reserve: with a slow worker
+the query expires earlier instead of receiving the SIGKILL mid-cleanup. Output
+received after the deadline is discarded and returns `unknown` with
+`cli-timeout`; on Windows the CLI tree is killed with the root alive
+(`taskkill /T`) and only processes born after the launch count. This read
+leaves project configuration unchanged.
 
 OpenCode 2.0.12 on the current candidate has confirmed loading, context,
 write/post-tool handling, capture/replay across two loops and opt-in

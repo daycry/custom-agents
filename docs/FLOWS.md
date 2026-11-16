@@ -808,11 +808,14 @@ flowchart LR
 ## Lectura del estado nativo de Codex
 
 El lector compartido consulta el estado y entrega JSON saneado. Su plazo de
-3.000 ms incluye el arranque del worker y de la CLI: el inicio síncrono del
-proceso consume ese presupuesto. Una salida recibida fuera de plazo se
-descarta y produce `unknown` con `cli-timeout`; el wrapper reserva un margen
-acotado para finalizar procesos y recoger su salida. Esta lectura no cambia
-la configuración del proyecto.
+6.000 ms (`CUSTOM_AGENTS_CODEX_QUERY_TIMEOUT_MS` lo sube, de 1.000 a 60.000)
+corre desde que el worker está listo y se recorta al tope exterior (límite +
+3 s, mínimo 7 s) menos 2 s de reserva para la limpieza: con un worker lento la
+consulta expira antes, en vez de recibir el SIGKILL a mitad de la limpieza. Una
+salida recibida fuera de plazo se descarta y produce `unknown` con
+`cli-timeout`; en Windows el árbol de la CLI se mata con la raíz viva
+(`taskkill /T`) y solo cuentan los procesos nacidos tras el lanzamiento. Esta
+lectura no cambia la configuración del proyecto.
 
 OpenCode 2.0.12 sobre el candidato actual ha confirmado carga, contexto,
 escritura/post-tool, captura/replay de dos loops y actividad opt-in de

@@ -165,8 +165,8 @@ comprobarse por runtime antes de atribuir una garantía nativa de captura.
 El launcher ejecuta la captura con Python aislado (`-I -S`) y el helper
 canónico `journal-capture.py`; `journal.py capture-end` reutiliza ese escritor.
 Así, el cierre no carga el materializador ni depende de paquetes de Python
-del consumidor. El trabajo hijo dispone de 800 ms en Claude y 2.200 ms en
-Codex/OpenCode, seleccionados por un argumento literal del adaptador. Al
+del consumidor. El trabajo hijo dispone de 800 ms en Claude, 2.200 ms en
+Codex y 8.000 ms en OpenCode, seleccionados por un argumento literal del adaptador. Al
 agotar el tiempo, el launcher termina su árbol de procesos y espera el cierre;
 el log de prompts retenido permite `recover`.
 
