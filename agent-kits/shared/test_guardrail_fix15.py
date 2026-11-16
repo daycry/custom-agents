@@ -28,7 +28,7 @@ def _id(o):
 @pytest.fixture
 def proyecto_en_rama(tmp_path):
     """Un repositorio real en la rama de trabajo `feature/x` (sin commits: HEAD simbolico)."""
-    r = subprocess.run(["git", "init", "-q", "-b", "feature/x", str(tmp_path)], capture_output=True, text=True, timeout=60)
+    r = subprocess.run(["git", "init", "-q", "-b", "feature/x", str(tmp_path)], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
     assert r.returncode == 0, r.stderr
     return str(tmp_path)
 

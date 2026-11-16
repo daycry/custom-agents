@@ -130,5 +130,9 @@ SIN_PARIDAD15.update({o: "`coproc` lanza el `case` en segundo plano: el efecto n
                       for o in DOBLE15 + HITS15 if "coproc" in o})
 SIN_PARIDAD15.update({o: "`<( )` no se ejecuta si el comando que lo recibe (`echo`) no lee el descriptor"
                       for o in DOBLE15 + HITS15 if o.startswith("echo <(")})
+SIN_PARIDAD15.update({o: "`sh` es `dash` en Debian y no entiende `$'…'`: el git codificado no se forma (en Git Bash `sh` es bash)"
+                      for o in DOBLE15 if " sh -c " in o})
+SIN_PARIDAD15["flock --command='git reset --hard' F"] = ("util-linux `flock` (Debian) no ejecuta la cadena de `--command=…` puesta ANTES del fichero en este arnes "
+                                                       "(las demas formas de `flock`, con la cadena tras el fichero, si ejecutan git)")
 SIN_PARIDAD15.update({o: "`winpty` exige una terminal (stdin no es un tty en el arnes) y no lanza el programa"
                       for o, b in ENVOLTORIOS15 if b == "winpty"})
