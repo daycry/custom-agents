@@ -9,6 +9,9 @@ export const CODEX_PLUGIN_ID = 'custom-agents@daycry'
 // fix16 (gap 21): 6 s (eran 3 s). Con la maquina saturada (12 bucles de CPU) el arranque de node del propio shim de codex (`codex.cmd` -> node) tarda una mediana de 3,7 s y el plazo de
 // 3 s ni siquiera dejaba arrancar a codex. Ningun anfitrion impone mas de 10 s al ayudante (`doctor.py`): el tope exterior es limite + 3 s (9 s) y la limpieza del arbol cabe dentro.
 export const CODEX_QUERY_TIMEOUT_MS = 6_000
+// Igual que `CUSTOM_AGENTS_EXEC_TIMEOUT_MS` del instalador: quien tenga una maquina lenta (o un arnes de CI saturado) puede subir el tope con `CUSTOM_AGENTS_CODEX_QUERY_TIMEOUT_MS`
+// (de 1.000 a 60.000 ms); un valor ilegible se ignora. El diagnostico sigue imponiendo 10 s al ayudante.
+const capMs=env=>{const n=Number(env?.CUSTOM_AGENTS_CODEX_QUERY_TIMEOUT_MS);return Number.isInteger(n) && n>=1000 && n<=60000 ? n : CODEX_QUERY_TIMEOUT_MS}
 const QUERY_ARGS=['plugin','list','--marketplace','daycry','--available','--json']
 const HELPER=fileURLToPath(import.meta.url)
 const unknown = reason => ({state:'unknown', enabled:null, version:null, reason})
@@ -70,7 +73,8 @@ function executable(env) {
 export function runCodexQuery(args, {cwd,timeout=CODEX_QUERY_TIMEOUT_MS,env=process.env}={}) {
   executable(env) // Preserve the missing-CLI classification without starting a worker.
   if(JSON.stringify(args)!==JSON.stringify(QUERY_ARGS)) throw new Error('unsupported native query arguments')
-  const limit=Number.isFinite(timeout) && timeout>0 ? Math.min(timeout,CODEX_QUERY_TIMEOUT_MS) : CODEX_QUERY_TIMEOUT_MS
+  const cap=capMs(env)
+  const limit=Number.isFinite(timeout) && timeout>0 ? Math.min(timeout,cap) : cap
   try {
     // NoDefaultCurrentDirectoryInExePath: the worker and the npm shim it starts never resolve
     // `node` (or any command) from the project directory, where it could be planted.
@@ -87,7 +91,7 @@ export function runCodexQuery(args, {cwd,timeout=CODEX_QUERY_TIMEOUT_MS,env=proc
 function queryWorker(deadline,limit) {
   const outerKill=limit!==undefined ? deadline-limit+outerMs(limit) : deadline+4000   // `runCodexQuery` mata al worker a `outerMs(limite)` del lanzamiento: la limpieza del arbol debe caber antes
   if(limit!==undefined) deadline=Date.now()+limit
-  deadline=Math.min(deadline,Date.now()+CODEX_QUERY_TIMEOUT_MS)
+  deadline=Math.min(deadline,Date.now()+capMs(process.env))
   const timeout=deadline-Date.now()
   if(timeout<=0) {process.exitCode=124;return}
   let command

@@ -68,7 +68,7 @@ function fixture() {
   const root=mkdtempSync(join(tmpdir(),'ca-state-owned-')),bin=join(root,'bin')
   mkdirSync(bin)
   const env={}
-  for(const key of ['SystemRoot','WINDIR','COMSPEC','PATHEXT','NODE_V8_COVERAGE']) if(process.env[key])env[key]=process.env[key]
+  for(const key of ['SystemRoot','WINDIR','COMSPEC','PATHEXT','NODE_V8_COVERAGE','CUSTOM_AGENTS_CODEX_QUERY_TIMEOUT_MS']) if(process.env[key])env[key]=process.env[key]
   Object.assign(env,{HOME:root,USERPROFILE:root,CODEX_HOME:join(root,'.codex'),PATH:[bin,process.platform==='win32' ? join(process.env.SystemRoot,'System32') : '/usr/bin:/bin'].join(delimiter)})
   const script=join(root,'native-owned.mjs')
   const shim=join(bin,process.platform==='win32' ? 'codex.cmd' : 'codex')
@@ -100,7 +100,7 @@ test('Codex state: real standalone native query is bounded and emits only saniti
     const marker=join(owned.root,'argv.json')
     owned.createDirectNode(`import fs from 'node:fs';fs.writeFileSync(${JSON.stringify(marker)},JSON.stringify(['plugin',...process.argv.slice(2)]));console.log(JSON.stringify({installed:[{pluginId:'custom-agents@daycry',installed:true,enabled:true,version:'1.22.0',source:'PRIVATE_SOURCE'}],available:[]}));`)
     const helper=resolve(fileURLToPath(new URL('../agent-kits/shared/codex-plugin-state.mjs',import.meta.url)))
-    const state=JSON.parse(execFileSync(process.execPath,[helper,'--project',owned.root],{cwd:owned.root,env:owned.env,encoding:'utf8',timeout:10000}))
+    const state=JSON.parse(execFileSync(process.execPath,[helper,'--project',owned.root],{cwd:owned.root,env:owned.env,encoding:'utf8',timeout:60000}))
     assert.deepEqual(state,{state:'installed',enabled:true,version:'1.22.0',reason:null})
     assert.deepEqual(JSON.parse(readFileSync(marker,'utf8')),['plugin','list','--marketplace','daycry','--available','--json'])
     assert.equal(JSON.parse(execFileSync(process.execPath,[helper,'--invalid'],{cwd:owned.root,env:owned.env,encoding:'utf8'})).reason,'invalid-arguments')
@@ -132,12 +132,13 @@ test('Codex state: timeout kills non-cooperative native process and descendants 
     const child=`import fs from 'node:fs';fs.writeFileSync(${JSON.stringify(pidFile)},String(process.pid));process.on('SIGTERM',()=>{});setTimeout(()=>process.exit(0),120000)`
     owned.createDirectNode(`import fs from 'node:fs';import {spawn} from 'node:child_process';fs.writeFileSync(${JSON.stringify(parentFile)},String(process.pid));process.on('SIGTERM',()=>{});const child=spawn(process.execPath,['--input-type=module','-e',${JSON.stringify(child)}],{stdio:'inherit'});child.on('exit',()=>process.exit(0));`)
     const began=Date.now()
-    const state=queryCodexPlugin({cwd:owned.root,timeout:6000,runner:(args,options)=>runCodexQuery(args,{...options,env:owned.env})})
+    const query=Number(process.env.CUSTOM_AGENTS_CODEX_QUERY_TIMEOUT_MS)||6000      // el arnes con la maquina saturada sube el tope (como CUSTOM_AGENTS_EXEC_TIMEOUT_MS)
+    const state=queryCodexPlugin({cwd:owned.root,timeout:query,runner:(args,options)=>runCodexQuery(args,{...options,env:owned.env})})
     assert.equal(state.reason,'cli-timeout')
     // Ceiling = 6 s deadline + runCodexQuery's 3 s outer SIGKILL, plus spawn/teardown margin
     // (Windows taskkill + CIM sweep under a loaded runner). Far below the 120 s (fix16: was 12 s) the
     // non-cooperative descendant would live if the query waited for it; its death is probed below.
-    assert.ok(Date.now()-began<20000,'query waited for non-cooperative process after its deadline')
+    assert.ok(Date.now()-began<query+14000,'query waited for non-cooperative process after its deadline')
     assert.ok(existsSync(pidFile),'fixture must start its descendant before the deadline')
     const pid=Number(readFileSync(pidFile,'utf8'))
     assert.equal(nativeProcessIsLive(pid),false,'native descendant survived query timeout cleanup')
