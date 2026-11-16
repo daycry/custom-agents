@@ -37,11 +37,12 @@ export function terminateProcessTree(pid,budgetMs=TREE_KILL_TOTAL_MS,maxMs=TREE_
     const killer=spawn(join(system,'taskkill.exe'),['/T','/F','/PID',String(pid)],{stdio:'ignore',windowsHide:true})
     killer.on('error',()=>{});killer.unref()
   } catch {/* direct child already gone */}
-  // A killed cmd shim can leave children whose recorded parent PID is still the old PID: the sweep follows ParentProcessId from the recorded PID.
+  // A killed cmd shim can leave children whose recorded parent PID is still the old PID: the sweep follows ParentProcessId from the recorded PID with one filtered CIM query per level
+  // (fix16: enumerating every Win32_Process took minutes under CPU saturation; a WMI-side filter is far cheaper).
   const ids=new Set([pid])
   try {
     const swept=spawnSync(join(system,'WindowsPowerShell/v1.0/powershell.exe'),['-NoProfile','-NonInteractive','-Command',
-      `$all=@(Get-CimInstance Win32_Process); $ids=@(${pid}); for($i=0;$i -lt $ids.Count;$i++){ $ids+=@($all | Where-Object { $_.ParentProcessId -eq $ids[$i] -and $_.ProcessId -notin $ids } | Select-Object -ExpandProperty ProcessId) }; [array]::Reverse($ids); foreach($id in $ids){ Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }; $ids -join ' '`],
+      `$ids=@(${pid}); for($i=0;$i -lt $ids.Count -and $i -lt 64;$i++){ $ids+=@(Get-CimInstance Win32_Process -Filter ('ParentProcessId='+$ids[$i]) | Select-Object -ExpandProperty ProcessId | Where-Object { $_ -notin $ids }) }; [array]::Reverse($ids); foreach($id in $ids){ Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }; $ids -join ' '`],
     {stdio:['ignore','pipe','ignore'],encoding:'utf8',windowsHide:true,timeout:Math.max(1000,deadline-Date.now()-500)})
     for(const found of String(swept.stdout || '').split(/\s+/)) if(/^\d{1,10}$/.test(found)) ids.add(Number(found))
   } catch {/* best effort, bounded even on machines without CIM */}
