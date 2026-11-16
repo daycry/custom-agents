@@ -116,3 +116,21 @@ test('hook budget: the cleanup confirmation is 10 s only for OpenCode informatio
   assert.match(src, /warn\('child cleanup confirmation timed out'\); abandon\(\);\s*\}, cleanupConfirmationMs\)/)
   assert.match(src, /const cleanupConfirmationMs = runtime === '--runtime=opencode' && !guard \? 10000 : 500;/)
 })
+
+// fix17 (gap 20): OpenCode no impone plazo a sus hooks informativos, pero su catalogo declara 20 s desde que el adaptador lanza el launcher. Arranque del launcher + captura (8 s) +
+// confirmacion de la limpieza debe caber en 20 s POR CONSTRUCCION: la confirmacion toma lo que queda (con un tope de 10 s), no un valor fijo.
+test('hook budget: OpenCode launcher start + capture + cleanup confirmation fits the 20 s catalog window by construction', () => {
+  for (const startup of [0, 800, 3700, 6000, 9000, 11000]) {
+    const capture = childBudgetMs('session-journal.sh', '--runtime=opencode', {})
+    const uptimeAtStop = startup + capture
+    const confirm = cleanupConfirmationMs('--runtime=opencode', false, uptimeAtStop)
+    assert.ok(uptimeAtStop + confirm <= 20000, `startup ${startup}: ${uptimeAtStop} + ${confirm} > 20000`)
+    assert.ok(confirm >= 250, `startup ${startup}: the confirmation keeps a minimum`)
+  }
+  assert.equal(cleanupConfirmationMs('--runtime=opencode', false, 3000), 10000, 'with room, the confirmation keeps its 10 s cap')
+})
+
+test('hook budget: the guard and the other runtimes keep the 500 ms confirmation (their window is imposed by the host)', () => {
+  for (const runtime of ['--runtime=claude', '--runtime=codex']) assert.equal(cleanupConfirmationMs(runtime, false, 12000), 500)
+  assert.equal(cleanupConfirmationMs('--runtime=opencode', true, 12000), 500)
+})

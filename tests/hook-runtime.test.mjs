@@ -142,16 +142,18 @@ test('SessionEnd timeout terminates its child tree before returning', () => {
     cpSync(join(root, 'hooks'), join(bundle, 'hooks'), { recursive: true });
     mkdirSync(join(bundle, 'agent-kits', 'shared'), { recursive: true });
     const marker = join(dir, 'orphan.txt');
-    const program = `import subprocess, sys, time, pathlib\nchild = subprocess.Popen([sys.executable, '-I', '-S', '-c', "import time,pathlib; time.sleep(3); pathlib.Path(" + repr(${JSON.stringify(marker)}) + ").write_text('orphan')"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\npathlib.Path(${JSON.stringify(marker + '.started')}).write_text(str(child.pid))\ntime.sleep(10)\n`;
+    const program = `import subprocess, sys, time, pathlib\nchild = subprocess.Popen([sys.executable, '-I', '-S', '-c', "import time,pathlib; time.sleep(8); pathlib.Path(" + repr(${JSON.stringify(marker)}) + ").write_text('orphan')"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\npathlib.Path(${JSON.stringify(marker + '.started')}).write_text(str(child.pid))\ntime.sleep(10)\n`;
     writeFileSync(join(bundle, 'agent-kits', 'shared', 'journal-capture.py'), program);
+    // fix17 (gap 21): el fixture necesita dos arranques de Python en frio en serie (supervisor y fixture) antes de escribir `.started`: medirlo contra los 800 ms del producto es un
+    // presupuesto de test mal calibrado. El valor por defecto del producto no cambia; aqui se fija el del anfitrion (4 s: el hijo recibe 3,3 s) y el descendiente duerme 8 s.
     const result = spawnSync(process.execPath, [join(bundle, 'hooks', 'run-hook.mjs'), 'session-journal.sh'], {
-      cwd: dir, input: '{}', encoding: 'utf8', timeout: 8000,
-      env: { ...process.env, CUSTOM_AGENTS_PYTHON: process.env.TEST_PYTHON || 'python' },
+      cwd: dir, input: '{}', encoding: 'utf8', timeout: 12000,
+      env: { ...process.env, CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS: '4000', CUSTOM_AGENTS_PYTHON: process.env.TEST_PYTHON || 'python' },
     });
     assert.equal(result.status, 0, result.stderr);
     assert.ok(existsSync(marker + '.started'), 'fixture must actually spawn a descendant before timeout');
-    spawnSync(process.execPath, ['-e', 'setTimeout(()=>{},3500)'], { timeout: 6000 });
-    assert.equal(existsSync(marker), false, 'a timed-out hook must leave no live descendants');
+    const descendant = Number(readFileSync(marker + '.started', 'utf8'));
+    assert.throws(() => process.kill(descendant, 0), 'a timed-out hook must leave no live descendants');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -162,15 +164,16 @@ test('SessionEnd cleans descendants after its direct child has already exited', 
     cpSync(join(root, 'hooks'), join(bundle, 'hooks'), { recursive: true });
     mkdirSync(join(bundle, 'agent-kits', 'shared'), { recursive: true });
     const marker = join(dir, 'orphan.txt');
-    const program = `import subprocess, sys, pathlib\nchild = subprocess.Popen([sys.executable, '-I', '-S', '-c', "import time,pathlib; time.sleep(3); pathlib.Path(" + repr(${JSON.stringify(marker)}) + ").write_text('orphan')"])\npathlib.Path(${JSON.stringify(marker + '.started')}).write_text(str(child.pid))\n`;
+    const program = `import subprocess, sys, pathlib\nchild = subprocess.Popen([sys.executable, '-I', '-S', '-c', "import time,pathlib; time.sleep(8); pathlib.Path(" + repr(${JSON.stringify(marker)}) + ").write_text('orphan')"])\npathlib.Path(${JSON.stringify(marker + '.started')}).write_text(str(child.pid))\n`;
     writeFileSync(join(bundle, 'agent-kits', 'shared', 'journal-capture.py'), program);
     const result = spawnSync(process.execPath, [join(bundle, 'hooks', 'run-hook.mjs'), 'session-journal.sh'], {
-      cwd: dir, input: '{}', encoding: 'utf8', timeout: 8000,
-      env: { ...process.env, CUSTOM_AGENTS_PYTHON: process.env.TEST_PYTHON || 'python' },
+      cwd: dir, input: '{}', encoding: 'utf8', timeout: 12000,
+      env: { ...process.env, CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS: '4000', CUSTOM_AGENTS_PYTHON: process.env.TEST_PYTHON || 'python' },   // fix17 (gap 21): ver el test anterior
     });
     assert.equal(result.status, 0, result.stderr);
     assert.ok(existsSync(marker + '.started'), 'fixture must spawn its descendant');
-    assert.equal(existsSync(marker), false, 'a completed direct child must not disable descendant cleanup');
+    const descendant = Number(readFileSync(marker + '.started', 'utf8'));
+    assert.throws(() => process.kill(descendant, 0), 'a completed direct child must not disable descendant cleanup');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

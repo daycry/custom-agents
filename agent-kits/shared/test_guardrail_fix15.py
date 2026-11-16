@@ -179,40 +179,17 @@ def test_el_limite_esta_en_la_documentacion_del_rol():
 
 # --------------------------------------------------------------------------- diferencial con bash real ----
 def _ejecutar15(tmp_path, ordenes, locale, binarios):
-    """Cada orden en su `.sh`, con `git`, `GIT`, `Git`, `git.exe` y `GIT.EXE` FALSOS (funciones exportadas y un shim delante en el PATH):
-    no corre ningun git real. Devuelve ({indice: ¿git falso?}, {binario ausente})."""
-    base = tmp_path / ("l15_" + (locale or "sin"))
-    base.mkdir()
-    shim = base / "shim"
-    shim.mkdir()
-    for nombre in NOMBRES_GIT:
-        (shim / nombre).write_bytes(b"#!/bin/sh\necho GITRAN\n")
-        os.chmod(shim / nombre, 0o755)
-    cabecera = "".join(f"{n}() {{ echo GITRAN; }}\nexport -f {n}\n" for n in NOMBRES_GIT)
-    for k, orden in enumerate(ordenes):
-        (base / f"s_{k}.sh").write_bytes((cabecera + orden + "\n").encode("utf-8"))
-    entorno = ("export LANG=" + locale + "\n") if locale else "unset LANG LC_ALL LC_CTYPE\n"
-    comprobar = "for n in " + " ".join(NOMBRES_GIT) + "; do case \"$(type -P $n)\" in \"$PWD\"/shim/*) ;; *) echo \"SHIM-NO-$n\"; exit 3;; esac; done\n"
-    ausentes = "".join(f"[ -x {b} ] || type -P {b} >/dev/null || echo \"AUSENTE-{b}\"\n" for b in sorted(set(binarios)))
-    lanzador = base / "l.sh"
-    lanzador.write_bytes((entorno + "export PATH=\"$PWD/shim:$PATH\"\nexport GIT_DIR=/inexistente-fix15\n" + comprobar + ausentes +
-                          f"for k in $(seq 0 {len(ordenes) - 1}); do echo \"@@$k\"; timeout 20 bash \"s_$k.sh\" 2>/dev/null </dev/null; done\n").encode())
-    env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
-    env.pop("LANG", None), env.pop("LC_ALL", None)
-    r = subprocess.run([BASH, str(lanzador)], cwd=str(base), env=env, capture_output=True, text=True, encoding="utf-8",
-                       errors="replace", timeout=900, stdin=subprocess.DEVNULL)
-    assert "SHIM-NO-" not in r.stdout, f"el git falso no es el primero del PATH: {r.stdout[:80]!r}"
-    corre, actual, ausente = {}, None, set()
-    for linea in r.stdout.splitlines():
-        if linea.startswith("@@"):
-            actual = int(linea[2:])
-            corre[actual] = False
-        elif linea.startswith("AUSENTE-"):
-            ausente.add(linea[8:])
-        elif linea.strip() == "GITRAN" and actual is not None:
-            corre[actual] = True
-    assert len(corre) == len(ordenes), (len(corre), len(ordenes), r.stderr[-300:])
-    return corre, ausente
+    """Cada orden en su `.sh`, con `git`, `GIT`, `Git`, `git.exe` y `GIT.EXE` FALSOS (y `sudo`/`doas`/`su` falsos): no corre ningun git real. fix17 (gap 6): se decide por el
+    REGISTRO del shim (el arnes de fix15 miraba stdout y no veia `<( )`, `coproc` ni lo que redirige la salida). Devuelve ({indice: ¿bash ejecuto git?}, {binario ausente})."""
+    from test_guardrail_fix16 import _ejecutar16, ejecuta_git
+    registro = _ejecutar16(tmp_path, ordenes, "l15_" + (locale or "sin"), locale=locale)
+    ausente = set()
+    if binarios:
+        comprobar = "".join(f"[ -x {b} ] || type -P {b} >/dev/null || echo \"AUSENTE-{b}\"
+" for b in sorted(set(binarios)))
+        r = subprocess.run([BASH, "-c", comprobar], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120, stdin=subprocess.DEVNULL)
+        ausente = {linea[8:] for linea in r.stdout.splitlines() if linea.startswith("AUSENTE-")}
+    return {k: ejecuta_git(v) for k, v in registro.items()}, ausente
 
 
 CORPUS_BASH15 = sorted(set(DOBLE15) | set(HITS15) | {o for o, _ in ENVOLTORIOS15})
@@ -230,6 +207,9 @@ def test_diferencial15_si_bash_ejecuta_git_el_guardarrail_deniega(tmp_path, loca
     assert not sin_efecto, f"formas que bash NO ejecuta, con su binario presente, y no declaradas en SIN_PARIDAD15 ({len(sin_efecto)}): {sin_efecto[:4]!r}"
     ejecutadas = sum(corre.values())
     assert ejecutadas >= len(DOBLE15) + len(HITS15) - 2, f"el arnes casi no ejecuta las formas de punto 2 ({ejecutadas})"
+    # fix17 (gap 6): un motivo de SIN_PARIDAD15 es una afirmacion sobre lo que bash NO ejecuta: si el registro del shim ve git, el motivo es falso.
+    falsos = [o for k, o in enumerate(CORPUS_BASH15) if corre[k] and o in SIN_PARIDAD15]
+    assert not falsos, f"SIN_PARIDAD15 declara que bash no ejecuta estas formas y el registro del shim SI ve git ({len(falsos)}): {falsos[:4]!r}"
 
 
 @necesita_bash

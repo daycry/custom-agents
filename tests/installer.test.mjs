@@ -3800,7 +3800,9 @@ test("revisión intento 2 (C8): correr lanza las CLIs con NoDefaultCurrentDirect
 /** Un `codex` que acepta `--version` (0.200.0, sirve para la cache nativa) y cuelga en cualquier otra orden, con un nieto registrado. */
 function codexQueCuelga(bin) {
   const p = join(bin, "codex")
+  // fix17 (gap 10): `remove` termina al instante (y se anota): con el fake colgado en `marketplace remove`, `uninstall` esperaba el plazo entero y el test no podia comprobar lo que deshace.
   writeFileSync(p, ["#!/bin/sh", "if [ \"$1\" = \"--version\" ]; then echo 'codex-cli 0.200.0'; exit 0; fi", "d=\"$(dirname \"$0\")\"",
+    "case \"$*\" in *remove*) echo \"$*\" >> \"$d/acciones.txt\"; exit 0;; esac",
     "echo x >> \"$d/lanzamientos.txt\"", "sleep " + MARCA_HUERFANO + " &", "echo \"$! 0\" >> \"$d/pids.txt\"", "wait", ""].join("\n"))
   chmodSync(p, 0o755)
 }
@@ -3830,6 +3832,11 @@ test("fix16 (gap 11): Ctrl+C durante `codex plugin marketplace add` deja el mani
       assert.ok((man.registro || []).some((e) => /marketplace add/.test(String(e.exec))), `el registro no recoge el \`marketplace add\` que iba a hacer: ${JSON.stringify(man.registro)}`)
       const salida = cli(["uninstall", "-p", "codex", "--scope", "user", "-y"], { env })
       assert.doesNotMatch(String(salida), /no encuentro ningún manifiesto/, "uninstall no encuentra el manifiesto que la senal debia dejar")
+      // fix17 (gap 10): no basta con encontrarlo: `uninstall` DESHACE lo registrado y retira el manifiesto `incompleto` (y los ficheros copiados antes de la señal)
+      const restantes = readdirSync(hogar, { recursive: true }).filter((f) => /\.custom-agents-install(\.plugin)?\.json$/.test(String(f)))
+      assert.deepEqual(restantes, [], "uninstall dejo el manifiesto `incompleto` tras deshacer lo registrado")
+      assert.ok(!existsSync(join(hogar, ".codex", "plugins", "cache", "daycry")) || readdirSync(join(hogar, ".codex", "plugins", "cache", "daycry")).length === 0,
+        "uninstall dejo lo que el instalador habia colocado en la cache de codex")
     } finally {
       try { instalador?.kill("SIGKILL") } catch { /* ya no esta */ }
       await matarHuerfanos(join(tmp, "bin"))
