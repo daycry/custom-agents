@@ -6,7 +6,9 @@ import {delimiter, isAbsolute, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
 export const CODEX_PLUGIN_ID = 'custom-agents@daycry'
-export const CODEX_QUERY_TIMEOUT_MS = 3_000
+// fix16 (gap 21): 6 s (eran 3 s). Con la maquina saturada (12 bucles de CPU) el arranque de node del propio shim de codex (`codex.cmd` -> node) tarda una mediana de 3,7 s y el plazo de
+// 3 s ni siquiera dejaba arrancar a codex. Ningun anfitrion impone mas de 10 s al ayudante (`doctor.py`): el tope exterior es limite + 3 s (9 s) y la limpieza del arbol cabe dentro.
+export const CODEX_QUERY_TIMEOUT_MS = 6_000
 const QUERY_ARGS=['plugin','list','--marketplace','daycry','--available','--json']
 const HELPER=fileURLToPath(import.meta.url)
 const unknown = reason => ({state:'unknown', enabled:null, version:null, reason})
@@ -18,13 +20,15 @@ const validVersion = value => typeof value==='string' && /^[A-Za-z0-9.+-]{1,64}$
 // `budgetMs` acota la espera: el worker de la consulta lo ajusta al tope EXTERIOR de `runCodexQuery` (limite + 4 s, y el diagnostico impone 10 s al ayudante):
 // si el exterior mata al worker a mitad de la limpieza, los descendientes quedarian huerfanos.
 export const TREE_KILL_TOTAL_MS = 8_000
-export function terminateProcessTree(pid,budgetMs=TREE_KILL_TOTAL_MS) {
+// Tope EXTERIOR de la consulta: limite + 3 s y, como minimo, 7 s (el valor de siempre para plazos pequeños). Con el plazo por defecto son 9 s, dentro de los 10 s del diagnostico.
+const outerMs=limit=>Math.max(limit+3000,7000)
+export function terminateProcessTree(pid,budgetMs=TREE_KILL_TOTAL_MS,maxMs=TREE_KILL_TOTAL_MS) {
   if (!Number.isInteger(pid) || pid <= 0) return
   if (process.platform !== 'win32') {
     try {process.kill(-pid,'SIGKILL')} catch {/* process group already gone */}
     return
   }
-  const deadline=Date.now()+Math.min(TREE_KILL_TOTAL_MS,Math.max(1000,Number.isFinite(budgetMs) ? budgetMs : TREE_KILL_TOTAL_MS))
+  const deadline=Date.now()+Math.min(maxMs,Math.max(1000,Number.isFinite(budgetMs) ? budgetMs : TREE_KILL_TOTAL_MS))
   const system=join(process.env.SystemRoot || 'C:\\Windows','System32')
   try {
     const killer=spawn(join(system,'taskkill.exe'),['/T','/F','/PID',String(pid)],{stdio:'ignore',windowsHide:true})
@@ -71,7 +75,7 @@ export function runCodexQuery(args, {cwd,timeout=CODEX_QUERY_TIMEOUT_MS,env=proc
     // NoDefaultCurrentDirectoryInExePath: the worker and the npm shim it starts never resolve
     // `node` (or any command) from the project directory, where it could be planted.
     return execFileSync(process.execPath,[HELPER,'--query-worker',String(Date.now()+limit),String(limit)],
-      {cwd,env:{...env,NoDefaultCurrentDirectoryInExePath:'1'},timeout:limit+4000,killSignal:'SIGKILL',encoding:'utf8',stdio:['ignore','pipe','pipe'],maxBuffer:4*1024*1024})
+      {cwd,env:{...env,NoDefaultCurrentDirectoryInExePath:'1'},timeout:outerMs(limit),killSignal:'SIGKILL',encoding:'utf8',stdio:['ignore','pipe','pipe'],maxBuffer:4*1024*1024})
   } catch(error) {
     if(error.status===124) error.code='ETIMEDOUT'
     throw error
@@ -81,7 +85,7 @@ export function runCodexQuery(args, {cwd,timeout=CODEX_QUERY_TIMEOUT_MS,env=proc
 // fix16 (gap 21): con `limit` (relativo) el plazo corre desde que el worker esta LISTO (aqui): el arranque lento de node bajo carga no lo consume. Sin
 // `limit` (sondas antiguas) `deadline` es absoluto, como antes. El tope exterior de `runCodexQuery` (`limit+4000`) sigue acotando el arranque.
 function queryWorker(deadline,limit) {
-  const outerKill=deadline+4000                    // `runCodexQuery` mata al worker a `limite + 4 s` del lanzamiento: la limpieza del arbol debe caber antes
+  const outerKill=limit!==undefined ? deadline-limit+outerMs(limit) : deadline+4000   // `runCodexQuery` mata al worker a `outerMs(limite)` del lanzamiento: la limpieza del arbol debe caber antes
   if(limit!==undefined) deadline=Date.now()+limit
   deadline=Math.min(deadline,Date.now()+CODEX_QUERY_TIMEOUT_MS)
   const timeout=deadline-Date.now()

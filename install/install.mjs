@@ -32,7 +32,7 @@ import { fileURLToPath } from "node:url"
 import { createInterface, emitKeypressEvents } from "node:readline"
 import { execFileSync } from "node:child_process"
 import { tmpdir, homedir } from "node:os"
-import { queryCodexPlugin } from "../agent-kits/shared/codex-plugin-state.mjs"
+import { queryCodexPlugin, terminateProcessTree } from "../agent-kits/shared/codex-plugin-state.mjs"
 import {validateDelivery,planProfileCopies,resolveSelection,verifyProfileTarget} from './modules.mjs'
 import {
   PROVIDERS, IDS, getProvider, buildPlan, MANIFEST, MANIFEST_PLUGIN, MANIFIESTOS,
@@ -1274,37 +1274,11 @@ function matarArbol(pid) {
     try { process.kill(-pid, "SIGKILL") } catch { /* sin grupo propio: nada que barrer */ }
     return
   }
-  // Por ruta absoluta: el PATH del usuario puede no traer `System32` (ni `wbem`), y esto tiene que
-  // funcionar precisamente cuando el entorno está raro.
-  const sys32 = join(process.env.SystemRoot || "C:\\Windows", "System32")
-  const deSistema = (relativa, nombre) => {
-    const p = join(sys32, relativa)
-    return existsSync(p) ? p : nombre
-  }
-  // 1) El árbol, si sigue en pie.
-  try {
-    execFileSync(deSistema("taskkill.exe", "taskkill"), ["/T", "/F", "/PID", String(pid)], { stdio: "ignore" })
-  } catch { /* ya no está */ }
-  // 2) Y los HUÉRFANOS: al expirar, Node ya ha matado al hijo directo (el `cmd.exe`), así que
-  //    `taskkill /T` no encuentra a quién seguir y el nieto —la CLI de verdad— se queda vivo
-  //    (comprobado con `tasklist`). Su `ParentProcessId` sigue apuntando al pid muerto, que es
-  //    justo por donde se les pesca. `wmic` ya NO existe en Windows 11 (24H2 lo retiró de la
-  //    imagen), así que si esa vía falla se cae a PowerShell + CIM —el sustituto oficial— con la
-  //    MISMA consulta por `ParentProcessId`. Los dos pasos son mejor esfuerzo: nunca peor que
-  //    antes (gap B-12: sin el respaldo, el nieto sobrevivía al timeout en silencio).
-  try {
-    execFileSync(deSistema(join("wbem", "WMIC.exe"), "wmic"),
-      ["process", "where", `(ParentProcessId=${pid})`, "call", "terminate"],
-      { stdio: "ignore", timeout: TIMEOUT_CAZA })
-  } catch {
-    try {
-      execFileSync(deSistema(join("WindowsPowerShell", "v1.0", "powershell.exe"), "powershell"),
-        ["-NoProfile", "-NonInteractive", "-Command",
-          `Get-CimInstance Win32_Process -Filter 'ParentProcessId=${pid}' `
-          + `| ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`],
-        { stdio: "ignore", timeout: TIMEOUT_CAZA })
-    } catch { /* ni siquiera PowerShell: mejor esfuerzo, nunca peor que antes */ }
-  }
+  // fix16 (gap 18): en Windows se reutiliza `terminateProcessTree` (`taskkill /T /F` en segundo plano y barrido por `ParentProcessId` con PowerShell + CIM, el sustituto
+  // oficial de `wmic`, que Windows 11 24H2 ya no trae), EN PARALELO y con la muerte CONFIRMADA por sondeo, dentro de un tope total de 15 s. Al expirar, Node ya ha matado
+  // al hijo directo (el `cmd.exe`), asi que `taskkill /T` no encuentra a quien seguir: el barrido pesca a los huerfanos por el pid muerto. En serie, con 12 bucles de CPU
+  // sumaban 36 s y el test de CLI colgada (cota de 30 s) daba rojo; en paralelo caben en el tope.
+  terminateProcessTree(pid, TIMEOUT_CAZA, TIMEOUT_CAZA)
 }
 
 /**

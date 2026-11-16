@@ -129,15 +129,15 @@ test('Codex state: real runner missing binary and schema variants do not invent 
 test('Codex state: timeout kills non-cooperative native process and descendants before returning',()=>{
   const owned=fixture(),pidFile=join(owned.root,'descendant.pid'),parentFile=join(owned.root,'parent.pid')
   try {
-    const child=`import fs from 'node:fs';fs.writeFileSync(${JSON.stringify(pidFile)},String(process.pid));process.on('SIGTERM',()=>{});setTimeout(()=>process.exit(0),12000)`
+    const child=`import fs from 'node:fs';fs.writeFileSync(${JSON.stringify(pidFile)},String(process.pid));process.on('SIGTERM',()=>{});setTimeout(()=>process.exit(0),120000)`
     owned.createDirectNode(`import fs from 'node:fs';import {spawn} from 'node:child_process';fs.writeFileSync(${JSON.stringify(parentFile)},String(process.pid));process.on('SIGTERM',()=>{});const child=spawn(process.execPath,['--input-type=module','-e',${JSON.stringify(child)}],{stdio:'inherit'});child.on('exit',()=>process.exit(0));`)
     const began=Date.now()
-    const state=queryCodexPlugin({cwd:owned.root,timeout:3000,runner:(args,options)=>runCodexQuery(args,{...options,env:owned.env})})
+    const state=queryCodexPlugin({cwd:owned.root,timeout:6000,runner:(args,options)=>runCodexQuery(args,{...options,env:owned.env})})
     assert.equal(state.reason,'cli-timeout')
-    // Ceiling = 3 s deadline + runCodexQuery's 4 s outer SIGKILL, plus spawn/teardown margin
-    // (Windows taskkill + CIM sweep under a loaded runner). Still far below the 12 s the
-    // non-cooperative descendant would live if the query waited for it.
-    assert.ok(Date.now()-began<9500,'query waited for non-cooperative process after its deadline')
+    // Ceiling = 6 s deadline + runCodexQuery's 3 s outer SIGKILL, plus spawn/teardown margin
+    // (Windows taskkill + CIM sweep under a loaded runner). Far below the 120 s (fix16: was 12 s) the
+    // non-cooperative descendant would live if the query waited for it; its death is probed below.
+    assert.ok(Date.now()-began<20000,'query waited for non-cooperative process after its deadline')
     assert.ok(existsSync(pidFile),'fixture must start its descendant before the deadline')
     const pid=Number(readFileSync(pidFile,'utf8'))
     assert.equal(nativeProcessIsLive(pid),false,'native descendant survived query timeout cleanup')
