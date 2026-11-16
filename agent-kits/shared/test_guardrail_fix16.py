@@ -267,7 +267,20 @@ def test_el_hook_usa_la_rama_barata_y_no_lanza_git(repo, tmp_path):
 
 
 # --------------------------------------------------------------------------- punto 9: arnes con bash real ----
+_TROZO16 = 80      # ordenes por lanzador de bash: con la maquina saturada (12 bucles de CPU) 331 formas pasaban de los 900 s de UN solo lanzador (fix16)
+
+
 def _ejecutar16(tmp_path, ordenes, nombre):
+    """`_ejecutar16_trozo` por trozos de `_TROZO16` ordenes, cada uno con su lanzador y su plazo; devuelve el registro de todas, en orden."""
+    registro = {}
+    for k, ini in enumerate(range(0, len(ordenes), _TROZO16)):
+        trozo = ordenes[ini:ini + _TROZO16]
+        for j, texto in _ejecutar16_trozo(tmp_path, trozo, f"{nombre}_{k}").items():
+            registro[ini + j] = texto
+    return registro
+
+
+def _ejecutar16_trozo(tmp_path, ordenes, nombre):
     """Cada orden en su `.sh`, con `git`, `GIT`, `Git`, `git.exe`, `GIT.EXE` FALSOS y tambien `sudo`, `doas` y `su` (Git Bash ve el `sudo` de Windows 11 y NO se puede ejecutar).
     Los shims y las funciones exportadas anotan en un REGISTRO (un fichero por orden): «ejecuta git» se decide por el registro, no por stdout.
     Devuelve {indice: texto del registro}: `ejecuta_git` mira solo las lineas de los shims de git y `ejecuta_priv` las de `sudo`/`doas`/`su`."""

@@ -15,14 +15,16 @@ const validVersion = value => typeof value==='string' && /^[A-Za-z0-9.+-]{1,64}$
 // fix16 (gap 10): en Windows `taskkill /T /F` (p50 1,1-1,2 s) y el barrido de PowerShell (p50 2,5-3,2 s) se agotaban en serie con topes de 1 s y 2 s: con el
 // lanzador real de npm (`codex.cmd` -> node -> descendiente) quedaban 3 de 3 arboles huerfanos. Ahora corren EN PARALELO (taskkill en segundo plano, el barrido
 // bloqueando), con un tope TOTAL de 8 s, y la muerte se CONFIRMA con un sondeo acotado de los pids (el del arbol y los que el barrido encontro).
+// `budgetMs` acota la espera: el worker de la consulta lo ajusta al tope EXTERIOR de `runCodexQuery` (limite + 4 s, y el diagnostico impone 10 s al ayudante):
+// si el exterior mata al worker a mitad de la limpieza, los descendientes quedarian huerfanos.
 export const TREE_KILL_TOTAL_MS = 8_000
-export function terminateProcessTree(pid) {
+export function terminateProcessTree(pid,budgetMs=TREE_KILL_TOTAL_MS) {
   if (!Number.isInteger(pid) || pid <= 0) return
   if (process.platform !== 'win32') {
     try {process.kill(-pid,'SIGKILL')} catch {/* process group already gone */}
     return
   }
-  const deadline=Date.now()+TREE_KILL_TOTAL_MS
+  const deadline=Date.now()+Math.min(TREE_KILL_TOTAL_MS,Math.max(1000,Number.isFinite(budgetMs) ? budgetMs : TREE_KILL_TOTAL_MS))
   const system=join(process.env.SystemRoot || 'C:\\Windows','System32')
   try {
     const killer=spawn(join(system,'taskkill.exe'),['/T','/F','/PID',String(pid)],{stdio:'ignore',windowsHide:true})
@@ -79,6 +81,7 @@ export function runCodexQuery(args, {cwd,timeout=CODEX_QUERY_TIMEOUT_MS,env=proc
 // fix16 (gap 21): con `limit` (relativo) el plazo corre desde que el worker esta LISTO (aqui): el arranque lento de node bajo carga no lo consume. Sin
 // `limit` (sondas antiguas) `deadline` es absoluto, como antes. El tope exterior de `runCodexQuery` (`limit+4000`) sigue acotando el arranque.
 function queryWorker(deadline,limit) {
+  const outerKill=deadline+4000                    // `runCodexQuery` mata al worker a `limite + 4 s` del lanzamiento: la limpieza del arbol debe caber antes
   if(limit!==undefined) deadline=Date.now()+limit
   deadline=Math.min(deadline,Date.now()+CODEX_QUERY_TIMEOUT_MS)
   const timeout=deadline-Date.now()
@@ -100,7 +103,7 @@ function queryWorker(deadline,limit) {
     if(finished) return
     if(status===0 && Date.now()>=deadline) {status=124;kill=true}
     finished=true;clearTimeout(timer)
-    if(kill) terminateProcessTree(child.pid)
+    if(kill) terminateProcessTree(child.pid,outerKill-Date.now()-500)
     child.stdout.destroy()
     if(status===0) process.stdout.write(Buffer.concat(chunks),()=>process.exit(0))
     else process.exit(status)
