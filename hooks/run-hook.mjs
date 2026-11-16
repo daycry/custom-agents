@@ -450,13 +450,16 @@ async function main() {
     const stop = () => {
       if (stopping) return stopping;
       stopping = new Promise(done => {
+        // fix16 (gap 22): OpenCode (que no impone plazo a sus hooks informativos) espera 10 s la confirmacion de la limpieza: 500 ms no alcanzaba (0,61-0,78 s medidos) y 2 s tampoco con 12 bucles de CPU
+        // (el arranque del supervisor en Python: p50 1,1 s, p95 2,0 s, max 2,5 s; con 2 s quedaban huerfanos). El guard y los demas runtimes conservan 500 ms: su plazo lo impone el anfitrion.
+        const cleanupConfirmationMs = runtime === '--runtime=opencode' && !guard ? 10000 : 500;
         if (inheritedGroup || (windows && jobHandle)) {
           const operation = inheritedGroup ? ['close-group', String(process.pid)] : ['close', String(process.pid), jobHandle];
           const cleanup = spawn(py.command, [...py.args, '-I', '-S', join(here, 'runtime-supervisor.py'),
             ...operation], { env, windowsHide: true, detached: inheritedGroup, stdio: 'ignore' });
           const cleanupTimer = setTimeout(() => {
             cleanup.kill('SIGKILL'); warn('child cleanup confirmation timed out'); abandon();
-          }, 10000);   // fix16 (gap 22): 500 ms no alcanzaba (0,61-0,78 s medidos) y 2 s tampoco con 12 bucles de CPU (el arranque del supervisor en Python: p50 1,1 s, p95 2,0 s, max 2,5 s; con 2 s quedaban huerfanos); ningun anfitrion impone plazo a la limpieza
+          }, cleanupConfirmationMs);
           cleanup.on('error', () => { clearTimeout(cleanupTimer); warn('child job cleanup unavailable'); abandon(); done(); });
           cleanup.on('close', code => {
             clearTimeout(cleanupTimer);

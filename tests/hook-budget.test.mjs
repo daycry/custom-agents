@@ -111,7 +111,8 @@ test('activity opt-in: the launcher checks it before discovering or spawning Pyt
   assert.ok(check < main.indexOf('spawn('), 'opt-in check must precede any spawn')
 })
 
-test('hook budget: the cleanup confirmation of the supervisor has 10 s (fix16, gap 22), not 500 ms or 2 s', () => {
+test('hook budget: the cleanup confirmation is 10 s only for OpenCode informational hooks (fix16, gap 22); guard and the other runtimes keep 500 ms', () => {
   const src = readFileSync(new URL('../hooks/run-hook.mjs', import.meta.url), 'utf8')
-  assert.match(src, /warn\('child cleanup confirmation timed out'\); abandon\(\);\s*\}, 10000\)/)
+  assert.match(src, /warn\('child cleanup confirmation timed out'\); abandon\(\);\s*\}, cleanupConfirmationMs\)/)
+  assert.match(src, /const cleanupConfirmationMs = runtime === '--runtime=opencode' && !guard \? 10000 : 500;/)
 })
