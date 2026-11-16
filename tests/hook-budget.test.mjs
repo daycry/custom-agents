@@ -36,6 +36,9 @@ test('hook budget: invalid or lower values never shrink the default', () => {
 
 test('hook budget: other runtimes and hooks keep their budgets', () => {
   assert.equal(childBudgetMs('session-journal.sh', '--runtime=codex', {CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS: '5000'}), 2200)
+  // fix16 (gap 22): OpenCode no impone plazo al hook de captura (el catalogo declara 20 s): el presupuesto del producto sube a 8 s. Los 800 ms de SessionEnd de Claude
+  // Code y los 4.500 ms del guard (plazos del anfitrion) y los de Codex no se tocan.
+  assert.equal(childBudgetMs('session-journal.sh', '--runtime=opencode', {}), 8000)
   assert.equal(childBudgetMs('native-guardrail', '--runtime=claude', {}), 4500)
   assert.equal(childBudgetMs('agent-activity', '--runtime=claude', {}), 2000)
   assert.equal(childBudgetMs('progress-line.sh', '--runtime=claude', {}), 20000)
@@ -106,4 +109,9 @@ test('activity opt-in: the launcher checks it before discovering or spawning Pyt
   assert.ok(check > 0, 'main must call activityEnabled')
   assert.ok(check < main.indexOf('const py = python();'), 'opt-in check must precede Python discovery')
   assert.ok(check < main.indexOf('spawn('), 'opt-in check must precede any spawn')
+})
+
+test('hook budget: the cleanup confirmation of the supervisor has 2 s (fix16, gap 22), not 500 ms', () => {
+  const src = readFileSync(new URL('../hooks/run-hook.mjs', import.meta.url), 'utf8')
+  assert.match(src, /warn\('child cleanup confirmation timed out'\); abandon\(\);\s*\}, 2000\)/)
 })

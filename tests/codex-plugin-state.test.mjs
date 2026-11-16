@@ -209,3 +209,35 @@ test('run-hook candidates ignore relative PATH entries',()=>{
   const found=make({PATH},win,()=>true,join,delimiter,isAbsolute)(['python3'])
   assert.deepEqual(found,[join(abs,'python3')])
 })
+
+// fix16 (gap 10): el arbol de procesos se mata de verdad. Sin el job de libuv que lo enmascara: el lanzador real (`codex.cmd` -> node -> descendiente)
+// se arranca `detached` desde ESTE proceso (con `detached` el hijo sale del job del que depende el worker) y se llama a `terminateProcessTree` directamente.
+test('Codex state: terminateProcessTree mata el arbol del lanzador real (cmd -> node -> descendiente) sin job que lo enmascare',async()=>{
+  const owned=fixture(),pidFile=join(owned.root,'descendant.pid'),parentFile=join(owned.root,'parent.pid')
+  let launcher
+  try {
+    const child=`import fs from 'node:fs';fs.writeFileSync(${JSON.stringify(pidFile)},String(process.pid));setInterval(()=>{},1000)`
+    owned.create(`import fs from 'node:fs';import {spawn} from 'node:child_process';fs.writeFileSync(${JSON.stringify(parentFile)},String(process.pid));spawn(process.execPath,['--input-type=module','-e',${JSON.stringify(child)}],{stdio:'ignore'});setInterval(()=>{},1000)`)
+    const shim=join(owned.bin,process.platform==='win32' ? 'codex.cmd' : 'codex')
+    launcher=process.platform==='win32'
+      ? spawn(process.env.COMSPEC || 'cmd.exe',['/d','/s','/c',`"${shim}"`],{detached:true,stdio:'ignore',env:owned.env,windowsVerbatimArguments:true})
+      : spawn(shim,[],{detached:true,stdio:'ignore',env:owned.env})
+    launcher.unref()
+    const until=Date.now()+60000
+    while((!existsSync(pidFile) || !existsSync(parentFile)) && Date.now()<until) await new Promise(r=>setTimeout(r,50))
+    assert.ok(existsSync(pidFile) && existsSync(parentFile),'el lanzador debe arrancar su descendiente')
+    const descendant=Number(readFileSync(pidFile,'utf8')),parent=Number(readFileSync(parentFile,'utf8'))
+    assert.equal(nativeProcessIsLive(descendant),true)
+    const began=Date.now()
+    terminateProcessTree(launcher.pid)
+    assert.ok(Date.now()-began<9000,'la limpieza del arbol debe estar acotada (tope total de 8 s)')
+    const limit=Date.now()+3000
+    while((nativeProcessIsLive(descendant) || nativeProcessIsLive(parent)) && Date.now()<limit) await new Promise(r=>setTimeout(r,50))
+    assert.equal(nativeProcessIsLive(parent),false,'el node del lanzador sobrevivio a terminateProcessTree')
+    assert.equal(nativeProcessIsLive(descendant),false,'el descendiente del lanzador quedo huerfano tras terminateProcessTree')
+  } finally {
+    for(const file of [pidFile,parentFile]) if(existsSync(file)) {try {process.kill(Number(readFileSync(file,'utf8')),'SIGKILL')} catch {}}
+    try {if(launcher?.pid)process.kill(launcher.pid,'SIGKILL')} catch {}
+    rmSync(owned.root,{recursive:true,force:true,maxRetries:50,retryDelay:100})
+  }
+})

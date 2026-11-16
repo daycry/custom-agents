@@ -9,7 +9,7 @@
 
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, chmodSync, symlinkSync, linkSync, truncateSync, copyFileSync, renameSync } from "node:fs"
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, chmodSync, symlinkSync, linkSync, truncateSync, copyFileSync, renameSync, utimesSync } from "node:fs"
 import { tmpdir, homedir } from "node:os"
 import { join, dirname, resolve, delimiter } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
@@ -3795,3 +3795,87 @@ test("revisión intento 2 (C8): correr lanza las CLIs con NoDefaultCurrentDirect
     rmSync(proj, { recursive: true, force: true }); rmSync(bin, { recursive: true, force: true })
   }
 })
+
+// ------------------------------------------------------------------ fix16, punto 5: registro previo del instalador
+/** Un `codex` que acepta `--version` (0.200.0, sirve para la cache nativa) y cuelga en cualquier otra orden, con un nieto registrado. */
+function codexQueCuelga(bin) {
+  const p = join(bin, "codex")
+  writeFileSync(p, ["#!/bin/sh", "if [ \"$1\" = \"--version\" ]; then echo 'codex-cli 0.200.0'; exit 0; fi", "d=\"$(dirname \"$0\")\"",
+    "echo x >> \"$d/lanzamientos.txt\"", "sleep " + MARCA_HUERFANO + " &", "echo \"$! 0\" >> \"$d/pids.txt\"", "wait", ""].join("\n"))
+  chmodSync(p, 0o755)
+}
+
+test("fix16 (gap 11): Ctrl+C durante `codex plugin marketplace add` deja el manifiesto `incompleto` y uninstall lo encuentra",
+  { skip: process.platform === "win32" ? "los manejadores de senal POSIX no existen en Windows" : false },
+  async () => {
+    const tmp = tmpProj()
+    let instalador
+    try {
+      const hogar = join(tmp, "home"), bin = join(tmp, "bin")
+      mkdirSync(join(hogar, ".codex"), { recursive: true })
+      mkdirSync(bin)
+      codexQueCuelga(bin)
+      const env = conPath([bin, SIN_CLI].join(delimiter), { HOME: hogar, USERPROFILE: hogar, CUSTOM_AGENTS_EXEC_TIMEOUT_MS: "120000" })
+      instalador = cli(["install", "-p", "codex", "--scope", "user", "-y"], { env, spawnAsync: true })
+      const cerrado = new Promise((resolver) => instalador.on("close", (codigo, s) => resolver({ codigo, s })))
+      assert.ok(await esperar(() => registrados(bin).length >= 1, 120_000), "la CLI colgada no llego a arrancar su nieto")
+      instalador.kill("SIGINT")
+      assert.ok(await Promise.race([cerrado, new Promise((r) => setTimeout(() => r(null), 5000))]), "el instalador sigue vivo tras SIGINT")
+      await esperar(async () => (await vivosDe(bin)).length === 0, 4000)
+      const salida = cli(["uninstall", "-p", "codex", "--scope", "user", "-y"], { env })
+      assert.doesNotMatch(String(salida), /no encuentro ningún manifiesto/, "uninstall no encuentra el manifiesto que la senal debia dejar")
+    } finally {
+      try { instalador?.kill("SIGKILL") } catch { /* ya no esta */ }
+      await matarHuerfanos(join(tmp, "bin"))
+      rmSync(tmp, { recursive: true, force: true })
+    }
+  })
+
+test("fix16 (gap 11): los restos `custom-agents-codex-*` de una ejecucion muerta se limpian al arrancar, sin seguir el enlace y sin tocar los de un instalador vivo",
+  { skip: process.platform === "win32" ? "el enlace de la cache y los permisos POSIX se verifican en Linux/macOS" : false },
+  () => {
+    const tmp = tmpProj()
+    try {
+      const hogar = join(tmp, "home"), temp = join(hogar, "temp")
+      mkdirSync(join(hogar, ".codex"), { recursive: true })
+      mkdirSync(temp, { recursive: true })
+      const decoy = join(tmp, "decoy"); mkdirSync(decoy); writeFileSync(join(decoy, "centinela.txt"), "x")
+      const resto = join(temp, "custom-agents-codex-muerto")
+      mkdirSync(join(resto, "plugins", "cache"), { recursive: true })
+      writeFileSync(join(resto, "config.toml"), "model = 'x'\n")
+      symlinkSync(decoy, join(resto, "plugins", "cache", "daycry"), "dir")
+      const viejo = new Date(Date.now() - 3600_000); utimesSync(resto, viejo, viejo)
+      const vivoDir = join(temp, "custom-agents-codex-vivo")
+      mkdirSync(vivoDir); writeFileSync(join(vivoDir, ".installer-pid"), String(process.pid))
+      utimesSync(vivoDir, viejo, viejo)
+      const ajeno = join(temp, "otro-directorio"); mkdirSync(ajeno)
+      cli(["uninstall", "-p", "codex", "--scope", "user", "-y"], { env: { HOME: hogar, USERPROFILE: hogar } })
+      assert.equal(existsSync(resto), false, "el resto de una ejecucion muerta debe limpiarse al arrancar")
+      assert.equal(existsSync(join(decoy, "centinela.txt")), true, "la limpieza no debe seguir el enlace de la cache")
+      assert.equal(existsSync(vivoDir), true, "un directorio cuyo instalador sigue vivo no se toca")
+      assert.equal(existsSync(ajeno), true)
+    } finally { rmSync(tmp, { recursive: true, force: true }) }
+  })
+
+test("fix16 (gap 11): la copia temporal del config.toml es solo del usuario (0600 en un directorio 0700) y lleva su marca de propietario",
+  { skip: process.platform === "win32" ? "permisos POSIX" : false },
+  () => {
+    const tmp = tmpProj()
+    try {
+      const home = join(tmp, "codex"), tempRoot = join(tmp, "t"), proyecto = join(tmp, "p")
+      mkdirSync(home, { recursive: true }); mkdirSync(tempRoot); mkdirSync(proyecto)
+      writeFileSync(join(home, "config.toml"), "model = 'x'\n")
+      let modos = null
+      try {
+        installerModule.instalarCodexNativo({ dir: proyecto, scope: "project", version: "1.0.0", marketplaceRoot: proyecto, home, tempRoot,
+          runner: (args, o) => {
+            const d = o.env.CODEX_HOME
+            modos = { dir: statSync(d).mode & 0o777, conf: statSync(join(d, "config.toml")).mode & 0o777, pid: existsSync(join(d, ".installer-pid")) }
+            throw new Error("parada")
+          } })
+      } catch { /* el runner corta la instalacion */ }
+      assert.deepEqual(modos && { dir: modos.dir, conf: modos.conf }, { dir: 0o700, conf: 0o600 })
+      assert.equal(modos.pid, true, "el directorio lleva su marca de propietario (`.installer-pid`)")
+      assert.deepEqual(readdirSync(tempRoot), [], "el finally limpia el directorio temporal")
+    } finally { rmSync(tmp, { recursive: true, force: true }) }
+  })
