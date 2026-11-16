@@ -96,7 +96,7 @@ const cli = (args, opts = {}) => {
   const merged={...process.env,...requested}
   const requestedPath=Object.entries(requested).find(([key])=>/^path$/i.test(key))?.[1]
   const inheritedPath=process.env.PATH || process.env.Path
-  const allowed=/^(?:SystemRoot|WINDIR|COMSPEC|PATHEXT|OS|PROCESSOR_ARCHITECTURE|NO_COLOR|CI|HOME|USERPROFILE|CODEX_HOME|APPDATA|LOCALAPPDATA|XDG_CONFIG_HOME|CLAUDE_CONFIG_DIR|CODEX_FAKE_LOG|CODEX_FAKE_FAIL_ADD|CUSTOM_AGENTS_EXEC_TIMEOUT_MS|CUSTOM_AGENTS_PYTHON|CODEX_FAKE_MODEL_RACE|MARCA|NODE_V8_COVERAGE)$/i
+  const allowed=/^(?:SystemRoot|WINDIR|COMSPEC|PATHEXT|OS|PROCESSOR_ARCHITECTURE|NO_COLOR|CI|HOME|USERPROFILE|CODEX_HOME|APPDATA|LOCALAPPDATA|XDG_CONFIG_HOME|CLAUDE_CONFIG_DIR|CODEX_FAKE_LOG|CODEX_FAKE_FAIL_ADD|CUSTOM_AGENTS_EXEC_TIMEOUT_MS|CUSTOM_AGENTS_CODEX_QUERY_TIMEOUT_MS|CUSTOM_AGENTS_PYTHON|CODEX_FAKE_MODEL_RACE|MARCA|NODE_V8_COVERAGE)$/i
   const env=Object.fromEntries(Object.entries(merged).filter(([key])=>allowed.test(key)))
   const ownedTemp=join(ownedHome,'temp');mkdirSync(ownedTemp,{recursive:true})
   Object.assign(env,{NO_COLOR:"1",HOME:ownedHome,USERPROFILE:ownedHome,CODEX_HOME:ownedCodex,
