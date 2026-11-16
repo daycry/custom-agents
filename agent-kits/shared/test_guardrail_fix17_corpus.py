@@ -33,7 +33,7 @@ INTERIORES17 = [
     "bash -c 'git clean -fdx'", "sh -c 'git push --force'", "bash -c 'git checkout main'", "bash -c 'git reset --hard'", "zsh -c 'git reset --hard'",
     "dash -c 'git reset --hard'", "ksh -c 'git reset --hard'", "busybox sh -c 'git reset --hard'", "env -S 'git reset --hard'",
     "env GIT_WORK_TREE=.. git restore a.txt", "env -C .. git restore a.txt", "env GIT_DIR=../o/.git git checkout -- a.txt", "xargs git restore",
-    "xargs -a f.txt git checkout --", "sudo -D .. git restore a.txt", "flock f -c 'git push --force'", "su -c 'git checkout main'", "eval 'git reset --hard'",
+    "xargs -a /dev/null git checkout --", "sudo -D .. git restore a.txt", "flock f -c 'git push --force'", "su -c 'git checkout main'", "eval 'git reset --hard'",
     "nice env GIT_DIR=../o/.git git checkout -- a.txt", "timeout 5 env GIT_WORK_TREE=.. git restore a.txt", "env HOME=/tmp/x git commit -m x",
     "env GIT_EDITOR=vim git rebase -i HEAD~3", "env XDG_CONFIG_HOME=/tmp/c git commit -m x",
 ]

@@ -186,11 +186,11 @@ def _ejecutar17(tmp_path, ordenes, nombre):
                 os.chmod(shim / n, 0o755)
         cabecera = "".join(f"{n}() {{ echo \"{n} $*\" >> \"$REG\"; }}\nexport -f {n}\n" for n in NOMBRES_SHIM if "." not in n)
         for j, orden in enumerate(trozo):
-            (base / f"s_{j}.sh").write_bytes((cabecera + orden + "\n").encode("utf-8"))
+            (base / f"s_{j}.sh").write_bytes((cabecera + orden + "\nwait\n").encode("utf-8"))
         comprobar = "for n in " + " ".join(NOMBRES_SHIM) + "; do case \"$(type -P $n)\" in \"$PWD\"/shim/*) ;; *) echo \"SHIM-NO-$n\"; exit 3;; esac; done\n"
         lanzador = base / "l.sh"
         lanzador.write_bytes(("export PATH=\"$PWD/shim:$PATH\"\nexport GIT_DIR=/inexistente-fix17\n" + comprobar +
-                              f"for k in $(seq 0 {len(trozo) - 1}); do export REG=\"$PWD/reg_$k\"; timeout 20 bash \"s_$k.sh\" >/dev/null 2>&1 </dev/null; done\n").encode())
+                              f"for k in $(seq 0 {len(trozo) - 1}); do export REG=\"$PWD/reg_$k\"; timeout 90 bash \"s_$k.sh\" >/dev/null 2>&1 </dev/null; done\n").encode())
         env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
         r = subprocess.run([BASH, str(lanzador)], cwd=str(base), env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900,
                            stdin=subprocess.DEVNULL)
@@ -201,14 +201,42 @@ def _ejecutar17(tmp_path, ordenes, nombre):
     return registro
 
 
+_OPCIONALES17 = ("zsh", "ksh", "busybox", "flock")
+
+
+def _ausentes17():
+    """Programas del corpus que esta maquina no trae (Git Bash no lleva `zsh`, `ksh` ni `busybox`; el `python:3.11-slim` de la replica Linux, tampoco): sus formas se declaran sin paridad."""
+    comprobar = "".join(f"type -P {b} >/dev/null || echo AUSENTE-{b}\n" for b in _OPCIONALES17)
+    r = subprocess.run([BASH, "-c", comprobar], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120, stdin=subprocess.DEVNULL)
+    return {linea[8:] for linea in r.stdout.splitlines() if linea.startswith("AUSENTE-")}
+
+
+def _sin_paridad17(orden, ausentes):
+    """Motivo por el que bash NO ejecuta git en esta forma con el arnes (el shim de `sudo`/`su`/`doas` solo registra; un programa ausente), o None."""
+    palabras = orden.replace("'", " ").split()
+    if any(p in ("sudo", "su", "doas") for p in palabras):
+        return "el shim de `sudo`/`su`/`doas` registra y NO ejecuta lo que sigue"
+    if palabras[0] in {p.split()[0] for p in PROGRAMAS17} and any(p in ("eval", "trap") for p in palabras):
+        return "`eval` y `trap` son builtins de shell: un programa que hace `exec \"$@\"` (`strace`, `uv run`, `chroot`…) no puede ejecutarlos"
+    faltan = [p for p in palabras if p in ausentes]
+    return f"`{faltan[0]}` no esta instalado en esta maquina" if faltan else None
+
+
 @necesita_bash
 def test_diferencial17_si_bash_ejecuta_git_el_guardarrail_deniega(tmp_path):
     ordenes = ENVOLTORIO_DETRAS_DE_DESCONOCIDO17
     reg = _ejecutar17(tmp_path, ordenes, "d17")
+    ausentes = _ausentes17()
     ejecutadas = [o for k, o in enumerate(ordenes) if ejecuta_git(reg[k])]
     divergencias = [o for o in ejecutadas if decide(o) is None]
     assert not divergencias, f"bash ejecuta git y el guardarrail PERMITE ({len(divergencias)}): {divergencias[:6]!r}"
-    assert len(ejecutadas) >= len(ordenes) * 0.7, f"el arnes apenas ejecuta el corpus ({len(ejecutadas)} de {len(ordenes)})"
+    # y todo lo que no ejecuta git tiene su motivo declarado (como `SIN_PARIDAD15`): un corpus cuyas formas no hacen nada no prueba nada
+    sin_efecto = [o for k, o in enumerate(ordenes) if not ejecuta_git(reg[k]) and _sin_paridad17(o, ausentes) is None]
+    assert not sin_efecto, f"formas que bash NO ejecuta como git y no tienen motivo declarado ({len(sin_efecto)}): {sin_efecto[:5]!r}"
+    # un motivo declarado es una afirmacion sobre lo que bash NO ejecuta: si el registro ve git, el motivo es falso (salvo `sudo`/`su`, que ejecutan git detras de un shim)
+    falsos = [o for k, o in enumerate(ordenes) if ejecuta_git(reg[k]) and (_sin_paridad17(o, ausentes) or "").startswith("`")]
+    assert not falsos, f"formas declaradas sin paridad que SI ejecutan git (motivo falso): {falsos[:5]!r}"
+    assert len(ejecutadas) >= len(ordenes) * 0.6, f"el arnes apenas ejecuta el corpus ({len(ejecutadas)} de {len(ordenes)})"
 
 
 @necesita_bash

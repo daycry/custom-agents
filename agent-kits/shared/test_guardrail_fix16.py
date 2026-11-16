@@ -294,11 +294,11 @@ def _ejecutar16_trozo(tmp_path, ordenes, nombre, locale=None):
         os.chmod(shim / n, 0o755)
     cabecera = "".join(f"{n}() {{ echo \"{n} $*\" >> \"$REG\"; }}\nexport -f {n}\n" for n in NOMBRES_SHIM if "." not in n)
     for k, orden in enumerate(ordenes):
-        (base / f"s_{k}.sh").write_bytes((cabecera + orden + "\n").encode("utf-8"))
+        (base / f"s_{k}.sh").write_bytes((cabecera + orden + "\nwait\n").encode("utf-8"))   # fix17: `wait` espera a `coproc` y a los trabajos en segundo plano
     comprobar = "for n in " + " ".join(NOMBRES_SHIM) + "; do case \"$(type -P $n)\" in \"$PWD\"/shim/*) ;; *) echo \"SHIM-NO-$n\"; exit 3;; esac; done\n"
     lanzador = base / "l.sh"
     lanzador.write_bytes(("export PATH=\"$PWD/shim:$PATH\"\nexport GIT_DIR=/inexistente-fix16\n" + comprobar +
-                          f"for k in $(seq 0 {len(ordenes) - 1}); do export REG=\"$PWD/reg_$k\"; timeout 20 bash \"s_$k.sh\" >/dev/null 2>&1 </dev/null; done\n").encode())
+                          f"for k in $(seq 0 {len(ordenes) - 1}); do export REG=\"$PWD/reg_$k\"; timeout 90 bash \"s_$k.sh\" >/dev/null 2>&1 </dev/null; done\n").encode())
     env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
     if locale is not None:
         env.pop("LANG", None), env.pop("LC_ALL", None)

@@ -185,11 +185,15 @@ def _ejecutar15(tmp_path, ordenes, locale, binarios):
     registro = _ejecutar16(tmp_path, ordenes, "l15_" + (locale or "sin"), locale=locale)
     ausente = set()
     if binarios:
-        comprobar = "".join(f"[ -x {b} ] || type -P {b} >/dev/null || echo \"AUSENTE-{b}\"
-" for b in sorted(set(binarios)))
+        comprobar = "".join(f"[ -x {b} ] || type -P {b} >/dev/null || echo \"AUSENTE-{b}\"\n" for b in sorted(set(binarios)))
         r = subprocess.run([BASH, "-c", comprobar], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120, stdin=subprocess.DEVNULL)
         ausente = {linea[8:] for linea in r.stdout.splitlines() if linea.startswith("AUSENTE-")}
     return {k: ejecuta_git(v) for k, v in registro.items()}, ausente
+
+
+def _sh_es_bash():
+    r = subprocess.run([BASH, "-c", "sh -c 'echo ${BASH_VERSION:-no}'"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60, stdin=subprocess.DEVNULL)
+    return r.stdout.strip() not in ("", "no")
 
 
 CORPUS_BASH15 = sorted(set(DOBLE15) | set(HITS15) | {o for o, _ in ENVOLTORIOS15})
@@ -208,7 +212,9 @@ def test_diferencial15_si_bash_ejecuta_git_el_guardarrail_deniega(tmp_path, loca
     ejecutadas = sum(corre.values())
     assert ejecutadas >= len(DOBLE15) + len(HITS15) - 2, f"el arnes casi no ejecuta las formas de punto 2 ({ejecutadas})"
     # fix17 (gap 6): un motivo de SIN_PARIDAD15 es una afirmacion sobre lo que bash NO ejecuta: si el registro del shim ve git, el motivo es falso.
-    falsos = [o for k, o in enumerate(CORPUS_BASH15) if corre[k] and o in SIN_PARIDAD15]
+    # el motivo de `sh` depende de la maquina: en Git Bash `sh` ES bash y entiende `$'…'` (la forma ejecuta git); en Debian es dash y no
+    dependiente = "`sh` es `dash`"
+    falsos = [o for k, o in enumerate(CORPUS_BASH15) if corre[k] and o in SIN_PARIDAD15 and not (SIN_PARIDAD15[o].startswith(dependiente) and _sh_es_bash())]
     assert not falsos, f"SIN_PARIDAD15 declara que bash no ejecuta estas formas y el registro del shim SI ve git ({len(falsos)}): {falsos[:4]!r}"
 
 

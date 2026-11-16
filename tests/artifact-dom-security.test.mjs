@@ -63,9 +63,16 @@ for(const view of definitions)test('F001 '+view.id+' '+(view.mode||'metadata')+'
   const resultScript='<script>'+view.action+';setTimeout(()=>{const p=document.createElement("pre");p.id="fixture-result";p.textContent=JSON.stringify({injected:document.body.dataset.attack==="yes",literal:window.literalText,dest:window.__dest});document.body.appendChild(p)},240);</script>'
   html=html.replace('</body>',resultScript+'</body>')
   const path=join(temp,'fixture.html');writeFileSync(path,html)
-  const run=spawnSync(browser,['--headless=new','--disable-gpu','--disable-extensions','--disable-background-networking','--disable-component-update','--disable-sync','--no-first-run','--no-proxy-server','--host-resolver-rules=MAP * ~NOTFOUND','--user-data-dir='+join(temp,'profile'),'--dump-dom','--virtual-time-budget=1500',pathToFileURL(path).href],{encoding:'utf8',timeout:30000,windowsHide:true})
+  // fix17 (gap 22, `debug-root-cause`): el Edge headless sale a veces con codigo != 0 («Every renderer should have at least one task provided by a primary task provider», un fallo
+  // interno del navegador al arrancar con la maquina saturada) o no llega a volcar el DOM; el producto no interviene. Se repite el lanzamiento (hasta 3 veces) mientras el navegador no
+  // termine con codigo 0 y el resultado del fixture; las aserciones sobre el producto (`injected`, `literal`, `dest`) no cambian.
+  let run,match
+  for(let attempt=0;attempt<3;attempt++) {
+   run=spawnSync(browser,['--headless=new','--disable-gpu','--disable-extensions','--disable-background-networking','--disable-component-update','--disable-sync','--no-first-run','--no-proxy-server','--host-resolver-rules=MAP * ~NOTFOUND','--user-data-dir='+join(temp,'profile'),'--dump-dom','--virtual-time-budget=1500',pathToFileURL(path).href],{encoding:'utf8',timeout:30000,windowsHide:true})
+   match=run.status===0 && run.stdout.match(/<pre id="fixture-result">([\s\S]*?)<\/pre>/)
+   if(match)break
+  }
   assert.equal(run.status,0,run.stderr)
-  const match=run.stdout.match(/<pre id="fixture-result">([\s\S]*?)<\/pre>/)
   assert.ok(match,'browser must finish the fixture')
   const result=JSON.parse(match[1].replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&'))
   assert.equal(result.injected,false,'remote metadata executed an HTML handler')

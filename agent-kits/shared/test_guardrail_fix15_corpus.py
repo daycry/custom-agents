@@ -126,10 +126,9 @@ SIN_PARIDAD15 = {
     "chrt -r 1 GIT reset --hard": "`-r` es SCHED_RR y necesita CAP_SYS_NICE (falla sin privilegios)",
     "chrt -f 10 git reset --hard": "`-f` es SCHED_FIFO y necesita CAP_SYS_NICE (falla sin privilegios)",
 }
-SIN_PARIDAD15.update({o: "`coproc` lanza el `case` en segundo plano: el efecto no es observable de forma determinista"
-                      for o in DOBLE15 + HITS15 if "coproc" in o})
-SIN_PARIDAD15.update({o: "`<( )` no se ejecuta si el comando que lo recibe (`echo`) no lee el descriptor"
-                      for o in DOBLE15 + HITS15 if o.startswith("echo <(")})
+# fix17 (gap 6): los motivos de `coproc` («el efecto no es observable de forma determinista») y de `<( )` («no se ejecuta si el comando que lo recibe no lee el
+# descriptor») eran FALSOS: el registro del shim ve git en las dos formas (el arnes de fix15 miraba solo stdout y el script terminaba antes de que el `coproc` escribiera;
+# ahora cada script acaba con `wait`). Se retiran de `SIN_PARIDAD15`.
 SIN_PARIDAD15.update({o: "`sh` es `dash` en Debian y no entiende `$'…'`: el git codificado no se forma (en Git Bash `sh` es bash)"
                       for o in DOBLE15 if " sh -c " in o})
 SIN_PARIDAD15["flock --command='git reset --hard' F"] = ("util-linux `flock` (Debian) no ejecuta la cadena de `--command=…` puesta ANTES del fichero en este arnes "
