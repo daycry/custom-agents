@@ -70,7 +70,7 @@ function executable(env) {
 // The synchronous caller waits only for our Node worker. The worker owns an asynchronous
 // watchdog and kills the native tree before exiting, even when SIGTERM is ignored or a
 // descendant retains native stdout. Native pipe handles never reach this outer wait.
-export function runCodexQuery(args, {cwd,timeout=CODEX_QUERY_TIMEOUT_MS,env=process.env}={}) {
+export function runCodexQuery(args, {cwd,timeout,env=process.env}={}) {
   executable(env) // Preserve the missing-CLI classification without starting a worker.
   if(JSON.stringify(args)!==JSON.stringify(QUERY_ARGS)) throw new Error('unsupported native query arguments')
   const cap=capMs(env)
@@ -147,7 +147,7 @@ export function parseCodexPluginState(raw) {
   return {state:'installed',enabled:matches[0].enabled,version:matches[0].version,reason:null}
 }
 
-export function queryCodexPlugin({cwd,runner=runCodexQuery,timeout=CODEX_QUERY_TIMEOUT_MS}={}) {
+export function queryCodexPlugin({cwd,runner=runCodexQuery,timeout}={}) {
   try {
     // Explicit local marketplace avoids the native CLI's default remote-catalog listing.
     return parseCodexPluginState(runner([...QUERY_ARGS],{cwd,timeout}))

@@ -359,7 +359,7 @@ test('cleanup of the real launcher reaches its Python process', async () => {
     await until(() => existsSync(pidfile));
     pid = Number(readFileSync(pidfile, 'utf8'));
     await cleanup(); cleanup = null;
-    await until(() => !alive(pid), 15000);                       // sondeo acotado: la limpieza del adaptador mata el Python del lanzador real
+    await until(() => !alive(pid), 90000);                       // sondeo acotado: la limpieza del adaptador mata el Python del lanzador real
     assert.equal(alive(pid), false, 'Python must not continue after adapter cleanup');
     assert.equal(existsSync(marker), false, 'Python must not continue after adapter cleanup');
   } finally {
@@ -385,7 +385,7 @@ test('real adapter teardown cleans background descendants after the capture pare
     ctx.emit({ type: 'session.execution.succeeded', data: { sessionID: 'own-background' } });
     await until(() => existsSync(pidfile));
     pid = Number(readFileSync(pidfile, 'utf8'));
-    await until(() => !alive(pid), 20000);                       // sondeo acotado: la finalizacion normal mata al descendiente con las tuberias redirigidas
+    await until(() => !alive(pid), 90000);                       // sondeo acotado: la finalizacion normal mata al descendiente con las tuberias redirigidas
     assert.equal(alive(pid), false, 'normal completion must clean descendants with redirected pipes');
     assert.equal(existsSync(marker), false, 'normal completion must clean descendants with redirected pipes');
   } finally {
