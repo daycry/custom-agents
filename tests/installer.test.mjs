@@ -3822,6 +3822,12 @@ test("fix16 (gap 11): Ctrl+C durante `codex plugin marketplace add` deja el mani
       instalador.kill("SIGINT")
       assert.ok(await Promise.race([cerrado, new Promise((r) => setTimeout(() => r(null), 5000))]), "el instalador sigue vivo tras SIGINT")
       await esperar(async () => (await vivosDe(bin)).length === 0, 4000)
+      // el manifiesto `incompleto` YA estaba en disco ANTES de lanzar la CLI, con lo que iba a hacer (`registro`): una señal no deja ejecutar nada
+      const manifiestos = readdirSync(hogar, { recursive: true }).filter((f) => /\.custom-agents-install(\.plugin)?\.json$/.test(String(f)))
+      assert.ok(manifiestos.length >= 1, "no hay manifiesto tras la señal")
+      const man = JSON.parse(readFileSync(join(hogar, String(manifiestos[0])), "utf8"))
+      assert.equal(man.estado, "incompleto")
+      assert.ok((man.registro || []).some((e) => /marketplace add/.test(String(e.exec))), `el registro no recoge el \`marketplace add\` que iba a hacer: ${JSON.stringify(man.registro)}`)
       const salida = cli(["uninstall", "-p", "codex", "--scope", "user", "-y"], { env })
       assert.doesNotMatch(String(salida), /no encuentro ningún manifiesto/, "uninstall no encuentra el manifiesto que la senal debia dejar")
     } finally {
@@ -3849,7 +3855,8 @@ test("fix16 (gap 11): los restos `custom-agents-codex-*` de una ejecucion muerta
       mkdirSync(vivoDir); writeFileSync(join(vivoDir, ".installer-pid"), String(process.pid))
       utimesSync(vivoDir, viejo, viejo)
       const ajeno = join(temp, "otro-directorio"); mkdirSync(ajeno)
-      cli(["uninstall", "-p", "codex", "--scope", "user", "-y"], { env: { HOME: hogar, USERPROFILE: hogar } })
+      // sin manifiesto `uninstall` sale con 1 («no encuentro ningún manifiesto»), pero la limpieza de restos ocurre ANTES de cualquier comando
+      try { cli(["uninstall", "-p", "codex", "--scope", "user", "-y"], { env: { HOME: hogar, USERPROFILE: hogar } }) } catch { /* exit 1 esperado */ }
       assert.equal(existsSync(resto), false, "el resto de una ejecucion muerta debe limpiarse al arrancar")
       assert.equal(existsSync(join(decoy, "centinela.txt")), true, "la limpieza no debe seguir el enlace de la cache")
       assert.equal(existsSync(vivoDir), true, "un directorio cuyo instalador sigue vivo no se toca")
