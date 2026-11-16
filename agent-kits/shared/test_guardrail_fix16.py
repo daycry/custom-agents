@@ -139,7 +139,7 @@ SALIDAS = [
     "git checkout -B feature/x origin/main", "git checkout -B main origin/main", "git checkout --force-create=main", "git checkout -Bmain",
     "git switch -C main", "git switch --force-create main", "git switch --force-create=main", "git switch -Cmain", "git checkout HEAD~1",
     "git checkout HEAD^", "git checkout abc1234", "git checkout deadbeef01", "git checkout tags/v1.0", "git checkout @{1}", "git switch HEAD~2",
-    "git checkout HEAD", "git symbolic-ref HEAD refs/heads/main", "git update-ref HEAD abc1234", "git switch --detach", "git checkout --detach",
+    "git symbolic-ref HEAD refs/heads/main", "git update-ref HEAD abc1234", "git switch --detach", "git checkout --detach",
     "git switch main -- ", "git checkout master --", "git checkout -fB main", "git switch -fC main",
     "git checkout --conflict merge main", "git checkout --pathspec-from-file f main", "git checkout --opcion-nueva origin/main",
 ]
@@ -153,7 +153,7 @@ def test_salir_de_la_rama_de_trabajo_se_deniega(orden):
 PERMITIDAS_RAMA = [
     "git checkout main -- src/a.py", "git checkout HEAD -- src/a.py", "git checkout abc1234 -- a.py", "git switch -c feature/otra",
     "git switch -c feature/otra main", "git checkout -b nueva", "git checkout -B feature/x", "git checkout feature/x", "git switch feature/x",
-    "git checkout feature/y", "git switch feature/y --", "git checkout -B feature/otra", "git switch -C feature/otra",
+    "git checkout HEAD",     # fix17 (gap 12): `checkout HEAD` a secas conserva la rama con git real; antes se denegaba por equivaler a `--detach`
     "git checkout HEAD src/a.py", "git checkout main src/a.py", "git checkout abc1234 a.py b.py", "git checkout -q main src/a.py",
 ]
 

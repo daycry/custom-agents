@@ -185,10 +185,16 @@ def test_gap_8_checkout_o_switch_fuera_de_la_rama_de_trabajo(cmd):
     assert razon and "rama de trabajo" in razon, (cmd, razon)
 
 
-@pytest.mark.parametrize("cmd", ["git checkout feature/y", "git switch feature/y", "git checkout -b feature/z",
-                                 "git switch -c feature/z", "git checkout feature/x"])
-def test_gap_8_cambiar_a_otra_rama_de_trabajo_sigue_permitido(cmd):
+@pytest.mark.parametrize("cmd", ["git checkout -b feature/z", "git switch -c feature/z", "git checkout feature/x"])
+def test_gap_8_crear_rama_o_quedarse_en_la_actual_sigue_permitido(cmd):
     assert decide(bash(cmd)) is None, cmd
+
+
+# fix17 (punto 2, lista blanca): cambiar a OTRA rama de trabajo existente ya no se permite (antes, fix7 gap 8): sin leer las refs no se distingue de un tag o de una remota.
+# Falso deny declarado en docs/agents/implementer.md; crear una rama nueva con `-c`/`-b` sigue permitido.
+@pytest.mark.parametrize("cmd", ["git checkout feature/y", "git switch feature/y"])
+def test_gap_8_cambiar_a_otra_rama_de_trabajo_se_deniega_desde_fix17(cmd):
+    assert decide(bash(cmd)), cmd
 
 
 # --- gap 12: `source`/`.` con un fichero normal no es un cambio de base (límite conocido) -----------------------

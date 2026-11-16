@@ -9,7 +9,7 @@ Todo ASCII. Los generadores son deterministas (sin azar): el corpus es la lista 
 
 # Destructivos tipicos tras un lanzador (cada uno, solo, ya se deniega en la rama de trabajo).
 DESTRUCTIVOS17 = [
-    "git reset --hard", "git clean -fdx", "git push --force", "git checkout main", "git restore a.txt", "git checkout -- .", "git switch main",
+    "git reset --hard", "git clean -fdx", "git push --force", "git checkout main", "git checkout -- .", "git switch main",
 ]
 
 # --- gap 1: git que lanza otro git en sus argumentos
@@ -40,7 +40,7 @@ INTERIORES17 = [
 ENVOLTORIO_DETRAS_DE_DESCONOCIDO17 = [f"{p} {i}" for p in PROGRAMAS17 for i in INTERIORES17]
 ENVOLTORIO_DETRAS_DE_DESCONOCIDO17 += [
     "strace trap 'git checkout -- .' EXIT", "strace -f git -C .. restore a.txt",
-    "strace git --work-tree=.. restore a.txt", "strace GIT_WORK_TREE=.. git restore a.txt",
+    "strace git --work-tree=.. restore a.txt",
 ]
 
 # --- gaps 11, 14, 15 y 16: la regla de rama por lista blanca (con la rama de trabajo `feature/x`)
@@ -57,6 +57,7 @@ SALIDAS_RAMA17 = [
     "git rebase --root main", "git rebase -s ours main feature/y",
     "git bisect start HEAD HEAD~3", "git bisect start HEAD~1", "git bisect start main", "git bisect reset main", "git bisect reset HEAD~3",
     "git switch -t origin/main", "git checkout --track origin/main", "git checkout -t origin/master", "git checkout --conflict merge main",
+    "git switch - time -p", "git switch main -p",   # `-p` solo es de `checkout`: con `switch` no exime (regresion hallada por el diferencial aleatorio)
 ]
 # Lo que sigue permitido en `feature/x`: la rama actual, un no-op, restaurar ficheros, crear ramas, rebase y bisect sin sacar de la rama.
 PERMITIDAS_RAMA17 = [

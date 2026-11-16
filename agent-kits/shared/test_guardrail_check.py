@@ -632,7 +632,6 @@ def test_fix3_guardarrail_lista_blanca_y_analisis_real_deniega(cmd):
     "git clean -f --no-dry-run --dry-run", "git clean -e build -n -f", "git clean -fdn -e x",
     # ramas legítimas
     "git branch feature/y", "git branch -d x", "git branch --list", "git branch -m viejo nuevo",
-    "git update-ref refs/heads/x HEAD",
     # opciones globales legítimas (gap 7)
     "git -C /r status", "git -P log", "git --no-pager log", "git --no-optional-locks status",
     "git --paginate log", "git --literal-pathspecs status", "git --bare status", "git -C /r -c user.name=x commit -m y",
@@ -708,10 +707,8 @@ def test_restauracion_destructiva_se_deniega(cmd):
 @pytest.mark.parametrize("cmd", [
     "git checkout main -- src/a.py",
     "git checkout -b feature/y",
-    "git checkout -B feature/y",
     "git restore --staged src/a.py",
     "git restore src/a.py",
-    "git checkout feature/otra",
     "git restore --help",
     "git status",
 ])
@@ -785,9 +782,7 @@ def test_pathspec_que_abarca_el_arbol_entero_se_deniega(cmd):
     "git restore --pathspec-file-nul",
     "git restore --patch",
     "git checkout -bfeature/y",
-    "git checkout -Bfeature/y",
     "git switch -cfeature/y",
-    "git switch -Cfeature/y",
     "git checkout -qbfeature/y",
 ])
 def test_pathspec_acotado_y_ramas_con_f_en_el_nombre_siguen_permitidas(cmd):
@@ -846,10 +841,7 @@ def test_fix2_pathspec_no_literal_se_deniega(cmd):
 
 
 @pytest.mark.parametrize("cmd", [
-    "git checkout feature/otra",
-    "git checkout feature/otra",
     "git checkout -b feature/y",
-    "git checkout -B feature/y origin/main",
     "git checkout -bfeature/y",
     'git checkout -b feature/y "$(git rev-parse HEAD)"',
     "git checkout main -- src/a.py",
@@ -1131,7 +1123,7 @@ def test_fix6_gap11_subcomandos_que_descartan_trabajo_o_salen_de_la_rama(cmd):
 
 
 @pytest.mark.parametrize("cmd", ["git rm --cached a.txt", "git worktree add ../wt", "git worktree list",
-                                 "git read-tree HEAD", "git checkout feature/main", "git checkout -b main2",
+                                 "git read-tree HEAD", "git checkout -b main2",
                                  "git reset --soft HEAD~1", "git checkout-index a.txt"])
 def test_fix6_gap11_lo_legitimo_cercano_sigue_permitido(cmd):
     assert decide(bash(cmd), branch="feature/x") is None, cmd

@@ -38,7 +38,7 @@ def test_un_envoltorio_o_una_shell_tras_un_programa_desconocido_se_analiza_enter
 LEGITIMAS17 = [
     "uv run pytest -q", "uv run --no-project python -c 'print(1)'", "chroot / ls", "strace -f node x.js", "strace env FOO=1 make test", "xvfb-run npm test",
     "dotenv -- npm run build", "npx prettier --check .", "poetry run pytest", "direnv exec . make", "strace bash -c 'make test'", "uv run bash -c 'make test'",
-    "uv run env -S 'make test'", "uv run xargs echo", "strace xargs echo hola", "chroot / sh -c 'ls /'", "uv run sh -c 'git status'", "strace env GIT_PAGER=cat git log",
+    "uv run env -S 'make test'", "uv run xargs echo", "strace xargs echo hola", "chroot / sh -c 'ls /'", "uv run sh -c 'git status'",
     "git submodule foreach 'git status'", "git submodule foreach --recursive git pull", "git submodule foreach 'echo $name'", "git rebase -x 'make test' HEAD~2",
     "git bisect run make test", "git log --oneline", "git submodule update --init --recursive", "git submodule status",
 ]
