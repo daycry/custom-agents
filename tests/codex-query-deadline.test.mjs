@@ -35,3 +35,28 @@ require('node:module').syncBuiltinESMExports();`)
     assert.throws(()=>process.kill(observed.child,0),'expired native process must be gone before worker exit')
   }finally{rmSync(root,{recursive:true,force:true,maxRetries:50,retryDelay:100})}
 })
+
+// fix16 (gap 21): el plazo del producto (3 s) corre desde que el WORKER esta listo, no desde antes de lanzarlo: un arranque lento del worker (carga de CPU)
+// ya no consume el plazo de codex. El worker arranca 2,5 s tarde (preload solo para `--query-worker`) y codex tarda 0,6 s: con el plazo fijado antes
+// del lanzamiento (3 s desde el padre) le quedan 0,5 s a codex y da `cli-timeout`.
+test('Codex state: a slow worker start does not consume the native query budget (fix16, gap 21)',async()=>{
+  const {queryCodexPlugin,runCodexQuery}=await import('../agent-kits/shared/codex-plugin-state.mjs')
+  const root=mkdtempSync(join(tmpdir(),'ca-deadline-ready-')),bin=join(root,'bin')
+  mkdirSync(bin)
+  const executable=join(bin,process.platform==='win32'?'codex.exe':'codex')
+  if(process.platform==='win32')copyFileSync(process.execPath,executable)
+  else symlinkSync(process.execPath,executable)
+  writeFileSync(join(root,'package.json'),'{"type":"module"}')
+  writeFileSync(join(root,'plugin'),'await new Promise(r=>setTimeout(r,600));console.log(JSON.stringify({installed:[{pluginId:"custom-agents@daycry",installed:true,enabled:true,version:"1.22.0"}],available:[]}))')
+  const preload=join(root,'slow-worker.cjs')
+  writeFileSync(preload,"if(process.argv.includes('--query-worker'))Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,2500)")
+  const env={}
+  for(const key of ['SystemRoot','WINDIR','COMSPEC','PATHEXT','NODE_V8_COVERAGE'])if(process.env[key])env[key]=process.env[key]
+  Object.assign(env,{HOME:root,USERPROFILE:root,CODEX_HOME:join(root,'.codex'),NODE_OPTIONS:'--require '+JSON.stringify(preload.split(String.fromCharCode(92)).join('/')),
+    PATH:[bin,process.platform==='win32'?join(process.env.SystemRoot,'System32'):'/usr/bin:/bin'].join(delimiter)})
+  try{
+    const state=queryCodexPlugin({cwd:root,timeout:3000,runner:(args,options)=>runCodexQuery(args,{...options,env})})
+    assert.equal(state.reason,null,'the worker start must not consume the budget of the native query')
+    assert.equal(state.state,'installed')
+  }finally{rmSync(root,{recursive:true,force:true,maxRetries:50,retryDelay:100})}
+})
