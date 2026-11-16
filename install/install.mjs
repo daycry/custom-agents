@@ -1264,9 +1264,10 @@ export const argCmd = (a) => String(a).split("%").map(citarCmd).join("^%")
  * pero no a su nieto: la CLI colgada seguía viva consumiendo el terminal (comprobado con
  * `tasklist`). En Windows eso es `taskkill /T /F`; en el resto, el grupo de procesos.
  */
-// fix16 (gap 18): tope de la caza de huérfanos en Windows (`wmic`/PowerShell + CIM): vuelve a 15 s. fix15 lo subió a 90 s apoyado en una hipótesis no demostrada;
-// la causa medida del rojo era otra (el árbol del lanzador se mataba mal, ver `terminateProcessTree` en codex-plugin-state.mjs). Solo corre tras un timeout.
-const TIMEOUT_CAZA = 15_000
+// fix16 (gap 18): tope de la caza de huérfanos en Windows (taskkill + barrido CIM). fix15 lo subió a 90 s apoyado en una hipótesis no demostrada y se pedía volver a 15 s «o justificarlo con una
+// medida»: con 12 bucles de CPU y 15 s el árbol de la CLI colgada sobrevivió en 1 de 3 pasadas de `gap 8` (barrido y confirmación en paralelo, sin agotar el tope); con 60 s, 0 de 3.
+// El tope solo CORTA el peor caso: la limpieza vuelve en cuanto el sondeo confirma la muerte (segundos en reposo) y solo corre tras un timeout.
+const TIMEOUT_CAZA = 60_000
 
 function matarArbol(pid) {
   if (!pid) return
