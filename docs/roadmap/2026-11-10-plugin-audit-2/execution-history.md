@@ -857,3 +857,102 @@ Interpretaciones: (i1) `_segmentos` devuelve como `incompleta` el TEXTO del moti
 **Mutaciones y diferenciales de fix14.** Separador: `st.out = st.out + [cur]` en la partición → los tests de separadores FALLAN (las dos formas ejecutadas de las seis en el tiempo disponible: 160 s de CPU por forma a 250 KB; el resto cortado por el `timeout` de 15 min). Instalador en Windows: `matarArbol` con `return` → «la CLI colgada dejó procesos huérfanos vivos (PIDs 49928)»; relanzar la CLI tras el timeout → «2 !== 1». Instalador en Linux: con el `install.mjs` de 82a9442 → huérfano (RED); con `detached` → verde en 2,6 s. Diferencial `82a9442` frente al código nuevo (`f14/dif14.py`): 2.690 órdenes de lb13 → **0 regresiones**, **1 deny nuevo** (`env -S $'\0147it reset --hard'`: el octal `\014` es un FF suelto; bash no ejecuta git) y 9 `git` sin argumentos inocuos (los mismos del intento 13); los 7.056 `case` inocuos → **0 deny nuevos**; sondas p1+p2 44 (28 allow antes → 0), aciertos 31 (31 → 0), barrido de la B 240 (144 → 0), c1+c2 22 (18 → 0) y **`fz.py` 50.040 (50.040 → 0)**. Falsos deny: el de arriba y `nice -+5 bash -c 'make test'` (aceptado, i3).
 
 **Cierre fix14** — commits: RED `5ba1e03`; código `fce941f`; tests `71de8a0`; ledger e informe en el commit siguiente. Réplica Linux COMPLETA de `ci.yml.MANUAL-COPY` sobre `71de8a0` (`python:3.11-slim`, imagen `t23m:ci`, contenedor `--rm --name t23m-fix14` con `timeout`, `-m 1g --cpuset-cpus 0-3`, Node 22, `git archive` en LF, lanzada con 8,9 GB libres): **0 failed / 0 errors en todos los pasos**: linter 0 errores, 16 avisos (6 s) · `check-handbook` · evals 227 casos (145 positivos, 82 negativos, 1 en contra) · pytest paralelo **14.107 passed**, 71 skipped, 87 subtests (716 s) · serie 58 passed (89 s) · bench `p50=20,66 p95=32,16 p99=34,41 ms` · interop 88 al día · `node --test` 557 tests, 532 pass, **0 fail**, 25 skipped (142 s) · sintaxis · JSONs + `release.py --check`; total 960 s; sin contenedores `t23m` colgados al terminar (Docker Desktop ya estaba en marcha: no se arrancó). Windows (bash de Git): guardarraíl + diferenciales + journal + despacho nativo (`agent-kits/shared/test_guardrail*.py`, `test_journal*.py`, `tests/test_native_guardrail_dispatch.py` y `tests/test_native_guard_*.py`) **3.489 passed, 15 skipped, 0 failed** (25 min, antes de normalizar el absoluto de los separadores). Estabilidad con **12 bucles de CPU** (`ld13/carga.py`): la primera tanda de cinco pasadas dio rojos intermitentes en los separadores (4 en la 1.ª con el absoluto fijo de 1,0 s, 1 en la 2.ª con el factor medido una sola vez antes y 1 en la 3.ª) y por eso se pasó a `_es_lineal_normalizado` (factor medido justo antes y justo después de cada medida; i7); con la versión final: la 4.ª pasada de aquella tanda **106 passed**, una segunda tanda con **2 pasadas completas de 106 passed** (la tercera, cortada por el tiempo del lanzador) y **5 pasadas de los 6 tests de separadores: 6 passed en las cinco** (84 a 126 s cada una). Suite `node` COMPLETA de Windows: en cuatro tramos, todos con `node --test --test-concurrency=1` (la máquina estaba lenta: 34 % de CPU en reposo por la sincronización de OneDrive; las pruebas de instalador tardaron 2 a 3 veces más que en fix13): (1) primera corrida `tests/*.test.mjs` entera, cortada por el `timeout` de 60 min que le puse (el instalador tardó 34 min): solo dio rojo `gap 8: una CLI colgada` (56,7 s; ver i9), y por eso el test cambió; (2) las 27 suites sin el instalador en una sola corrida: **372 tests, 367 pass, 2 fail**, 2 skipped, 1 todo (890 s): los dos rojos son de `tests/opencode-plugin.test.mjs` («f4fix1 gap 3»: «Adapter effect was not observed» a los 21 s, y «gap 10»: aserción a los 39 s), esperas del adaptador con la máquina lenta que no tocan el código de este ciclo; (3) `tests/installer.test.mjs` ENTERO con el test de la CLI colgada ya corregido: **185 tests, 185 pass, 0 fail** (2.378 s); (4) repetición de las dos suites que dieron rojo (`opencode-plugin` y `session-end-budget`): **34 tests, 33 pass, 0 fail**, 1 todo (171 s), y los dos tests de `opencode-plugin` sueltos pasan (33 y 12 s). Sumando los tramos 2 a 4, las 28 suites quedan en verde (con esos dos rojos intermitentes de máquina lenta, declarados) y el todo conocido de Windows (`session-end-budget`: el arranque de node + python supera el presupuesto de SessionEnd). En Linux (el mismo contenedor `t23m:ci`), con el test del instalador definitivo: `node --test` 557 tests, 532 pass, **0 fail**, 25 skipped (131 s). Diferencial con bash real de fix14 en dos locales: 2 passed (3 min 47 s). Puertas: `ledger-lint` 0 incoherencias (aviso de tamaño: tasks.md@079e5c4 medía 239.556 B = 234 KiB de 256 KiB tras archivar fix10 a fix12; el «231 KiB» que se declaró aquí era erróneo), `scope-check.py … --base 57fb054` exit 0, `lint_plugin` 0 errores (16 avisos), `check-handbook`, `export-interop --check` 88 al día y `ci.yml.MANUAL-COPY` idéntica a `.github/workflows/ci.yml`; `git grep` de datos personales vacío (también en los ficheros nuevos). Horas medidas de fix14 `(medido)` (ventana compartida entre T-06 y T-23, imputada a T-06; los marcadores se abrieron tras el RED y se cerraron antes de la réplica Linux, del ledger y del informe): 0.45 h (`plugin-audit-2/T-06-fix14` y `T-23-fix14`; 95.489 tokens de salida, 164 respuestas). Deuda aceptada: la duración de los diferenciales con bash real en Windows (3 min 47 s el de fix14; 25 min el conjunto de guardarraíl).
+
+## Archivado 2026-11-16 — Revisión de dos lentes — intento 15: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix14: 5 Important, 14 Minor (bytes sin cambios)
+
+SHA-256 del bloque: `0905acd158a5004fb55fe20755648a0e31ede71994a020225cf3e526bd6579f1`.
+
+## Revisión de dos lentes — intento 15: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix14: 5 Important, 14 Minor
+
+Lentes: A+B+C+D sobre `82a9442..079e5c4`, dos a dos por memoria.
+
+El orquestador verificó:
+- las puertas: `ledger-lint` 0, `scope-check --base 57fb054` exit 0, `lint_plugin` 0 errores, `export-interop --check` 88, `check-handbook`, `cmp ci.yml` y el `git grep` de datos personales vacío;
+- las formas de los gaps 1 y 2 del intento 14 y las de `GIT`/`git.exe`: todas dan deny.
+
+**Cerrado del intento 14:**
+- **Gaps 1-12.**
+- **Lectura opaca.** Deniega siempre en las cuatro formas.
+- **Lente C:**
+  - con bash real y un shim que cubre `git`/`GIT`/`Git`/`git.exe`/`GIT.EXE` (comprobado con `type -P`), `p1`+`p2` (44) y los 31 hits del barrido dan 0 allow;
+  - `fz.py` sobre 72.000 plantillas no permite ninguna forma que se deniegue con git literal;
+  - un diferencial aleatorio de 60.000 órdenes no da ningún caso en que 82a9442 deniegue y HEAD permita;
+  - 30.000 entradas límite (tamaño, surrogates, NUL) no dan ninguna excepción que acabe en allow.
+- **Lente B.** Sus sondas pasan de 190 a 2 allow, y ninguna de las dos ejecuta git.
+- **Lente A:**
+  - RED solo con tests: 297 fallos con desglose exacto, 6 + 32 del cambio de contrato y 4 del journal;
+  - 385 formas y `SIN_PARIDAD14` = 116;
+  - el archivado de fix10-fix12 es literal (SHA `3f174fea…`);
+  - `implementer.md` documenta la lectura opaca.
+- **Lente D:**
+  - el guard es lineal en 23 formas (de 64 K a 255 K, con git y sin git);
+  - la mutación cuadrática del separador da rojo y i7 no puede enmascararla;
+  - `queue()` está acotado (se pasa del plazo entre 1 y 50 ms).
+
+**Interpretaciones del fix14:**
+- Aceptadas: i1, i2, i4, i5, i6 (plazo 0,35 s; Lente D: omisión solo con una inicialización de 0,40 s o más, que recupera `recover`), i7 (sin enmascarar, gap 12), i8 e i9 (causa corregida en el gap 13).
+- No aceptada: i3. La ventana de seis palabras rebaja el criterio del punto 3 del diseño (gap 6).
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | **La rama solo se consulta si aparece `git` en minúsculas.** `guardrail-check.py:2137` llama a `branch_fn` solo si encuentra `\bgit\b` sin `re.I`, en el texto crudo. Sin rama no se aplica la regla de no salir de la rama de trabajo. `GIT switch main`, `Git checkout master`, `g''it switch main` y `$'\x67it' checkout main` → allow con `decide()` real, y bash ejecuta git. Los tests no lo ven porque fijan `branch=`. Contradice el punto 2 del diseño de fix14 y lo que dice `tasks.md:245`. No es regresión | T-06 | corregido en `2d97794`: `decide()` consulta la rama siempre; tests con `gc.current_branch` real (11 formas) | Lentes A (G1) y B (gap 1) |
+| 2 | Important | **git codificado dos veces dentro de una lectura incompleta.** En la región que deja un `case` fuera de la lista blanca, un `bash -c`/`eval` con `\x5c`, `\134` o `\` delante de `x67it` pasa: `_aplanado` decodifica una sola vez (`:1877-1889`). Ejemplo: `echo "$(time -p case x in *) bash -c $'\x24\x27\x5cx67it\x27 reset --hard';; esac)"`. 9 de 9 sondas ejecutan git, también `switch main`. Con esa grafía, `fz` da 16.680 allow y en una muestra de 200 hay 13 que ejecutan git. No es regresión | T-06 | corregido en `2d97794`: decodificación hasta punto fijo (8 rondas; si no, lectura opaca); 9 sondas y 13 aciertos al corpus; G4 de `fz`: 0 de 1.000 con bash real | Lente C (C1): `lc15/`, `proto15.py` |
+| 3 | Important | **`flock F -c 'git reset --hard'` → allow con git literal.** `:1004-1007` mira `-c` antes de saltar el fichero de bloqueo. Es la forma canónica de flock. No es regresión | T-06 | corregido en `2d97794`: `flock -c`/`--command` y `su -c` se analizan como `bash -c` | Lente B (gap 4): `lb15/flock.sh`. Verificado por el orquestador |
+| 4 | Important | **`nohup -- git reset --hard` → allow con git literal.** `nohup` está en `_CONTROL` (`:913`), que se evalúa antes que la rama de envoltorios, así que el `--` no se salta; bash lo ejecuta. No es regresión | T-06 | corregido en `2d97794`: `nohup` sale de `_CONTROL` y entra en la tabla con `--` | Lente C (C2). Verificado por el orquestador |
+| 5 | Important | **Regresión del fix14 en Linux y macOS.** `install.mjs:1318` (`detached: true`) saca a la CLI del grupo de la terminal. Con el manejador de SIGINT activo, Ctrl+C no hace nada durante 120 s; sin él, la CLI queda huérfana | T-23 | corregido en `2d97794` y `ce7746c`: vigilante de señales en `correr` (Linux y macOS); 3 tests, RED y GREEN en la réplica | Lente B (gap 3): `lb15/ctrlc.mjs`. Lo anota también la Lente A |
+| 6 | Minor | i3: el intérprete detrás de una opción de envoltorio desconocida solo se busca en `toks[:6]` (`:1965`). `nice -+5 -n 1 -n 1 -n 1 bash -c "g''it reset --hard"` y `nice -+5 nice nice nice nice nice bash -c …` (12 formas) ejecutan git con allow. `implementer.md:139` no menciona el tope | T-06 | corregido en `2d97794`: sin la ventana `toks[:6]` (la i3 de fix14 queda sustituida) | Lentes A (G2) y B (gap 2) |
+| 7 | Minor | Envoltorios que el guard no trata y dejan pasar git literal: `chrt`, `taskset`, `doas`, `winpty`, `/usr/bin/time`. Las abreviaturas de `env` (`--split`, `--s`, `--split=`) no se reconocen como `-S` (`:1148`) | T-06 | corregido en `2d97794`: `chrt`, `taskset`, `doas`, `winpty`, `time` por ruta y las abreviaturas de `env -S` en la tabla | Lente C (C3, C6) |
+| 8 | Minor | Límites no declarados en `LIMITE`/`implementer.md`: expansiones en la palabra de mando (`{git,}`, `{g..g}it`, `g${x}it`, `g$()it`, globs, `${VAR}` en `env -S`, `xargs git` con el subcomando por stdin) y un NUL crudo `g<NUL>it` (depende del runtime) | T-06 | declarado en `2d97794`: `LIMITE15` y `implementer.md` | Lentes B (gap 6) y C (C4, C5) |
+| 9 | Minor | Journal: el plazo de 0,35 s empieza en la primera espera, no al arrancar el proceso. El hijo de SessionEnd en frío (50 K + 5 K, cola configurada fallida) tarda 551-1.283 ms con carga: 2 de 10 y 4 de 10 por encima de 800. El exceso es arranque e imports (192-584 ms) | T-23 | corregido en `2d97794` y `3428e3e`: plazo desde el arranque del proceso, con un mínimo para la primera espera; medidas en el ledger | Lente D (D1): `journal-io.py:104-110` |
+| 10 | Minor | Una inicialización legítima de 0,40 s o más ahora da `unsafe_state` dentro de la captura y la omite (la recupera `recover`). La carrera se repitió sin presupuesto y `tasks.md:902` dice «igual que 82a9442» | T-23 | corregido en `2d97794`: declarado desde cuándo se omite (0,35 s tras el arranque) y que lo recupera `recover`; carrera con el presupuesto real medida | Lentes A (G3) y D |
+| 11 | Minor | **Rojo intermitente del instalador.** En Windows, el test «gap 8» da 2 de 2 rojos («ENOENT inicio.flag») con 12 bucles de CPU. El timeout de 2 s es menor que el arranque de node (mediana 3,7 s). Es la causa probable del fallo de i9 | T-23 | corregido en `2d97794` y `3428e3e`: `--version` lo responde el `.cmd`, plazo de 10 s en Windows y caza de huérfanos de 90 s; 5 pasadas con carga: 5 de 5 | Lentes B (gap 5) y D (D3): `installer.test.mjs:1937-1953,1979,1987` |
+| 12 | Minor | El test de separadores normaliza el absoluto (i7) pero mide las dos tallas en momentos distintos. Si la carga cambia entre ambas medidas puede dar rojo sin regresión (casi-rojo: 1,453 frente a 1,46). Contra 82a9442, con carga, da 4 rojos y 2 verdes | T-06 | corregido en `2d97794`: `c` y `g` intercalados con la misma referencia; 5 de 5 pasadas con carga | Lentes A (G4) y D (D2): `test_guardrail_fix14.py:177-192` |
+| 13 | Minor | **Rojos intermitentes de OpenCode en Windows** (fuera del diff; no se acepta ningún rojo). `gap 10`: la firma del adaptador tiene un plazo de pared de 1.000 ms (`hooks/opencode-plugin.js:167`) y con carga tarda 1.010-1.025 ms (2 de 2 rojos). `f4fix1 gap 3`: el `until` de 15 s frente a 5 nodes en serie por turno (~18,5 s con carga, 3 de 3 rojos). Además, el adaptador lanza un `node` por cada evento de actividad aunque `sesion.actividad` esté apagado | T-23 | corregido en `2d97794` y `3428e3e`: `Date.now` congelado, condición en lugar de `setTimeout(150)`, `until` de 120 s y opt-in comprobado en el adaptador y su espejo; ver «Estabilidad» para los 3 tests del lanzador real | Lente D (D4, D5): `tests/opencode-plugin.test.mjs:608-615,658-669`, `tests/helpers/opencode-context.mjs:29-35` |
+| 14 | Minor | Traza: `install.mjs` no está en `Archivos` de T-23 ni de T-06, y `Runtimes` de T-23 dice «sin diferencia de conducta». La cabecera dice «i1 a i8» y hay i9. Un tercer test del journal pasa en RED sin estar declarado. Las filas 5 y 6 citan `5bed9d0`. El ledger se declara de 231 KiB y mide 234 | T-06, T-23 | corregido en el commit del ledger: `Archivos`, `Runtimes`, cabecera, test del journal, SHA y tamaño | Lente A (G5, G6) |
+
+**Diseño fijado por el orquestador para fix15:**
+
+1. **La rama siempre se consulta** (gap 1).
+   - Para el rol protegido, en cualquier orden Bash no vacía, `decide()` obtiene la rama con `branch_fn` sin condición. Es leer `.git/HEAD`, barato.
+   - Ninguna decisión de seguridad depende de `\bgit\b` en minúsculas; se repite el grep de todas las apariciones.
+   - Hay tests con `branch_fn` real (sin `branch=`) para las cuatro formas del gap.
+2. **Decodificación hasta punto fijo** (gap 2).
+   - `_aplanado` y la búsqueda de git en las palabras decodificadas repiten la decodificación hasta que no cambia, con un máximo de 8 rondas.
+   - Si se alcanza el máximo, es lectura opaca → deny.
+   - Se toma el criterio del prototipo `lc15/proto15.py`.
+   - Las 9 sondas y los 13 hits confirmados entran al corpus con bash real.
+   - El barrido G4 de `fz` debe dar 0 allow que ejecuten git, sobre una muestra con bash real de al menos 200.
+3. **Envoltorios por tabla única** (gaps 3, 4, 6 y 7).
+   - Cada envoltorio declara sus opciones con argumento, su opción de orden en cadena (`flock -c/--command`, `su -c`, `doas`/`sudo` si se tratan) y si acepta `--`.
+   - Se normaliza por el nombre base (`/usr/bin/time` → `time`).
+   - Hay que añadir `nohup` con `--` (y que salga de `_CONTROL` o que `_CONTROL` lo desenvuelva), `chrt`, `taskset`, `doas`, `winpty` y `time` por ruta.
+   - Las abreviaturas `--split`/`--s…`/`--split=` de env equivalen a `-S`.
+   - La cadena de una opción de orden se analiza como `bash -c`, heredando la marca.
+   - Sin ventana `toks[:6]`: el intérprete se busca en toda la orden simple, en tiempo lineal.
+   - Corpus con bash real para todas las formas de las lentes; `flock` solo donde exista, y si no, en SIN_PARIDAD con el motivo.
+4. **Límites declarados** (gap 8). Las expansiones en la palabra de mando, `xargs` con subcomando por stdin y el NUL crudo van en `LIMITE` y en el modelo de amenaza de `implementer.md`, con un ejemplo de cada clase.
+5. **Instalador sin regresión de señales** (gaps 5 y 11).
+   - Fuera de Windows, el hijo `detached` recibe las señales del instalador. SIGINT, SIGTERM y SIGHUP del padre se reenvían al grupo (`kill(-pid)`), y al salir el padre por cualquier vía se mata el grupo vivo.
+   - Test (en Linux, en la réplica): SIGINT al instalador con una CLI colgada → el instalador y todo el grupo mueren en menos de 3 s, y no queda huérfano.
+   - Test del gap 8: el stub de Windows responde a `--version` sin arrancar node (el `.cmd` lo resuelve solo). El timeout del test es de 8 s o más en Windows y no se relaja la cota.
+   - Verificación: 5 pasadas con 12 bucles de CPU, 0 rojos.
+6. **Journal anclado al arranque** (gaps 9 y 10).
+   - El plazo de proceso se mide desde el arranque del proceso de captura (marca monotónica al importar), no desde la primera espera.
+   - El valor se elige para que el hijo de SessionEnd en frío salga en menos de 800 ms en reposo con 50 K + 5 K y la cola configurada fallida: 10 ejecuciones medidas en el ledger. Con carga, se declara la cifra.
+   - La carrera legítima de dos procesos se repite **con** el presupuesto real, y el ledger declara desde qué duración de inicialización se omite la captura y que la recupera `recover`.
+7. **Tests sin reloj frágil** (gaps 12 y 13).
+   - Separadores: `c` y `g` intercalados con la misma referencia, en cada repetición.
+   - OpenCode `gap 10`: `Date.now` congelado en el test.
+   - OpenCode `f4fix1 gap 3`: condición en lugar del `setTimeout(150)` y `until` acorde a la carga.
+   - El adaptador no lanza `node` por actividad si `sesion.actividad` está apagado; el opt-in se comprueba en el adaptador y en el espejo, regenerando interop.
+   - Verificación: 5 pasadas de las suites `opencode-plugin*` y del test de separadores con 12 bucles de CPU, 0 rojos.
+8. **Traza** (gap 14). `install/install.mjs` y los ficheros de OpenCode van en `Archivos` de T-23 con su nota, se corrige `Runtimes`, y también la cabecera i1-i9, el test del journal sin declarar, los SHA y el tamaño.
+
+Tras este ciclo:
+- réplica Linux completa sin rojo, incluido el test de señales;
+- suite node de Windows completa sin rojo, en dos pasadas;
+- medida emparejada de T-23 con el equipo libre (la hace el orquestador);
+- verificación dirigida de las cuatro lentes.
+
+Si solo quedan Minor sin pérdida de datos, la fase cierra.
+

@@ -1317,97 +1317,129 @@ Tras este ciclo, verificación dirigida con las cuatro lentes, con el corpus dif
 - 2026-11-15 · «Revisión de dos lentes — intento 12: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix11: 2 Important, 9 Minor» → [execution-history.md](execution-history.md) · SHA-256 `9aa8dd06084d4eb2fb5f1204c3a17a37843b5ad2eef8c59912e9722cdee215ec`
 - 2026-11-15 · «Revisión de dos lentes — intento 13: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix12: 1 Important, 9 Minor» → [execution-history.md](execution-history.md) · SHA-256 `5bd917906bc1b12c42fc1bb76eb25d05b7ef856d35227a9c474ee2c2a1b469f5`
 - 2026-11-15 · «Revisión de dos lentes — intento 14: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix13: 2 Important, 10 Minor» → [execution-history.md](execution-history.md) · SHA-256 `8ee43f627c940b07874a61930729cf96fd1419454790d9d685ceb5a6e53c872b`
+- 2026-11-16 · «Revisión de dos lentes — intento 15: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix14: 5 Important, 14 Minor» → [execution-history.md](execution-history.md) · SHA-256 `0905acd158a5004fb55fe20755648a0e31ede71994a020225cf3e526bd6579f1`
 
-## Revisión de dos lentes — intento 15: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix14: 5 Important, 14 Minor
+## Revisión de dos lentes — intento 16: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix15: 10 Important, 14 Minor
 
-Lentes: A+B+C+D sobre `82a9442..079e5c4`, dos a dos por memoria.
+Lentes: A+B+C+D sobre `90c50cf..49ead93`, dos a dos por memoria.
 
-El orquestador verificó:
-- las puertas: `ledger-lint` 0, `scope-check --base 57fb054` exit 0, `lint_plugin` 0 errores, `export-interop --check` 88, `check-handbook`, `cmp ci.yml` y el `git grep` de datos personales vacío;
-- las formas de los gaps 1 y 2 del intento 14 y las de `GIT`/`git.exe`: todas dan deny.
+**Puertas.** El orquestador verificó las puertas (`ledger-lint` 0, `scope-check --base 57fb054` exit 0, `lint_plugin` 0 errores, `export-interop --check` 88, `check-handbook`, `cmp ci.yml`, `git grep` de datos personales vacío). Comprobó también las formas del intento 15: `nohup --`, `flock -c`, `GIT`, `env --split`, `chrt` y `/usr/bin/time` dan deny. Y los gaps 1 y 2 de la Lente B: `env --default-signal git reset --hard`, `env --b git reset --hard`, `git switch main --` y `git checkout main --` dan allow.
 
-**Cerrado del intento 14:**
-- **Gaps 1-12.**
-- **Lectura opaca.** Deniega siempre en las cuatro formas.
-- **Lente C:**
-  - con bash real y un shim que cubre `git`/`GIT`/`Git`/`git.exe`/`GIT.EXE` (comprobado con `type -P`), `p1`+`p2` (44) y los 31 hits del barrido dan 0 allow;
-  - `fz.py` sobre 72.000 plantillas no permite ninguna forma que se deniegue con git literal;
-  - un diferencial aleatorio de 60.000 órdenes no da ningún caso en que 82a9442 deniegue y HEAD permita;
-  - 30.000 entradas límite (tamaño, surrogates, NUL) no dan ninguna excepción que acabe en allow.
-- **Lente B.** Sus sondas pasan de 190 a 2 allow, y ninguna de las dos ejecuta git.
-- **Lente A:**
-  - RED solo con tests: 297 fallos con desglose exacto, 6 + 32 del cambio de contrato y 4 del journal;
-  - 385 formas y `SIN_PARIDAD14` = 116;
-  - el archivado de fix10-fix12 es literal (SHA `3f174fea…`);
-  - `implementer.md` documenta la lectura opaca.
-- **Lente D:**
-  - el guard es lineal en 23 formas (de 64 K a 255 K, con git y sin git);
-  - la mutación cuadrática del separador da rojo y i7 no puede enmascararla;
-  - `queue()` está acotado (se pasa del plazo entre 1 y 50 ms).
+**Cerrado del intento 15:**
+- Gaps 3, 4, 7, 8, 12 y 14. Los gaps 1, 2 y 6 se cierran para las formas señaladas.
+- Lente B:
+  - `lb15` repetida (498 órdenes, dos locales) da 0 regresiones.
+  - Las 862 `env --s/--split` que ahora se permiten no ejecutan git por el análisis nuevo; 2 cambian de rama por el gap 2 de este intento.
+  - El vigilante del instalador no deja huérfanos ni mata procesos ajenos.
+  - El opt-in de actividad de OpenCode no tiene defectos.
+- Lente C:
+  - Tabla de envoltorios: 2.014 formas contra las opciones reales. Solo pasan las 90 de las señales de env.
+  - Diferencial de 23.032 órdenes frente a 90c50cf: ninguna de las nuevas permitidas ejecuta git destructivo.
+  - 60.000 órdenes sin excepciones.
+- Lente A:
+  - RED b208568 solo con tests: 80 failed y 58 passed, exacto.
+  - Archivado de fix13+fix14 literal (`ea9c12d3…`).
+  - Recuentos correctos.
+  - `implementer.md` y `LIMITE15` coinciden con el código.
+- Lente D:
+  - Guard lineal con la tabla y con el punto fijo de 8 rondas.
+  - Hijo del journal en frío < 800 ms en reposo (488-676 ms, 0 de 20).
 
-**Interpretaciones del fix14:**
-- Aceptadas: i1, i2, i4, i5, i6 (plazo 0,35 s; Lente D: omisión solo con una inicialización de 0,40 s o más, que recupera `recover`), i7 (sin enmascarar, gap 12), i8 e i9 (causa corregida en el gap 13).
-- No aceptada: i3. La ventana de seis palabras rebaja el criterio del punto 3 del diseño (gap 6).
+**Gaps 5 y 9-13 del intento 15:** quedan los gaps 2-6, 9-11 y 22 de este intento.
+
+**Interpretaciones del fix15:**
+- Aceptadas: punto 6 (0,35 s con mínimos; relajación con carga declarada) y punto 7 (`until` 120 s).
+- No aceptadas:
+  - Punto 5: sin el manifiesto «incompleto» (gap 5).
+  - Punto 1: `current_branch` con git en cada orden (gap 9).
 
 | # | Grado | Gap | Tarea | Corrección | Evidencia |
 |---|---|---|---|---|---|
-| 1 | Important | **La rama solo se consulta si aparece `git` en minúsculas.** `guardrail-check.py:2137` llama a `branch_fn` solo si encuentra `\bgit\b` sin `re.I`, en el texto crudo. Sin rama no se aplica la regla de no salir de la rama de trabajo. `GIT switch main`, `Git checkout master`, `g''it switch main` y `$'\x67it' checkout main` → allow con `decide()` real, y bash ejecuta git. Los tests no lo ven porque fijan `branch=`. Contradice el punto 2 del diseño de fix14 y lo que dice `tasks.md:245`. No es regresión | T-06 | corregido en `2d97794`: `decide()` consulta la rama siempre; tests con `gc.current_branch` real (11 formas) | Lentes A (G1) y B (gap 1) |
-| 2 | Important | **git codificado dos veces dentro de una lectura incompleta.** En la región que deja un `case` fuera de la lista blanca, un `bash -c`/`eval` con `\x5c`, `\134` o `\` delante de `x67it` pasa: `_aplanado` decodifica una sola vez (`:1877-1889`). Ejemplo: `echo "$(time -p case x in *) bash -c $'\x24\x27\x5cx67it\x27 reset --hard';; esac)"`. 9 de 9 sondas ejecutan git, también `switch main`. Con esa grafía, `fz` da 16.680 allow y en una muestra de 200 hay 13 que ejecutan git. No es regresión | T-06 | corregido en `2d97794`: decodificación hasta punto fijo (8 rondas; si no, lectura opaca); 9 sondas y 13 aciertos al corpus; G4 de `fz`: 0 de 1.000 con bash real | Lente C (C1): `lc15/`, `proto15.py` |
-| 3 | Important | **`flock F -c 'git reset --hard'` → allow con git literal.** `:1004-1007` mira `-c` antes de saltar el fichero de bloqueo. Es la forma canónica de flock. No es regresión | T-06 | corregido en `2d97794`: `flock -c`/`--command` y `su -c` se analizan como `bash -c` | Lente B (gap 4): `lb15/flock.sh`. Verificado por el orquestador |
-| 4 | Important | **`nohup -- git reset --hard` → allow con git literal.** `nohup` está en `_CONTROL` (`:913`), que se evalúa antes que la rama de envoltorios, así que el `--` no se salta; bash lo ejecuta. No es regresión | T-06 | corregido en `2d97794`: `nohup` sale de `_CONTROL` y entra en la tabla con `--` | Lente C (C2). Verificado por el orquestador |
-| 5 | Important | **Regresión del fix14 en Linux y macOS.** `install.mjs:1318` (`detached: true`) saca a la CLI del grupo de la terminal. Con el manejador de SIGINT activo, Ctrl+C no hace nada durante 120 s; sin él, la CLI queda huérfana | T-23 | corregido en `2d97794` y `ce7746c`: vigilante de señales en `correr` (Linux y macOS); 3 tests, RED y GREEN en la réplica | Lente B (gap 3): `lb15/ctrlc.mjs`. Lo anota también la Lente A |
-| 6 | Minor | i3: el intérprete detrás de una opción de envoltorio desconocida solo se busca en `toks[:6]` (`:1965`). `nice -+5 -n 1 -n 1 -n 1 bash -c "g''it reset --hard"` y `nice -+5 nice nice nice nice nice bash -c …` (12 formas) ejecutan git con allow. `implementer.md:139` no menciona el tope | T-06 | corregido en `2d97794`: sin la ventana `toks[:6]` (la i3 de fix14 queda sustituida) | Lentes A (G2) y B (gap 2) |
-| 7 | Minor | Envoltorios que el guard no trata y dejan pasar git literal: `chrt`, `taskset`, `doas`, `winpty`, `/usr/bin/time`. Las abreviaturas de `env` (`--split`, `--s`, `--split=`) no se reconocen como `-S` (`:1148`) | T-06 | corregido en `2d97794`: `chrt`, `taskset`, `doas`, `winpty`, `time` por ruta y las abreviaturas de `env -S` en la tabla | Lente C (C3, C6) |
-| 8 | Minor | Límites no declarados en `LIMITE`/`implementer.md`: expansiones en la palabra de mando (`{git,}`, `{g..g}it`, `g${x}it`, `g$()it`, globs, `${VAR}` en `env -S`, `xargs git` con el subcomando por stdin) y un NUL crudo `g<NUL>it` (depende del runtime) | T-06 | declarado en `2d97794`: `LIMITE15` y `implementer.md` | Lentes B (gap 6) y C (C4, C5) |
-| 9 | Minor | Journal: el plazo de 0,35 s empieza en la primera espera, no al arrancar el proceso. El hijo de SessionEnd en frío (50 K + 5 K, cola configurada fallida) tarda 551-1.283 ms con carga: 2 de 10 y 4 de 10 por encima de 800. El exceso es arranque e imports (192-584 ms) | T-23 | corregido en `2d97794` y `3428e3e`: plazo desde el arranque del proceso, con un mínimo para la primera espera; medidas en el ledger | Lente D (D1): `journal-io.py:104-110` |
-| 10 | Minor | Una inicialización legítima de 0,40 s o más ahora da `unsafe_state` dentro de la captura y la omite (la recupera `recover`). La carrera se repitió sin presupuesto y `tasks.md:902` dice «igual que 82a9442» | T-23 | corregido en `2d97794`: declarado desde cuándo se omite (0,35 s tras el arranque) y que lo recupera `recover`; carrera con el presupuesto real medida | Lentes A (G3) y D |
-| 11 | Minor | **Rojo intermitente del instalador.** En Windows, el test «gap 8» da 2 de 2 rojos («ENOENT inicio.flag») con 12 bucles de CPU. El timeout de 2 s es menor que el arranque de node (mediana 3,7 s). Es la causa probable del fallo de i9 | T-23 | corregido en `2d97794` y `3428e3e`: `--version` lo responde el `.cmd`, plazo de 10 s en Windows y caza de huérfanos de 90 s; 5 pasadas con carga: 5 de 5 | Lentes B (gap 5) y D (D3): `installer.test.mjs:1937-1953,1979,1987` |
-| 12 | Minor | El test de separadores normaliza el absoluto (i7) pero mide las dos tallas en momentos distintos. Si la carga cambia entre ambas medidas puede dar rojo sin regresión (casi-rojo: 1,453 frente a 1,46). Contra 82a9442, con carga, da 4 rojos y 2 verdes | T-06 | corregido en `2d97794`: `c` y `g` intercalados con la misma referencia; 5 de 5 pasadas con carga | Lentes A (G4) y D (D2): `test_guardrail_fix14.py:177-192` |
-| 13 | Minor | **Rojos intermitentes de OpenCode en Windows** (fuera del diff; no se acepta ningún rojo). `gap 10`: la firma del adaptador tiene un plazo de pared de 1.000 ms (`hooks/opencode-plugin.js:167`) y con carga tarda 1.010-1.025 ms (2 de 2 rojos). `f4fix1 gap 3`: el `until` de 15 s frente a 5 nodes en serie por turno (~18,5 s con carga, 3 de 3 rojos). Además, el adaptador lanza un `node` por cada evento de actividad aunque `sesion.actividad` esté apagado | T-23 | corregido en `2d97794` y `3428e3e`: `Date.now` congelado, condición en lugar de `setTimeout(150)`, `until` de 120 s y opt-in comprobado en el adaptador y su espejo; ver «Estabilidad» para los 3 tests del lanzador real | Lente D (D4, D5): `tests/opencode-plugin.test.mjs:608-615,658-669`, `tests/helpers/opencode-context.mjs:29-35` |
-| 14 | Minor | Traza: `install.mjs` no está en `Archivos` de T-23 ni de T-06, y `Runtimes` de T-23 dice «sin diferencia de conducta». La cabecera dice «i1 a i8» y hay i9. Un tercer test del journal pasa en RED sin estar declarado. Las filas 5 y 6 citan `5bed9d0`. El ledger se declara de 231 KiB y mide 234 | T-06, T-23 | corregido en el commit del ledger: `Archivos`, `Runtimes`, cabecera, test del journal, SHA y tamaño | Lente A (G5, G6) |
+| 1 | Important | **Opciones de señal de env.** GNU env trata `--block-signal`, `--default-signal` e `--ignore-signal` con argumento OPCIONAL (solo con `=`). El guard se come `git` como su valor. `env --default-signal git push --force`, `env --block-signal git reset --hard` y `nice env --default-signal git switch main` dan allow y env 8.32 los ejecuta. Las abreviaturas (`--b`, `--bl`, `--def`, `--ignore-s`) son **regresión de fix15**: 81 de las 90 formas | T-06 | pendiente | Lentes B (gap 1) y C: `guardrail-check.py:968,972,1233-1234`. Verificado por el orquestador |
+| 2 | Important | **`--` exime de la regla de rama.** `if "--" in toks[i+1:]: continue` (`:2181-2182`) hace que `git switch main --`, `git switch -- main`, `git checkout main --`, `git checkout - --` y `GIT switch -- main` den allow con `branch=feature/x`. No es regresión | T-06 | pendiente | Lente B (gap 2). Verificado por el orquestador |
+| 3 | Important | **El punto fijo no se aplica a las palabras decodificadas.** El diseño lo exigía (punto 2) y solo se aplica a `_aplanado`. Un escape partido por comillas (`$'\x5c'x67it`) dentro de un `case` incompleto da allow, y bash ejecuta `git reset --hard`. No es regresión | T-06 | pendiente | Lente A (G1): `guardrail-check.py:1970-2002` |
+| 4 | Important | **`eval --` y `builtin --`.** `eval -- 'git reset --hard'` y `builtin -- exec git …` no saltan el `--`. Esconden también el cambio de base y la config (`eval -- cd .. && git restore a.txt`). Es la misma clase que `nohup --` | T-06 | pendiente | Lente C (C16-1): `:915,1456-1457,1581-1582` |
+| 5 | Important | **La cadena de `trap` no se analiza.** `git stash && trap 'git checkout -- .' EXIT && …` da allow. Es una forma plausible en un agente honesto | T-06 | pendiente | Lente C (C16-2) |
+| 6 | Important | **Opciones de las shells en clúster.** `bash -oc errexit 'git reset --hard'`, `-Oc`, `-co`, `-cO`: el guard toma el valor de `-o`/`-O` como la orden | T-06 | pendiente | Lente C (C16-3): `:1584-1587` |
+| 7 | Important | **Asignaciones y nombres falsos.** env acepta como asignación cualquier argumento con `=` (`env 1=x git …`, `env A-B=1 GIT …`), y `coproc NAME { git …; }` toma el nombre como programa | T-06 | pendiente | Lente C (C16-4): `:880,915,1304` |
+| 8 | Important | **`checkout -B`/`-C` sí sacan de la rama o la reinician.** `git checkout -B main` sale a main; `git checkout -B feature/x origin/main` equivale a `branch -f`/`reset --keep`, que se deniegan. El destino pegado no se ve (`--force-create=main`, `-Bmain`). `implementer.md:70` dice «crean la rama» | T-06 | pendiente | Lente C (C16-6): `:2187-2194` |
+| 9 | Important | **Coste de consultar la rama con git en cada orden Bash.** `echo hola` pasa de 345 a 499 ms con la carga de fondo, y con 12 bucles su p95 es de 4.245 ms (el 94 % del plazo de 4.500 del hijo del guard). Si git pasa del tope de 0,5 s, la rama queda desconocida y se pierde la regla. Leer `.git/HEAD` cuesta 0,76 ms en reposo y 47 ms saturado | T-06 | pendiente | Lente D (D1): `ld16/` |
+| 10 | Important | **`terminateProcessTree` en Windows no mata nada** (defecto real anterior a fix15). `taskkill` tiene un tope de 1 s y tarda p50 1,12-1,24 s; el barrido de PowerShell, tope de 2 s y p50 2,5-3,2 s. Se agotan 7 de 7. Con el lanzador real de npm (`codex.cmd` → node → descendiente) quedan 3 de 3 árboles huérfanos. Los tests no lo ven porque el job de libuv mata el árbol con el worker | T-23 | pendiente | Lente D (D2) |
+| 11 | Important | **Regresión de fix15 en el instalador.** Sin manejadores durante la CLI, una señal no escribe el manifiesto «incompleto»: tras un Ctrl+C durante `codex plugin marketplace add`, `uninstall` responde «no encuentro ningún manifiesto». Además, no corre ningún `finally`: queda en `/tmp` `custom-agents-codex-*` con una copia del `config.toml` del usuario y su symlink, y se pierde el `registro` de los `exec` ya hechos. Sin test | T-23 | pendiente | Lentes A (G2) y B (gap 5): `install.mjs:1320-1360,1436-1440,1894-1943,2104` |
+| 12 | Minor | **flock con una opción fuera de la tabla.** `--verbose` o `--fcntl` devuelve «desconocida» antes de mirar `-c` | T-06 | pendiente | Lente B (gap 3): `:938,1074-1075` |
+| 13 | Minor | **Envoltorios fuera de la tabla.** `chroot / git` y `mapfile -C` ejecutados; `strace`, `script -c`, `runuser`… documentados | T-06 | pendiente | Lente C (C16-5) |
+| 14 | Minor | **Salida implícita a un commit sin `--detach`.** `checkout HEAD~1`, SHA, tag o `@{1}`. Tampoco `symbolic-ref HEAD refs/heads/main` ni `update-ref HEAD x` | T-06 | pendiente | Lente C (C16-7): `:2191-2193` |
+| 15 | Minor | **Rama desconocida da allow.** Si `branch_fn` devuelve None, `git switch main` pasa (`:2194`), aunque `implementer.md` dice que falla cerrado. Sin rama, cada orden Bash muestra «role guard unavailable», sin declarar | T-06 | pendiente | Lentes C (C16-8) y A (G3) |
+| 16 | Minor | **Sin declarar en LIMITE.** La inyección aritmética (`[[ 'a[$(git …)]' -eq 1 ]]`), `mapfile -C` y `${x@P}` | T-06 | pendiente | Lente C (C16-9) |
+| 17 | Minor | **Mínimo del journal mal ubicado.** El mínimo de 0,10 s se gasta en la primera LLAMADA a `settled`/`update`, no en la primera espera; `queue()` lo gasta en el marcador. Las cifras del umbral no coinciden entre sí (0,30/0,35/0,55 s). Fórmula medida: `max(_ARRANQUE + 0,35 s, primera llamada + 0,10 s)`, unos 0,25 s en reposo y 0,10 s con 12 bucles. Con carga, el hijo en frío se pasa de 800 ms 2 de 10 (85-91 %), porque el arranque y los imports quedan fuera de todo plazo interno | T-23 | pendiente | Lentes A (G4), B (gap 4) y D (D6): `journal-io.py:109,122-124,176,212` |
+| 18 | Minor | `TIMEOUT_CAZA` sube a 90 s apoyado en una hipótesis no demostrada | T-23 | pendiente | Lente A (G5) |
+| 19 | Minor | **Motivo falso en `SIN_PARIDAD15`.** Las `<( )` y `coproc` sí ejecutan git; el arnés no lo ve porque solo mira stdout | T-06 | pendiente | Lente A (G6) |
+| 20 | Minor | **Rojo en Windows: `codex-plugin-state`, EPERM al borrar** (7 rojos en 5 pasadas). El `codex.exe` copiado sigue mapeado de 37 a 386 ms tras matarlo, y `rmSync` con `maxRetries` no reintenta EPERM en node 23.8. Cada rojo deja 86 MB en `%TEMP%`: hay 24 `ca-state-owned-*`, 1,8 GB. La sonda `--version` de 10 s compite con Defender, porque el primer arranque de la copia tarda entre 4,1 y 15,7 s (con un enlace duro, 0,9-1,0 s) | T-23 | pendiente | Lentes A (G7) y D |
+| 21 | Minor | **Rojo en Windows: `cli-timeout`.** El plazo del producto, 3 s, se fija antes de lanzar el worker. Una consulta correcta tarda 1,92-2,67 s con un 13 % de carga; con un 85 % le quedan 0,47-0,73 s a codex | T-23 | pendiente | Lente D |
+| 22 | Minor | **Rojo en Windows con carga: tres tests del lanzador real de OpenCode.** La captura (2.200 ms) tarda de 2,96 a 3,32 s y la confirmación de limpieza (500 ms), de 0,61 a 0,78 s. Los procesos del fixture viven 3 s frente a un p95 de `taskkill` de 1,5-1,8 s, con un pico de 7,6 s | T-23 | pendiente | Lente D |
+| 23 | Minor | **Barridos con `sudo` de Windows 11.** Git Bash ve el `sudo` de Windows. Una lente corrió unos segundos un barrido sin taparlo, sin cuelgue ni aviso. Los shims de los corpus y los arneses deben cubrir `sudo`/`doas`/`su` | T-06 | pendiente | Lente B |
+| 24 | Minor | **El corpus no declara qué ejecuta bash.** El arnés del corpus solo mira stdout para saber si git se ejecutó. Debe mirar el registro del shim | T-06 | pendiente | Lente A (G6) |
 
-**Diseño fijado por el orquestador para fix15:**
+**Diseño fijado por el orquestador para fix16**
 
-1. **La rama siempre se consulta** (gap 1).
-   - Para el rol protegido, en cualquier orden Bash no vacía, `decide()` obtiene la rama con `branch_fn` sin condición. Es leer `.git/HEAD`, barato.
-   - Ninguna decisión de seguridad depende de `\bgit\b` en minúsculas; se repite el grep de todas las apariciones.
-   - Hay tests con `branch_fn` real (sin `branch=`) para las cuatro formas del gap.
-2. **Decodificación hasta punto fijo** (gap 2).
-   - `_aplanado` y la búsqueda de git en las palabras decodificadas repiten la decodificación hasta que no cambia, con un máximo de 8 rondas.
-   - Si se alcanza el máximo, es lectura opaca → deny.
-   - Se toma el criterio del prototipo `lc15/proto15.py`.
-   - Las 9 sondas y los 13 hits confirmados entran al corpus con bash real.
-   - El barrido G4 de `fz` debe dar 0 allow que ejecuten git, sobre una muestra con bash real de al menos 200.
-3. **Envoltorios por tabla única** (gaps 3, 4, 6 y 7).
-   - Cada envoltorio declara sus opciones con argumento, su opción de orden en cadena (`flock -c/--command`, `su -c`, `doas`/`sudo` si se tratan) y si acepta `--`.
-   - Se normaliza por el nombre base (`/usr/bin/time` → `time`).
-   - Hay que añadir `nohup` con `--` (y que salga de `_CONTROL` o que `_CONTROL` lo desenvuelva), `chrt`, `taskset`, `doas`, `winpty` y `time` por ruta.
-   - Las abreviaturas `--split`/`--s…`/`--split=` de env equivalen a `-S`.
-   - La cadena de una opción de orden se analiza como `bash -c`, heredando la marca.
-   - Sin ventana `toks[:6]`: el intérprete se busca en toda la orden simple, en tiempo lineal.
-   - Corpus con bash real para todas las formas de las lentes; `flock` solo donde exista, y si no, en SIN_PARIDAD con el motivo.
-4. **Límites declarados** (gap 8). Las expansiones en la palabra de mando, `xargs` con subcomando por stdin y el NUL crudo van en `LIMITE` y en el modelo de amenaza de `implementer.md`, con un ejemplo de cada clase.
-5. **Instalador sin regresión de señales** (gaps 5 y 11).
-   - Fuera de Windows, el hijo `detached` recibe las señales del instalador. SIGINT, SIGTERM y SIGHUP del padre se reenvían al grupo (`kill(-pid)`), y al salir el padre por cualquier vía se mata el grupo vivo.
-   - Test (en Linux, en la réplica): SIGINT al instalador con una CLI colgada → el instalador y todo el grupo mueren en menos de 3 s, y no queda huérfano.
-   - Test del gap 8: el stub de Windows responde a `--version` sin arrancar node (el `.cmd` lo resuelve solo). El timeout del test es de 8 s o más en Windows y no se relaja la cota.
-   - Verificación: 5 pasadas con 12 bucles de CPU, 0 rojos.
-6. **Journal anclado al arranque** (gaps 9 y 10).
-   - El plazo de proceso se mide desde el arranque del proceso de captura (marca monotónica al importar), no desde la primera espera.
-   - El valor se elige para que el hijo de SessionEnd en frío salga en menos de 800 ms en reposo con 50 K + 5 K y la cola configurada fallida: 10 ejecuciones medidas en el ledger. Con carga, se declara la cifra.
-   - La carrera legítima de dos procesos se repite **con** el presupuesto real, y el ledger declara desde qué duración de inicialización se omite la captura y que la recupera `recover`.
-7. **Tests sin reloj frágil** (gaps 12 y 13).
-   - Separadores: `c` y `g` intercalados con la misma referencia, en cada repetición.
-   - OpenCode `gap 10`: `Date.now` congelado en el test.
-   - OpenCode `f4fix1 gap 3`: condición en lugar del `setTimeout(150)` y `until` acorde a la carga.
-   - El adaptador no lanza `node` por actividad si `sesion.actividad` está apagado; el opt-in se comprueba en el adaptador y en el espejo, regenerando interop.
-   - Verificación: 5 pasadas de las suites `opencode-plugin*` y del test de separadores con 12 bucles de CPU, 0 rojos.
-8. **Traza** (gap 14). `install/install.mjs` y los ficheros de OpenCode van en `Archivos` de T-23 con su nota, se corrige `Runtimes`, y también la cabecera i1-i9, el test del journal sin declarar, los SHA y el tamaño.
+La revisión de envoltorios no converge forma a forma: cada intento encuentra una sintaxis nueva. El cierre es **por clase** (criterio de la Lente C, prototipo `lc16/proto16.py`: cierra 239 de 240 bypass con 2 falsos deny declarables).
 
-Tras este ciclo:
-- réplica Linux completa sin rojo, incluido el test de señales;
-- suite node de Windows completa sin rojo, en dos pasadas;
+1. **Regla general: git en cualquier posición de la orden simple** (gaps 1, 4, 6, 7, 12 y 13).
+   - Si el programa de una orden simple no es git (tras desenvolver), pero un token de esa misma orden es git, se analiza también el sufijo que empieza en ese token como si fuera la orden. Esa palabra de git se compara sin distinguir mayúsculas, ya decodificada, por nombre base y con `.exe`.
+   - La regla vale aunque el envoltorio no esté en la tabla y aunque la tabla se equivoque con sus opciones. La tabla queda solo para la cadena de orden (`-c`, `--command`) y para el cambio de base.
+   - Además, se corrige lo concreto:
+     - `eval`, `builtin` y `trap` saltan el `--`, y `trap` analiza su cadena como `eval`;
+     - `-o`/`-O` consumen su valor dentro del clúster de opciones de las shells;
+     - env solo acepta asignaciones con un nombre válido (`[A-Za-z_][A-Za-z0-9_]*=`), y sus opciones de señal llevan argumento solo con `=`;
+     - `coproc NAME {`;
+     - flock sigue buscando `-c` tras una opción desconocida.
+   - Falsos deny aceptados: `echo`/`printf` con git sin comillas y una forma destructiva detrás. Se declaran en el ledger y en `implementer.md`.
+   - Todas las formas de `lb16/`, `lc16/` y `la16/` entran al corpus con bash real. El barrido de envoltorios de la Lente C (2.014 formas) debe dar 0 allow con git destructivo.
+2. **Punto fijo también en las palabras decodificadas** (gap 3). Se aplica la misma decodificación iterada, de 8 rondas como máximo y opaca si se agota. Con test y corpus de la forma de la Lente A.
+3. **Regla de rama** (gaps 2, 8, 14 y 15).
+   - El `--` ya no exime: el destino se busca a ambos lados.
+   - `checkout -B`/`-C`, `switch -C` y `--force-create[=]` cuentan como salida o reinicio, salvo el ledger permitido. Se reconoce el destino pegado (`-Bmain`).
+   - Un destino con forma de commit (`~`, `^`, `@{`, hexadecimal de 7 o más caracteres, `tags/`, `HEAD`) equivale a `--detach`.
+   - `symbolic-ref HEAD` y `update-ref HEAD` se deniegan.
+   - Con la rama desconocida, las órdenes que sacan de la rama se deniegan para el rol protegido. «role guard unavailable» se declara.
+   - `implementer.md:70` queda corregido.
+4. **Rama barata** (gap 9).
+   - Función nueva que lee `.git/HEAD`, resolviendo `gitdir:` de worktrees y submódulos.
+   - Si no es concluyente (reftable, `GIT_DIR`/`GIT_WORK_TREE` en el entorno, HEAD ilegible), recurre a `current_branch`. `current_branch` conserva su contrato.
+   - Medida: p50 y p95 de `echo hola` en reposo y con carga, en el ledger.
+5. **Instalador con registro previo** (gap 11).
+   - Antes de lanzar cada CLI, el manifiesto se escribe en disco como `incompleto`, con el `registro` de lo hecho hasta ahí y con lo que va a hacer. Al terminar bien, se marca completo.
+   - La copia temporal del `config.toml` se crea con permisos de solo el usuario. Si quedan restos de una ejecución anterior, se limpian al arrancar.
+   - Tests:
+     - Ctrl+C durante `codex plugin marketplace add` en Linux (réplica) → `uninstall` encuentra el manifiesto y deshace lo registrado.
+     - Ningún resto en `/tmp` tras la siguiente ejecución.
+6. **Árbol de procesos en Windows** (gap 10).
+   - `taskkill /T /F` y el barrido se lanzan en paralelo, con un tope total de 8 s.
+   - La muerte se confirma con un sondeo acotado.
+   - Test: con el lanzador real de npm (`codex.cmd` → node → descendiente), sin job de libuv que lo enmascare, no queda ningún huérfano. El test debe fallar contra 49ead93.
+7. **Rojos de Windows** (gaps 18, 20, 21 y 22).
+   - `codex-plugin-state`:
+     - copia por enlace duro (`linkSync`), con copia de reserva;
+     - borrado con reintento propio de EPERM/EBUSY, acotado;
+     - limpieza en `finally`, sin dejar residuos;
+     - el plazo de `cli-timeout` empieza cuando el worker está listo, o sube a 6 s.
+   - Presupuestos del producto solo donde ningún anfitrión impone plazo: captura de OpenCode a 8 s y confirmación de limpieza a 2 s. Lo que tiene un plazo de anfitrión (los 800 ms de SessionEnd, los 4.500 ms del guard) no se toca.
+   - Los procesos del fixture viven 120 s, y su muerte se comprueba con un sondeo.
+   - `TIMEOUT_CAZA` vuelve a 15 s, o se justifica con una medida.
+   - Verificación: 5 pasadas con 12 bucles de CPU de `codex-plugin-state`, `opencode-plugin*` y `installer` → 0 rojos. Suite node completa de Windows en dos pasadas → 0 fail.
+8. **Journal** (gap 17).
+   - El mínimo de 0,10 s se mide desde la primera espera real.
+   - Una sola cifra coherente en el código, el ledger y `implementer.md`, con la fórmula medida.
+   - Se declara que la cota de 800 ms del hijo en frío es en reposo: con carga, el arranque de Python queda fuera de todo plazo interno.
+9. **Arneses y traza** (gaps 16, 19, 23 y 24).
+   - Los shims de los corpus y arneses cubren `sudo`/`doas`/`su`, y se verifica con `type -P`.
+   - El corpus decide «ejecuta git» por el registro del shim, no por stdout. Se corrigen los motivos de `SIN_PARIDAD15`.
+   - LIMITE16 recoge la inyección aritmética, `mapfile -C` y `${x@P}`.
+
+**Tras este ciclo:**
+- réplica Linux completa sin rojo, incluidos los tests de señales y de manifiesto;
+- suite node completa de Windows sin rojo, en dos pasadas;
 - medida emparejada de T-23 con el equipo libre (la hace el orquestador);
 - verificación dirigida de las cuatro lentes.
 
-Si solo quedan Minor sin pérdida de datos, la fase cierra.
+Si solo quedan Minor sin pérdida de datos, la fase cierra. Si un intento 17 vuelve a encontrar envoltorios forma a forma pese a la regla general, el orquestador lo eleva al usuario para declarar la clase como límite.
