@@ -259,12 +259,16 @@ BAD6 += [
 
 # LÍMITE DOCUMENTADO (gap 8, decisión del usuario): bash ejecuta el efecto y el guardarraíl NO lo ve. Es la frontera
 # del modelo: indirecciones deliberadas (variable como programa, código por stdin, `find -exec`, otro intérprete).
+# fix16 (T-06, criterio por clase): git en CUALQUIER posicion de la orden simple cierra estas tres formas, que antes eran LIMITE; pasan a BAD6 (el cuerpo de
+# `bash <(…)`, el de un heredoc con `$(…)` y `find -exec`: bash las ejecuta y el guardarrail las deniega).
+CERRADOS16_BAD6 = ["bash <(echo {D})", "find . -maxdepth 0 -exec git reset --hard \\;", "bash <<EOF\n$(echo {D})\nEOF"]
+BAD6 += CERRADOS16_BAD6
 LIMITE = [
-    "echo '{D}' | bash", "echo \"{D}\" | sh", "bash <<< '{D}'", "bash <<< \"{D}\"", "bash <(echo {D})",
+    "echo '{D}' | bash", "echo \"{D}\" | sh", "bash <<< '{D}'", "bash <<< \"{D}\"",
     "source <(echo '{D}')", "g=git; $g restore .", "g=git; $g reset --hard", "x=reset; git ${x} --hard",
-    "h=--hard; git reset $h", "find . -maxdepth 0 -exec git reset --hard \\;",
+    "h=--hard; git reset $h",
     "X='{D}'; bash -c \"$X\"", "X='{D}'; $X", "X='{D}'; eval \"$X\"", "echo '{D}' | $SHELL",
-    "printf '{D}' | sh", "X='{D}'; bash <<EOF\n$X\nEOF", "bash <<EOF\n$(echo {D})\nEOF",
+    "printf '{D}' | sh", "X='{D}'; bash <<EOF\n$X\nEOF",
     "python3 - <<'EOF'\nimport os; os.system('git reset --hard')\nEOF",
     "perl <<'EOF'\nsystem('git reset --hard')\nEOF",
     "x='a[$(git reset --hard)]'; echo $((x))",

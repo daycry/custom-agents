@@ -301,7 +301,7 @@ def rama_barata(project_dir, timeout=5):
     try:
         if any(os.environ.get(k) for k in ("GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR")):
             return current_branch(project_dir, timeout=timeout)
-        gitdir = _gitdir_de(project_dir)
+        gitdir = _gitdir_de(project_dir) if not project_dir or os.path.isdir(project_dir) else None   # un directorio que no existe lo decide git (falla)
         if gitdir is not None:
             cabeza = os.path.join(gitdir, "HEAD")
             if not os.path.islink(cabeza):
@@ -2161,10 +2161,16 @@ def _forma_de_commit(destino):
     return bool(_COMMIT_FORMA_RE.fullmatch(destino))
 
 
+_CHECKOUT_LARGAS_SIN_VALOR = ("--force", "--quiet", "--merge", "--patch", "--ours", "--theirs", "--no-track", "--guess", "--no-guess", "--overlay",
+                              "--no-overlay", "--progress", "--no-progress", "--ignore-skip-worktree-bits", "--discard-changes", "--no-recurse-submodules",
+                              "--recurse-submodules", "--ignore-other-worktrees", "--no-detach", "--dwim")
+
+
 def _analiza_cambio_rama(rest):
-    """`(posicionales, ¿crea una rama nueva?, nombre que `-B`/`-C`/`--force-create` crea o reinicia | None, ¿suelta HEAD?)` de los argumentos de
-    `git checkout|switch`. Lee clusters (`-fBmain`), valores pegados (`-Bmain`, `--force-create=main`) y abreviaturas de las largas (fix16, gaps 2, 8 y 14)."""
-    pos, crea, reinicia, suelta = [], False, None, False
+    """`(posicionales, ¿crea una rama nueva?, nombre que `-B`/`-C`/`--force-create` crea o reinicia | None, ¿suelta HEAD?, ¿opcion larga con valor
+    separado posible?)` de los argumentos de `git checkout|switch`. Lee clusters (`-fBmain`), valores pegados (`-Bmain`, `--force-create=main`) y
+    abreviaturas de las largas (fix16, gaps 2, 8 y 14)."""
+    pos, crea, reinicia, suelta, separado = [], False, None, False, False
     i, n = 0, len(rest)
     while i < n:
         t = rest[i]
@@ -2183,6 +2189,8 @@ def _analiza_cambio_rama(rest):
                     suelta = True
                 elif _prefijo(t, "--track"):
                     crea = True
+                elif not igual and not any(base == lg or (len(base) >= 3 and lg.startswith(base)) for lg in _CHECKOUT_LARGAS_SIN_VALOR):
+                    separado = True            # `--conflict merge main`: puede llevarse la palabra siguiente como valor, no se sabe cual es el destino
                 i += 1
         elif t.startswith("-") and len(t) > 1:
             consumido = 1
@@ -2205,7 +2213,11 @@ def _analiza_cambio_rama(rest):
         else:
             pos.append(t)
             i += 1
-    return pos, crea, reinicia, suelta
+    return pos, crea, reinicia, suelta, separado
+
+
+def _sale_de_la_rama(destino):
+    return bool(destino == "-" or _ANTERIOR_RE.fullmatch(destino) or _es_rama_principal(destino) or _REMOTA_RE.match(destino) or _forma_de_commit(destino))
 
 
 def _razon_cambio_rama(sub, rest, branch):
@@ -2222,7 +2234,7 @@ def _razon_cambio_rama(sub, rest, branch):
     en_trabajo = branch is not None and branch not in MAIN_BRANCHES and branch != "HEAD"
     if not (en_trabajo or desconocida):
         return None
-    pos, crea, reinicia, suelta = _analiza_cambio_rama(rest)
+    pos, crea, reinicia, suelta, separado = _analiza_cambio_rama(rest)
     donde = f"estás en la rama de trabajo «{branch}»" if en_trabajo else "no se puede saber la rama actual (¿sin repositorio o con HEAD ilegible?) y el guardarraíl falla cerrado"
     if reinicia is not None:
         inicio = pos[0] if pos else None
@@ -2234,9 +2246,10 @@ def _razon_cambio_rama(sub, rest, branch):
         return None
     if crea:
         return None
-    destino = pos[0] if pos else None
-    sale = destino is not None and (destino == "-" or _ANTERIOR_RE.fullmatch(destino) or _es_rama_principal(destino)
-                                    or _REMOTA_RE.match(destino) or _forma_de_commit(destino))
+    if sub == "checkout" and len(pos) >= 2 and not suelta and not separado:
+        return None                           # `git checkout <ref> <ruta>…`: restaura ficheros desde <ref>, no cambia de rama (`_razon_restauracion` ya los valido)
+    destino = next((p for p in pos if _sale_de_la_rama(p)), None) if (separado or len(pos) >= 2) else (pos[0] if pos else None)
+    sale = destino is not None and _sale_de_la_rama(destino)
     if sale or suelta:
         return (f"`git {sub} {destino or '--detach'}` bloqueado: {donde} "
                 "y el implementer no sale de ella — la integración la dirige /dev-cycle (Fase 6).")

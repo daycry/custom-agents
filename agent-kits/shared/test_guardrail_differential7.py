@@ -200,9 +200,11 @@ LEGIT8 = [
     'git commit -m "$(cat <<\'END_MSG\'\nit\'s\nEND_MSG\n)"',
 ]
 # LÍMITE (gap 8b, modelo de amenaza): `trap … DEBUG` ejecuta `cd` ANTES de cada orden y el guardarraíl no lo ve:
-LIMITE8 = [
-    "trap 'cd ..' DEBUG; git restore b.txt",
-]
+LIMITE8 = []
+# fix16: el analisis de `trap` (su cadena se analiza como `eval`) cierra el limite de `trap 'cd ..' DEBUG` y los cinco de la palabra de mando que es una sustitucion
+# (git en cualquier posicion de la orden simple): bash los ejecuta y el guardarrail los deniega (pasan a BAD7).
+CERRADOS16_BAD7 = ["trap 'cd ..' DEBUG; git restore b.txt", "`true` {D}", "cat <(`true` {D})", "cat <(case x in x) `true` {D};; esac)",
+                   "cat <(case x in x) $(true) {D};; esac)", "echo $(case x in x) $(true) {D};; esac)"]
 # Falsos deny aceptados: el heredoc con delimitador entrecomillado con `"` o sin comillas deja la forma fuera de la lista
 # blanca (solo se acepta `<<'D'`), y el delimitador `EOF-1` tampoco es la forma exacta:
 FALSO_DENY_ACEPTADO_8 = [
@@ -366,13 +368,7 @@ FALSO_DENY_ACEPTADO_11 = [
     "git log --grep=\"$(echo esac)\"",
 ]
 # Limite documentado: la palabra de mando es una sustitucion y bash ejecuta lo que sigue como orden (indireccion).
-LIMITE11 = [
-    "`true` {D}",
-    "cat <(`true` {D})",
-    "cat <(case x in x) `true` {D};; esac)",
-    "cat <(case x in x) $(true) {D};; esac)",
-    "echo $(case x in x) $(true) {D};; esac)",
-]
+LIMITE11 = []
 # fix12 (T-06, intento 12): `$'…'` se delimita por pares `\X` como el lexer de bash y despues se decodifica. Todas las sondas de las
 # lentes B (`lb12`) y C (`lc12`) con efecto en bash real. Los escapes llevan barras invertidas: cadenas crudas.
 BAD12_PARIDAD = [
@@ -454,6 +450,7 @@ SIN_PARIDAD_7 |= set(SIN_PARIDAD_8)
 BAD7 += sorted(SIN_PARIDAD_8)
 LEGIT7 += LEGIT8
 LIMITE7 += LIMITE8
+BAD7 += CERRADOS16_BAD7
 FALSO_DENY_ACEPTADO_7 += FALSO_DENY_ACEPTADO_8
 
 

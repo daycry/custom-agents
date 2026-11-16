@@ -14,7 +14,7 @@ import pytest
 
 from test_guardrail_differential import BASH, necesita_bash
 from test_guardrail_fix12 import decide, gc
-from test_guardrail_fix16_corpus import BYPASS16, LIMITE16
+from test_guardrail_fix16_corpus import BYPASS16, G1_PROBES16, LIMITE16, PROBES16
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 NOMBRES_SHIM = ("git", "GIT", "Git", "git.exe", "GIT.EXE", "sudo", "doas", "su")
@@ -141,6 +141,7 @@ SALIDAS = [
     "git checkout HEAD^", "git checkout abc1234", "git checkout deadbeef01", "git checkout tags/v1.0", "git checkout @{1}", "git switch HEAD~2",
     "git checkout HEAD", "git symbolic-ref HEAD refs/heads/main", "git update-ref HEAD abc1234", "git switch --detach", "git checkout --detach",
     "git switch main -- ", "git checkout master --", "git checkout -fB main", "git switch -fC main",
+    "git checkout --conflict merge main", "git checkout --pathspec-from-file f main", "git checkout --opcion-nueva origin/main",
 ]
 
 
@@ -153,6 +154,7 @@ PERMITIDAS_RAMA = [
     "git checkout main -- src/a.py", "git checkout HEAD -- src/a.py", "git checkout abc1234 -- a.py", "git switch -c feature/otra",
     "git switch -c feature/otra main", "git checkout -b nueva", "git checkout -B feature/x", "git checkout feature/x", "git switch feature/x",
     "git checkout feature/y", "git switch feature/y --", "git checkout -B feature/otra", "git switch -C feature/otra",
+    "git checkout HEAD src/a.py", "git checkout main src/a.py", "git checkout abc1234 a.py b.py", "git checkout -q main src/a.py",
 ]
 
 
@@ -268,7 +270,7 @@ def test_el_hook_usa_la_rama_barata_y_no_lanza_git(repo, tmp_path):
 def _ejecutar16(tmp_path, ordenes, nombre):
     """Cada orden en su `.sh`, con `git`, `GIT`, `Git`, `git.exe`, `GIT.EXE` FALSOS y tambien `sudo`, `doas` y `su` (Git Bash ve el `sudo` de Windows 11 y NO se puede ejecutar).
     Los shims y las funciones exportadas anotan en un REGISTRO (un fichero por orden): «ejecuta git» se decide por el registro, no por stdout.
-    Devuelve ({indice: ¿ejecuto git o un envoltorio privilegiado falso?}, {binario ausente})."""
+    Devuelve {indice: texto del registro}: `ejecuta_git` mira solo las lineas de los shims de git y `ejecuta_priv` las de `sudo`/`doas`/`su`."""
     base = tmp_path / nombre
     base.mkdir()
     shim = base / "shim"
@@ -287,12 +289,20 @@ def _ejecutar16(tmp_path, ordenes, nombre):
     r = subprocess.run([BASH, str(lanzador)], cwd=str(base), env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900,
                        stdin=subprocess.DEVNULL)
     assert "SHIM-NO-" not in r.stdout, f"el shim no es el primero del PATH: {r.stdout[:80]!r}"
-    return {k: (base / f"reg_{k}").exists() for k in range(len(ordenes))}
+    return {k: ((base / f"reg_{k}").read_text(encoding="utf-8", errors="replace") if (base / f"reg_{k}").exists() else "") for k in range(len(ordenes))}
+
+
+def ejecuta_git(registro):
+    return any(linea.split(" ", 1)[0].lower().removesuffix(".exe") == "git" for linea in registro.splitlines())
+
+
+def ejecuta_priv(registro):
+    return any(linea.split(" ", 1)[0] in ("sudo", "doas", "su") for linea in registro.splitlines())
 
 
 @necesita_bash
 def test_diferencial16_si_bash_ejecuta_git_el_guardarrail_deniega(tmp_path):
-    corre = _ejecutar16(tmp_path, BYPASS16, "d16")
+    corre = {k: ejecuta_git(v) for k, v in _ejecutar16(tmp_path, BYPASS16, "d16").items()}
     ejecutadas = [o for k, o in enumerate(BYPASS16) if corre[k]]
     divergencias = [o for o in ejecutadas if decide(o) is None]
     assert not divergencias, f"bash ejecuta git y el guardarrail PERMITE ({len(divergencias)}): {divergencias[:6]!r}"
@@ -303,12 +313,26 @@ def test_diferencial16_si_bash_ejecuta_git_el_guardarrail_deniega(tmp_path):
 def test_el_registro_del_shim_ve_lo_que_stdout_no_ve(tmp_path):
     """Una orden que ejecuta git con stdout y stderr redirigidos a /dev/null SI se registra (el arnes de fix15 la daba por no ejecutada)."""
     ordenes = ["git status >/dev/null 2>&1", "echo hola", "sudo git status >/dev/null 2>&1", "doas git status", "su -c 'git status'"]
-    corre = _ejecutar16(tmp_path, ordenes, "r16")
-    assert corre[0] and not corre[1] and corre[2] and corre[3], corre
+    reg = _ejecutar16(tmp_path, ordenes, "r16")
+    assert ejecuta_git(reg[0]) and not reg[1] and ejecuta_priv(reg[2]) and ejecuta_priv(reg[3]) and ejecuta_priv(reg[4]) and not ejecuta_git(reg[2]), reg
 
 
 @necesita_bash
 def test_el_shim_cubre_las_cinco_grafias_de_git_y_sudo_doas_su(tmp_path):
     ordenes = [n + " status" for n in NOMBRES_SHIM]
-    corre = _ejecutar16(tmp_path, ordenes, "s16")
-    assert all(corre.values()), corre
+    reg = _ejecutar16(tmp_path, ordenes, "s16")
+    assert all(ejecuta_git(reg[k]) if k < 5 else ejecuta_priv(reg[k]) for k in range(len(ordenes))), reg
+
+
+@necesita_bash
+def test_diferencial16_las_sondas_de_las_lentes_a_y_b_con_bash_real(tmp_path):
+    """Las 97 sondas de la lente B y las 4 de la lente A: lo que bash ejecuta (registro del shim) el guardarrail lo deniega."""
+    ordenes = PROBES16 + G1_PROBES16
+    corre = {k: ejecuta_git(v) for k, v in _ejecutar16(tmp_path, ordenes, "p16").items()}
+    ejecutadas = [o for k, o in enumerate(ordenes) if corre[k]]
+    divergencias = [o for o in ejecutadas if decide(o) is None]
+    assert not divergencias, f"bash ejecuta git y el guardarrail PERMITE ({len(divergencias)}): {divergencias[:6]!r}"
+    assert len(ejecutadas) >= 30, f"el arnes apenas ejecuta las sondas ({len(ejecutadas)} de {len(ordenes)})"
+    # lo que el guardarrail permite, bash tampoco lo ejecuta como git destructivo: todas las sondas son destructivas, asi que ninguna se permite salvo las que bash no ejecuta
+    permitidas = [o for o in ordenes if decide(o) is None]
+    assert all(not corre[ordenes.index(o)] for o in permitidas), permitidas
