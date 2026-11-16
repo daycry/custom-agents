@@ -25,6 +25,9 @@ function childBudgetMs(hook, runtime, env) {
   if (hook === 'native-guardrail') return 4500;
   if (hook === 'agent-activity') return 2000;
   if (hook !== 'session-journal.sh') return 20000;
+  // fix16 (gap 22): OpenCode no impone plazo al hook de captura (su catalogo declara 20 s): 8 s de presupuesto del producto (con 12 bucles de CPU la captura
+  // real tardaba 2,96-3,32 s y se perdia a los 2,2 s). Codex y los plazos del anfitrion (800 ms de SessionEnd de Claude Code, 4.500 ms del guard) no se tocan.
+  if (runtime === '--runtime=opencode') return 8000;
   if (runtime !== '--runtime=claude') return 2200;
   const budget = Math.min(sessionEndBudgetMs(env), SESSION_END_HOOK_TIMEOUT_MS);
   return Math.max(SESSION_END_CHILD_MS, budget - LAUNCHER_MARGIN_MS);
@@ -453,7 +456,7 @@ async function main() {
             ...operation], { env, windowsHide: true, detached: inheritedGroup, stdio: 'ignore' });
           const cleanupTimer = setTimeout(() => {
             cleanup.kill('SIGKILL'); warn('child cleanup confirmation timed out'); abandon();
-          }, 500);
+          }, 2000);   // fix16 (gap 22): 500 ms no alcanzaba con la maquina cargada (0,61-0,78 s medidos); ningun anfitrion impone plazo a la limpieza
           cleanup.on('error', () => { clearTimeout(cleanupTimer); warn('child job cleanup unavailable'); abandon(); done(); });
           cleanup.on('close', code => {
             clearTimeout(cleanupTimer);

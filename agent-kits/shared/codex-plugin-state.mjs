@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Read native local plugin state. No config edits, credentials, source paths or raw errors in output.
-import {execFileSync,spawn} from 'node:child_process'
+import {execFileSync,spawn,spawnSync} from 'node:child_process'
 import {statSync} from 'node:fs'
 import {delimiter, isAbsolute, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
@@ -12,20 +12,33 @@ const HELPER=fileURLToPath(import.meta.url)
 const unknown = reason => ({state:'unknown', enabled:null, version:null, reason})
 const validVersion = value => typeof value==='string' && /^[A-Za-z0-9.+-]{1,64}$/.test(value)
 
+// fix16 (gap 10): en Windows `taskkill /T /F` (p50 1,1-1,2 s) y el barrido de PowerShell (p50 2,5-3,2 s) se agotaban en serie con topes de 1 s y 2 s: con el
+// lanzador real de npm (`codex.cmd` -> node -> descendiente) quedaban 3 de 3 arboles huerfanos. Ahora corren EN PARALELO (taskkill en segundo plano, el barrido
+// bloqueando), con un tope TOTAL de 8 s, y la muerte se CONFIRMA con un sondeo acotado de los pids (el del arbol y los que el barrido encontro).
+export const TREE_KILL_TOTAL_MS = 8_000
 export function terminateProcessTree(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return
   if (process.platform !== 'win32') {
     try {process.kill(-pid,'SIGKILL')} catch {/* process group already gone */}
     return
   }
+  const deadline=Date.now()+TREE_KILL_TOTAL_MS
   const system=join(process.env.SystemRoot || 'C:\\Windows','System32')
-  try {execFileSync(join(system,'taskkill.exe'),['/T','/F','/PID',String(pid)],{stdio:'ignore',timeout:1000})} catch {/* direct child already gone */}
-  // A killed cmd shim can leave children whose recorded parent PID is still the old PID.
   try {
-    execFileSync(join(system,'WindowsPowerShell/v1.0/powershell.exe'),['-NoProfile','-NonInteractive','-Command',
-      `$all=@(Get-CimInstance Win32_Process); $ids=@(${pid}); for($i=0;$i -lt $ids.Count;$i++){ $ids+=@($all | Where-Object { $_.ParentProcessId -eq $ids[$i] -and $_.ProcessId -notin $ids } | Select-Object -ExpandProperty ProcessId) }; [array]::Reverse($ids); foreach($id in $ids){ Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }`],
-    {stdio:'ignore',timeout:2000})
+    const killer=spawn(join(system,'taskkill.exe'),['/T','/F','/PID',String(pid)],{stdio:'ignore',windowsHide:true})
+    killer.on('error',()=>{});killer.unref()
+  } catch {/* direct child already gone */}
+  // A killed cmd shim can leave children whose recorded parent PID is still the old PID: the sweep follows ParentProcessId from the recorded PID.
+  const ids=new Set([pid])
+  try {
+    const swept=spawnSync(join(system,'WindowsPowerShell/v1.0/powershell.exe'),['-NoProfile','-NonInteractive','-Command',
+      `$all=@(Get-CimInstance Win32_Process); $ids=@(${pid}); for($i=0;$i -lt $ids.Count;$i++){ $ids+=@($all | Where-Object { $_.ParentProcessId -eq $ids[$i] -and $_.ProcessId -notin $ids } | Select-Object -ExpandProperty ProcessId) }; [array]::Reverse($ids); foreach($id in $ids){ Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }; $ids -join ' '`],
+    {stdio:['ignore','pipe','ignore'],encoding:'utf8',windowsHide:true,timeout:Math.max(1000,deadline-Date.now()-500)})
+    for(const found of String(swept.stdout || '').split(/\s+/)) if(/^\d{1,10}$/.test(found)) ids.add(Number(found))
   } catch {/* best effort, bounded even on machines without CIM */}
+  const alive=id=>{try {process.kill(id,0);return true} catch(error) {return error.code==='EPERM'}}
+  const wait=new Int32Array(new SharedArrayBuffer(4))
+  while([...ids].some(alive) && Date.now()<deadline) Atomics.wait(wait,0,0,50)
 }
 
 function executable(env) {
@@ -55,7 +68,7 @@ export function runCodexQuery(args, {cwd,timeout=CODEX_QUERY_TIMEOUT_MS,env=proc
   try {
     // NoDefaultCurrentDirectoryInExePath: the worker and the npm shim it starts never resolve
     // `node` (or any command) from the project directory, where it could be planted.
-    return execFileSync(process.execPath,[HELPER,'--query-worker',String(Date.now()+limit)],
+    return execFileSync(process.execPath,[HELPER,'--query-worker',String(Date.now()+limit),String(limit)],
       {cwd,env:{...env,NoDefaultCurrentDirectoryInExePath:'1'},timeout:limit+4000,killSignal:'SIGKILL',encoding:'utf8',stdio:['ignore','pipe','pipe'],maxBuffer:4*1024*1024})
   } catch(error) {
     if(error.status===124) error.code='ETIMEDOUT'
@@ -63,7 +76,10 @@ export function runCodexQuery(args, {cwd,timeout=CODEX_QUERY_TIMEOUT_MS,env=proc
   }
 }
 
-function queryWorker(deadline) {
+// fix16 (gap 21): con `limit` (relativo) el plazo corre desde que el worker esta LISTO (aqui): el arranque lento de node bajo carga no lo consume. Sin
+// `limit` (sondas antiguas) `deadline` es absoluto, como antes. El tope exterior de `runCodexQuery` (`limit+4000`) sigue acotando el arranque.
+function queryWorker(deadline,limit) {
+  if(limit!==undefined) deadline=Date.now()+limit
   deadline=Math.min(deadline,Date.now()+CODEX_QUERY_TIMEOUT_MS)
   const timeout=deadline-Date.now()
   if(timeout<=0) {process.exitCode=124;return}
@@ -131,7 +147,7 @@ export function queryCodexPlugin({cwd,runner=runCodexQuery,timeout=CODEX_QUERY_T
 
 if(process.argv[1] && resolve(process.argv[1])===HELPER) {
   const args=process.argv.slice(2)
-  if(args.length===2 && args[0]==='--query-worker' && /^\d{1,16}$/.test(args[1])) queryWorker(Number(args[1]))
+  if((args.length===2 || args.length===3 && /^\d{1,16}$/.test(args[2])) && args[0]==='--query-worker' && /^\d{1,16}$/.test(args[1])) queryWorker(Number(args[1]),args.length===3 ? Number(args[2]) : undefined)
   else {
     const valid=args.length===0 || args.length===2 && args[0]==='--project' && Boolean(args[1])
     console.log(JSON.stringify(valid ? queryCodexPlugin({cwd:args.length ? resolve(args[1]) : process.cwd()}) : unknown('invalid-arguments')))

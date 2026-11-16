@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,existsSync,rmSync,chmodSync,copyFileSync,symlinkSync} from 'node:fs'
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,existsSync,rmSync,chmodSync,copyFileSync,linkSync,symlinkSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {join,resolve,delimiter,dirname,isAbsolute} from 'node:path'
 import {execFileSync,spawn} from 'node:child_process'
@@ -51,6 +51,19 @@ test('Codex state liveness oracle recognizes an exited child before it is reaped
   } finally {try {child.kill('SIGKILL')} catch {}}
 })
 
+// fix16 (gap 20): `rmSync` con `maxRetries` no reintenta EPERM en node 23.8, y en Windows el `codex.exe` copiado sigue mapeado de 37 a 386 ms tras matarlo: borrado con
+// reintento PROPIO de EPERM/EBUSY/ENOTEMPTY, acotado (15 s), y relanzando el error si agota (sin residuos silenciosos en %TEMP%).
+function removeTree(root) {
+  const wait=new Int32Array(new SharedArrayBuffer(4))
+  for(let attempt=0;;attempt++) {
+    try {rmSync(root,{recursive:true,force:true});return}
+    catch(error) {
+      if(!['EPERM','EBUSY','ENOTEMPTY','EACCES'].includes(error.code) || attempt>=150) throw error
+      Atomics.wait(wait,0,0,100)
+    }
+  }
+}
+
 function fixture() {
   const root=mkdtempSync(join(tmpdir(),'ca-state-owned-')),bin=join(root,'bin')
   mkdirSync(bin)
@@ -69,15 +82,16 @@ function fixture() {
     const binary=join(bin,process.platform==='win32' ? 'codex.exe' : 'codex')
     if(!existsSync(binary)) {
       if(process.platform==='win32') {
-        copyFileSync(process.execPath,binary)
-        // Prepare the copied fixture before measuring its query deadline.
-        assert.equal(execFileSync(binary,['--version'],{cwd:root,env,encoding:'utf8',timeout:10000}).trim(),process.version)
+        // Hard link (0,9-1,0 s al primer arranque; la copia tarda 4,1-15,7 s con Defender): copia solo de reserva (otro volumen).
+        try {linkSync(process.execPath,binary)} catch {copyFileSync(process.execPath,binary)}
+        // Prepare the fixture before measuring its query deadline.
+        assert.equal(execFileSync(binary,['--version'],{cwd:root,env,encoding:'utf8',timeout:60000}).trim(),process.version)
       } else symlinkSync(process.execPath,binary)
     }
     writeFileSync(join(root,'package.json'),'{"type":"module"}')
     writeFileSync(join(root,'plugin'),body)
   }
-  return {root,bin,env,create,createDirectNode,close:()=>rmSync(root,{recursive:true,force:true})}
+  return {root,bin,env,create,createDirectNode,close:()=>removeTree(root)}
 }
 
 test('Codex state: real standalone native query is bounded and emits only sanitized local state',()=>{
@@ -132,7 +146,7 @@ test('Codex state: timeout kills non-cooperative native process and descendants 
       try {process.kill(Number(readFileSync(file,'utf8')),'SIGKILL')} catch {}
     }
     // Windows may retain a copied executable/CWD handle briefly after termination.
-    rmSync(owned.root,{recursive:true,force:true,maxRetries:50,retryDelay:100})
+    removeTree(owned.root)
   }
 })
 
@@ -238,6 +252,6 @@ test('Codex state: terminateProcessTree mata el arbol del lanzador real (cmd -> 
   } finally {
     for(const file of [pidFile,parentFile]) if(existsSync(file)) {try {process.kill(Number(readFileSync(file,'utf8')),'SIGKILL')} catch {}}
     try {if(launcher?.pid)process.kill(launcher.pid,'SIGKILL')} catch {}
-    rmSync(owned.root,{recursive:true,force:true,maxRetries:50,retryDelay:100})
+    removeTree(owned.root)
   }
 })

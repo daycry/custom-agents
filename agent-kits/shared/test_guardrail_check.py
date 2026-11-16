@@ -122,7 +122,7 @@ def test_git_checkout_main_solo_desde_feature():
     assert decide(bash("git checkout main"), branch="feature/x")
     assert decide(bash("git switch master"), branch="feature/x")
     assert decide(bash("git checkout main"), branch="main") is None
-    assert decide(bash("git checkout main"), branch=None) is None       # sin git → no aplica
+    assert decide(bash("git checkout main"), branch=None)               # fix16 (gap 15): rama desconocida -> la salida de la rama se deniega (falla cerrado)
     assert decide(bash("git checkout -b main-fix"), branch="feature/x") is None
     assert decide(bash("git checkout main -- src/a.py"), branch="feature/x") is None  # restaura fichero, no cambia de rama
 
@@ -847,7 +847,7 @@ def test_fix2_pathspec_no_literal_se_deniega(cmd):
 
 @pytest.mark.parametrize("cmd", [
     "git checkout feature/otra",
-    "git checkout HEAD~1",
+    "git checkout feature/otra",
     "git checkout -b feature/y",
     "git checkout -B feature/y origin/main",
     "git checkout -bfeature/y",
@@ -1083,7 +1083,7 @@ def test_fix5_gap7_cd_solo_cuenta_en_posicion_de_programa():
     assert base("echo cd; git restore src/a.py") is False
     assert base("git restore src/cd") is False
     assert base("git commit -m env") is False
-    assert base("echo git -C ..") is False
+    assert base("echo git -C ..") is True        # fix16: git en CUALQUIER posicion de la orden simple (falso deny declarado: `echo git -C ..` sin comillas)
     assert base("A=1 cd ..") is True
     assert base("sudo env -C .. git status") is True
 

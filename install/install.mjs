@@ -1264,9 +1264,9 @@ export const argCmd = (a) => String(a).split("%").map(citarCmd).join("^%")
  * pero no a su nieto: la CLI colgada seguía viva consumiendo el terminal (comprobado con
  * `tasklist`). En Windows eso es `taskkill /T /F`; en el resto, el grupo de procesos.
  */
-// fix15 (gap 11): tope de la caza de huérfanos en Windows (`wmic`/PowerShell + CIM). Era de 15 s; con 12 bucles de CPU la consulta CIM tarda más y el
-// nieto de la CLI colgada sobrevivía (1 rojo de 5 pasadas). Solo corre tras un timeout, así que un tope holgado no cuesta nada en el camino normal.
-const TIMEOUT_CAZA = 90_000
+// fix16 (gap 18): tope de la caza de huérfanos en Windows (`wmic`/PowerShell + CIM): vuelve a 15 s. fix15 lo subió a 90 s apoyado en una hipótesis no demostrada;
+// la causa medida del rojo era otra (el árbol del lanzador se mataba mal, ver `terminateProcessTree` en codex-plugin-state.mjs). Solo corre tras un timeout.
+const TIMEOUT_CAZA = 15_000
 
 function matarArbol(pid) {
   if (!pid) return
@@ -1374,6 +1374,40 @@ function correr(cmd, args, cwd, env = process.env) {
 }
 
 /**
+ * fix16 (gap 11): una señal durante la CLI nativa mata al instalador sin ejecutar ningun `finally`: queda `custom-agents-codex-*` en el directorio temporal con
+ * una copia del `config.toml` del usuario y su enlace a la cache. Al arrancar se limpian los de una ejecucion MUERTA: con marca `.installer-pid`, si su pid
+ * ya no existe; sin ella (version anterior o corte entre `mkdtemp` y la marca), si tienen mas de 10 minutos. El enlace se quita ANTES de borrar: nunca se
+ * sigue hacia la cache real. Solo directorios propios (mismo uid); mejor esfuerzo.
+ */
+export function limpiarRestosCodex(tempRoot = tmpdir()) {
+  const limpiados = []
+  let entradas
+  try { entradas = readdirSync(tempRoot, { withFileTypes: true }) } catch { return limpiados }
+  for (const entrada of entradas) {
+    if (!entrada.isDirectory() || !entrada.name.startsWith("custom-agents-codex-")) continue
+    const dir = join(tempRoot, entrada.name)
+    try {
+      const info = lstatSync(dir)
+      if (!info.isDirectory() || (typeof process.getuid === "function" && info.uid !== process.getuid())) continue
+      let vivo
+      const marca = join(dir, ".installer-pid")
+      if (existsSync(marca)) {
+        const pid = Number(readFileSync(marca, "utf8").trim())
+        vivo = false
+        if (Number.isInteger(pid) && pid > 0) {
+          try { process.kill(pid, 0); vivo = true } catch (error) { vivo = error.code === "EPERM" }
+        }
+      } else vivo = Date.now() - info.mtimeMs < 600_000
+      if (vivo) continue
+      try { unlinkSync(join(dir, "plugins", "cache", MKT)) } catch { /* sin enlace, o no es un enlace: rmSync no lo sigue */ }
+      rmSync(dir, { recursive: true, force: true })
+      limpiados.push(dir)
+    } catch { /* mejor esfuerzo */ }
+  }
+  return limpiados
+}
+
+/**
  * Native cache installation, with project enablement isolated from the user's config.
  * Codex 0.161's setter always enables in CODEX_HOME. A private regular config snapshot and
  * a link only to our marketplace cache let native staging/version replacement stay native.
@@ -1391,6 +1425,9 @@ export function instalarCodexNativo({dir,scope,version,marketplaceRoot,home=code
     if(scope==="project") {
       isolated=mkdtempSync(join(tempRoot,"custom-agents-codex-"))
       nativeHome=isolated
+      // fix16 (gap 11): marca de propietario (el pid de ESTE instalador): `limpiarRestosCodex` borra al arrancar los directorios de una ejecución muerta
+      // y respeta los de un instalador vivo. El directorio es 0700 (mkdtemp) y la copia del config.toml 0600.
+      writeFileSync(join(isolated,".installer-pid"),String(process.pid),{flag:"wx",mode:0o600})
       const userConfig=join(realHome,"config.toml")
       // readFile follows any user symlink; the destination is always our own regular file.
       const contents=existsSync(userConfig) ? readFileSync(userConfig) : Buffer.from("")
@@ -1895,7 +1932,7 @@ function ejecutar(provider, opts, selectedModels) {
    * `marketplace add` fue bien y el `plugin install` falló), sin manifiesto lo ya aplicado queda
    * SIN registro y `uninstall` se niega a limpiarlo: se guarda uno parcial, marcado `incompleto`.
    */
-  const guardar = (estado, error) => {
+  const guardar = (estado, error, porHacer = []) => {
     if (opts.dryRun) return
     const destino = provider.destino(opts.scope, opts.dir, opts.modo)
     // FUSIÓN con lo que hubiera: si una pasada anterior se quedó a medias, su `registro` es la
@@ -1921,7 +1958,7 @@ function ejecutar(provider, opts, selectedModels) {
       ...(estado==='completo'?{}:{artifactBeforeHashes:Object.fromEntries([...ownedFiles].filter(([,row])=>!row.shared).map(([path,row])=>[path.split(sep).join('/'),row.before]))}),
       files: [...new Set([...(manPrevio?.files || []).filter(f => !retirados.has(f)), ...escritos.map((f) => f.split(sep).join("/"))])].sort(),
       ...(Object.keys(nativeAgents).length ? {nativeAgents} : {}),
-      registro: fusionarRegistro(manPrevio?.registro || [], registro),
+      registro: fusionarRegistro(manPrevio?.registro || [], [...registro, ...porHacer]),
     },manifestContext(provider.id,opts.scope,opts.dir,manifestPath)))
   }
 
@@ -2098,6 +2135,9 @@ function ejecutar(provider, opts, selectedModels) {
         nativePending=true
         continue
       }
+      // fix16 (gap 11): mientras corre la CLI no hay manejadores de señal (un manejador de JS no se ejecuta con `execFileSync` esperando), asi que el
+      // manifiesto `incompleto` se escribe ANTES de lanzarla, con el `registro` de lo hecho hasta aqui y lo que va a hacer.
+      try { guardar("incompleto", new Error(`en curso: ${command}`), [{exec: command}]) } catch { /* mejor esfuerzo */ }
       say(`  ${ARROW} ${dim("ejecutando")} ${dim("$")} ${command}${dim("…")}`)
       try {
         const native=instalarCodexNativo({dir:paso.cwd,scope:paso.scope,version:paso.version,marketplaceRoot:paso.marketplaceRoot})
@@ -2151,6 +2191,8 @@ function ejecutar(provider, opts, selectedModels) {
           continue
         }
       }
+      // fix16 (gap 11): manifiesto `incompleto` en disco ANTES de lanzar la CLI (con su `deshacer`): una señal mientras corre no deja ejecutar nada.
+      try { guardar("incompleto", new Error(`en curso: ${cmdTexto}`), [apunte]) } catch { /* mejor esfuerzo */ }
       // Antes de lanzar, no después: si la CLI se queda pensando (o pidiendo algo), al menos se ve
       // en qué está el instalador mientras corre el `timeout`.
       say(`  ${ARROW} ${dim("ejecutando")} ${dim("$")} ${cmdTexto}${dim("…")}`)
@@ -3015,6 +3057,7 @@ async function main() {
   // disposición del usuario; por debajo, lo que crea o borra el instalador, nunca.
   setTrustAnchors([homedir(), claudeConfigDir(), codexHome(), GLOBAL_DIR.opencode,
     join(homedir(), ".agents"), join(homedir(), ".config"), ROOT, opts.dir])
+  if (["install", "uninstall", "remove"].includes(opts.cmd) && !opts.dryRun) limpiarRestosCodex()   // fix16 (gap 11)
   switch (opts.cmd) {
     case "help": ayuda(); return 0
     case "version": console.log(VERSION); return 0

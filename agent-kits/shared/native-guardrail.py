@@ -360,7 +360,12 @@ def evaluate(payload, runtime, project_dir, *, roles=None, cfg=None, branch_fn=N
         def query(directory):
             nonlocal branch_unavailable, queried, branch
             if not queried:
-                branch = branch_fn(directory) if branch_fn is not None else evaluator.current_branch(directory, timeout=0.5)
+                if branch_fn is not None:
+                    branch = branch_fn(directory)
+                else:
+                    # fix16 (gap 9): la rama se lee de `.git/HEAD` (0,8 ms; con 12 bucles de CPU 47 ms) y solo se recurre a `git` (tope 0,5 s) si no es concluyente
+                    barata = getattr(evaluator, "rama_barata", None)
+                    branch = barata(directory, timeout=0.5) if barata else evaluator.current_branch(directory, timeout=0.5)
                 queried = True
                 branch_unavailable = branch is None
             return branch

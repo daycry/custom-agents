@@ -78,6 +78,7 @@ import os
 import posixpath
 import re
 import shlex
+import stat
 import subprocess
 import sys
 import time
@@ -263,6 +264,58 @@ def current_branch(project_dir, timeout=5):
         return None
     b = r.stdout.strip()
     return b or None
+
+
+def _gitdir_de(project_dir):
+    """Directorio git (el de `.git/HEAD`) del proyecto, subiendo por los ancestros como git; resuelve `.git` como fichero `gitdir:` (worktrees, submodulos).
+    None si no es concluyente (sin `.git`, enlace simbolico, fichero ilegible)."""
+    d = os.path.abspath(project_dir or os.getcwd())
+    for _ in range(128):
+        g = os.path.join(d, ".git")
+        try:
+            info = os.lstat(g)
+        except FileNotFoundError:
+            info = None
+        if info is not None:
+            if stat.S_ISDIR(info.st_mode):
+                return g
+            if stat.S_ISREG(info.st_mode):
+                with open(g, "rb") as fh:
+                    m = re.fullmatch(r"gitdir:[ \t]*([^\r\n]+?)[ \t]*\r?\n?", fh.read(4096).decode("utf-8"))
+                if not m:
+                    return None
+                ruta = m.group(1)
+                return os.path.normpath(ruta if os.path.isabs(ruta) else os.path.join(d, ruta))
+            return None
+        padre = os.path.dirname(d)
+        if padre == d:
+            return None
+        d = padre
+    return None
+
+
+def rama_barata(project_dir, timeout=5):
+    """Rama actual leyendo `.git/HEAD` (0,8 ms en reposo, 47 ms con la maquina saturada; `git rev-parse` cuesta 150-500 ms y con carga pasa del tope):
+    el nombre, `HEAD` si esta suelto. Recurre a `current_branch` (git) si no es concluyente: `GIT_DIR`/`GIT_WORK_TREE`/`GIT_COMMON_DIR` en el entorno,
+    sin `.git`, HEAD ilegible o enlace simbolico, reftable (`refs/heads/.invalid`) o una referencia simbolica que no es una rama (fix16, punto 4)."""
+    try:
+        if any(os.environ.get(k) for k in ("GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR")):
+            return current_branch(project_dir, timeout=timeout)
+        gitdir = _gitdir_de(project_dir)
+        if gitdir is not None:
+            cabeza = os.path.join(gitdir, "HEAD")
+            if not os.path.islink(cabeza):
+                with open(cabeza, "rb") as fh:
+                    texto = fh.read(1024).decode("utf-8").strip()
+                if texto.startswith("ref: refs/heads/"):
+                    nombre = texto[len("ref: refs/heads/"):]
+                    if nombre and nombre != ".invalid" and "\n" not in nombre:
+                        return nombre
+                elif re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", texto):
+                    return "HEAD"
+    except (OSError, ValueError):
+        pass
+    return current_branch(project_dir, timeout=timeout)
 
 
 # Cierre por diseño (T-06 fix5): el tokenizador PROPIO del guardarraíl y el de bash discrepaban en cada
@@ -936,7 +989,7 @@ _OPCIONES_ENVOLTORIO = {
     "ionice": ("cnpPu", ("--class", "--classdata", "--pid", "--pgid", "--uid"), "t", ("--ignore", "--help",
                                                                                   "--version"), ""),
     "flock": ("wE", ("--timeout", "--wait", "--conflict-exit-code"), "sxuneoF",
-              ("--shared", "--exclusive", "--unlock", "--nonblock", "--nb", "--no-fork", "--close", "--help",
+              ("--shared", "--exclusive", "--unlock", "--nonblock", "--nb", "--no-fork", "--close", "--fcntl", "--verbose", "--help",
                "--version"), ""),
     "nohup": ("", (), "", ("--help", "--version"), ""),
     # fix15: la palabra reservada `time` solo admite `-p` y `--`; `/usr/bin/time` (GNU) admite ademas `-f`, `-o`, `-a`, `-v`… Se aceptan las de
@@ -965,8 +1018,11 @@ _CADENA_LARGAS = {"flock": ("--command",), "su": ("--command", "--session-comman
 # (`xargs --replace git restore {}` ejecuta `git`). Mismo criterio que `cortas con valor OPCIONAL pegado` (fix8, gap 2).
 _LARGAS_OPCIONALES = {"xargs": ("--eof", "--replace", "--max-lines")}
 _ENV_LARGAS_SIN_VALOR = ("--null", "--debug", "--list-signal-handling", "--help", "--version")
-_ENV_LARGAS_CON_VALOR = ("--argv0", "--block-signal", "--default-signal", "--ignore-signal")
-_ENV_LARGAS = ("--ignore-environment", "--unset", "--chdir", "--split-string") + _ENV_LARGAS_SIN_VALOR + _ENV_LARGAS_CON_VALOR
+_ENV_LARGAS_CON_VALOR = ("--argv0",)
+# fix16 (gap 1): GNU env trata `--block-signal`, `--default-signal` e `--ignore-signal` con argumento OPCIONAL: solo lo lleva pegado con `=`. Separado, la palabra
+# siguiente es el programa (`env --default-signal git push --force` ejecuta git). Antes el guard se comia `git` como su valor.
+_ENV_LARGAS_OPCIONALES = ("--block-signal", "--default-signal", "--ignore-signal")
+_ENV_LARGAS = ("--ignore-environment", "--unset", "--chdir", "--split-string") + _ENV_LARGAS_SIN_VALOR + _ENV_LARGAS_CON_VALOR + _ENV_LARGAS_OPCIONALES
 
 
 def _env_larga(o):
@@ -1072,6 +1128,12 @@ def _saltar_envoltorio(toks, i):
             continue
         j, conocida = _opcion_envoltorio(nombre, toks, i)
         if not conocida:
+            if nombre == "flock":
+                # fix16 (gap 12): una opcion fuera de la tabla no impide buscar `-c`/`--command` en el resto (`flock --opcion-nueva F -c 'git ...'`)
+                for k in range(i + 1, n):
+                    cadena = _cadena_de_orden(nombre, toks, k)
+                    if cadena:
+                        return cadena[0], chdir, None, cadena[1]
             return i, chdir, o, None
         i = j
     i = min(n, i + _POSICIONALES.get(nombre, 0))
@@ -1232,6 +1294,8 @@ def _opciones_env(nombre, toks, i, bindings, cortes):
                 i += 1
             elif canon in _ENV_LARGAS_CON_VALOR:
                 i += 1 if "=" in o else 2
+            elif canon in _ENV_LARGAS_OPCIONALES:
+                i += 1                      # fix16: el valor, si lo hay, va pegado con `=`
             else:
                 return i, toks, chdir, o
             continue
@@ -1297,8 +1361,15 @@ def _desenvuelve(toks, inherited=None):
     toks = list(toks)
     i, chdir, desconocida, via_xargs = 0, False, None, False
     cortes = [0]                        # troceos de `env -S` de esta invocación (tope: `_MAX_TROCEOS_S`)
+    tras_env = False                    # fix16 (gap 7): tras `env`, CUALQUIER argumento con `=` es una asignacion (`env 1=x git ...`, `env A-B=1 git ...`)
     while i < len(toks):
         t = toks[i]
+        if tras_env and "=" in t and not t.startswith("-"):
+            asignacion = _ASSIGNMENT_RE.fullmatch(t)
+            if asignacion:
+                bindings[asignacion[1]] = asignacion[2]      # `env GIT_DIR=x git …` sigue anotando la variable sensible
+            i += 1
+            continue
         if _es_programa_llano(t):
             break
         asignacion = _ASSIGNMENT_RE.fullmatch(t)
@@ -1307,6 +1378,10 @@ def _desenvuelve(toks, inherited=None):
             i += 1
         elif t == "function" and i + 1 < len(toks):
             i += 2                      # `function f { git … }`: el nombre y la llave no son el programa
+        elif t == "coproc" and i + 2 < len(toks) and toks[i + 2] == "{":
+            i += 3                      # fix16 (gap 7): `coproc NAME { git ...; }`: el nombre y la llave no son el programa
+        elif t == "builtin" and i + 1 < len(toks) and toks[i + 1] == "--":
+            i += 2                      # fix16 (gap 4): `builtin -- exec git ...`
         elif t in _CONTROL:
             i += 1          # `{ git restore .; }`, `then git restore .`, `! git …`: el programa sigue después
         elif _salta_redireccion(toks, i) != i:
@@ -1314,6 +1389,7 @@ def _desenvuelve(toks, inherited=None):
         else:
             nombre = _program_name(t)
             if nombre in ("env", "command", "exec"):
+                tras_env = tras_env or nombre == "env"
                 i, toks, cambia, desc = _opciones_env(nombre, toks, i, bindings, cortes)
             elif nombre in _ENVOLTORIOS:
                 via_xargs = via_xargs or nombre == "xargs"
@@ -1453,8 +1529,13 @@ def _cambia_base_en(segmentos, _prof=0):
             return True
         if nombre in (".", "source") and any(a.startswith(_FUENTE_VISIBLE) or a == "-" for a in resto[1:]):
             return True
-        if nombre == "eval" and len(resto) > 1:
-            if _prof >= 3 or _cambia_base_en(_segmentos(" ".join(resto[1:]))[0], _prof + 1):
+        if nombre in ("eval", "trap"):
+            for cadena in _subcomandos_shell(resto):
+                if _prof >= 3 or _cambia_base_en(_segmentos(cadena)[0], _prof + 1):
+                    return True
+        if nombre != "git":
+            # fix16 (gap 1): git en cualquier posicion de la orden simple (`chroot / git -C ..`, `strace git -C ..`)
+            if any(_program_name(w) == "git" and _git_cambia_base(resto[k:]) for k, w in enumerate(resto) if k):
                 return True
     return False
 
@@ -1574,17 +1655,27 @@ def check_ordenes_externas(toks):
 
 def _subcomandos_shell(toks):
     """Cadenas que una shell ejecutaría como comando: el argumento de `-c` de sh/bash/zsh/dash
-    (también en clusters `-lc`, `-ec`) y los argumentos de `eval`."""
+    (también en clusters `-lc`, `-ec`, y `-oc VALOR`/`-Oc VALOR`/`-co VALOR`, donde `-o`/`-O` consumen su valor), los argumentos de `eval`
+    (que acepta `--`) y la cadena de `trap` (la accion se ejecuta al saltar la senal: fix16, gaps 4, 5 y 6)."""
     if not toks:
         return []
     prog = _program_name(toks[0])
     if prog == "eval":
-        return [" ".join(toks[1:])] if len(toks) > 1 else []
+        resto = toks[2:] if len(toks) > 1 and toks[1] == "--" else toks[1:]
+        return [" ".join(resto)] if resto else []
+    if prog == "trap":
+        # `trap [-lp] [--] [accion] señal…`: la accion es el primer argumento que no es opcion (`-` y la cadena vacia la restauran o ignoran).
+        resto = [t for t in toks[1:] if t not in ("-p", "-l", "-lp", "-pl")]
+        if resto and resto[0] == "--":
+            resto = resto[1:]
+        return [resto[0]] if resto and resto[0] not in ("", "-") else []
     if prog in _SHELLS or prog.startswith("$"):        # `$SHELL -c '…'`, `p=bash; $p -c '…'` (fix6, lente A)
         for i, t in enumerate(toks[1:], 1):
-            if re.fullmatch(r"-[a-zA-Z]*c[a-zA-Z]*", t) and i + 1 < len(toks):
-                # `bash -c -- 'git …'`: tras `-c`, un `--` termina las opciones y la orden es la palabra siguiente (fix7)
-                return [toks[i + 2] if toks[i + 1] == "--" and i + 2 < len(toks) else toks[i + 1]]
+            if re.fullmatch(r"-[a-zA-Z]*c[a-zA-Z]*", t):
+                destino = i + 1 + sum(1 for letra in t[1:] if letra in "oO")      # fix16 (gap 6): cada `o`/`O` del cluster consume un valor antes de la orden
+                if destino < len(toks):
+                    # `bash -c -- 'git …'`: tras `-c`, un `--` termina las opciones y la orden es la palabra siguiente (fix7)
+                    return [toks[destino + 1] if toks[destino] == "--" and destino + 1 < len(toks) else toks[destino]]
     return []
 
 
@@ -1994,12 +2085,272 @@ _OPACA_ESCAPES = (f"orden con lectura opaca bloqueada (los escapes numéricos `\
                   "caracteres dentro de otros escapes.")
 
 
+_ANSI_ESC_RE = re.compile(_ESCAPE_NUMERICO_RE.pattern + r"|\\(.)", re.S)
+
+
+def _ansi_esc(m):
+    return _ANSI_SIMPLES.get(m.group(6), m.group(6)) if m.group(6) is not None else _numerico(m)
+
+
+_VISTA_RE = re.compile(r"\$'((?:[^'\\]|\\.)*)'|\\(.)|['\"]", re.S)
+
+
+def _vista_de_shell(texto):
+    """Una pasada GENEROSA de bash sobre `texto`, de izquierda a derecha y sin distinguir donde empiezan y acaban las comillas: `$'…'` se decodifica
+    (escapes numericos y simples) y su resultado NO se vuelve a leer en la misma pasada, `\\X` pasa a `X` y las comillas se descartan. Un git que solo se
+    forma al concatenar trozos entrecomillados (`\\$\\'$'\\x5c'x67it\\'` -> `$'\\x67it'`, que `eval`/`bash -c` vuelve a leer) aparece en la pasada
+    siguiente (fix16, gap 3)."""
+    def sustituye(m):
+        if m.group(1) is not None:
+            return _ANSI_ESC_RE.sub(_ansi_esc, m.group(1))
+        return m.group(2) if m.group(2) is not None else ""
+    return _VISTA_RE.sub(sustituye, texto)
+
+
+def _git_en_vistas_de_shell(command):
+    """¿Aparece git en alguna de las pasadas de `_vista_de_shell` (hasta `_RONDAS_ESCAPES`)? Lanza `_DecodificacionInestable` si aun cambia tras el tope."""
+    if "\\" not in command and "$'" not in command:
+        return False
+    texto = command
+    for _ in range(_RONDAS_ESCAPES):
+        nuevo = _vista_de_shell(texto)
+        if _GIT_TEXTO_RE.search(nuevo):
+            return True
+        if nuevo == texto:
+            return False
+        texto = nuevo
+    if _vista_de_shell(texto) != texto:
+        raise _DecodificacionInestable()
+    return False
+
+
 def _contiene_git(command, segmentos):
     """¿Aparece git (sin distinguir mayúsculas) en el texto crudo, en alguna palabra YA DECODIFICADA (sin comillas, sin `$'…'`,
     con los escapes aplicados) o en el texto aplanado (`_aplanado`)? Una lectura incompleta no puede fiarse del texto crudo:
     `\\x67it`, `g''it` o `GIT` no lo traen como `git` (fix14, gap 1). Solo se llama con una lectura incompleta o con un CR."""
-    return (bool(_GIT_TEXTO_RE.search(command)) or any(_GIT_TEXTO_RE.search(t) for s in segmentos for t in s)
-            or bool(_GIT_TEXTO_RE.search(_aplanado(command))))
+    return (bool(_GIT_TEXTO_RE.search(command)) or any(_GIT_TEXTO_RE.search(t) or ("\\" in t and _GIT_TEXTO_RE.search(_aplanado(t)))
+                                                      for s in segmentos for t in s)
+            or bool(_GIT_TEXTO_RE.search(_aplanado(command))) or _git_en_vistas_de_shell(command))
+
+
+# fix16 (punto 1): criterio por CLASE. Si el programa de una orden simple no es git (tras desenvolver) pero una palabra de esa misma orden SI lo es
+# (nombre base, sin distinguir mayusculas y con `.exe`), se analiza tambien el sufijo que empieza en esa palabra como si fuera la orden. Vale aunque el
+# envoltorio no este en la tabla (`chroot / git …`, `strace git …`, `env 1=x git …`) y aunque la tabla se equivoque con sus opciones. Coste declarado: un
+# `echo git reset --hard` sin comillas se deniega (falso deny aceptado).
+_MAX_SUFIJOS_GIT = 32
+
+
+def _sufijos_git(toks):
+    """Sufijos de `toks` (la orden desenvuelta) que empiezan en una palabra `git`, cuando el programa NO es git. `[None]` si hay mas de `_MAX_SUFIJOS_GIT`."""
+    if not toks or _program_name(toks[0]) == "git":
+        return []
+    sufijos = []
+    for k in range(1, len(toks)):
+        if _program_name(toks[k]) == "git":
+            if len(sufijos) >= _MAX_SUFIJOS_GIT:
+                return [None]
+            sufijos.append(toks[k:])
+    return sufijos
+
+
+_COMMIT_FORMA_RE = re.compile(r"(?:HEAD|[0-9a-f]{7,64}|.*[~^].*|.*@\{.*|(?:refs/)?tags/.*)", re.I)
+
+
+def _forma_de_commit(destino):
+    """¿`destino` tiene forma de commit (`HEAD`, `HEAD~1`, `main^`, `@{1}`, un SHA de 7 o mas hexadecimales, `tags/…`)? Equivale a `--detach`."""
+    return bool(_COMMIT_FORMA_RE.fullmatch(destino))
+
+
+def _analiza_cambio_rama(rest):
+    """`(posicionales, ¿crea una rama nueva?, nombre que `-B`/`-C`/`--force-create` crea o reinicia | None, ¿suelta HEAD?)` de los argumentos de
+    `git checkout|switch`. Lee clusters (`-fBmain`), valores pegados (`-Bmain`, `--force-create=main`) y abreviaturas de las largas (fix16, gaps 2, 8 y 14)."""
+    pos, crea, reinicia, suelta = [], False, None, False
+    i, n = 0, len(rest)
+    while i < n:
+        t = rest[i]
+        if t == "--":
+            i += 1
+        elif t.startswith("--"):
+            base, igual, valor = t.partition("=")
+            if len(base) >= 9 and "--force-create".startswith(base):
+                reinicia = valor if igual else (rest[i + 1] if i + 1 < n else "")
+                i += 1 if igual else 2
+            elif len(base) >= 4 and ("--create".startswith(base) or "--orphan".startswith(base)):
+                crea = True
+                i += 1 if igual else 2
+            else:
+                if _prefijo(t, "--detach"):
+                    suelta = True
+                elif _prefijo(t, "--track"):
+                    crea = True
+                i += 1
+        elif t.startswith("-") and len(t) > 1:
+            consumido = 1
+            for k, letra in enumerate(t[1:], 1):
+                if letra in "bcBC":
+                    valor = t[k + 1:]
+                    if not valor:
+                        valor = rest[i + 1] if i + 1 < n else ""
+                        consumido = 2
+                    if letra in "BC":
+                        reinicia = valor
+                    else:
+                        crea = True
+                    break
+                if letra == "d":
+                    suelta = True
+                elif letra == "t":
+                    crea = True
+            i += consumido
+        else:
+            pos.append(t)
+            i += 1
+    return pos, crea, reinicia, suelta
+
+
+def _razon_cambio_rama(sub, rest, branch):
+    """`git checkout|switch` que saca de la rama de trabajo o la reinicia. fix16: el `--` ya no exime (el destino se busca a ambos lados; solo
+    `checkout <ref> -- <ficheros>` restaura ficheros), `-B`/`-C`/`--force-create` cuentan como salida (a la principal) o reinicio (con punto de partida
+    sobre la rama actual), un destino con forma de commit equivale a `--detach`, y con la rama DESCONOCIDA se deniegan las formas que sacan de ella."""
+    if "--" in rest:
+        k = rest.index("--")
+        antes, despues = rest[:k], rest[k + 1:]
+        if sub == "checkout" and despues:
+            return None                       # `git checkout main -- fichero` restaura ficheros, no cambia de rama
+        rest = antes + despues
+    desconocida = branch is None
+    en_trabajo = branch is not None and branch not in MAIN_BRANCHES and branch != "HEAD"
+    if not (en_trabajo or desconocida):
+        return None
+    pos, crea, reinicia, suelta = _analiza_cambio_rama(rest)
+    donde = f"estás en la rama de trabajo «{branch}»" if en_trabajo else "no se puede saber la rama actual (¿sin repositorio o con HEAD ilegible?) y el guardarraíl falla cerrado"
+    if reinicia is not None:
+        inicio = pos[0] if pos else None
+        sale = _es_rama_principal(reinicia) or bool(_REMOTA_RE.match(reinicia))
+        pisa = inicio is not None and (desconocida or reinicia == branch)
+        if sale or pisa:
+            return (f"`git {sub} -B|-C {reinicia}` bloqueado: {donde}, y `-B`/`-C`/`--force-create` {'sale a la rama principal' if sale else 'reinicia la rama actual a otro punto'} "
+                    "(equivale a `git branch -f`/`git reset --keep`) — la integración la dirige /dev-cycle (Fase 6).")
+        return None
+    if crea:
+        return None
+    destino = pos[0] if pos else None
+    sale = destino is not None and (destino == "-" or _ANTERIOR_RE.fullmatch(destino) or _es_rama_principal(destino)
+                                    or _REMOTA_RE.match(destino) or _forma_de_commit(destino))
+    if sale or suelta:
+        return (f"`git {sub} {destino or '--detach'}` bloqueado: {donde} "
+                "y el implementer no sale de ella — la integración la dirige /dev-cycle (Fase 6).")
+    return None
+
+
+def _razon_cabeza(toks):
+    """`git symbolic-ref HEAD <ref>` y `git update-ref HEAD <sha>` mueven HEAD sin pasar por checkout/switch (fix16, gap 14)."""
+    for sub in ("symbolic-ref", "update-ref"):
+        i = _es_git(toks, sub)
+        if i < 0:
+            continue
+        args, k, borra = [], i + 1, False
+        while k < len(toks):
+            t = toks[k]
+            if t == "-m":
+                k += 2
+                continue
+            if t == "--":
+                k += 1
+                continue
+            if t in ("-d", "--delete"):
+                borra = True
+            elif not t.startswith("-"):
+                args.append(t)
+            k += 1
+        if args and args[0].upper() == "HEAD" and (sub == "update-ref" or borra or len(args) >= 2):
+            return (f"`git {sub} HEAD …` bloqueado: mueve HEAD (de rama o de commit) sin pasar por `checkout`/`switch`, y el implementer no sale de "
+                    "su rama de trabajo — la integración la dirige /dev-cycle (Fase 6).")
+    return None
+
+
+def _razon_git(toks, branch, base_cambiada):
+    """Reglas de git para UNA invocacion (`toks[0]` es git): commit, push, reset, clean, stash, branch, update-ref, checkout/switch/restore.
+    fix16: antes vivian dentro de `_check_git` y solo corrian con git como programa de la orden simple; ahora tambien sobre cada sufijo que
+    empieza en una palabra `git` (`_sufijos_git`)."""
+    i, hooks_override = _git_invocation(toks)
+    if i >= 0 and toks[i] == "commit":
+        if hooks_override:
+            return ("`git commit` con override de core.hooksPath bloqueado: conserva los hooks "
+                    "de verificación del proyecto; un cambio de ruta requiere revisión explícita.")
+        if _commit_skips_verification(toks[i + 1:]):
+            return ("`git commit` sin verificación bloqueado: conserva pre-commit y commit-msg; "
+                    "corrige el fallo de los hooks en vez de omitirlos con --no-verify/-n.")
+    i = _es_git(toks, "push")
+    if i >= 0:
+        for t in toks[i + 1:]:
+            if _prefijo(t, "--force", "--force-with-lease", "--force-if-includes") or _cluster(t, "f") \
+                    or (t.startswith("+") and len(t) > 1):          # refspec `+main` = force
+                return ("`git push` forzado bloqueado: reescribe historia compartida — "
+                        "haz push normal; si de verdad hace falta, que lo pida el usuario.")
+            if _prefijo(t, "--delete", "--mirror", "--prune") or _cluster(t, "d") \
+                    or re.fullmatch(r"\+?:[^:]+", t):              # refspec `:rama` = borrar
+                return ("`git push` que borra ramas remotas bloqueado (`--delete`/`-d`/`:rama`/`--mirror`/"
+                        "`--prune`) — la limpieza de ramas la dirige el ritual de cierre de /dev-cycle (Fase 6).")
+    i = _es_git(toks, "reset")
+    if i >= 0 and any(_prefijo(t, "--hard", "--keep", "--merge") for t in toks[i + 1:]):
+        return ("`git reset --hard|--keep|--merge` bloqueado: reescribe el árbol de trabajo y puede descartar "
+                "cambios sin comitear que pueden no ser tuyos — revierte solo lo de tu intento "
+                "(`git diff <foto> -- <ficheros> | git apply -R`).")
+    # Subcomandos que también descartan trabajo sin comitear (T-06 fix6, gap 11): `checkout-index -f` y
+    # `read-tree -u|--reset` reescriben el árbol, `rm -f` borra ficheros con cambios y `worktree remove -f` un árbol entero.
+    i = _es_git(toks, "checkout-index")
+    if i >= 0 and any(_cluster(t, "f") or _prefijo(t, "--force") for t in toks[i + 1:]):
+        return ("`git checkout-index -f` bloqueado: sobrescribe ficheros del árbol con cambios sin comitear — "
+                "revierte solo lo de tu intento (`git diff <foto> -- <ficheros> | git apply -R`).")
+    i = _es_git(toks, "read-tree")
+    if i >= 0 and any(_cluster(t, "u") or _prefijo(t, "--reset") for t in toks[i + 1:]):
+        return ("`git read-tree -u|--reset` bloqueado: reescribe el árbol de trabajo y descarta cambios sin "
+                "comitear — revierte solo lo de tu intento.")
+    i = _es_git(toks, "rm")
+    if i >= 0 and any(_cluster(t, "f") or _prefijo(t, "--force") for t in toks[i + 1:]):
+        return ("`git rm -f` bloqueado: borra ficheros aunque tengan cambios sin comitear — usa `git rm` sin "
+                "`-f` o borra por nombre solo lo de tu intento.")
+    i = _es_git(toks, "worktree")
+    if i >= 0 and i + 1 < len(toks) and toks[i + 1] == "remove" \
+            and any(_cluster(t, "f") or _prefijo(t, "--force") for t in toks[i + 2:]):
+        return ("`git worktree remove --force` bloqueado: elimina un árbol de trabajo con cambios sin comitear — "
+                "la limpieza de worktrees la dirige el ritual de cierre de /dev-cycle (Fase 6).")
+    i = _es_git(toks, "clean")
+    if i >= 0:
+        razon = _razon_clean(toks[i + 1:])
+        if razon:
+            return razon
+    i = _es_git(toks, "stash")
+    if i >= 0 and i + 1 < len(toks) and toks[i + 1] in ("drop", "clear"):
+        return (f"`git stash {toks[i + 1]}` bloqueado: elimina stashes sin recuperación sencilla — "
+                "si sobra, que lo descarte el usuario.")
+    i = _es_git(toks, "branch")
+    if i >= 0:
+        rest = toks[i + 1:]
+        fuerza = any(_cluster(t, "f") or _prefijo(t, "--force") for t in rest)
+        if any(_cluster(t, "D") or _cluster(t, "M") or _cluster(t, "C") for t in rest) or fuerza:
+            return ("`git branch -D|-M|-C|-f` bloqueado: borra, mueve, copia o reapunta una rama a la fuerza — "
+                    "usa `-d`/`-m`, o que lo haga el ritual de cierre de /dev-cycle (Fase 6).")
+    i = _es_git(toks, "update-ref")
+    if i >= 0 and any(_cluster(t, "d") or _prefijo(t, "--stdin") for t in toks[i + 1:]):
+        return ("`git update-ref -d|--stdin` bloqueado: borra o reescribe referencias sin las comprobaciones "
+                "de `git branch` — que lo haga el usuario.")
+    for sub in ("checkout", "switch", "restore"):
+        i = _es_git(toks, sub)
+        if i >= 0:
+            razon = _razon_restauracion(sub, toks[i + 1:], base_cambiada)
+            if razon:
+                return razon
+            if sub == "restore":
+                continue
+            razon = _razon_cambio_rama(sub, toks[i + 1:], branch)
+            if razon:
+                return razon
+    razon = _razon_cabeza(toks)
+    if razon:
+        return razon
+    return None
 
 
 def check_git(command, branch, _depth=0, _env=None, _base=False, _xargs=False, _inc=False):
@@ -2105,95 +2456,23 @@ def _check_git(command, branch, _depth=0, _env=None, _base=False, _xargs=False, 
         razon = _razon_config(toks, bindings, exportados)
         if razon:
             return razon
-        if toks and _program_name(toks[0]) == "git":      # fix14 (gap 11): lo que sigue solo aplica a un `git`; el resto de segmentos no lo recorre
-            i, hooks_override = _git_invocation(toks)
-            if i >= 0 and toks[i] == "commit":
-                if hooks_override:
-                    return ("`git commit` con override de core.hooksPath bloqueado: conserva los hooks "
-                            "de verificación del proyecto; un cambio de ruta requiere revisión explícita.")
-                if _commit_skips_verification(toks[i + 1:]):
-                    return ("`git commit` sin verificación bloqueado: conserva pre-commit y commit-msg; "
-                            "corrige el fallo de los hooks en vez de omitirlos con --no-verify/-n.")
-            i = _es_git(toks, "push")
-            if i >= 0:
-                for t in toks[i + 1:]:
-                    if _prefijo(t, "--force", "--force-with-lease", "--force-if-includes") or _cluster(t, "f") \
-                            or (t.startswith("+") and len(t) > 1):          # refspec `+main` = force
-                        return ("`git push` forzado bloqueado: reescribe historia compartida — "
-                                "haz push normal; si de verdad hace falta, que lo pida el usuario.")
-                    if _prefijo(t, "--delete", "--mirror", "--prune") or _cluster(t, "d") \
-                            or re.fullmatch(r"\+?:[^:]+", t):              # refspec `:rama` = borrar
-                        return ("`git push` que borra ramas remotas bloqueado (`--delete`/`-d`/`:rama`/`--mirror`/"
-                                "`--prune`) — la limpieza de ramas la dirige el ritual de cierre de /dev-cycle (Fase 6).")
-            i = _es_git(toks, "reset")
-            if i >= 0 and any(_prefijo(t, "--hard", "--keep", "--merge") for t in toks[i + 1:]):
-                return ("`git reset --hard|--keep|--merge` bloqueado: reescribe el árbol de trabajo y puede descartar "
-                        "cambios sin comitear que pueden no ser tuyos — revierte solo lo de tu intento "
-                        "(`git diff <foto> -- <ficheros> | git apply -R`).")
-            # Subcomandos que también descartan trabajo sin comitear (T-06 fix6, gap 11): `checkout-index -f` y
-            # `read-tree -u|--reset` reescriben el árbol, `rm -f` borra ficheros con cambios y `worktree remove -f` un árbol entero.
-            i = _es_git(toks, "checkout-index")
-            if i >= 0 and any(_cluster(t, "f") or _prefijo(t, "--force") for t in toks[i + 1:]):
-                return ("`git checkout-index -f` bloqueado: sobrescribe ficheros del árbol con cambios sin comitear — "
-                        "revierte solo lo de tu intento (`git diff <foto> -- <ficheros> | git apply -R`).")
-            i = _es_git(toks, "read-tree")
-            if i >= 0 and any(_cluster(t, "u") or _prefijo(t, "--reset") for t in toks[i + 1:]):
-                return ("`git read-tree -u|--reset` bloqueado: reescribe el árbol de trabajo y descarta cambios sin "
-                        "comitear — revierte solo lo de tu intento.")
-            i = _es_git(toks, "rm")
-            if i >= 0 and any(_cluster(t, "f") or _prefijo(t, "--force") for t in toks[i + 1:]):
-                return ("`git rm -f` bloqueado: borra ficheros aunque tengan cambios sin comitear — usa `git rm` sin "
-                        "`-f` o borra por nombre solo lo de tu intento.")
-            i = _es_git(toks, "worktree")
-            if i >= 0 and i + 1 < len(toks) and toks[i + 1] == "remove" \
-                    and any(_cluster(t, "f") or _prefijo(t, "--force") for t in toks[i + 2:]):
-                return ("`git worktree remove --force` bloqueado: elimina un árbol de trabajo con cambios sin comitear — "
-                        "la limpieza de worktrees la dirige el ritual de cierre de /dev-cycle (Fase 6).")
-            i = _es_git(toks, "clean")
-            if i >= 0:
-                razon = _razon_clean(toks[i + 1:])
+        for variante in [toks] + _sufijos_git(toks):
+            if variante is None:
+                return (f"orden con `git` mas de {_MAX_SUFIJOS_GIT} veces como argumento de un programa que no es git bloqueada: el guardarraíl "
+                        "analiza cada aparicion como una posible orden y no puede acotar el coste — escribe la orden con menos apariciones.")
+            if variante is not toks:
+                razon = _razon_config(variante, bindings, exportados)
                 if razon:
                     return razon
-            i = _es_git(toks, "stash")
-            if i >= 0 and i + 1 < len(toks) and toks[i + 1] in ("drop", "clear"):
-                return (f"`git stash {toks[i + 1]}` bloqueado: elimina stashes sin recuperación sencilla — "
-                        "si sobra, que lo descarte el usuario.")
-            i = _es_git(toks, "branch")
-            if i >= 0:
-                rest = toks[i + 1:]
-                fuerza = any(_cluster(t, "f") or _prefijo(t, "--force") for t in rest)
-                if any(_cluster(t, "D") or _cluster(t, "M") or _cluster(t, "C") for t in rest) or fuerza:
-                    return ("`git branch -D|-M|-C|-f` bloqueado: borra, mueve, copia o reapunta una rama a la fuerza — "
-                            "usa `-d`/`-m`, o que lo haga el ritual de cierre de /dev-cycle (Fase 6).")
-            i = _es_git(toks, "update-ref")
-            if i >= 0 and any(_cluster(t, "d") or _prefijo(t, "--stdin") for t in toks[i + 1:]):
-                return ("`git update-ref -d|--stdin` bloqueado: borra o reescribe referencias sin las comprobaciones "
-                        "de `git branch` — que lo haga el usuario.")
-            for sub in ("checkout", "switch", "restore"):
-                i = _es_git(toks, sub)
-                if i >= 0:
-                    razon = _razon_restauracion(sub, toks[i + 1:],
-                                                base_cambiada)
-                    if razon:
-                        return razon
-                    if sub == "restore":
-                        continue
-                    if "--" in toks[i + 1:]:
-                        continue          # `git checkout main -- fichero` restaura ficheros, no cambia de rama
-                    args = [t for t in toks[i + 1:] if not t.startswith("-")]
-                    flags = [t for t in toks[i + 1:] if t.startswith("-")]
-                    # El destino puede ser la rama principal con otro nombre (`refs/heads/master`, `origin/main`,
-                    # `master^0`, `MAIN`) o «la anterior» (`-`, `@{-1}`): fix6, gap 11.
-                    destino = args[0] if args else ("-" if "-" in flags else None)
-                    crea = any(f in ("-b", "-B", "-c", "-C", "-t", "--track") for f in flags)
-                    # Fix7, gap 8: también «la anterior» con cualquier N (`@{-2}`), una ref remota (`origin/HEAD`, deja HEAD
-                    # suelto sobre ella) y `--detach`/`-d` (suelta HEAD de la rama de trabajo, con o sin destino).
-                    sale = destino is not None and (destino == "-" or _ANTERIOR_RE.fullmatch(destino)
-                                                    or _es_rama_principal(destino) or _REMOTA_RE.match(destino))
-                    suelta = any(_prefijo(f, "--detach") or _cluster(f, "d") for f in flags)
-                    if (sale or suelta) and not crea and branch and branch not in MAIN_BRANCHES and branch != "HEAD":
-                        return (f"`git {sub} {destino or '--detach'}` bloqueado: estás en la rama de trabajo «{branch}» "
-                                f"y el implementer no sale de ella — la integración la dirige /dev-cycle (Fase 6).")
+                if via_xargs:
+                    k, _hooks = _git_invocation(variante)
+                    if k >= 0 and variante[k] in _XARGS_DESTRUCTIVOS:
+                        return (f"`xargs … git {variante[k]}` bloqueado: las rutas llegan por la entrada estándar y el guardarraíl no las ve — "
+                                "nombra los ficheros en la propia orden o revierte con `git diff <foto> -- <ficheros> | git apply -R`.")
+            if variante and _program_name(variante[0]) == "git":      # fix14 (gap 11): lo que sigue solo aplica a un `git`; el resto de segmentos no lo recorre
+                razon = _razon_git(variante, branch, base_cambiada)
+                if razon:
+                    return razon
         if toks and toks[0].endswith("rm") and os.path.basename(toks[0]) == "rm":
             flags = [t for t in toks[1:] if t.startswith("-")]
             targets = [t for t in toks[1:] if not t.startswith("-")]
@@ -2296,7 +2575,7 @@ def main():
             if msg:
                 print(msg)
             return 0
-        razon = decide(payload, project_dir, cfg, branch_fn=current_branch, agent=agent)
+        razon = decide(payload, project_dir, cfg, branch_fn=rama_barata, agent=agent)
         if razon:
             print(deny_json(razon))
         return 0

@@ -85,10 +85,11 @@ _ESPERA_MAX = 0.5     # segundos de reloj monotonico: tope TOTAL de la espera de
 
 
 _ARRANQUE = time.monotonic()   # fix15: marca MONOTONICA del arranque del proceso (la toma el primer modulo del proceso de captura al importarse)
-_PRESUPUESTO_PROCESO = 0.35   # segundos: plazo de TODO el proceso de captura, MEDIDO DESDE SU ARRANQUE (fix15, gaps 9 y 10). Se conserva el valor de fix14, que
-                              # ahora SI se cumple de extremo a extremo: hijo en frio con 50 K + 5 K ajenos y la cola configurada fallida, 0,35 s desde el
-                              # arranque -> 482-605 ms (0,45 s -> 581-628 ms y 0,50 s -> 630-842 ms, 2 de 10 por encima de los 800 ms del hook). Una inicializacion
-                              # legitima que dura 0,30 s o mas desde el arranque del proceso se omite (`unsafe_state`); la recupera `recover`
+_PRESUPUESTO_PROCESO = 0.35   # segundos: plazo de TODO el proceso de captura, MEDIDO DESDE SU ARRANQUE (fix15, gaps 9 y 10; fix16, gap 17). UNA formula para todo el
+                              # proceso: el plazo efectivo es `max(_ARRANQUE + 0,35 s, primera espera + 0,10 s)`. Medido (hijo en frio, 50 K + 5 K ajenos y cola
+                              # configurada fallida): unos 0,25 s en reposo y 0,10 s con 12 bucles de CPU DESPUES de la primera espera. Una inicializacion legitima
+                              # que sigue en curso pasado ese plazo se omite (`unsafe_state`); la recupera `recover`. La cota de 800 ms del hijo en frio es EN
+                              # REPOSO: con carga el arranque de Python y los imports quedan fuera de todo plazo interno (2 de 10 pasaron de 800 ms, 85-91 %)
 _PRESUPUESTO = {'activo': False, 'limite': None, 'esperado': False}   # fix14: plazo POR PROCESO de la captura, compartido por todas las esperas
 
 
@@ -106,22 +107,28 @@ def end_budget():
     _PRESUPUESTO['activo'], _PRESUPUESTO['limite'], _PRESUPUESTO['esperado'] = False, None, False
 
 
-_ESPERA_MINIMA = 0.10   # segundos: fix15 (interpretacion i10). La PRIMERA espera de un estado transitorio del proceso (`settled`, `update`) dispone de al menos esto aunque el
-                        # arranque ya haya agotado el plazo del proceso (las siguientes comparten el plazo, como en fix14). Con el plazo anclado al arranque y la
-                        # maquina saturada (12 bucles de CPU), los imports del hijo consumian los 0,35 s y un estado transitorio de unos ms (nlink 2 en una creacion
-                        # exclusiva) se daba por agotado al instante. No cambia nada en reposo (queda mas plazo del proceso): el peor caso es `max(arranque + 0,35 s, primera espera + 0,10 s)`.
+_ESPERA_MINIMA = 0.10   # segundos: fix15 (i10), medido en fix16 (gap 17). La PRIMERA ESPERA REAL de un estado transitorio del proceso (la primera vez que `settled` o `update` van a
+                        # dormir tras un `unsafe_state`) dispone de al menos esto aunque el arranque ya haya agotado el plazo del proceso; ni la primera LLAMADA que no espera
+                        # ni el marcador de `queue()` lo gastan. Las siguientes esperas comparten el plazo, como en fix14. Peor caso: `max(_ARRANQUE + 0,35 s, primera espera + 0,10 s)`.
 
 
-def _plazo(minimo=False):
-    """Limite (reloj monotonico) de la espera que empieza ahora: el del proceso si hay presupuesto abierto, si no uno nuevo. Con `minimo` (las esperas de estado
-    transitorio), la primera vez del proceso el plazo se extiende hasta `ahora + _ESPERA_MINIMA` si el arranque lento ya lo habia agotado (fix15, i10)."""
+def _plazo():
+    """Limite (reloj monotonico) de la espera que empieza ahora: el del proceso si hay presupuesto abierto, si no uno nuevo."""
     if not _PRESUPUESTO['activo']:
         return time.monotonic() + _ESPERA_MAX
     if _PRESUPUESTO['limite'] is None:
         _PRESUPUESTO['limite'] = time.monotonic() + _PRESUPUESTO_PROCESO
-    if minimo and not _PRESUPUESTO['esperado']:
-        _PRESUPUESTO['esperado'] = True
-        _PRESUPUESTO['limite'] = max(_PRESUPUESTO['limite'], time.monotonic() + _ESPERA_MINIMA)
+    return _PRESUPUESTO['limite']
+
+
+def _primera_espera(limit):
+    """Se llama cuando una espera REAL va a empezar (el estado transitorio obliga a dormir). La primera vez del proceso, el plazo se extiende hasta
+    `ahora + _ESPERA_MINIMA` si el arranque lento ya lo habia agotado (fix15 i10; fix16 gap 17: desde la primera espera, no desde la primera llamada).
+    Devuelve el limite vigente (el del proceso, ya ampliado)."""
+    if not _PRESUPUESTO['activo'] or _PRESUPUESTO['esperado']:
+        return _PRESUPUESTO['limite'] if _PRESUPUESTO['activo'] and _PRESUPUESTO['limite'] is not None else limit
+    _PRESUPUESTO['esperado'] = True
+    _PRESUPUESTO['limite'] = max(_PRESUPUESTO['limite'] or 0.0, time.monotonic() + _ESPERA_MINIMA)
     return _PRESUPUESTO['limite']
 
 
@@ -173,12 +180,15 @@ def settled(operation, path):
     exist against hard-linked files). Like `update`, wait for it, never adopt it: a link that stays (a planted hard link)
     exhausts the bound (a TOTAL of 0.5 s of monotonic clock, `_ESPERA_MAX`, fix12/fix13: every attempt lists the directory, and the listing itself checks the bound) and the original `unsafe_state` is raised. Only an initialization IN PROGRESS is waited for
     (a recent sibling `.tmp-*` with the same inode, `initializing`): a hard link without it fails at once (fix11, gap 10)."""
-    limit = _plazo(minimo=True)
+    limit = _plazo()
     for attempt in range(40):
         try:
             return operation()
         except ValueError as error:
-            if str(error) != 'unsafe_state' or time.monotonic() >= limit:   # tope TOTAL (fix12): cada intento lista el directorio
+            if str(error) != 'unsafe_state':
+                raise
+            limit = _primera_espera(limit)                                   # fix16: el minimo se gasta aqui, en la primera espera real
+            if time.monotonic() >= limit:                                    # tope TOTAL (fix12): cada intento lista el directorio
                 raise
             path = Path(path).absolute(); IO.dirs(path.parent)
             if os.path.lexists(path):
@@ -209,7 +219,7 @@ def write(path, raw, *, owned_prefix=None, allow_degraded_sync=False):
 def update(path, transform):
     """Retry observed cooperating conflicts without losing another writer's bytes."""
     path = Path(path).absolute()
-    limit = _plazo(minimo=True)
+    limit = _plazo()
     for attempt in range(12):
         IO.dirs(path.parent)
         try:
@@ -227,6 +237,7 @@ def update(path, transform):
         except ValueError as error:
             if str(error) != 'unsafe_state':
                 raise
+            limit = _primera_espera(limit)         # fix16: el minimo se gasta en la primera espera real
             if time.monotonic() >= limit:
                 break                              # tope TOTAL de la espera (fix12): `journal_update_conflict`
             # An exclusive atomic creation briefly has two links until its

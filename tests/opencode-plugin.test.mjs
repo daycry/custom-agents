@@ -8,6 +8,12 @@ import { dirname, join, resolve } from 'node:path';
 import plugin from '../hooks/opencode-plugin.js';
 import { opencodeContext, until } from './helpers/opencode-context.mjs';
 
+// fix16 (gap 22): los procesos del fixture viven 120 s (antes 3 s: con 12 bucles de CPU el p95 de `taskkill` es de 1,5-1,8 s con picos de 7,6 s, y un fixture de 3 s
+// moria solo antes de que la limpieza lo alcanzara) y su muerte se comprueba con un sondeo del pid, no con una espera fija y un fichero centinela.
+function alive(pid) {
+  try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; }
+}
+
 function project() {
   const dir = mkdtempSync(join(tmpdir(), 'custom-agents-v2-test-'));
   mkdirSync(join(dir, '.claude'), { recursive: true });
@@ -341,13 +347,14 @@ test('cleanup of the real launcher reaches its Python process', async () => {
     const marker = join(dir, 'after-cleanup');
     const pidfile = join(dir, 'python.pid');
     writeFileSync(join(dir, 'agent-kits', 'shared', 'journal-capture.py'),
-      `import os,time,pathlib\npathlib.Path(${JSON.stringify(pidfile)}).write_text(str(os.getpid()))\ntime.sleep(3)\npathlib.Path(${JSON.stringify(marker)}).write_text('late')\n`);
+      `import os,time,pathlib\npathlib.Path(${JSON.stringify(pidfile)}).write_text(str(os.getpid()))\ntime.sleep(120)\npathlib.Path(${JSON.stringify(marker)}).write_text('late')\n`);
     const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
     ctx.emit({ type: 'session.execution.succeeded', data: { sessionID: 'own-real-cleanup' } });
     await until(() => existsSync(pidfile));
     pid = Number(readFileSync(pidfile, 'utf8'));
     await cleanup(); cleanup = null;
-    await new Promise(resolve => setTimeout(resolve, 3300));
+    await until(() => !alive(pid), 15000);                       // sondeo acotado: la limpieza del adaptador mata el Python del lanzador real
+    assert.equal(alive(pid), false, 'Python must not continue after adapter cleanup');
     assert.equal(existsSync(marker), false, 'Python must not continue after adapter cleanup');
   } finally {
     if (pid) {
@@ -367,12 +374,13 @@ test('real adapter teardown cleans background descendants after the capture pare
     const marker = join(dir, 'late-background');
     const pidfile = join(dir, 'background.pid');
     writeFileSync(join(dir, 'agent-kits', 'shared', 'journal-capture.py'),
-      `import subprocess,sys,pathlib\nchild=subprocess.Popen([sys.executable,'-I','-S','-c',"import time,pathlib; time.sleep(3); pathlib.Path("+repr(${JSON.stringify(marker)})+").write_text('late')"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\npathlib.Path(${JSON.stringify(pidfile)}).write_text(str(child.pid))\n`);
+      `import subprocess,sys,pathlib\nchild=subprocess.Popen([sys.executable,'-I','-S','-c',"import time,pathlib; time.sleep(120); pathlib.Path("+repr(${JSON.stringify(marker)})+").write_text('late')"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\npathlib.Path(${JSON.stringify(pidfile)}).write_text(str(child.pid))\n`);
     const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
     ctx.emit({ type: 'session.execution.succeeded', data: { sessionID: 'own-background' } });
     await until(() => existsSync(pidfile));
     pid = Number(readFileSync(pidfile, 'utf8'));
-    await new Promise(resolve => setTimeout(resolve, 3300));
+    await until(() => !alive(pid), 20000);                       // sondeo acotado: la finalizacion normal mata al descendiente con las tuberias redirigidas
+    assert.equal(alive(pid), false, 'normal completion must clean descendants with redirected pipes');
     assert.equal(existsSync(marker), false, 'normal completion must clean descendants with redirected pipes');
   } finally {
     if (pid) {
