@@ -456,7 +456,7 @@ async function main() {
             ...operation], { env, windowsHide: true, detached: inheritedGroup, stdio: 'ignore' });
           const cleanupTimer = setTimeout(() => {
             cleanup.kill('SIGKILL'); warn('child cleanup confirmation timed out'); abandon();
-          }, 2000);   // fix16 (gap 22): 500 ms no alcanzaba con la maquina cargada (0,61-0,78 s medidos); ningun anfitrion impone plazo a la limpieza
+          }, 10000);   // fix16 (gap 22): 500 ms no alcanzaba (0,61-0,78 s medidos) y 2 s tampoco con 12 bucles de CPU (el arranque del supervisor en Python: p50 1,1 s, p95 2,0 s, max 2,5 s; con 2 s quedaban huerfanos); ningun anfitrion impone plazo a la limpieza
           cleanup.on('error', () => { clearTimeout(cleanupTimer); warn('child job cleanup unavailable'); abandon(); done(); });
           cleanup.on('close', code => {
             clearTimeout(cleanupTimer);
