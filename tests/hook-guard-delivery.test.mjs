@@ -18,7 +18,7 @@ function invoke(runtime, program, options = {}) {
       CUSTOM_AGENTS_PYTHON: options.missing ? join(dir, 'absent-python') : process.env.TEST_PYTHON || 'python' };
     if (options.noPython) { env.PATH = dir; env.Path = dir; delete env.CUSTOM_AGENTS_PYTHON; }
     return spawnSync(process.execPath, [join(dir, 'hooks', 'run-hook.mjs'), 'native-guardrail', `--runtime=${runtime}`], {
-      cwd: dir, input: '{"prompt":"PRIVATE_PAYLOAD_SENTINEL"}', encoding: 'utf8', timeout: 8500,
+      cwd: dir, input: '{"prompt":"PRIVATE_PAYLOAD_SENTINEL"}', encoding: 'utf8', timeout: 45000,   // fix17: guarda contra cuelgues; el plazo del guard (4,5 s) lo mide el producto, no el arranque de node con la maquina saturada
       env,
     });
   } finally { rmSync(dir, { recursive: true, force: true }); }

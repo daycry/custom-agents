@@ -15,7 +15,9 @@ function invoke(root, runtime, payload) {
   const absent = join(root, 'absent-bin');
   const result = spawnSync(process.execPath, [launcher, 'mark-docs-pending.sh', `--runtime=${runtime}`], {
     input: typeof payload === 'string' ? payload : JSON.stringify(payload),
-    encoding: 'utf8', timeout: 5000, cwd: root,
+    // fix17 (gap 22, `debug-root-cause`): 5 s era un plazo de TEST, no del producto (el marcador no tiene plazo propio): con la maquina saturada el arranque de node de cada lanzamiento
+    // dura 2,5-10 s (mediana 3,7 s) y 11 de estos tests daban `ETIMEDOUT` en la suite completa de Windows. Se deja un tope de 60 s solo para que un cuelgue real no bloquee la suite.
+    encoding: 'utf8', timeout: 60000, cwd: root,
     env: { ...process.env, CLAUDE_PROJECT_DIR: root, CUSTOM_AGENTS_PYTHON: join(absent, 'python'),
       PATH: absent, Path: absent },
   });

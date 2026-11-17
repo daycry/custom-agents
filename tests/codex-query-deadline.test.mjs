@@ -73,7 +73,9 @@ test('Codex state: a slow worker start does not consume the native query budget 
     PATH:[bin,process.platform==='win32'?join(process.env.SystemRoot,'System32'):'/usr/bin:/bin'].join(delimiter)})
   nativeFixture(root,executable,(({NODE_OPTIONS,...rest})=>rest)(env))
   try{
-    const state=queryCodexPlugin({cwd:root,timeout:3000,runner:(args,options)=>runCodexQuery(args,{...options,env})})
+    // fix17 (gap 4): el plazo se recorta al tope exterior menos 2 s de reserva (`queryPlan`): con limite 3 s el tope exterior es de 7 s y quedan 2,5 s tras el worker lento, que con la
+    // maquina saturada no alcanzan para arrancar el node de codex (mediana 3,7 s). Con el plazo por defecto (6 s) la consulta llega hasta los 7 s desde el lanzamiento.
+    const state=queryCodexPlugin({cwd:root,timeout:6000,runner:(args,options)=>runCodexQuery(args,{...options,env})})
     assert.equal(state.reason,null,'the worker start must not consume the budget of the native query')
     assert.equal(state.state,'installed')
   }finally{removeTree(root)}

@@ -319,11 +319,15 @@ def test_proxy_configuration_does_not_change_local_transport(adapter, tmp_path, 
 
 
 def test_tls_handshake_uses_budget_remaining_after_tcp(adapter):
-    """A real silent TLS peer cannot inherit the timeout from before TCP connect."""
+    """A real silent TLS peer cannot inherit the timeout from before TCP connect.
+
+    fix17 (gap 22, `debug-root-cause`): the margin was 80 ms (0.2 s budget, bound 0.28 s) and a shared Windows machine adds more scheduling jitter than that (0.32 s measured with
+    three suites running). The three durations are scaled x4 (TCP delay 0.5 s, budget 0.8 s, silent peer 1.8 s): a correct handshake ends at ~0.8 s; one that inherits the timeout
+    from before TCP ends at 0.5 + 0.8 = 1.3 s, so the 1.15 s bound still tells them apart with 350 ms of jitter on the good side. The product is not touched."""
     listener = adapter.socket.socket()
     listener.bind(('127.0.0.1', 0))
     listener.listen()
-    listener.settimeout(2)
+    listener.settimeout(5)
     accepted_sockets = []
 
     def hold_tls():
@@ -331,7 +335,7 @@ def test_tls_handshake_uses_budget_remaining_after_tcp(adapter):
             accepted, _ = listener.accept()
             accepted_sockets.append(accepted)
             with accepted:
-                time.sleep(0.45)
+                time.sleep(1.8)
         except OSError:
             pass
 
@@ -343,7 +347,7 @@ def test_tls_handshake_uses_budget_remaining_after_tcp(adapter):
     def slow_tcp(*args, **kwargs):
         sock = actual_connect(*args, **kwargs)
         client_sockets.append(sock)
-        time.sleep(0.13)
+        time.sleep(0.5)
         return sock
 
     started = time.monotonic()
@@ -351,12 +355,12 @@ def test_tls_handshake_uses_budget_remaining_after_tcp(adapter):
         with mock.patch.object(adapter.socket, 'create_connection', side_effect=slow_tcp):
             with pytest.raises((adapter.urllib.error.URLError, TimeoutError, OSError)):
                 adapter._urlopen_local('https://127.0.0.1:' + str(listener.getsockname()[1]) + '/health',
-                                       0.2, _deadline=started + 0.2)
+                                       0.8, _deadline=started + 0.8)
         elapsed = time.monotonic() - started
     finally:
         listener.close()
-        worker.join(3)
-    assert elapsed < 0.28, elapsed
+        worker.join(8)
+    assert elapsed < 1.15, elapsed
     assert accepted_sockets and client_sockets
     assert all(sock.fileno() == -1 for sock in client_sockets)
     assert not worker.is_alive()

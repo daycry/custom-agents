@@ -30,7 +30,9 @@ TIPOS = ("flowchart", "graph", "sequenceDiagram", "classDiagram", "stateDiagram"
 
 def ficheros_md():
     for base, dirs, files in os.walk(ROOT):
-        dirs[:] = [d for d in dirs if d not in (".git", "node_modules", "__pycache__")]
+        # fix17 (gap 22, `debug-root-cause`): un entorno virtual DENTRO del repo (`.venv`, como en la maquina de desarrollo de Windows) tiene decenas de miles de ficheros y su `.md` de
+        # terceros no son nuestros: la guarda no terminaba en 25 min. Se excluye junto a `node_modules`; el arbol de CI no los tiene.
+        dirs[:] = [d for d in dirs if d not in (".git", "node_modules", "__pycache__", ".venv", "venv", "site-packages", ".pytest_cache", "scratchpad", "_to_delete", "tmp")]
         for f in files:
             if f.endswith(".md"):
                 yield os.path.join(base, f)

@@ -83,7 +83,14 @@ for(const view of definitions)test('F001 '+view.id+' '+(view.mode||'metadata')+'
   if(view.expected==='createEpicName')assert.equal(result.dest.createEpicName,payload)
  } finally {
   assert.equal(dirname(resolve(temp)),resolve(tmpdir()))
-  rmSync(temp,{recursive:true,force:true})
+  // fix17 (gap 22): en Windows los procesos del navegador tardan en soltar el perfil (`EPERM`/`EBUSY` al borrar): se reintenta hasta 15 s.
+  for(let attempt=0;;attempt++) {
+   try {rmSync(temp,{recursive:true,force:true});break}
+   catch(error) {
+    if(!['EPERM','EBUSY','ENOTEMPTY','EACCES'].includes(error.code) || attempt>=150) throw error
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,100)
+   }
+  }
  }
 })
 

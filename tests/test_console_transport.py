@@ -59,7 +59,8 @@ def test_stalled_rpc_has_deadline_and_no_unbounded_wait(tmp_path):
 
 def test_eof_closes_the_owned_process_instead_of_leaving_a_background_worker(tmp_path):
     child=tmp_path/'closed-output.py'
-    child.write_text('import os,time\nos.close(1)\ntime.sleep(20)\n')
+    # fix17 (gap 22, `debug-root-cause`): en Windows `os.close(1)` cierra el descriptor del CRT pero NO el handle de la tuberia (el padre no ve EOF): se cierra tambien el handle estandar.
+    child.write_text('import os,time\nif os.name=="nt":\n import ctypes;ctypes.windll.kernel32.CloseHandle(ctypes.windll.kernel32.GetStdHandle(-11))\nos.close(1)\ntime.sleep(20)\n')
     exits=[];p=api().LineProcess([sys.executable,str(child)],tmp_path,lambda _:None,exits.append)
     p.start()
     try:

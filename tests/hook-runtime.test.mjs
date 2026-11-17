@@ -65,10 +65,14 @@ for (const runtime of ['claude', 'codex', 'opencode']) {
 // who raised it in their Claude Code settings would stretch every timeout case here past the
 // fixtures' sleeps; these cases measure the default budget, as CI does.
 delete process.env.CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS;
+// fix17 (gap 22, `debug-root-cause`): el tope de 3 s de `spawnSync` y los 800 ms del hijo de SessionEnd median el arranque de node y de Python de la maquina, no el producto: con la
+// maquina saturada (mediana de node 3,7 s) la suite completa de Windows daba rojo. El tope pasa a ser una guarda contra cuelgues (30 s) y el hijo de `session-journal.sh` recibe el
+// presupuesto del anfitrion explicito (5 s, `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS`); el valor por defecto del producto (800 ms) lo fijan `hook-budget.test.mjs` y el resto.
 function invoke(hook, payload, cwd) {
   return spawnSync(process.execPath, [runner, hook], {
-    cwd, input: JSON.stringify(payload), encoding: 'utf8', timeout: ['session-journal.sh', 'user-prompt-capture.sh'].includes(hook) ? 3000 : 25000,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: cwd, CUSTOM_AGENTS_PYTHON: process.env.TEST_PYTHON || 'python' },
+    cwd, input: JSON.stringify(payload), encoding: 'utf8', timeout: 30000,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: cwd, CUSTOM_AGENTS_PYTHON: process.env.TEST_PYTHON || 'python',
+      ...(hook === 'session-journal.sh' ? { CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS: '5000' } : {}) },
   });
 }
 
@@ -126,8 +130,8 @@ test('SessionEnd capture is independent of slow materialization startup', () => 
     mkdirSync(join(dir, 'docs', 'roadmap'), { recursive: true });
     const result = spawnSync(process.execPath, [join(bundle, 'hooks', 'run-hook.mjs'), 'session-journal.sh'], {
       cwd: dir, input: JSON.stringify({ cwd: dir, session_id: 'bounded-startup', reason: 'other' }),
-      encoding: 'utf8', timeout: 5000,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: dir, CUSTOM_AGENTS_PYTHON: process.env.TEST_PYTHON || 'python' },
+      encoding: 'utf8', timeout: 30000,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: dir, CUSTOM_AGENTS_PYTHON: process.env.TEST_PYTHON || 'python', CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS: '5000' },   // fix17: ver `invoke`
     });
     assert.equal(result.status, 0, result.stderr);
     assert.ok(existsSync(join(dir, '.claude', 'journal', 'outbox')), 'durable capture must not wait for materialization imports');

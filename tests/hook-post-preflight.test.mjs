@@ -8,7 +8,7 @@ const launcher = resolve('hooks/run-hook.mjs');
 const invoke = (hook, runtime, payload) => spawnSync(process.execPath,
   [launcher, hook, `--runtime=${runtime}`], {
     input: typeof payload === 'string' ? payload : JSON.stringify(payload),
-    encoding: 'utf8', timeout: 5000,
+    encoding: 'utf8', timeout: 60000,   // fix17: guarda contra cuelgues (node tarda 2,5-10 s en arrancar con la maquina saturada)
     env: { ...process.env, CUSTOM_AGENTS_PYTHON: join(tmpdir(), 'custom-agents-absent-preflight-python'),
       PATH: join(tmpdir(), 'custom-agents-absent-preflight-bin'),
       Path: join(tmpdir(), 'custom-agents-absent-preflight-bin') },
