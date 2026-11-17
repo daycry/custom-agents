@@ -226,7 +226,7 @@ def test_d2_rafaga_sobre_el_anillo_lleno_con_la_espera_REAL_no_pierde_ninguno(ap
         assert p.returncode == 0, err
         resultados.append(json.loads(out))
     perdidos = [r for r in resultados if r['status'] != 'ok']
-    print('D2 sonda: count=%d perdidos=%d' % (count, len(perdidos)))   # (anadido tras el RED, k10) la cifra que el ledger anota
+    print('D2 sonda: count=%d perdidos=%d motivos=%s' % (count, len(perdidos), sorted({r['reason'] for r in perdidos})))   # (anadido tras el RED, k10) la cifra que el ledger anota
     if count == 8:
         assert perdidos == [], perdidos
     visto = tools(api.history(project))

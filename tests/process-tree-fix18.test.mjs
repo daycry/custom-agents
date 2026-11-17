@@ -141,3 +141,19 @@ const n=spawn(process.execPath,['-e','setTimeout(()=>{},300000)'],{stdio:'ignore
     assert.ok(await waitFor(()=>!alive(nieto),8000),'el descendiente de codex sigue vivo')
   } finally {if(nieto)quiet(nieto);if(existsSync(flag+'.codex'))quiet(Number(readFileSync(flag+'.codex','utf8')));try{removeTree(root)}catch{/* un resto retiene el directorio */}}
 })
+
+// --- gap 3 (identidad de la raiz, anadido tras el RED, k12): un pid REUTILIZADO. La raiz salio en `until`; un proceso AJENO que recibio su pid despues (con su propio hijo) NO es la raiz ni desciende
+// de ella: con `rootAlive:false` (lo que los llamadores deciden por el evento `exit` de su handle) ni el ni su hijo mueren.
+test('Windows (fix18, gap 3): el proceso ajeno que reutiliza el pid de la raiz y su hijo sobreviven al barrido',{skip:!win && 'solo Windows reutiliza pids'},async()=>{
+  const root=mkdtempSync(join(tmpdir(),'ca-reuse18-')),flag=join(root,'h.pid');let ajeno,hijo
+  try {
+    const since=Date.now()-3000,until=Date.now()-1000      // la raiz «salio» hace 1 s; el ajeno nace despues
+    const prog=`const {spawn}=require('node:child_process');const h=spawn(process.execPath,['-e','setTimeout(()=>{},300000)'],{stdio:'ignore'});require('node:fs').writeFileSync(${JSON.stringify(flag)},String(h.pid));setTimeout(()=>{},300000)`
+    ajeno=spawn(process.execPath,['-e',prog],{stdio:'ignore',detached:true})
+    assert.ok(await waitFor(()=>existsSync(flag),20000));hijo=Number(readFileSync(flag,'utf8'))
+    mod.terminateProcessTree(ajeno.pid,15000,15000,{since,until,rootAlive:false})
+    await sleep(8000)       // el barrido corre fuera del job y sin que nadie lo espere: se le da tiempo de sobra (1-4 s con carga)
+    assert.equal(alive(ajeno.pid),true,'el proceso ajeno que reutilizo el pid murio')
+    assert.equal(alive(hijo),true,'el hijo del ajeno murio')
+  } finally {if(hijo)quiet(hijo);if(ajeno?.pid)quiet(ajeno.pid);removeTree(root)}
+})
