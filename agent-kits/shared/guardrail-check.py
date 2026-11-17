@@ -294,13 +294,30 @@ def _gitdir_de(project_dir):
     return None
 
 
+def _commondir(gitdir):
+    """Directorio comun de un worktree (el `commondir` de `gitdir`, relativo a este): None si no hay fichero `commondir`, False si no se puede leer."""
+    f = os.path.join(gitdir, "commondir")
+    if not os.path.isfile(f):
+        return None
+    try:
+        with open(f, "rb") as fh:
+            texto = fh.read(4096).decode("utf-8").strip()
+    except (OSError, ValueError):
+        return False
+    if not texto or "\n" in texto:
+        return False
+    return os.path.normpath(texto if os.path.isabs(texto) else os.path.join(gitdir, texto))
+
+
 def _es_repositorio(gitdir):
-    """Como `is_git_directory` de git: `HEAD` y, o bien `objects/` y `refs/`, o bien `commondir` (un directorio de worktree no tiene objetos propios)."""
+    """Como `is_git_directory` de git: `HEAD` y `objects/` + `refs/` en el directorio propio o, en un worktree, en el que apunta `commondir` (fix18, gap 8: validado, no solo presente)."""
     if not os.path.isfile(os.path.join(gitdir, "HEAD")):
         return False
-    if os.path.isfile(os.path.join(gitdir, "commondir")):
-        return True
-    return os.path.isdir(os.path.join(gitdir, "objects")) and os.path.isdir(os.path.join(gitdir, "refs"))
+    comun = _commondir(gitdir)
+    if comun is False:
+        return False                       # fix18 (gap 8): un `commondir` que no apunta a un repositorio lo salta git (y sube al padre)
+    destino = gitdir if comun is None else comun
+    return os.path.isdir(os.path.join(destino, "objects")) and os.path.isdir(os.path.join(destino, "refs"))
 
 
 def rama_barata(project_dir, timeout=5):
@@ -2168,8 +2185,12 @@ def _anclas(toks):
 _CODIGO_EN_GIT = {
     "rebase": ("x", ("--exec",)), "fetch": ("", ("--upload-pack",)), "pull": ("", ("--upload-pack",)), "push": ("", ("--receive-pack", "--exec")),
     "clone": ("u", ("--upload-pack",)), "ls-remote": ("", ("--upload-pack", "--exec")),
-    "filter-branch": ("", ("--tree-filter", "--index-filter", "--env-filter", "--msg-filter", "--commit-filter", "--parent-filter", "--tag-name-filter")),
+    "filter-branch": ("", ("--tree-filter", "--index-filter", "--env-filter", "--msg-filter", "--commit-filter", "--parent-filter", "--tag-name-filter", "--setup")),
+    # fix18 (gap 7): el resto de opciones de git cuyo valor ejecuta una shell (el valor se analiza como codigo, como el de `rebase -x`: `difftool -x 'diff -u'` sigue permitido)
+    "difftool": ("x", ("--extcmd",)), "grep": ("O", ("--open-files-in-pager",)), "archive": ("", ("--exec",)),
+    "fetch-pack": ("", ("--upload-pack", "--exec")), "send-pack": ("", ("--receive-pack", "--exec")), "instaweb": ("", ("--httpd",)),
 }
+_CORTAS_SOLO_PEGADAS = {"grep": "O"}      # `git grep -O[<pager>]`: el valor es OPCIONAL y solo va pegado (`git grep -O v1` no lo consume)
 
 
 def _codigo_de_git(toks):
@@ -2179,7 +2200,7 @@ def _codigo_de_git(toks):
         return []
     sub, args = toks[i], toks[i + 1:]
     codigos = []
-    if sub == "submodule":
+    if sub in ("submodule", "submodule--helper"):
         k = next((j for j, t in enumerate(args) if not t.startswith("-")), None)
         if k is not None and args[k] == "foreach":
             resto = args[k + 1:]
@@ -2208,7 +2229,7 @@ def _codigo_de_git(toks):
                 for m, letra in enumerate(t[1:], 1):
                     if letra in cortas:
                         valor = t[m + 1:]
-                        if not valor and k + 1 < len(args):
+                        if not valor and k + 1 < len(args) and letra not in _CORTAS_SOLO_PEGADAS.get(sub, ""):
                             valor = args[k + 1]
                             k += 1
                         if valor:
@@ -2277,11 +2298,62 @@ def _analiza_cambio_rama(rest):
     return pos, crea, reinicia, suelta, separado, sigue, ficheros
 
 
+_CTX = {"cwd": None}        # fix18 (gap 1): el `cwd` del payload (lo fija `decide`); sin el, el del proceso
+
+
+def _cwd():
+    return _CTX["cwd"] or os.getcwd()
+
+
 def _ruta_existente(token):
+    """¿Existe la ruta `token`? Se resuelve contra el `cwd` del payload (fix18), no contra el del proceso del guard."""
     try:
-        return os.path.lexists(token)
+        return os.path.lexists(os.path.join(_cwd(), token))
     except (OSError, ValueError):
         return False
+
+
+_PSEUDO_REF_RE = re.compile(r"[A-Z][A-Z_]*")
+_MAX_PACKED = 8 * 1024 * 1024
+
+
+def _ref_existe(nombre):
+    """¿`nombre` resuelve como ref (rama local, remota, tag, pseudo-ref como `FETCH_HEAD`, o una expresion `x~1`/`x^`/`@{u}`)? Lectura barata de `.git/refs` + `packed-refs`, sin lanzar git
+    (fix18, gap 1). True/False; None si no es concluyente (sin repositorio legible o reftable)."""
+    if not nombre or nombre.startswith("-"):
+        return False
+    if re.search(r"[~^]|@\{", nombre) or nombre == "@":
+        return True
+    gitdir = _gitdir_de(_cwd())
+    if gitdir is None or not _es_repositorio(gitdir):
+        return None
+    comun = _commondir(gitdir)
+    comun = gitdir if comun is None else comun
+    if comun is False or os.path.isdir(os.path.join(comun, "reftable")):
+        return None
+    candidatos = ["refs/" + nombre, "refs/tags/" + nombre, "refs/heads/" + nombre, "refs/remotes/" + nombre, "refs/remotes/" + nombre + "/HEAD"]
+    if nombre.startswith("refs/"):
+        candidatos.append(nombre)
+    try:
+        if _PSEUDO_REF_RE.fullmatch(nombre) and os.path.isfile(os.path.join(gitdir, nombre)):
+            return True
+        for c in candidatos:
+            if os.path.isfile(os.path.join(comun, *c.split("/"))):
+                return True
+        empaquetado = os.path.join(comun, "packed-refs")
+        if os.path.isfile(empaquetado):
+            if os.path.getsize(empaquetado) > _MAX_PACKED:
+                return None
+            with open(empaquetado, "rb") as fh:
+                for linea in fh.read().decode("utf-8", "replace").splitlines():
+                    if linea[:1] in ("#", "^"):
+                        continue
+                    _sha, _sep, ref = linea.partition(" ")
+                    if ref in candidatos:
+                        return True
+    except (OSError, ValueError):
+        return None
+    return False
 
 
 def _razon_cambio_rama(sub, rest, branch):
@@ -2319,10 +2391,14 @@ def _razon_cambio_rama(sub, rest, branch):
     if sub == "checkout" and len(pos) >= 2 and not separado:
         return None                           # `git checkout <ref> <ruta>…`: restaura ficheros desde <ref>, no cambia de rama (`_razon_restauracion` ya los valido)
     for p in pos:
-        if p == branch or (sub == "checkout" and (p == "HEAD" or _ruta_existente(p))):
+        if p == branch or (sub == "checkout" and p == "HEAD"):
             continue
-        return (f"`git {sub} {p}` bloqueado: {donde} y `{p}` no es la rama actual ni una ruta que exista; el guardarraíl no puede saber si suelta HEAD o cambia de rama "
-                f"(otra rama, un tag, `FETCH_HEAD`, un SHA, una remota…) — {cierre}")
+        # fix18 (gap 1): una ref gana a una ruta homonima (git `checkout main` con un directorio `main` CAMBIA de rama) y delante de `--` sigue siendo una ref.
+        ref = _ref_existe(p)
+        if sub == "checkout" and ref is not True and _ruta_existente(p) and not (ref is None and _es_rama_principal(p)):
+            continue
+        return (f"`git {sub} {p}` bloqueado: {donde} y `{p}` no es la rama actual ni una ruta que exista sin ser una ref; el guardarraíl no puede saber si suelta HEAD o cambia de rama "
+                f"(otra rama, un tag, `FETCH_HEAD`, un SHA, una remota…; una ref gana a una ruta con su nombre: usa `git checkout -- {p}` para la ruta) — {cierre}")
     return None
 
 
@@ -2331,7 +2407,8 @@ def _razon_rebase_bisect(toks):
     i = _es_git(toks, "rebase")
     if i >= 0:
         args, pos, k, raiz = toks[i + 1:], [], 0, False
-        con_valor_corta = "sxXCS"
+        con_valor_corta = "sxXC"                      # fix18 (gap 6): `-S` (`--gpg-sign`) lleva el valor OPCIONAL y solo pegado: no se come la palabra siguiente
+        largas_con_valor = ("--onto", "--strategy", "--strategy-option", "--exec", "--whitespace", "--empty", "--trailer")
         while k < len(args):
             t = args[k]
             if t == "--":
@@ -2341,7 +2418,7 @@ def _razon_rebase_bisect(toks):
                 base, igual, _v = t.partition("=")
                 if _prefijo(t, "--root"):
                     raiz = True
-                elif not igual and base in ("--onto", "--strategy", "--strategy-option", "--exec"):
+                elif not igual and base in largas_con_valor:
                     k += 1
             elif t.startswith("-") and len(t) > 1:
                 letras = t[1:]
@@ -2357,11 +2434,9 @@ def _razon_rebase_bisect(toks):
             return (f"`git rebase {' '.join(pos)}` bloqueado: con una rama como último argumento `rebase` cambia a esa rama y la reescribe — rebasa la actual con "
                     "`git rebase <upstream>`; la integración la dirige /dev-cycle (Fase 6).")
     i = _es_git(toks, "bisect")
-    if i >= 0 and i + 1 < len(toks) and toks[i + 1] in ("start", "reset"):
-        resto = [t for t in toks[i + 2:] if not t.startswith("-")]
-        if resto:
-            return (f"`git bisect {toks[i + 1]} {' '.join(resto)}` bloqueado: suelta HEAD en un commit — usa `git bisect start` sin referencias y `git bisect reset` a secas, "
-                    "o deja la bisección al usuario.")
+    if i >= 0 and i + 1 < len(toks) and toks[i + 1] not in ("log", "visualize", "view", "help"):
+        # fix18 (gap 6): `start` a secas seguido de `good|bad <ref>` suelta HEAD (el mensaje de fix17 recomendaba justo ese camino): cualquier subcomando que no sea de lectura se deniega.
+        return (f"`git bisect {toks[i + 1]}` bloqueado: la bisección suelta HEAD en un commit y la rama de trabajo deja de ser la actual — que la haga el usuario (`git bisect log|visualize` sí se permiten).")
     return None
 
 
@@ -2395,6 +2470,99 @@ def _razon_cabeza(toks):
     return None
 
 
+_MOVEDORES_DE_HISTORIA = frozenset(("merge", "pull", "rebase", "cherry-pick", "revert", "am", "commit", "reset"))
+
+
+def _directorios_C(toks):
+    """Directorio al que apuntan los `-C <ruta>` de la invocacion git `toks` (cada `-C` es relativo al anterior), o None si no hay o no es literal."""
+    ruta = None
+    i = 1
+    while i < len(toks) and toks[i].startswith("-"):
+        o = toks[i]
+        if o == "-C" and i + 1 < len(toks):
+            v = toks[i + 1]
+            if re.search(r"[$`*?\[~]", v):
+                return None
+            ruta = v if ruta is None else os.path.join(ruta, v)
+        if o in _GIT_GLOBAL_VALUES:
+            i += 2
+        else:
+            i += 1
+    if ruta is None:
+        return None
+    return os.path.normpath(ruta if os.path.isabs(ruta) else os.path.join(_cwd(), ruta))
+
+
+def _refspec_mueve_rama(destino):
+    """¿El destino de un refspec es una rama local (`main`, `refs/heads/x`, `refs/heads/*`)? Los `refs/tags/`, `refs/remotes/` y demas no cuentan."""
+    d = destino.lstrip("+")
+    if not d or d.startswith(("refs/remotes/", "refs/tags/", "refs/notes/", "refs/stash", "refs/pull/")):
+        return False
+    return d.startswith("refs/heads/") or not d.startswith("refs/")
+
+
+def _razon_refs(toks, i):
+    """fix18 (gap 6): `fetch`/`pull`/`push` cuyo refspec mueve una rama local a la fuerza o desde el propio repositorio (`.`), `push <remoto> <src>:<rama principal>`, `worktree add -B`,
+    `filter-branch` y `filter-repo` (reescriben o mueven `refs/heads/*` sin pasar por `branch`/`update-ref`)."""
+    sub, args = toks[i], toks[i + 1:]
+    if sub in ("filter-branch", "filter-repo"):
+        return (f"`git {sub}` bloqueado: reescribe la historia de las ramas (`refs/heads/*`) — la limpieza del historial la decide el usuario.")
+    if sub == "worktree" and args and args[0] == "add" and any(_cluster(t, "B") or (t.startswith("-B") and not t.startswith("--")) for t in args[1:]):
+        return ("`git worktree add -B` bloqueado: reinicia una rama existente (equivale a `git branch -f`) — usa `-b` para una rama nueva (la integración la dirige /dev-cycle, Fase 6).")
+    if sub in ("fetch", "pull", "push"):
+        opciones = [t for t in args if t.startswith("-") and t != "--"]
+        posicionales = [t for t in args if not t.startswith("-")]
+        refspecs = [t for t in posicionales if ":" in t and "://" not in t and not re.match(r"^[A-Za-z]:[\\/]", t) and "@" not in t.split(":", 1)[0]]
+        local = "." in posicionales[:1] or (sub != "push" and "." in posicionales)
+        fuerza = any(_cluster(t, "f") or _prefijo(t, "--force") for t in opciones) or any(r.startswith("+") for r in refspecs)
+        for r in refspecs:
+            destino = r.rsplit(":", 1)[1]
+            if sub == "push":
+                if _refspec_mueve_rama(destino) and (local or _es_rama_principal(destino.lstrip("+").removeprefix("refs/heads/"))):
+                    return (f"`git push … {r}` bloqueado: {'mueve una rama de este mismo repositorio' if local else 'integra en la rama principal'} sin pasar por `branch` ni la integración "
+                            "que dirige /dev-cycle (Fase 6) — empuja tu rama (`git push -u origin <rama>`).")
+            elif _refspec_mueve_rama(destino) and (local or fuerza):
+                return (f"`git {sub} … {r}` bloqueado: con `+`/`--force` o desde `.` mueve una rama local (la actual o la principal) como `git branch -f` — haz `git {sub}` normal "
+                        "o deja la integración al ritual de cierre de /dev-cycle (Fase 6).")
+    return None
+
+
+def _razon_destruye(toks, i):
+    """fix18 (gaps 2 y 9): subcomandos que destruyen trabajo o la recuperacion que el guard protege al denegar `branch -D` y `stash drop`."""
+    sub, args = toks[i], toks[i + 1:]
+    if sub == "clone":
+        # fix18: `git clone -c|--config <clave>=<valor>` fija la configuracion del clon NUEVO (`core.hooksPath`, `core.sshCommand`…): misma lista blanca que `-c` global
+        k = 0
+        while k < len(args):
+            t, valor = args[k], None
+            if t in ("-c", "--config") and k + 1 < len(args):
+                valor, k = args[k + 1], k + 1
+            elif t.startswith("--config="):
+                valor = t.split("=", 1)[1]
+            elif t.startswith("-c") and not t.startswith("--") and len(t) > 2:
+                valor = t[2:]
+            if valor is not None and not _config_permitida(valor.split("=", 1)[0], valor.split("=", 1)[1] if "=" in valor else None):
+                return (f"`git clone --config {valor.split('=', 1)[0]}` bloqueado: esa clave puede ejecutar una orden o saltar hooks en el clon (lista blanca de configuración: "
+                        "`user.name`, `user.email`, `core.quotepath`, `commit.gpgsign`, `init.defaultBranch`, `color.*`, `advice.*`).")
+            k += 1
+    if sub in ("submodule", "submodule--helper"):
+        k = next((j for j, t in enumerate(args) if not t.startswith("-")), None)
+        if k is not None and args[k] in ("update", "deinit") and any(_cluster(t, "f") or _prefijo(t, "--force") for t in args):
+            return (f"`git submodule {args[k]} --force` bloqueado: descarta los cambios sin comitear de los submódulos — usa `git submodule update` sin `--force` o revierte solo lo tuyo.")
+    elif sub == "gc":
+        for t in args:
+            if t.startswith("--prune=") and t.split("=", 1)[1] in ("now", "all"):
+                return ("`git gc --prune=now|all` bloqueado: borra al instante los objetos sin referencia y con ellos la recuperación de lo que `branch -D`/`stash drop` dejarían — "
+                        "usa `git gc` a secas (conserva 2 semanas).")
+    elif sub == "prune":
+        if not any(_cluster(t, "n") or _prefijo(t, "--dry-run") for t in args):
+            return ("`git prune` bloqueado: borra objetos sin referencia sin periodo de gracia — que lo haga el usuario.")
+    elif sub == "reflog" and args and args[0] in ("expire", "delete"):
+        if not any(_cluster(t, "n") or _prefijo(t, "--dry-run") for t in args[1:]):
+            return (f"`git reflog {args[0]}` bloqueado: borra el reflog, la recuperación de las ramas y los commits — que lo haga el usuario (`--dry-run` sí se permite).")
+    return None
+
+
 def _razon_git(toks, branch, base_cambiada):
     """Reglas de git para UNA invocacion (`toks[0]` es git): commit, push, reset, clean, stash, branch, update-ref, checkout/switch/restore.
     fix16: antes vivian dentro de `_check_git` y solo corrian con git como programa de la orden simple; ahora tambien sobre cada sufijo que
@@ -2407,6 +2575,21 @@ def _razon_git(toks, branch, base_cambiada):
         if _commit_skips_verification(toks[i + 1:]):
             return ("`git commit` sin verificación bloqueado: conserva pre-commit y commit-msg; "
                     "corrige el fallo de los hooks en vez de omitirlos con --no-verify/-n.")
+    i, _hooks = _git_invocation(toks)
+    if i >= 0:
+        # fix18 (gap 6): `-C <dir>`: el HEAD que cuenta es el del directorio. Con HEAD en la rama principal, lo que mueve su historia es integrar; con otra rama de trabajo, el resto de reglas
+        # se aplican con ESA rama (un worktree de otra tarea).
+        destino_C = _directorios_C(toks)
+        if destino_C is not None and os.path.isdir(destino_C):
+            rama_C = rama_barata(destino_C)
+            if rama_C in MAIN_BRANCHES and toks[i] in _MOVEDORES_DE_HISTORIA:
+                return (f"`git -C {toks[i - 1] if i else ''} {toks[i]}` bloqueado: ese directorio tiene HEAD en la rama principal «{rama_C}» y `{toks[i]}` mueve su historia (integrar) — "
+                        "la integración la dirige /dev-cycle (Fase 6).")
+            if rama_C is not None:
+                branch = rama_C
+        razon = _razon_refs(toks, i) or _razon_destruye(toks, i)
+        if razon:
+            return razon
     i = _es_git(toks, "push")
     if i >= 0:
         for t in toks[i + 1:]:
@@ -2669,7 +2852,14 @@ def decide(payload, project_dir, cfg=None, branch=None, branch_fn=None, agent="i
             # `\bgit\b` en minusculas del texto crudo: `GIT switch main`, `g''it switch main` o `$'\x67it' checkout main` ejecutan git.
             if branch is None and branch_fn is not None:
                 branch = branch_fn(project_dir)
-            return check_git(cmd, branch)
+            # fix18 (gap 1): las rutas y las refs se resuelven contra el `cwd` del payload (donde se ejecutara la orden), no contra el del proceso del guard.
+            cwd = payload.get("cwd") if isinstance(payload, dict) else None
+            previo = _CTX["cwd"]
+            _CTX["cwd"] = cwd if isinstance(cwd, str) and cwd and os.path.isdir(cwd) else None
+            try:
+                return check_git(cmd, branch)
+            finally:
+                _CTX["cwd"] = previo
     return None
 
 

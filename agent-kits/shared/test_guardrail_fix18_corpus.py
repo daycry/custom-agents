@@ -17,6 +17,8 @@ DESTRUYEN18 = [
     "git gc --prune=now", "git gc --prune=all", "git gc --aggressive --prune=now", "git prune", "git prune --expire now",
     "git reflog expire --expire=now --all", "git reflog expire --all", "git reflog delete HEAD@{1}", "git reflog expire --expire-unreachable=now --all",
     "git worktree remove --force ../wt", "git worktree remove -f ../wt",
+    # (anadidas tras el RED, k8) el resto de formas de lc18/p1: el ayudante interno de submodulos y la config del clon
+    "git submodule--helper update --force", "git clone -c core.hooksPath=h . ../c", "git clone --config core.sshCommand='git reset --hard' . ../c", "git clone -ccore.pager=x . ../c",
 ]
 
 # --- gap 7: opciones cuyo valor ejecuta git con una shell (el valor se analiza como codigo: con una forma destructiva dentro, deny)
@@ -27,7 +29,7 @@ for _d in DESTRUCTIVOS18:
         f"git grep -O'{_d}' foo", f"git grep --open-files-in-pager='{_d}' foo", f"git grep --open-files-in-pager '{_d}' foo",
         f"git archive --exec='{_d}' HEAD", f"git archive --exec '{_d}' --remote=. HEAD", f"git fetch-pack --upload-pack='{_d}' . HEAD",
         f"git send-pack --receive-pack='{_d}' . HEAD", f"git instaweb --httpd='{_d}'",
-        f"git filter-branch --setup '{_d}' HEAD", f"git -C sub difftool -y --extcmd='{_d}' HEAD~1", f"git --no-pager grep --open-files-in-pager='{_d}' v1",
+        f"git submodule--helper foreach '{_d}'", f"git filter-branch --setup '{_d}' HEAD", f"git -C sub difftool -y --extcmd='{_d}' HEAD~1", f"git --no-pager grep --open-files-in-pager='{_d}' v1",
     ]
 
 # --- gap 6: salidas de rama o movimientos de refs/heads/* (rama de trabajo `feature/x`)
@@ -69,6 +71,7 @@ PERMITIDAS18 = [
     "git submodule deinit sub", "git gc", "git gc --auto", "git gc --prune=2.weeks.ago", "git reflog", "git reflog show HEAD", "git reflog expire --dry-run --all",
     "git difftool -y -x 'diff -u' HEAD~1", "git difftool --extcmd='meld' HEAD~1", "git difftool", "git grep -O v1", "git grep foo", "git grep -n -e foo -- src", "git archive HEAD -o a.zip",
     "git archive --format=zip HEAD", "git fetch-pack . HEAD", "git bisect log", "git bisect visualize", "git bisect view", "git tag v1", "git tag -a v1 -m x", "git show HEAD",
+    "git clone -c user.name=x . ../c", "git clone --config color.ui=always . ../c", "git merge --abort", "git mv -f b.txt a.txt",
     "git -C sub status", "git -C ../other-repo log --oneline", "git ls-remote origin", "git clone https://example.com/x.git y",
 ]
 

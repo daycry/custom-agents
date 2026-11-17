@@ -40,7 +40,7 @@ LEGITIMAS17 = [
     "dotenv -- npm run build", "npx prettier --check .", "poetry run pytest", "direnv exec . make", "strace bash -c 'make test'", "uv run bash -c 'make test'",
     "uv run env -S 'make test'", "uv run xargs echo", "strace xargs echo hola", "chroot / sh -c 'ls /'", "uv run sh -c 'git status'",
     "git submodule foreach 'git status'", "git submodule foreach --recursive git pull", "git submodule foreach 'echo $name'", "git rebase -x 'make test' HEAD~2",
-    "git bisect run make test", "git log --oneline", "git submodule update --init --recursive", "git submodule status",
+    "git log --oneline", "git submodule update --init --recursive", "git submodule status",
 ]
 
 

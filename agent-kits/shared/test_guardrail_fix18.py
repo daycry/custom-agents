@@ -6,8 +6,10 @@ movimientos de `refs/heads/*` como clase. Punto 2: subcomandos que destruyen y o
 """
 import pytest
 
+from test_guardrail_differential import necesita_bash
 from test_guardrail_fix12 import gc
-from test_guardrail_fix16 import _git, repo  # noqa: F401  (`repo` es un fixture)
+from test_guardrail_fix16 import _git, ejecuta_git, repo  # noqa: F401  (`repo` es un fixture)
+from test_guardrail_fix17 import _ejecutar17
 from test_guardrail_fix18_corpus import (CODIGO18, DESTRUYEN18, EN_OTRO_DIRECTORIO18, LIMITE18, MUEVEN_RAMAS18, PERMITIDAS18, RAMA_COMO_RUTA18)
 
 
@@ -192,3 +194,24 @@ def test_el_corpus_18_no_esta_vacio_y_sin_duplicados():
     for lista in (DESTRUYEN18, CODIGO18, MUEVEN_RAMAS18, RAMA_COMO_RUTA18, PERMITIDAS18, EN_OTRO_DIRECTORIO18):
         assert len(lista) == len(set(lista)) and len(lista) > 8, len(lista)
     assert all(o.isascii() for lista in (DESTRUYEN18, CODIGO18, MUEVEN_RAMAS18, PERMITIDAS18) for o in lista)
+
+
+# --------------------------------------------------------------------------- bash real: el registro del shim `git` (anadido tras el RED, k9) ----
+@necesita_bash
+def test_diferencial18_si_bash_ejecuta_git_el_guardarrail_deniega_todas_las_formas_malas(tmp_path):
+    ordenes = DESTRUYEN18 + CODIGO18 + [o for o in MUEVEN_RAMAS18]
+    registro = _ejecutar17(tmp_path, ordenes, "d18")
+    ejecutadas = [o for k, o in enumerate(ordenes) if ejecuta_git(registro[k])]
+    assert len(ejecutadas) == len(ordenes), f"formas que bash NO ejecuta como git con el shim (el corpus no probaria nada): {[o for o in ordenes if o not in ejecutadas][:5]!r}"
+    permitidas = [o for o in ejecutadas if gc.check_git(o, "feature/x") is None]
+    assert not permitidas, f"bash ejecuta git y el guardarrail PERMITE ({len(permitidas)}): {permitidas[:6]!r}"
+
+
+@necesita_bash
+def test_limite18_bash_ejecuta_git_y_el_guardarrail_lo_permite_con_programas_con_shim(tmp_path):
+    """La clase declarada limite es REAL (no un corpus vacio): con el shim de `uv`/`chroot`/`strace`, bash ejecuta git y el guardarrail permite."""
+    ordenes = [o for o, _ in LIMITE18 if o.startswith(("uv run env -S", "uv run xargs", "uv run --no-project", "chroot", "echo a.txt | chroot"))]
+    assert len(ordenes) >= 4
+    registro = _ejecutar17(tmp_path, ordenes, "l18")
+    assert sum(1 for k in range(len(ordenes)) if ejecuta_git(registro[k])) >= len(ordenes) - 1, registro
+    assert all(gc.check_git(o, "feature/x") is None for o in ordenes)

@@ -68,8 +68,8 @@ PERMITIDAS_RAMA17 = [
     "git switch -c feature/y --track origin/feature/y", "git checkout -b feature/y --track origin/feature/y",
     "git rebase main", "git rebase -i HEAD~3", "git rebase --onto main HEAD~2", "git rebase --continue", "git rebase --abort", "git rebase feature/x",
     "git rebase -s ours main", "git rebase --root", "git rebase --root --onto main",
-    "git bisect start", "git bisect reset", "git bisect log", "git bisect run make test", "git bisect run sh -c 'make test'",
+    "git bisect log",
     "git update-ref refs/tags/v1 HEAD", "git update-ref refs/stash HEAD", "git status", "git log --oneline",
     "git submodule foreach 'git status'", "git submodule foreach --recursive git pull", "git rebase -x 'make test' HEAD~2", "git rebase --exec 'npm test' main",
-    "git submodule update --init", "git bisect run git status",
+    "git submodule update --init",
 ]
