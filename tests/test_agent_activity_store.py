@@ -36,6 +36,10 @@ def load(name):
     spec = importlib.util.spec_from_file_location(name.replace('-', '_'), path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    if hasattr(module, 'TAIL_FOLD_BYTES'):
+        # fix18 (gap 4): the tests of this file pin what a tool event does to the RING (trim, retention, CAS, validation, windows): with a fold threshold of 1 byte every `record`
+        # appends and folds at once, which is the old one-write-per-event behavior. The tail itself is covered by test_agent_activity_tail.py (real threshold).
+        module.TAIL_FOLD_BYTES = 1
     return module
 
 
@@ -590,8 +594,14 @@ def events_path(project):
     return _state(project) / 'events.json'
 
 
-def doc(project):
+def ring_doc(project):
+    """events.json as written (the ring ONLY; fix18: tool events wait in events.tail until a fold)."""
     return json.loads(events_path(project).read_bytes())
+
+
+def doc(project):
+    """The history document the readers see: the ring with the tail applied (fix18, gap 4)."""
+    return load('agent-activity-store').events_document(project)
 
 
 def boot(api, project):
@@ -600,7 +610,7 @@ def boot(api, project):
 
 def seed(api, project, **fields):
     """Replace events.json with a valid document (same owner/scope) carrying `fields`."""
-    value = doc(project) if events_path(project).exists() else None
+    value = ring_doc(project) if events_path(project).exists() else None
     if value is None:
         scope = json.loads((_state(project) / 'owner.json').read_bytes())['scope_id']
         value = {'schema_version': 1, 'owner': 'custom-agents.agent-activity-v1', 'scope_id': scope, 'revision': 0,
@@ -689,7 +699,9 @@ def test_failed_write_never_breaks_the_caller(api, project, monkeypatch):
     def boom(*args, **kwargs):
         raise OSError('disk full')
     monkeypatch.setattr(api._state_io.StateIO, 'write', boom)
-    assert api.record(project, entry())['status'] == 'unavailable'
+    # fix18: the event is durable in the tail (an append is not a `write`); only the fold into the ring fails, and it reports it
+    assert api.record(project, entry())['status'] == 'ok'
+    assert api.fold_tail(project)['status'] == 'unavailable'
     assert api.capture(project, runtime='claude', payload=native(project, 'SubagentStop'))['status'] == 'unavailable'
 
 
@@ -771,17 +783,22 @@ def test_cas_failure_loses_the_event_and_removes_the_temporary(api, project, mon
     boot(api, project)
     original = api._state_io.StateIO.write
 
+    touches = []
+
     def write(io, path, raw, deadline, expected=None, retry=True):
         if Path(path).name == 'events.json':
-            os.utime(path, ns=(1, 1))  # foreign actor touches the file
+            touches.append(1)
+            os.utime(path, ns=(len(touches) * 10**9, len(touches) * 10**9))  # foreign actor touches the file (a different instant each time: fix18 runs two folds)
         return original(io, path, raw, deadline, expected, retry)
 
     monkeypatch.setattr(api._state_io.StateIO, 'write', write)
-    assert api.record(project, entry())['reason'] == 'unsafe_state'
+    assert api.record(project, entry())['status'] == 'ok'  # fix18: durable in the tail; the fold's CAS failed and said nothing
+    assert api.fold_tail(project)['reason'] == 'unsafe_state'
     assert not [p for p in _state(project).iterdir() if p.name.startswith('.tmp-')]
-    assert doc(project)['events'] == []
+    assert ring_doc(project)['events'] == [] and len(doc(project)['events']) == 1  # the ring was not touched; the event is NOT lost (it waits in the tail)
     monkeypatch.undo()
     assert api.record(project, entry())['status'] == 'ok'  # the next capture re-reads and continues
+    assert len(ring_doc(project)['events']) == 2
 
 
 # (c) torn writes
@@ -790,7 +807,8 @@ def test_truncated_events_json_is_never_repaired_and_does_not_block_the_snapshot
     events_path(project).write_bytes(b'{"schema_version":1,"owner"')
     broken = events_path(project).read_bytes()
     assert api.history(project)['reason'] == 'invalid_state'
-    assert api.record(project, entry())['reason'] == 'invalid_state'
+    assert api.record(project, entry())['status'] == 'ok'  # fix18: the hot path does not read the ring; the corruption is reported by the fold
+    assert api.fold_tail(project)['reason'] == 'invalid_state'
     assert api.capture(project, runtime='claude', payload=native(project, 'SubagentStop'))['status'] == 'ok'
     assert api.snapshot(project)['records'][0]['event'] == 'response_finished'
     assert events_path(project).read_bytes() == broken
@@ -809,7 +827,7 @@ def test_schema_corruption_of_events_is_invalid_state_and_preserved(api, project
     events_path(project).write_text(json.dumps(value), encoding='utf-8')
     before = files(project)
     assert api.history(project)['status'] == 'unavailable'
-    assert api.record(project, entry())['status'] == 'unavailable'
+    assert api.fold_tail(project)['status'] == 'unavailable'  # fix18: the fold (not the hot path) validates the ring
     assert files(project) == before
 
 
@@ -827,7 +845,7 @@ def test_hardlinked_events_json_is_unsafe_and_untouched(api, project):
     os.link(events_path(project), project / 'alias-events')
     before = files(project)
     assert api.history(project)['reason'] == 'unsafe_state'
-    assert api.record(project, entry())['reason'] == 'unsafe_state'
+    assert api.fold_tail(project)['reason'] == 'unsafe_state'
     assert files(project) == before
 
 
@@ -992,7 +1010,7 @@ def test_deleted_directory_reads_as_missing_and_is_recreated_with_a_new_scope(ap
     assert api.record(project, entry())['status'] == 'ok'  # the next capture recreates the directory
     assert json.loads((_state(project) / 'owner.json').read_bytes())['scope_id'] != first_scope
     assert len(api.history(project)['events']) == 1 and len(api.history(project)['runs']) == 1
-    assert sorted(p.name for p in _state(project).iterdir()) == ['.gitignore', '.lock', 'events.json', 'owner.json', 'snapshot.json']
+    assert sorted(p.name for p in _state(project).iterdir()) == ['.gitignore', '.lock', 'events.json', 'events.tail', 'owner.json', 'snapshot.json']
 
 
 def test_half_deleted_directory_is_reported_never_adopted(api, project):
@@ -1263,7 +1281,7 @@ def test_tool_input_over_two_mib_is_counted_and_never_parsed_into_an_event(api, 
 def test_tool_event_creates_the_store_when_the_first_signal_is_a_tool(api, project):
     assert not _state(project).exists()
     assert api.capture(project, runtime='claude', payload=tool_payload(project))['status'] == 'ok'
-    assert sorted(p.name for p in _state(project).iterdir()) == ['.gitignore', '.lock', 'events.json', 'owner.json', 'snapshot.json']
+    assert sorted(p.name for p in _state(project).iterdir()) == ['.gitignore', '.lock', 'events.json', 'events.tail', 'owner.json', 'snapshot.json']
     assert api.snapshot(project)['status'] == 'ok' and api.snapshot(project)['records'] == []
 
 
@@ -1327,7 +1345,8 @@ def test_a2_single_attempt_on_a_windows_sharing_violation(api, project, monkeypa
         raise error
     monkeypatch.setattr(api._state_io.os, 'replace', busy)
     monkeypatch.setattr(api._state_io.time, 'sleep', sleeps.append)
-    assert api.record(project, entry(runtime='codex', nowait=True))['status'] == 'unavailable'
+    # fix18: the event is durable in the tail; the fold's ONE `os.replace` fails on the sharing violation, without backoff, and the event waits for the next fold
+    assert api.record(project, entry(runtime='codex', nowait=True))['status'] == 'ok'
     assert len(attempts) == 1 and sleeps == []
 
 
@@ -1349,7 +1368,6 @@ def test_c2_patch_summary_keeps_the_trailing_space_and_cr_trim(api, project):
 # ---- panel-redesign T-43 fix1 (D2): a burst of parallel tool hooks on a FULL ring loses nothing ------------
 _BURST = ('import importlib.util,json,sys,time;'
     's=importlib.util.spec_from_file_location("s",sys.argv[1]);m=importlib.util.module_from_spec(s);s.loader.exec_module(m);'
-    'm.TOOL_LOCK_WAIT*=m.DEADLINE_SCALE;'
     'e=json.loads(sys.argv[3]);e["tool"]="T%s"%sys.argv[4];'
     'time.sleep(max(0,float(sys.argv[5])-time.time()));print(json.dumps(m.record(sys.argv[2],e)))')
 
@@ -1374,9 +1392,10 @@ def test_d2_burst_of_eight_parallel_tool_events_on_a_full_ring_loses_none(api, p
     # design 2.5 (a): a lost event is only an exceptional gap (CA-42: the capture is informative and may have gaps).
     # What this test proves is the yield-and-retry mechanism on a full ring; the real 1 s wait stays pinned by
     # test_los_plazos_de_pared_se_pueden_inyectar_por_entorno. plugin-audit-2 T-23 (suite after fix17): with the real
-    # 1 s, every writer after the first re-reads the 500-event ring inside the lock (its preload is stale) and holds
-    # it 130-400 ms on a loaded Windows machine, so 8 writers lost 1-6 events in 7 of 8 probe runs. The children scale
-    # TOOL_LOCK_WAIT with the injected DEADLINE_SCALE, like the deadlines, so the test no longer measures the machine.
+    # 1 s, every writer after the first re-read the 500-event ring inside the lock and held it 130-400 ms on a loaded
+    # Windows machine (8 writers lost 1-6 events in 7 of 8 probe runs). fix18 (D2): tool events are appended to
+    # events.tail without reading the ring, so the REAL 1 s wait is enough again and the children no longer scale
+    # TOOL_LOCK_WAIT; test_agent_activity_tail.py runs the burst with the real deadlines (no scale at all).
     assert lost == [], lost
     value = doc(project)
     assert len(value['events']) == 500 and value['recortado'] == 8
@@ -1426,8 +1445,11 @@ def test_2_1_lifecycle_writer_is_not_blocked_by_another_waiting_lifecycle_writer
         child.communicate('', timeout=10)
 
 
-def test_2_1_the_ring_read_before_the_lock_is_reused_only_if_unchanged(api, project, monkeypatch):
+def test_2_1_the_tool_path_never_reads_the_ring_and_the_lifecycle_path_reads_it_before_the_lock(api, project, monkeypatch):
+    """fix18 (gap 4): a tool event is APPENDED to the tail: it reads and validates nothing of events.json (the 25-55 ms scan of a freshly replaced file, paid inside the lock by every writer of
+    a burst, is gone). The lifecycle write still preloads the ring outside the lock and reuses it only if its signature is unchanged."""
     boot(api, project)
+    api.TAIL_FOLD_BYTES = 8192            # the real threshold: three small events stay in the tail
     now = time.time()
     seed(api, project, revision=500, events=[dict(old_event(i, now - 5), resumen=('r %d ' % i).ljust(160, 'y')) for i in range(1, 501)])
     held, reads, original = [False], [], api._state_io.StateIO.read
@@ -1448,23 +1470,12 @@ def test_2_1_the_ring_read_before_the_lock_is_reused_only_if_unchanged(api, proj
 
     monkeypatch.setattr(api._state_io.StateIO, 'locked', locked)
     monkeypatch.setattr(api._state_io.StateIO, 'read', read)
-    assert api.record(project, entry(tool='A'))['status'] == 'ok'
-    assert ('events.json', True) not in reads and ('events.json', False) in reads  # read outside the hold
-    # Another writer replaces the ring between that read and the lock: the stale copy is never published.
-    first = [True]
-
-    @contextlib.contextmanager
-    def racing(io, *args, **kwargs):
-        if first[0]:
-            first[0] = False
-            assert api.record(project, entry(tool='B'))['status'] == 'ok'
-        with locked(io, *args, **kwargs):
-            yield
-
-    monkeypatch.setattr(api._state_io.StateIO, 'locked', racing)
+    for tool in ('A', 'B', 'C'):
+        assert api.record(project, entry(tool=tool))['status'] == 'ok'
+    assert not [r for r in reads if r[0] == 'events.json'], reads
     reads.clear()
-    assert api.record(project, entry(tool='C'))['status'] == 'ok'
-    assert ('events.json', True) in reads  # the changed ring is re-read under the lock
+    assert api.capture(project, runtime='claude', payload=native(project, 'SubagentStop'))['status'] == 'ok'
+    assert ('events.json', False) in reads and ('events.json', True) not in reads  # lifecycle: preloaded outside the hold, reused under it
     value = doc(project)
     assert [e['tool'] for e in value['events'][-3:]] == ['A', 'B', 'C'] and value['revision'] == 503
 

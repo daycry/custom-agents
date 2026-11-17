@@ -33,7 +33,7 @@ def pasos(payload, tmp_path, nombre):
 
 @pytest.mark.parametrize('kb', [2, 4, 8])
 def test_los_pasos_del_escaner_no_pasan_del_tope_por_razon_de_tamano(tmp_path, kb):
-    n = kb * 1024 // 3
+    n = (kb * 1024 - 300) // 3          # (ajuste tras el RED, k4) el caso de 8 KB tiene que caber en el tope de 8192 B para llegar al escaner
     entrada = dict(BASE, nota=[0] * n)
     assert len(json.dumps(entrada)) <= 8192
     assert pasos(entrada, tmp_path, 'k%d' % kb) <= 3 * tope(), 'con %d KB (%d tokens) el escaner pasa de su tope de pasos' % (kb, n)

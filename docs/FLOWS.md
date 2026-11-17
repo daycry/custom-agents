@@ -580,7 +580,7 @@ flowchart LR
     CC & CX & OC --> L["hooks/run-hook.mjs agent-activity"]
     L -->|"sin sesion.actividad: true<br/>(dev.json ≤ 64 KiB)"| X(["sale con 0<br/>sin Python"])
     L -->|"opt-in"| S["agent-activity-store.py<br/>capture → record"]
-    S -->|"resumen por lista blanca, redactado<br/>T-XX solo por usage-meter.py start/close<br/>CAS, sin reintento"| E[(".claude/agent-activity/events.json<br/>runs · ventanas · eventos<br/>500 / 256 KiB / 24 h")]
+    S -->|"resumen por lista blanca, redactado<br/>T-XX solo por usage-meter.py start/close<br/>CAS, sin reintento<br/>añadido a events.tail (sin releer el anillo)"| E[(".claude/agent-activity/events.json<br/>runs · ventanas · eventos<br/>500 / 256 KiB / 24 h")]
     E -->|"history() sin cerrojo"| A["serve_panel.py<br/>api/actividad-runs<br/>api/actividad-run-key16 (≤ 64 KiB)"]
     A --> P(["agentes.html: runs + línea de tiempo<br/>index.html: actividad reciente"])
 ```
@@ -814,7 +814,8 @@ corre desde que el worker está listo y se recorta al tope exterior (límite +
 consulta expira antes, en vez de recibir el SIGKILL a mitad de la limpieza. Una
 salida recibida fuera de plazo se descarta y produce `unknown` con
 `cli-timeout`; en Windows el árbol de la CLI se mata con la raíz viva
-(`taskkill /T`) y solo cuentan los procesos nacidos tras el lanzamiento. Esta
+(`taskkill /T`, sin esperar al barrido de respaldo) y solo cuentan los procesos nacidos tras el lanzamiento; con la raíz ya muerta, el barrido por identidad corre fuera del job del worker
+(`cmd /c start /b`) y sobrevive a su salida. Esta
 lectura no cambia la configuración del proyecto.
 
 OpenCode 2.0.12 sobre el candidato actual ha confirmado carga, contexto,

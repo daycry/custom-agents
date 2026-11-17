@@ -153,10 +153,10 @@ def test_count_oversize_ve_anillo_y_cola(api, project):
 
 def test_la_ventana_de_atribucion_se_aplica_en_orden_al_plegar(api, project):
     boot(api, project)
-    assert api.record(project, entry(tool='Bash', window=('start', 'T-01')))['status'] == 'ok'
+    assert api.record(project, entry(tool='Bash', window=('start', 'plan/T-01')))['status'] == 'ok'
     assert api.record(project, entry(tool='Edit'))['status'] == 'ok'
     h = api.history(project)
-    assert len(h['events']) == 2 and h['ventanas'] and h['ventanas'][0]['tarea'] == 'T-01' and h['ventanas'][0]['estado'] == 'abierta'
+    assert len(h['events']) == 2 and h['ventanas'] and h['ventanas'][0]['tarea'] == 'plan/T-01' and h['ventanas'][0]['estado'] == 'abierta'
 
 
 def test_la_cola_es_un_fichero_propio_y_un_enlace_se_rechaza(api, project, tmp_path):
@@ -226,6 +226,7 @@ def test_d2_rafaga_sobre_el_anillo_lleno_con_la_espera_REAL_no_pierde_ninguno(ap
         assert p.returncode == 0, err
         resultados.append(json.loads(out))
     perdidos = [r for r in resultados if r['status'] != 'ok']
+    print('D2 sonda: count=%d perdidos=%d' % (count, len(perdidos)))   # (anadido tras el RED, k10) la cifra que el ledger anota
     if count == 8:
         assert perdidos == [], perdidos
     visto = tools(api.history(project))

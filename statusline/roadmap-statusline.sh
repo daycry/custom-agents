@@ -38,10 +38,12 @@ fallback() {
 # braces inside strings). A duplicate or escaped key, an unterminated string or anything it cannot
 # follow means "cannot decide": that refresh keeps Python, with the input in the cache key (D1).
 STATUSLINE_SCAN_MAX=8192   # review attempt 3 (2): a larger input is not scanned; Python paints it, keyed by input
+STATUSLINE_SCAN_STEPS=400  # T-23 fix18 (gap 16): `s="${s:N}"` copies the rest of the input on every token, so the scanner was quadratic in the NUMBER OF TOKENS below the 8 KB cap
+                           # (96/271/1594 ms with 2/4/8 KB of `[0,0,…]`). Past this many steps it "cannot decide" (Python paints, keyed by input); a real input takes ~100-150 steps.
 json_members() {   # $1 JSON object, $2... keys (identifiers): M_<key> = raw value, F_<key>=1 when found;
                    # returns 1 when it cannot decide (not one valid object, duplicate or escaped key,
                    # bad escape, trailing comma, text after the object). Bash 3.2 compatible.
-  local s="$1" depth=1 state=key cur="" capkey="" val="" chunk sp k prev="" wanted flag LC_ALL=C
+  local s="$1" depth=1 state=key cur="" capkey="" val="" chunk sp k prev="" wanted flag steps=0 LC_ALL=C
   local re_open='^[[:space:]]*\{' re_tok='^([^]"{},:[]*)(.?)'
   local re_str='^(([^"\]|\\["\/bfnrt]|\\u[0-9a-fA-F]{4})*)"'
   shift
@@ -50,6 +52,7 @@ json_members() {   # $1 JSON object, $2... keys (identifiers): M_<key> = raw val
   [[ "$s" =~ $re_open ]] || return 1
   s="${s:${#BASH_REMATCH[0]}}"
   while :; do
+    [ "$((steps += 1))" -le "$STATUSLINE_SCAN_STEPS" ] || return 1
     [[ "$s" =~ $re_tok ]] || return 1
     chunk="${BASH_REMATCH[1]}"; sp="${BASH_REMATCH[2]}"
     s="${s:${#BASH_REMATCH[0]}}"

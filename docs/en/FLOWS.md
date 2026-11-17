@@ -580,7 +580,7 @@ flowchart LR
     CC & CX & OC --> L["hooks/run-hook.mjs agent-activity"]
     L -->|"no sesion.actividad: true<br/>(dev.json ≤ 64 KiB)"| X(["exits 0<br/>no Python"])
     L -->|"opt-in"| S["agent-activity-store.py<br/>capture → record"]
-    S -->|"allowlisted, redacted summary<br/>T-XX only from usage-meter.py start/close<br/>CAS, no retry"| E[(".claude/agent-activity/events.json<br/>runs · windows · events<br/>500 / 256 KiB / 24 h")]
+    S -->|"allowlisted, redacted summary<br/>T-XX only from usage-meter.py start/close<br/>CAS, no retry<br/>appended to events.tail (the ring is not re-read)"| E[(".claude/agent-activity/events.json<br/>runs · windows · events<br/>500 / 256 KiB / 24 h")]
     E -->|"history() without lock"| A["serve_panel.py<br/>api/actividad-runs<br/>api/actividad-run-key16 (≤ 64 KiB)"]
     A --> P(["agentes.html: runs + timeline<br/>index.html: recent activity"])
 ```
@@ -812,7 +812,8 @@ cap (limit + 3 s, minimum 7 s) minus a 2 s cleanup reserve: with a slow worker
 the query expires earlier instead of receiving the SIGKILL mid-cleanup. Output
 received after the deadline is discarded and returns `unknown` with
 `cli-timeout`; on Windows the CLI tree is killed with the root alive
-(`taskkill /T`) and only processes born after the launch count. This read
+(`taskkill /T`, without waiting for the fallback sweep) and only processes born after the launch count; with the root already dead, the identity sweep runs outside the worker's job
+(`cmd /c start /b`) and outlives its exit. This read
 leaves project configuration unchanged.
 
 OpenCode 2.0.12 on the current candidate has confirmed loading, context,

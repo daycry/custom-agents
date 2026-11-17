@@ -32,7 +32,7 @@ import { fileURLToPath } from "node:url"
 import { createInterface, emitKeypressEvents } from "node:readline"
 import { execFileSync } from "node:child_process"
 import { tmpdir, homedir } from "node:os"
-import { queryCodexPlugin, runBounded } from "../agent-kits/shared/codex-plugin-state.mjs"
+import { queryCodexPlugin, runBounded, terminateProcessTree } from "../agent-kits/shared/codex-plugin-state.mjs"
 import {validateDelivery,planProfileCopies,resolveSelection,verifyProfileTarget} from './modules.mjs'
 import {
   PROVIDERS, IDS, getProvider, buildPlan, MANIFEST, MANIFEST_PLUGIN, MANIFIESTOS,
@@ -1317,6 +1317,18 @@ function correr(cmd, args, cwd, env = process.env) {
       // se recuperaba con el barrido CIM (3,3-4,8 s; mas de 20 s con la CPU saturada); el dueño del plazo mata con la raiz VIVA (`taskkill /T`, ~1 s). El worker no hereda la salida: la devuelve.
       const cmdWin = /\.(cmd|bat)$/i.test(real)
       const linea = [real, ...args].map(argCmd).join(" ")
+      // fix18 (gap 15): una sonda `--version` no arranca un worker de node (1.071 ms frente a 75 ms por llamada con carga: un arranque de node por sonda). Termina en milisegundos; si expira, el
+      // arbol se mata con la raiz ya muerta (barrido con identidad, fuera del job) como cualquier otro plazo.
+      if (args.length === 1 && args[0] === "--version") {
+        const lanzado = Date.now()
+        try {
+          return execFileSync(cmdWin ? (process.env.COMSPEC || "cmd.exe") : real, cmdWin ? ["/d", "/s", "/c", `"${linea}"`] : args,
+            { ...opciones, windowsVerbatimArguments: cmdWin, windowsHide: true, timeout: Math.min(TIMEOUT_EXEC, 30_000), killSignal: "SIGKILL" })
+        } catch (e) {
+          if (expiro(e) && e.pid) terminateProcessTree(e.pid, 8_000, 8_000, { since: lanzado - 100, until: Date.now(), rootAlive: false })
+          throw e
+        }
+      }
       const r = runBounded({ file: cmdWin ? (process.env.COMSPEC || "cmd.exe") : real, args: cmdWin ? ["/d", "/s", "/c", `"${linea}"`] : args,
         cwd, env: opciones.env, timeoutMs: TIMEOUT_EXEC, verbatim: cmdWin })
       if (r.expirado) {

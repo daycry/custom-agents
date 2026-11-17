@@ -17,16 +17,17 @@ const HELPER=fileURLToPath(import.meta.url)
 const unknown = reason => ({state:'unknown', enabled:null, version:null, reason})
 const validVersion = value => typeof value==='string' && /^[A-Za-z0-9.+-]{1,64}$/.test(value)
 
-// fix17 (gaps 3, 5, 18 y 19): arbol de procesos de Windows con IDENTIDAD. Windows reutiliza los pid y el `ParentProcessId` de un proceso conserva el pid de un padre muerto: matar «todo
-// lo que cuelga del pid X» alcanza a procesos AJENOS y ANTERIORES (se vio con 25 padres huerfanos en una sesion: `explorer.exe`, `OneDrive.exe`…). Reglas:
+// fix17 (gaps 3, 5, 18 y 19) y fix18 (gap 3): arbol de procesos de Windows con IDENTIDAD. Windows reutiliza los pid y el `ParentProcessId` de un proceso conserva el pid de un padre muerto: matar
+// «todo lo que cuelga del pid X» alcanza a procesos AJENOS y ANTERIORES (se vio con 25 padres huerfanos en una sesion: `explorer.exe`, `OneDrive.exe`…). Reglas:
 //  - `since` (ms, reloj de pared: el instante del lanzamiento menos 100 ms): un proceso solo cuenta si su `CreationDate` >= `since` y >= la de su padre; si la raiz esta MUERTA
-//    (`rootAlive:false`), los hijos directos ademas deben ser anteriores a `until` (el instante de su muerte): un hijo de un proceso que reutilizo el pid nace despues.
-//  - El dueño del temporizador mata PRIMERO con la raiz VIVA (`taskkill /T /F`: 0,9-1,1 s con carga); el barrido CIM (una proyeccion `ProcessId,ParentProcessId,CreationDate` y busqueda
-//    en anchura en el cliente) es el respaldo para los huerfanos fuera del arbol y confirma la muerte comparando pid + fecha de creacion.
-//  - La espera NO sondea pids de victimas (un pid reutilizado agotaba el plazo entero): espera a que terminen `taskkill` y el barrido, que son procesos propios, dentro del presupuesto.
-//    Sin suelo: el presupuesto de la limpieza nunca pasa del SIGKILL exterior.
+//    (`rootAlive:false`), los hijos directos ademas deben ser anteriores a `until` (el instante en que SALIO: el evento `exit` del llamador; un hijo de un proceso que reutilizo el pid nace despues).
+//    Los llamadores deciden `rootAlive` por el estado real de su handle (`exitCode`/`exit`), no por `alive(pid)`: con el handle abierto el pid no se reutiliza.
+//  - Con la raiz VIVA el dueño del temporizador mata con `taskkill /T /F` (0,6-1,1 s con carga; ya filtra por fecha de creacion) y SOLO espera a taskkill: no al barrido.
+//  - El barrido CIM (una proyeccion `ProcessId,ParentProcessId,CreationDate` y busqueda en anchura en el cliente) es el respaldo para los huerfanos fuera del arbol y el UNICO mecanismo con la
+//    raiz muerta. Se lanza FUERA del job del worker (fix18): un PowerShell hijo normal muere cuando el worker sale (job de libuv con KILL_ON_JOB_CLOSE) y la foto CIM tarda 1-4 s con carga, mas
+//    que el presupuesto; con `detached` puro (DETACHED_PROCESS) PowerShell no tiene consola y sale SIN ejecutar nada (medido), asi que va con `cmd /c start /b` (detached) y `-EncodedCommand`
+//    (sin interpolar texto en una linea de cmd). Comprueba pid + fecha de creacion JUSTO antes de cada `Stop-Process`, en la misma orden: el pid que `taskkill` libera no mata a un ajeno.
 export const TREE_KILL_TOTAL_MS=8_000
-const SWEEP_GRACE_MS=1_500
 const CLEANUP_RESERVE_MS=2_000       // limpieza del arbol (taskkill con la raiz viva) dentro del tope exterior de la consulta
 const alive=id=>{try {process.kill(id,0);return true} catch(error) {return error.code==='EPERM'}}
 export const sweepScript=(pid,since,until,rootAlive)=>[
@@ -43,42 +44,35 @@ export const sweepScript=(pid,since,until,rootAlive)=>[
   'while($q.Count -gt 0 -and $kill.Count -lt 512){$par=$q.Dequeue();if(-not $by.ContainsKey($par)){continue}',
   'foreach($c in $by[$par]){$cid=[int]$c.ProcessId;if($seen.ContainsKey($cid)){continue};$ct=T $c.CreationDate',
   'if($ct -ge $low[$par] -and ($par -ne $root -or $until -eq 0 -or $ct -le $until)){$seen[$cid]=1;$low[$cid]=$ct;[void]$kill.Add(@($cid,$ct));$q.Enqueue($cid)}}}',
-  'for($i=$kill.Count-1;$i -ge 0;$i--){Stop-Process -Id $kill[$i][0] -Force}',
-  '$end=(Get-Date).AddSeconds(15)',
-  'foreach($k in $kill){while((Get-Date) -lt $end){$p=Get-Process -Id $k[0];if(-not $p){break};if([math]::Abs((T $p.StartTime)-$k[1]) -gt 2000){break};Start-Sleep -Milliseconds 100}}',
+  'for($i=$kill.Count-1;$i -ge 0;$i--){$id=$kill[$i][0];$p=Get-Process -Id $id;if($p -and [math]::Abs((T $p.StartTime)-$kill[$i][1]) -le 2000){Stop-Process -Id $id -Force}}',
 ].join(';')
-export function terminateProcessTree(pid,budgetMs=TREE_KILL_TOTAL_MS,maxMs=TREE_KILL_TOTAL_MS,{since=0,until=0,rootAlive=true}={}) {
+const encodedCommand=script=>Buffer.from(script,'utf16le').toString('base64')
+export function terminateProcessTree(pid,budgetMs=TREE_KILL_TOTAL_MS,maxMs=TREE_KILL_TOTAL_MS,{since=0,until=0,rootAlive=true,deps}={}) {
   if (!Number.isInteger(pid) || pid <= 0) return
   if (process.platform !== 'win32') {
     try {process.kill(-pid,'SIGKILL')} catch {/* process group already gone */}
     return
   }
+  const launch=deps?.spawn || spawn,isAlive=deps?.alive || alive
   const deadline=Date.now()+Math.min(maxMs,Math.max(0,Number.isFinite(budgetMs) ? budgetMs : TREE_KILL_TOTAL_MS))
   const system=join(process.env.SystemRoot || 'C:\\Windows','System32')
-  const live=rootAlive && alive(pid)
-  let killer,sweeper
-  // 1) con la raiz VIVA, `taskkill /T /F`. NO se lanza `detached`: un PowerShell sin consola (DETACHED_PROCESS) sale al instante sin ejecutar nada (medido); la limpieza cabe antes del
-  //    SIGKILL exterior gracias a `queryPlan` (reserva de 2 s) y al presupuesto sin suelo.
+  const live=rootAlive && isAlive(pid)
+  let killer
+  // 1) con la raiz VIVA, `taskkill /T /F`. NO se lanza `detached`: la limpieza cabe antes del SIGKILL exterior gracias a `queryPlan` (reserva de 2 s) y al presupuesto sin suelo.
   if(live) {
-    try {killer=spawn(join(system,'taskkill.exe'),['/T','/F','/PID',String(pid)],{stdio:'ignore',windowsHide:true});killer.on('error',()=>{});killer.unref()} catch {killer=undefined}
+    try {killer=launch(join(system,'taskkill.exe'),['/T','/F','/PID',String(pid)],{stdio:'ignore',windowsHide:true});killer.on('error',()=>{});killer.unref()} catch {killer=undefined}
   }
-  // 2) respaldo: barrido por identidad, con plazo propio (15 s de confirmacion dentro del script).
+  // 2) respaldo: barrido por identidad, FUERA del job del worker (sobrevive a su salida) y sin esperarlo.
   try {
-    sweeper=spawn(join(system,'WindowsPowerShell/v1.0/powershell.exe'),['-NoProfile','-NonInteractive','-Command',sweepScript(pid,Math.max(0,Math.floor(since)),Math.max(0,Math.floor(until)),live)],
-      {stdio:'ignore',windowsHide:true})
+    const powershell=join(system,'WindowsPowerShell/v1.0/powershell.exe')
+    const script=sweepScript(pid,Math.max(0,Math.floor(since)),Math.max(0,Math.floor(until)),live)
+    const sweeper=launch(process.env.COMSPEC || join(system,'cmd.exe'),['/d','/c',`start "" /b "${powershell}" -NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand ${encodedCommand(script)}`],
+      {stdio:'ignore',windowsHide:true,detached:true,windowsVerbatimArguments:true})
     sweeper.on('error',()=>{});sweeper.unref()
-  } catch {sweeper=undefined}
+  } catch {/* sin barrido: queda taskkill */}
+  if(!killer) return
   const wait=new Int32Array(new SharedArrayBuffer(4))
-  const running=helper=>helper?.pid && alive(helper.pid)
-  let killerEnded=null
-  while(Date.now()<deadline) {
-    const k=running(killer),s=running(sweeper)
-    if(!k && !s) break
-    if(!k && killerEnded===null) killerEnded=Date.now()
-    // con la raiz viva el arbol ya cayo con `taskkill`: el barrido solo busca huerfanos y se le da un margen corto; con la raiz muerta es el unico mecanismo.
-    if(live && killer && !k && Date.now()-killerEnded>=SWEEP_GRACE_MS) break
-    Atomics.wait(wait,0,0,50)
-  }
+  while(Date.now()<deadline && killer.pid && isAlive(killer.pid)) Atomics.wait(wait,0,0,50)
 }
 
 // Plazos de la consulta nativa (fix17, gap 4). El `SIGKILL` exterior de `runCodexQuery` llega a `outerMs(limit)` del lanzamiento; el plazo de la consulta (listo + limite) se recorta a
@@ -150,12 +144,13 @@ function queryWorker(deadline,limit) {
   }
   const spawnedAt=Date.now()
   const child=spawn(command,args,options)
-  let chunks=[],size=0,finished=false,timer
+  let chunks=[],size=0,finished=false,timer,rootExitedAt=0
+  child.on('exit',()=>{rootExitedAt=Date.now()})       // con el handle abierto el pid no se reutiliza: `exit` dice si la raiz sigue viva y desde cuando esta muerta
   const finish=(status,kill=false)=>{
     if(finished) return
     if(status===0 && Date.now()>=deadline) {status=124;kill=true}
     finished=true;clearTimeout(timer)
-    if(kill) terminateProcessTree(child.pid,cleanupBy-Date.now(),TREE_KILL_TOTAL_MS,{since:spawnedAt-100,rootAlive:true})
+    if(kill) terminateProcessTree(child.pid,cleanupBy-Date.now(),TREE_KILL_TOTAL_MS,{since:spawnedAt-100,until:rootExitedAt,rootAlive:!rootExitedAt})
     child.stdout.destroy()
     if(status===0) process.stdout.write(Buffer.concat(chunks),()=>process.exit(0))
     else process.exit(status)
@@ -195,7 +190,8 @@ function runBoundedWorker(specJson) {
   try {
     child=spawn(spec.file,spec.args || [],{cwd:spec.cwd,stdio:['ignore','pipe','pipe'],windowsHide:true,windowsVerbatimArguments:Boolean(spec.verbatim),detached:process.platform!=='win32'})
   } catch(error) {report({error:error?.code ?? 'EFAIL'});process.exit(0)}
-  let finished=false,timer
+  let finished=false,timer,rootExitedAt=0
+  child.on('exit',()=>{rootExitedAt=Date.now()})
   const done=(result,code=0)=>{if(finished)return;finished=true;clearTimeout(timer);report(result);process.exit(code)}
   child.stdout.on('data',chunk=>process.stdout.write(chunk))
   child.stderr.on('data',chunk=>process.stderr.write(chunk))
@@ -204,7 +200,7 @@ function runBoundedWorker(specJson) {
   timer=setTimeout(()=>{
     if(finished) return
     finished=true
-    terminateProcessTree(child.pid,TREE_KILL_TOTAL_MS,TREE_KILL_TOTAL_MS,{since:startedAt-100,rootAlive:true})
+    terminateProcessTree(child.pid,TREE_KILL_TOTAL_MS,TREE_KILL_TOTAL_MS,{since:startedAt-100,until:rootExitedAt,rootAlive:!rootExitedAt})
     report({expirado:true});process.exit(0)
   },spec.timeoutMs)
 }

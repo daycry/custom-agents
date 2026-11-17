@@ -24,6 +24,13 @@ MAX_BYTES = 65536
 MAX_EVENTS_FILE = 256 * 1024  # events.json, whole document (I-03)
 MAX_INPUT = 2 * 1024 * 1024  # tool events are parsed in memory and never persisted (I-03)
 EVENTS = 'events.json'
+# T-23 fix18 (gap 4, D2): tool events are APPENDED to `events.tail` (O_APPEND + fsync under the lock, no read of the ring: opening a freshly replaced file to read it costs 25-55 ms of
+# synchronous scanning, so every writer of a burst paid it inside the lock). The writer that finds the tail over TAIL_FOLD_BYTES (about 16 events), a lifecycle signal or an oversize count
+# FOLDS it into the ring: the ring is published by CAS BEFORE the tail is truncated, and the ids folded stay in `plegado`, so a crash between the two never duplicates an event.
+TAIL = 'events.tail'
+TAIL_FOLD_BYTES = 8192
+TAIL_MAX_BYTES = 65536
+MAX_PLEGADO = 512
 MAX_CLEAN = 8  # P-EI-1: own old temporaries removed per write
 CLEAN_AGE = 60
 MAX_REVISION = 2**53 - 1
@@ -167,13 +174,13 @@ _TEMP = re.compile(r'\.tmp-[a-zA-Z0-9_-]+')
 
 
 def _inventory(state):
-    listing = _reader.list_names(state.parent, state.name, max_entries=len(FIXED_NAMES) + 1 + MAX_TEMPS + 2)
+    listing = _reader.list_names(state.parent, state.name, max_entries=len(FIXED_NAMES) + 2 + MAX_TEMPS + 2)
     if listing['status'] == 'ok' and not listing['complete']:
         raise _Failure('state_budget')
     _need(listing['status'] == 'ok' and listing['complete'], 'invalid_state')
     names = set(listing['names'])
     temps = {name for name in names if _TEMP.fullmatch(name)}
-    _need(names - temps - {EVENTS} == FIXED_NAMES, 'invalid_state')
+    _need(names - temps - {EVENTS, TAIL} == FIXED_NAMES, 'invalid_state')
     _need(len(temps) <= MAX_TEMPS, 'state_budget')
 
 
@@ -200,7 +207,7 @@ def _clean_temps(state):
         return
     names = set(listing['names'])
     temps = sorted(name for name in names if _TEMP.fullmatch(name))
-    if names - set(temps) - {EVENTS} != FIXED_NAMES:
+    if names - set(temps) - {EVENTS, TAIL} != FIXED_NAMES:
         return
     now, removed = time.time(), 0
     for name in temps:
@@ -235,6 +242,8 @@ def _read_snapshot(root, state, io):
 
 _DOC = frozenset(('schema_version', 'owner', 'scope_id', 'revision', 'config_sig', 'recortado',
     'descartados_por_tamano', 'runs', 'ventanas', 'events'))
+_DOC_PLEGADO = _DOC | {'plegado'}      # `plegado`: ids of the tail lines already folded into the ring (optional: absent until the first fold)
+_TAIL_ID = re.compile(r'[0-9a-f]{16}')
 _WINDOW_FIELDS = frozenset(('run_key', 'tarea', 'estado', 'abierta_at', 'fin_at'))
 _EVENT_FIELDS = frozenset(('schema_version', 'runtime', 'run_key', 'role', 'tool', 'resumen', 'tarea',
     'duracion_ms', 'resultado', 'observed_at', 'revision'))
@@ -274,10 +283,12 @@ def _new_events(marker):
 
 
 def _validate_events(value, marker):
-    _need(type(value) is dict and set(value) == _DOC and type(value['schema_version']) is int
+    _need(type(value) is dict and set(value) in (_DOC, _DOC_PLEGADO) and type(value['schema_version']) is int
         and value['schema_version'] == 1 and value['owner'] == OWNER and value['scope_id'] == marker['scope_id'],
         'invalid_state')
     _need(_count(value['revision']) and _count(value['recortado']) and _count(value['descartados_por_tamano']), 'invalid_state')
+    _need('plegado' not in value or (type(value['plegado']) is list and len(value['plegado']) <= MAX_PLEGADO
+        and all(type(i) is str and _TAIL_ID.fullmatch(i) for i in value['plegado'])), 'invalid_state')
     _need(value['config_sig'] is None or _hex(value['config_sig']), 'invalid_state')
     _need(_projection.project_runs(value['runs'], now=0)['status'] == 'ok', 'invalid_state')
     windows, events = value['ventanas'], value['events']
@@ -348,6 +359,71 @@ def _signature(path, io):
         return None
 
 
+def _tail_line(entry, now):
+    """One tail record: a random id (the key that recognizes a line already folded) and the entry without `nowait`."""
+    row = {k: entry[k] for k in ('runtime', 'scope', 'session', 'agent', 'role', 'tool', 'resumen', 'duracion_ms', 'resultado')}
+    row['window'] = list(entry['window']) if entry['window'] else None
+    return _json({'id': secrets.token_hex(8), 'at': now, 'e': row}) + b'\n'
+
+
+def _read_tail(state, io):
+    """The complete, validated lines of `events.tail` as `[{'id', 'at', 'entry'}]`. A final line without its newline is a torn append (a crash mid-write) and is ignored; any
+    other malformed line fails closed. A concurrent append makes the signature change between the two stats: up to three attempts."""
+    path = state / TAIL
+    if not path.exists():
+        return []
+    for attempt in range(3):
+        try:
+            raw, _signature = io.read(path, TAIL_MAX_BYTES)
+            break
+        except _Failure as exc:
+            if str(exc) != 'unsafe_state' or attempt == 2:
+                raise
+    lines = raw.split(b'\n')
+    lines.pop()                       # after the last newline: empty, or the torn final line
+    rows = []
+    for line in lines:
+        try:
+            row = _strict(line)
+            _need(type(row) is dict and set(row) == {'id', 'at', 'e'} and type(row['id']) is str and _TAIL_ID.fullmatch(row['id'])
+                and type(row['at']) in (int, float) and math.isfinite(row['at']) and 0 <= row['at'] <= MAX_REVISION and type(row['e']) is dict, 'invalid_state')
+            e = dict(row['e'], nowait=False)
+            _need(e.get('window') is None or (type(e['window']) is list and len(e['window']) == 2), 'invalid_state')
+            e['window'] = tuple(e['window']) if e.get('window') else None
+            rows.append({'id': row['id'], 'at': row['at'], 'entry': _entry(e)})
+        except _Failure:
+            raise _Failure('invalid_state')
+        except (ValueError, TypeError, KeyError, RecursionError):
+            raise _Failure('invalid_state')
+    return rows
+
+
+def _plegar(doc, marker, rows):
+    """Apply the tail records in order (each one with the instant it was observed), skipping the ids a previous fold already published."""
+    if not rows:
+        return
+    hechos = set(doc.get('plegado', ()))
+    for row in rows:
+        if row['id'] not in hechos:
+            _tool_mutation(row['entry'])(doc, marker, row['at'])
+    doc['plegado'] = [row['id'] for row in rows][-MAX_PLEGADO:]
+
+
+def events_document(project):
+    """The full validated history document (ring + tail applied, nothing written): what readers and tests see. Raises `_Failure`."""
+    io = _io(MAX_EVENTS_FILE)
+    root = _root(project, io)
+    _enabled(root, io)
+    state = root / '.claude' / 'agent-activity'
+    _need(state.exists(), 'state_missing')
+    marker, _o, _i = _base(root, state, io)
+    doc, _ = _load_events(root, state, io, marker)
+    rows = _read_tail(state, io)
+    if rows:
+        _plegar(doc, marker, rows)
+    return doc
+
+
 def _update_events(root, state, io, config_signature, deadline, mutate, nowait=False, preloaded=None):
     marker, _, ignore_signature = _base(root, state, io)
     now = time.time()
@@ -357,12 +433,47 @@ def _update_events(root, state, io, config_signature, deadline, mutate, nowait=F
         doc, signature = preloaded  # unchanged since it was read and validated: same CAS as the replace
     else:
         doc, signature = _load_events(root, state, io, marker)
+    rows = _read_tail(state, io)
     stamp = hashlib.sha256(repr(config_signature).encode('utf-8')).hexdigest()
     if doc['config_sig'] != stamp:  # any edit of dev.json invalidates the open attribution windows (2.5 e)
         doc['ventanas'] = _projection.expire_open(doc['ventanas'], now)
         doc['config_sig'] = stamp
+    _plegar(doc, marker, rows)
     mutate(doc, marker, now)
     _publish_events(root, state, io, doc, signature, ignore_signature, deadline, now, nowait)
+    if rows:  # the ring is published (CAS) BEFORE the tail is emptied; a failure here leaves lines whose ids `plegado` recognizes
+        try:
+            io.truncate(state / TAIL, deadline)
+        except (_Failure, OSError):
+            pass
+
+
+def _append_tool_event(root, state, io, config_signature, deadline, entry):
+    """The hot path of a tool event: append one line under the lock, without reading or validating the ring; fold when the tail passes TAIL_FOLD_BYTES."""
+    _marker, _, ignore_signature = _base(root, state, io)
+    now = time.time()
+    _need(type(now) in (int, float) and math.isfinite(now) and 0 <= now <= MAX_REVISION, 'invalid_clock')
+    line = _tail_line(entry, now)
+    _enabled(root, io)  # An observed opt-out before the write prevents it.
+    _need(_ignore(state, io) == ignore_signature, 'unsafe_state')
+
+    def tail_size():
+        try:
+            return io.file(state / TAIL)[2]
+        except FileNotFoundError:
+            return 0
+
+    def fold():
+        try:
+            _update_events(root, state, io, config_signature, deadline, lambda doc, marker, at: None, entry['nowait'])
+        except (_Failure, OSError, ValueError, TypeError, OverflowError, RecursionError, KeyError):
+            pass  # the events are durable in the tail; the next writer folds
+
+    if tail_size() + len(line) > TAIL_MAX_BYTES:
+        fold()
+        _need(tail_size() + len(line) <= TAIL_MAX_BYTES, 'state_budget')
+    if io.append(state / TAIL, line, deadline) >= TAIL_FOLD_BYTES:
+        fold()
 
 
 def _run_keys(marker, runtime, scope, session, agent):
@@ -697,19 +808,35 @@ def record(project, entry):
         state = root / '.claude' / 'agent-activity'
         created = _ensure_state(root, state, io, deadline)
         stop = min(deadline, started + (0 if entry['nowait'] else TOOL_LOCK_WAIT))
-        preloaded = _preload(root, state, io)
         while True:  # single non-blocking attempts that yield to a waiting lifecycle writer (2-1)
             try:
                 with io.locked(state, deadline, created, wait=0, priority='yield'):
                     _clean_temps(state)
-                    _update_events(root, state, io, config_signature, deadline, _tool_mutation(entry),
-                        entry['nowait'], preloaded)
+                    _append_tool_event(root, state, io, config_signature, deadline, entry)
                 return {'status': 'ok', 'reason': None}
             except _Failure as exc:
                 if str(exc) != 'state_busy' or time.monotonic() >= stop:
                     raise
             time.sleep(min(0.005, max(0, stop - time.monotonic())))
 
+    except _Failure as exc:
+        return {'status': 'unavailable', 'reason': str(exc)}
+    except (OSError, ValueError, TypeError, OverflowError, RecursionError, KeyError):
+        return {'status': 'unavailable', 'reason': 'invalid_state'}
+
+
+def fold_tail(project):
+    """Fold `events.tail` into the ring now, under the lock, and REPORT the outcome (the hot path folds best effort and never reports it). The explicit maintenance entry point."""
+    try:
+        deadline, io = time.monotonic() + LIFECYCLE_DEADLINE, _io(MAX_EVENTS_FILE)
+        root = _root(project, io)
+        config_signature = _enabled(root, io)
+        state = root / '.claude' / 'agent-activity'
+        _need(state.exists(), 'state_missing')
+        with io.locked(state, deadline, False):
+            _clean_temps(state)
+            _update_events(root, state, io, config_signature, deadline, lambda doc, marker, now: None)
+        return {'status': 'ok', 'reason': None}
     except _Failure as exc:
         return {'status': 'unavailable', 'reason': str(exc)}
     except (OSError, ValueError, TypeError, OverflowError, RecursionError, KeyError):
@@ -821,6 +948,9 @@ def history(project):
         _need(state.exists(), 'state_missing')
         marker, owner_signature, ignore_signature = _base(root, state, io)
         doc, _ = _load_events(root, state, io, marker)
+        rows = _read_tail(state, io)
+        if rows:  # fix18: the history is the ring PLUS the tail (nothing is written here)
+            _plegar(doc, marker, rows)
         _need(io.file(state / 'owner.json') == owner_signature and _ignore(state, io) == ignore_signature, 'unsafe_state')
         _enabled(root, io)
         now = time.time()

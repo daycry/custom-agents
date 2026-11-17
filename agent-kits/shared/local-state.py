@@ -126,6 +126,53 @@ class StateIO:
             if temporary.exists():
                 temporary.unlink()  # Only this invocation's exact private temporary.
 
+    def append(self, path, raw, deadline):
+        """Add ONE record to an owned append-only leaf (T-23 fix18, D2): `O_APPEND` + `fsync`, no read. The leaf must be absent or a regular, unlinked, non-redirected file; the opened
+        handle must be the very file `lstat` saw (identity checked before the write). Returns the size after the write."""
+        path = physical_system_path(path)
+        self.need(type(raw) is bytes and 0 < len(raw) <= self.maximum, 'state_budget')
+        self.guard(deadline)
+        self.dirs(path.parent)
+        try:
+            before = self.file(path)
+        except FileNotFoundError:
+            before = None
+        flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, 'O_BINARY', 0) | getattr(os, 'O_NOFOLLOW', 0)
+        fd = os.open(path, flags, 0o600)
+        try:
+            opened = os.fstat(fd)
+            self.need(stat.S_ISREG(opened.st_mode) and opened.st_nlink == 1, 'unsafe_state')
+            seen = self.file(path)
+            self.need((seen[0], seen[1]) == (opened.st_dev, opened.st_ino) and (before is None or (before[0], before[1]) == (seen[0], seen[1])), 'unsafe_state')
+            view = memoryview(raw)
+            while view:
+                view = view[os.write(fd, view):]
+            os.fsync(fd)
+            size = os.fstat(fd).st_size
+        finally:
+            _close(fd)
+        if before is None:
+            try:
+                self.sync(path.parent)
+            except OSError:
+                self.need(False, 'durability_degraded')
+        return size
+
+    def truncate(self, path, deadline):
+        """Empty an owned append-only leaf after its records were published elsewhere (identity checked BEFORE truncating, so a swapped path is never emptied)."""
+        path = physical_system_path(path)
+        self.guard(deadline)
+        self.dirs(path.parent)
+        before = self.file(path)
+        fd = os.open(path, os.O_WRONLY | getattr(os, 'O_BINARY', 0) | getattr(os, 'O_NOFOLLOW', 0))
+        try:
+            opened = os.fstat(fd)
+            self.need(stat.S_ISREG(opened.st_mode) and opened.st_nlink == 1 and (opened.st_dev, opened.st_ino) == (before[0], before[1]), 'unsafe_state')
+            os.ftruncate(fd, 0)
+            os.fsync(fd)
+        finally:
+            _close(fd)
+
     @contextlib.contextmanager
     def intent(self, state):
         """Announce a priority writer (byte 1 of an existing `.lock`) before its unlocked preparation,
