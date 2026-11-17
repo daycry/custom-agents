@@ -3835,6 +3835,9 @@ test("fix16 (gap 11): Ctrl+C durante `codex plugin marketplace add` deja el mani
       // fix17 (gap 10): no basta con encontrarlo: `uninstall` DESHACE lo registrado y retira el manifiesto `incompleto` (y los ficheros copiados antes de la señal)
       const restantes = readdirSync(hogar, { recursive: true }).filter((f) => /\.custom-agents-install(\.plugin)?\.json$/.test(String(f)))
       assert.deepEqual(restantes, [], "uninstall dejo el manifiesto `incompleto` tras deshacer lo registrado")
+      // fix18 (gap 13): y lo que deshace es el `marketplace remove` REGISTRADO antes de lanzar el `add` (el fake de codex anota los `remove` en acciones.txt)
+      const acciones = existsSync(join(bin, "acciones.txt")) ? readFileSync(join(bin, "acciones.txt"), "utf8") : ""
+      assert.match(acciones, /plugin marketplace remove daycry/, `uninstall no ejecuto \`marketplace remove\`: ${JSON.stringify(acciones)}`)
       assert.ok(!existsSync(join(hogar, ".codex", "plugins", "cache", "daycry")) || readdirSync(join(hogar, ".codex", "plugins", "cache", "daycry")).length === 0,
         "uninstall dejo lo que el instalador habia colocado en la cache de codex")
     } finally {
