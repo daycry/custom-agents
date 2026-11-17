@@ -1349,6 +1349,7 @@ def test_c2_patch_summary_keeps_the_trailing_space_and_cr_trim(api, project):
 # ---- panel-redesign T-43 fix1 (D2): a burst of parallel tool hooks on a FULL ring loses nothing ------------
 _BURST = ('import importlib.util,json,sys,time;'
     's=importlib.util.spec_from_file_location("s",sys.argv[1]);m=importlib.util.module_from_spec(s);s.loader.exec_module(m);'
+    'm.TOOL_LOCK_WAIT*=m.DEADLINE_SCALE;'
     'e=json.loads(sys.argv[3]);e["tool"]="T%s"%sys.argv[4];'
     'time.sleep(max(0,float(sys.argv[5])-time.time()));print(json.dumps(m.record(sys.argv[2],e)))')
 
@@ -1370,8 +1371,12 @@ def test_d2_burst_of_eight_parallel_tool_events_on_a_full_ring_loses_none(api, p
         assert p.returncode == 0, err
         results.append(json.loads(out))
     lost = [r for r in results if r['status'] != 'ok']
-    # design 2.5 (a): a lost event is only an exceptional gap. Measured margin (fix2, 2-4): 8 in parallel lose 0 even
-    # with 6 CPU hogs; 12 lose 0-2 and 16 lose 1-5 (CA-42: the capture is informative and may have gaps).
+    # design 2.5 (a): a lost event is only an exceptional gap (CA-42: the capture is informative and may have gaps).
+    # What this test proves is the yield-and-retry mechanism on a full ring; the real 1 s wait stays pinned by
+    # test_los_plazos_de_pared_se_pueden_inyectar_por_entorno. plugin-audit-2 T-23 (suite after fix17): with the real
+    # 1 s, every writer after the first re-reads the 500-event ring inside the lock (its preload is stale) and holds
+    # it 130-400 ms on a loaded Windows machine, so 8 writers lost 1-6 events in 7 of 8 probe runs. The children scale
+    # TOOL_LOCK_WAIT with the injected DEADLINE_SCALE, like the deadlines, so the test no longer measures the machine.
     assert lost == [], lost
     value = doc(project)
     assert len(value['events']) == 500 and value['recortado'] == 8

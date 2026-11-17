@@ -268,17 +268,29 @@ def test_fix2_b3_llaves_dentro_de_cadenas_dan_lo_mismo_que_python(tmp_path, crud
 def test_fix3_2_una_entrada_enorme_no_se_escanea_y_acierta_en_cache(tmp_path):
     """2: el escáner era cuadrático (25 KB de escapes → 13,5 s por refresco, también con la caché
     caliente). Por encima de 8 KB no se escanea: Python pinta, con la entrada en la clave."""
-    import time
-    proj, _ = proyecto(tmp_path)
-    env, count = counted_env(proj, tmp_path)
-    payload = {'model': {'display_name': 'Opus'}, 'cost': {'total_cost_usd': 0.42},
-               'context_window': {'used_percentage': 8}, 'nota': '\\"' * 12000}
-    fria = hook('statusline', payload, env)
-    assert fria[0] == 0 and fria[1].startswith('[Opus] $0.42 ctx 8%') and launches(count) == 1
-    inicio = time.monotonic()
-    caliente = hook('statusline', payload, env)
-    assert caliente == fria and launches(count) == 1
-    assert time.monotonic() - inicio < 1, time.monotonic() - inicio
+    import subprocess
+    from test_hooks_shell import STATUSLINE
+
+    def escanea(payload, sub):
+        """Refresco caliente trazado con `bash -x`: ¿llamó al escáner `json_members`?"""
+        (tmp_path / sub).mkdir()
+        proj, _ = proyecto(tmp_path / sub)
+        env, count = counted_env(proj, tmp_path / sub)
+        fria = hook('statusline', payload, env)
+        assert fria[0] == 0 and fria[1].startswith('[Opus] $0.42 ctx 8%') and launches(count) == 1
+        assert hook('statusline', payload, env) == fria and launches(count) == 1
+        r = subprocess.run([BASH, '-x', STATUSLINE], input=json.dumps(payload), capture_output=True, text=True,
+                           encoding='utf-8', errors='replace', env=env, cwd=env['CLAUDE_PROJECT_DIR'], timeout=60)
+        assert (r.returncode, r.stdout) == fria[:2] and launches(count) == 1
+        return any(l.lstrip('+ ').startswith('json_members ') for l in r.stderr.splitlines())
+
+    base = {'model': {'display_name': 'Opus'}, 'cost': {'total_cost_usd': 0.42}, 'context_window': {'used_percentage': 8}}
+    # Estructural, no de reloj (plugin-audit-2 T-23, suite tras fix17): el umbral de 1 s del refresco caliente medía
+    # la máquina (0,4-0,9 s solo en arrancar bash y sus subprocesos en Windows; 2,2 s con la suite paralela) y ya no
+    # distinguía la regresión: medido sin el tope, el escáner actual es lineal (24 KB: 0,95 s frente a 0,6 s con él).
+    # El contrato es que por encima de STATUSLINE_SCAN_MAX no se escanea; la entrada pequeña es el control positivo.
+    assert escanea(base, 'pequena') is True
+    assert escanea(dict(base, nota='\\"' * 12000), 'enorme') is False
 
 
 @pytest.mark.parametrize('crudo,esperado', [
