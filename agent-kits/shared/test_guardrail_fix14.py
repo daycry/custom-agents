@@ -208,8 +208,10 @@ def _sep_formas(tam):
 
 @pytest.mark.parametrize("k", range(6))
 def test_los_separadores_son_lineales_de_64k_a_250k_sin_git(k):
-    """Sin git se analiza entera: `echo a;a;…` a 250 KB debe costar menos de 1 s de CPU en reposo (antes 1,8 a 4,3 s; ahora ~0,45 s)."""
-    _es_lineal_normalizado(lambda tam: _sep_formas(tam)[k], chico=65536, grande=250000, nominal=1.0)
+    """Sin git se analiza entera: `echo a;a;…` a 250 KB escala linealmente (razon entre tallas, no un absoluto sensible a la carga; en reposo ~0,45 s, antes 1,8 a 4,3 s)."""
+    # Cota absoluta holgada (4 s de CPU normalizada; en reposo ~0,45 s, un cuadratico ~160 s): la linealidad la prueba la RAZON entre las dos
+    # tallas medidas en la misma pasada, que no depende de la carga. Con 1,0 s daba rojo intermitente (1,31 s con factor de carga 1,5 a 2,0).
+    _es_lineal_normalizado(lambda tam: _sep_formas(tam)[k], chico=65536, grande=250000, nominal=4.0)
 
 
 @pytest.mark.parametrize("k", range(6))

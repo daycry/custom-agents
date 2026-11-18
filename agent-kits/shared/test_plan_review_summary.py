@@ -29,6 +29,20 @@ def o(tmp_path):
     return SimpleNamespace(root=tmp_path, state=tmp_path / '.claude/plan-review', m=load())
 
 
+class FakeClock:
+    """Reloj controlable del modulo bajo prueba: solo avanza cuando el test lo dice, asi que ningun plazo depende de la carga de la maquina."""
+    def __init__(self): self.now = 1000.0
+    def monotonic(self): return self.now
+    def advance(self, seconds): self.now += seconds
+
+
+@pytest.fixture
+def clock(o, monkeypatch):
+    fake = FakeClock()
+    monkeypatch.setattr(o.m, 'time', fake)       # el modulo solo usa `time.monotonic()` para plazos y gracias
+    return fake
+
+
 def plan(o, slug, text='# Plan\n\n## Scope\nBody.\n'):
     path = o.root / (PREFIX + slug) / 'improvement-plan.md'
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -173,10 +187,10 @@ def test_plan_changed_during_read(o, monkeypatch):
     assert summary(o, [a], deadline=time.monotonic() + 120)['reason'] == 'state_changed'
 
 
-def test_sixty_four_records_fit_the_envelope(o):
+def test_sixty_four_records_fit_the_envelope(o, clock):
     initiatives = [review(o, 'p%02d' % i, 'approve' if i % 2 else None) for i in range(64)]
     before = tree(o)
-    result = summary(o, initiatives, deadline=time.monotonic() + 120)
+    result = summary(o, initiatives, deadline=clock.monotonic() + 120)   # reloj congelado: el plazo no depende de la carga
     assert result['status'] == 'ok' and len(result['initiatives']) == 64
     assert len(json.dumps(result)) < 64 * 1024 and tree(o) == before
     assert summary(o, initiatives + [PREFIX + 'extra'])['status'] == 'unavailable'
@@ -207,7 +221,7 @@ def test_cli_exit_codes_and_stdin_limit(o):
     assert run_cli(o, {'not': 'list'}).returncode == 3
 
 
-def test_a_really_expired_deadline_gives_partial_with_what_was_read(o, monkeypatch):
+def test_a_really_expired_deadline_gives_partial_with_what_was_read(o, monkeypatch, clock):
     """F2-8: the second inventory must not die on the expired deadline: `partial` keeps the rows already read."""
     a = review(o, 'one', 'approve')
     b = review(o, 'two', 'approve')
@@ -216,10 +230,10 @@ def test_a_really_expired_deadline_gives_partial_with_what_was_read(o, monkeypat
     def slow(*args, **kw):
         calls.append(1)
         out = real(*args, **kw)
-        if len(calls) == 1: time.sleep(0.6)   # the real deadline passes while the first plan is read
+        if len(calls) == 1: clock.advance(0.6)   # the deadline passes while the first plan is read
         return out
     monkeypatch.setattr(o.m, '_view', slow)
-    result = summary(o, [a, b], deadline=time.monotonic() + 0.4)
+    result = summary(o, [a, b], deadline=clock.monotonic() + 0.4)
     assert result['status'] == 'partial' and result['reason'] == 'deadline_expired' and result['complete'] is False
     assert sorted(r['estado'] for r in result['initiatives']) == ['aprobada', 'no_disponible']
 
@@ -249,31 +263,31 @@ def test_a_foreign_plan_ok_does_not_hide_the_users_requested_review(o):
     assert row['other_current_reviews'] == 1
 
 
-def test_the_grace_after_an_expired_deadline_is_small_and_bounded(o, monkeypatch):
+def test_the_grace_after_an_expired_deadline_is_small_and_bounded(o, monkeypatch, clock):
     """I2-6: the consistency re-check after a spent deadline gets at most 0.5 s of its own (it was 1 s: more than the
     client's 4 s window once the 3 s deadline was spent)."""
     a = review(o, 'one', 'approve'); b = review(o, 'two', 'approve')
     real, seen = o.m._view, []
     def slow(*args, **kw):
-        out = real(*args, **kw); time.sleep(0.6); return out
+        out = real(*args, **kw); clock.advance(0.6); return out
     monkeypatch.setattr(o.m, '_view', slow)
     inventory = o.m._inventory
     def spy(state, reader, marker, deadline, records=None):
-        seen.append(deadline - time.monotonic())
+        seen.append(deadline - clock.monotonic())
         return inventory(state, reader, marker, deadline, records)
     monkeypatch.setattr(o.m, '_inventory', spy)
-    result = summary(o, [a, b], deadline=time.monotonic() + 0.3)
+    result = summary(o, [a, b], deadline=clock.monotonic() + 0.3)
     assert result['status'] == 'partial', result['reason']
     assert len(seen) == 2
     assert seen[1] <= 0.5
 
 
-def test_the_plan_rereads_respect_the_guard(o, monkeypatch):
+def test_the_plan_rereads_respect_the_guard(o, monkeypatch, clock):
     """I2-6: past the re-check deadline the plans are not read again (a slow disk cannot stretch the call)."""
     a = review(o, 'one', 'approve'); b = review(o, 'two', 'approve')
     real, state = o.m._view, {'marker': 0}
     def slow(*args, **kw):
-        out = real(*args, **kw); time.sleep(0.5); return out
+        out = real(*args, **kw); clock.advance(0.5); return out
     monkeypatch.setattr(o.m, '_view', slow)
     marker = o.m._marker
     def lax(*args, **kw):                      # the marker check itself does not look at the clock here
@@ -283,9 +297,9 @@ def test_the_plan_rereads_respect_the_guard(o, monkeypatch):
     inventory = o.m._inventory
     def burn(state_, reader, mk, deadline, records=None):
         out = inventory(state_, reader, mk, deadline, records)
-        if records is not None and records and len(burn.calls) == 1: time.sleep(0.6)  # the second inventory overruns its grace
+        if records is not None and records and len(burn.calls) == 1: clock.advance(0.6)  # the second inventory overruns its grace
         burn.calls.append(1); return out
     burn.calls = []
     monkeypatch.setattr(o.m, '_inventory', burn)
-    result = summary(o, [a, b], deadline=time.monotonic() + 0.3)
+    result = summary(o, [a, b], deadline=clock.monotonic() + 0.3)
     assert result['status'] == 'unavailable' and result['reason'] == 'deadline_expired'

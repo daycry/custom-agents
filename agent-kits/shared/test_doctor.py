@@ -2972,7 +2972,13 @@ def _linea_graphiti(tmp_path, get_episodes):
             "kb", "graphiti",
             {"endpoint": srv.endpoint, "group_id": "proy-test", "mode": "read",
              "timeout_ms": 5000, "max_episodes": 50000},
-            backends_real, BACKENDS_REALES, project=str(tmp_path))
+            backends_real, BACKENDS_REALES, project=str(tmp_path),
+            # Estas pruebas verifican la CLASIFICACION (ventana de 200 sobre 250), no el tope
+            # duro de 2,5 s de /doctor (ese lo cubren C-09a / gap 94 / gap 124). Con la maquina
+            # cargada, handshake + 250 entradas superaban el tope y salia «no comprobado».
+            # `_cfg_con_timeout_topado` sigue acotando la ventana a CAPACIDAD_VENTANA_TOPE
+            # con cualquier `tope_ms`, asi que las aserciones conservan su sentido.
+            tope_ms=60000)
 
 
 def test_f3fix4_gap148_grafo_sano_mas_grande_que_la_ventana_de_doctor_no_es_aviso(tmp_path):

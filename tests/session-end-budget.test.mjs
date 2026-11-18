@@ -43,20 +43,65 @@ const envelopes = dir => {
   return existsSync(outbox) ? readdirSync(outbox).filter(f => f.endsWith('.json')) : [];
 };
 
-// Rojo CONOCIDO en Windows (medido 2026-10-13 en un equipo de 12 núcleos con otras suites en marcha:
-// arrancar `node` cuesta 1,4-2,3 s, la captura Python directa 0,45-2 s y el launcher corta al hijo a
-// los 800 ms: 15/15 cierres por el launcher agotaron su presupuesto, mediana 2,9 s). `todo` lo deja
-// visible en cada ejecución sin tumbar la suite; en Linux/macOS es una puerta real. La durabilidad
-// la cubre el test siguiente.
-const rojoConocido = process.platform === 'win32'
-  && 'Windows: el arranque de node + python supera el presupuesto de SessionEnd; la captura depende de recover';
+// Trabajo de la captura MEDIDO SIN RELOJ. Antes este test exigia una mediana de pared < 1,5 s del launcher Node + Python: con la maquina
+// cargada (80-98 %) arrancar `node` cuesta 1,4-2,3 s y la mediana dio 1,6-2,9 s sin ninguna regresion del producto (era un `todo` en Windows).
+// La regresion que guardaba es que la captura haga MAS TRABAJO del previsto (imports pesados en el arranque, trabajo por linea del log de
+// prompts, algo cuadratico): eso se cuenta en llamadas de funcion Python (`sys.setprofile`), que no dependen de la carga, y se comprueba
+// que no crece con el tamano del log. El tiempo de pared del cierre completo se imprime como dato, no se exige.
+const HARNESS = `
+import sys, importlib.util
+path, root, sid = sys.argv[1:4]
+n = [0]
+def prof(frame, event, arg):
+    if event == 'call': n[0] += 1
+sys.setprofile(prof)
+spec = importlib.util.spec_from_file_location('jc', path)
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+imp = n[0]
+m.capture_end(root, {'hook_event_name': 'SessionEnd', 'session_id': sid, 'reason': 'other', 'cwd': root})
+sys.setprofile(None)
+print(imp, n[0] - imp)
+`;
+// Medido (CPython 3.13, Windows): arranque 9.490 llamadas, captura 5.400-8.000. Tope ~2,5x: un import pesado o un bucle por linea lo superan.
+const MAX_LLAMADAS_ARRANQUE = 24000;
+const MAX_LLAMADAS_CAPTURA = 20000;
+const MARGEN_POR_TAMANO = 300;        // lo que puede subir la captura de un log completo respecto de uno de una linea (ruido de primer uso de la cola)
 
-test('SessionEnd capture completes inside the 1.5 s default budget with a full prompt log', { todo: rojoConocido }, () => {
+function llamadas(dir, sid) {
+  const r = spawnSync(python, ['-I', '-S', '-c', HARNESS, join(root, 'agent-kits', 'shared', 'journal-capture.py'), dir, sid],
+    { cwd: dir, encoding: 'utf8', timeout: 60000, env: { ...process.env, CLAUDE_PROJECT_DIR: dir } });
+  assert.equal(r.status, 0, r.stderr);
+  const [arranque, captura] = r.stdout.trim().split(/\s+/).map(Number);
+  assert.ok(Number.isInteger(arranque) && Number.isInteger(captura), `harness output: ${r.stdout}`);
+  return { arranque, captura };
+}
+
+test('SessionEnd capture does bounded work (function calls, not wall time) with a full prompt log', () => {
   const dir = proyecto('custom-agents-budget-');
   try {
-    // Calentamiento sin medir: en una sesión real, UserPromptSubmit ya ejecutó el mismo intérprete en
-    // cada turno, así que SessionEnd no arranca en frío. En frío (contenedor Linux recién creado) la
-    // primera captura tardó 0,9 s solo en Python y el launcher la cortó a los 800 ms.
+    // Calentamiento sin medir (crea la cola); despues, log de una linea frente a log en su tope.
+    logLleno(dir, 'warm-up');
+    llamadas(dir, 'warm-up');
+    const chica = proyecto('custom-agents-budget-small-');
+    try {
+      const linea = JSON.stringify({ ts: '2026-10-13T10:00:00Z', prompt: 'Decidimos medir el cierre. '.repeat(20) }) + '\n';
+      writeFileSync(join(chica, '.claude', 'session-prompts-chica.log'), linea);
+      llamadas(chica, 'warm-up');
+      const pequeno = llamadas(chica, 'chica');
+      logLleno(dir, 'grande');
+      const grande = llamadas(dir, 'grande');
+      console.log(`SessionEnd capture calls: startup ${grande.arranque} · capture small log ${pequeno.captura} · capture full log ${grande.captura}`);
+      assert.ok(grande.arranque < MAX_LLAMADAS_ARRANQUE, `startup did ${grande.arranque} calls (max ${MAX_LLAMADAS_ARRANQUE}): heavier imports at teardown?`);
+      assert.ok(grande.captura < MAX_LLAMADAS_CAPTURA, `capture did ${grande.captura} calls (max ${MAX_LLAMADAS_CAPTURA})`);
+      assert.ok(grande.captura <= pequeno.captura + MARGEN_POR_TAMANO, `capture work grows with the log: ${pequeno.captura} -> ${grande.captura} calls`);
+    } finally { rmSync(chica, { recursive: true, force: true }); }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('SessionEnd closes through the launcher never lose a capture it did not cut (wall time is informational)', () => {
+  const dir = proyecto('custom-agents-closes-');
+  try {
     logLleno(dir, 'warm-up');
     cerrar(join(root, 'hooks', 'run-hook.mjs'), dir, 'warm-up');
     rmSync(join(dir, '.claude', 'journal'), { recursive: true, force: true });
@@ -69,18 +114,11 @@ test('SessionEnd capture completes inside the 1.5 s default budget with a full p
       tiempos.push(ms);
       if (/timed out/.test(r.stderr)) cortados.push(i);
     }
-    const orden = [...tiempos].sort((a, b) => a - b);
-    const mediana = orden[Math.floor(RUNS / 2)];
     const sobres = envelopes(dir).length;
-    // La medición se imprime SIEMPRE, también cuando falla: es el dato que sigue el rojo.
-    console.log(`SessionEnd capture ms: ${tiempos.map(t => t.toFixed(0)).join(', ')} · median ${mediana.toFixed(0)} · `
-      + `max ${orden.at(-1).toFixed(0)} · cut by launcher: ${cortados.length}/${RUNS} · envelopes ${sobres}/${RUNS}`);
-    // Medido en contenedor Linux con el anfitrión cargado: mediana 450-715 ms, pero 0-1 de cada 5
-    // cierres pasa de los 800 ms del hijo y el launcher lo corta. La cola no se exige aquí (sería un
-    // test inestable): la cubre `recover`, probado abajo. Lo que sí se exige es que la mediana quepa
-    // en el presupuesto y que ningún cierre NO cortado se quede sin envelope (pérdida silenciosa).
+    console.log(`SessionEnd capture ms (informational, default ${SESSION_END_BUDGET_MS} ms budget): ${tiempos.map(t => t.toFixed(0)).join(', ')} · `
+      + `cut by launcher: ${cortados.length}/${RUNS} · envelopes ${sobres}/${RUNS}`);
+    // Un cierre cortado por el presupuesto lo cubre `recover` (test siguiente); uno NO cortado sin envelope seria perdida silenciosa.
     assert.ok(sobres >= RUNS - cortados.length, `${sobres} envelopes for ${RUNS - cortados.length} uncut closes`);
-    assert.ok(mediana < SESSION_END_BUDGET_MS, `median ${mediana.toFixed(0)} ms >= ${SESSION_END_BUDGET_MS} ms`);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
