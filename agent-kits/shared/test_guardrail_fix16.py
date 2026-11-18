@@ -298,7 +298,7 @@ def _ejecutar16_trozo(tmp_path, ordenes, nombre, locale=None):
     comprobar = "for n in " + " ".join(NOMBRES_SHIM) + "; do case \"$(type -P $n)\" in \"$PWD\"/shim/*) ;; *) echo \"SHIM-NO-$n\"; exit 3;; esac; done\n"
     lanzador = base / "l.sh"
     lanzador.write_bytes(("export PATH=\"$PWD/shim:$PATH\"\nexport GIT_DIR=/inexistente-fix16\n" + comprobar +
-                          f"for k in $(seq 0 {len(ordenes) - 1}); do export REG=\"$PWD/reg_$k\"; timeout 240 bash \"s_$k.sh\" >/dev/null 2>&1 </dev/null; done\n").encode())
+                          f"for k in $(seq 0 {len(ordenes) - 1}); do export REG=\"$PWD/reg_$k\"; for t in 1 2 3; do timeout 240 bash \"s_$k.sh\" >/dev/null 2>&1 </dev/null; [ -s \"$REG\" ] && break; done; done\n").encode())   # fix18: msys puede fallar al crear un proceso con la maquina saturada: un registro vacio se reintenta (2 veces) antes de concluir que bash NO ejecuta la forma
     env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
     if locale is not None:
         env.pop("LANG", None), env.pop("LC_ALL", None)
