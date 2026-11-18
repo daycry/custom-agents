@@ -242,10 +242,10 @@ if(process.argv[1] && resolve(process.argv[1])===HELPER) {
     const valid=args.length===0 || args.length===2 && args[0]==='--project' && Boolean(args[1])
     // fix18 (gap 14): `/doctor` (doctor.py) corta al helper a los 10 s DESDE QUE LO LANZA, y el tope exterior de la consulta (limite + 3 s) cuenta desde que `runCodexQuery` arranca el worker: con la
     // maquina saturada el arranque de node del propio helper (0,3-1,5 s) se sumaba y el total pasaba de 10 s (medido: 10,29 s con un worker +2 s lento). El limite descuenta ese arranque
-    // (`performance.now()` cuenta desde el inicio del proceso): el tope exterior de la consulta pasa a ser 9 s MENOS el arranque (minimo 3 s) y el limite, ese tope menos 3 s (entre 1 s y 6 s):
-    // arranque + consulta + limpieza caben en 9 s por construccion, tambien con un arranque de varios segundos.
+    // (`performance.now()` cuenta desde el inicio del proceso): el tope exterior de la consulta pasa a ser 8 s MENOS el arranque (minimo 3 s) y el limite, ese tope menos 3 s (entre 1 s y 5 s):
+    // arranque + consulta + limpieza caben en 8 s por construccion (2 s de margen para el cierre del proceso con la maquina cargada), tambien con un arranque de varios segundos.
     const arranque=Math.round(performance.now())
-    const outer=Math.max(3000,9000-arranque)
+    const outer=Math.max(3000,8000-arranque)
     console.log(JSON.stringify(valid ? queryCodexPlugin({cwd:args.length ? resolve(args[1]) : process.cwd(),timeout:Math.max(1000,Math.min(CODEX_QUERY_TIMEOUT_MS,outer-3000)),outer:Math.max(2000,outer)}) : unknown('invalid-arguments')))
   }
 }
