@@ -186,7 +186,7 @@ _CARGAS_LOCALES_REVISADAS = {
                          "agent-kits/shared/redact.py"),
     },
     "agent-kits/shared/agent-activity-store.py": {
-        "sha256_lf": "f9fcac61021d848d553ba8de28e7cf17a10f864345ce2c24f6868dc4ebd0baf7",   # T-23 fix6: la escala solo actúa con PYTEST_CURRENT_TEST (no en producción); T-23 fix5: escala de plazos por entorno (`CUSTOM_AGENTS_ACTIVITY_DEADLINE_SCALE`, solo lectura de `os.environ`); mismas cargas locales, sin red
+        "sha256_lf": "07a09f09cd27b776658d510f68912fb2f7202e93472297ac657e9ebd6cdd387f",   # T-23 fix18 (gap 4, D2): cola `events.tail` (append + fsync sin releer el anillo, pliegue por CAS, `fold_tail`); mismas cargas locales (`local-read`, `local-state`, `agent-activity`, `redact`), sin red; T-23 fix6: la escala solo actúa con PYTEST_CURRENT_TEST (no en producción); T-23 fix5: escala de plazos por entorno (`CUSTOM_AGENTS_ACTIVITY_DEADLINE_SCALE`, solo lectura de `os.environ`); mismas cargas locales, sin red
         "dependencies": ("agent-kits/shared/local-read.py", "agent-kits/shared/local-state.py",
                          "agent-kits/shared/agent-activity.py", "agent-kits/shared/redact.py"),
     },

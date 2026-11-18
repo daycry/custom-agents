@@ -309,7 +309,7 @@ def _git(cwd, *args, env=None):
             "GIT_COMMITTER_EMAIL": "t@t", "GIT_TERMINAL_PROMPT": "0"}
     base.update(env or {})
     return subprocess.run(["git", "-c", "core.autocrlf=false", *args], cwd=cwd, env=base, capture_output=True,
-                          text=True, encoding="utf-8", errors="replace", timeout=60)
+                          text=True, encoding="utf-8", errors="replace", timeout=240)   # fix18: el arranque de un proceso msys (`nice`, `env`…) tiene cola larga con carga (medido 16,7 s para 3 `nice`)
 
 
 @pytest.fixture(scope="module")
@@ -373,7 +373,7 @@ def _ejecutar_en_bash(plantilla_repo, tmp_path, orden):
            "GIT_EDITOR": "true", "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
            "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
     subprocess.run([BASH, str(script)], cwd=str(proj), env=env, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                   timeout=60, stdin=subprocess.DEVNULL)
+                   timeout=240, stdin=subprocess.DEVNULL)
     return antes, _estado(copia), copia
 
 

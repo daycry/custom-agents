@@ -298,11 +298,11 @@ def _ejecutar16_trozo(tmp_path, ordenes, nombre, locale=None):
     comprobar = "for n in " + " ".join(NOMBRES_SHIM) + "; do case \"$(type -P $n)\" in \"$PWD\"/shim/*) ;; *) echo \"SHIM-NO-$n\"; exit 3;; esac; done\n"
     lanzador = base / "l.sh"
     lanzador.write_bytes(("export PATH=\"$PWD/shim:$PATH\"\nexport GIT_DIR=/inexistente-fix16\n" + comprobar +
-                          f"for k in $(seq 0 {len(ordenes) - 1}); do export REG=\"$PWD/reg_$k\"; timeout 90 bash \"s_$k.sh\" >/dev/null 2>&1 </dev/null; done\n").encode())
+                          f"for k in $(seq 0 {len(ordenes) - 1}); do export REG=\"$PWD/reg_$k\"; timeout 240 bash \"s_$k.sh\" >/dev/null 2>&1 </dev/null; done\n").encode())
     env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
     if locale is not None:
         env.pop("LANG", None), env.pop("LC_ALL", None)
-    r = subprocess.run([BASH, str(lanzador)], cwd=str(base), env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900,
+    r = subprocess.run([BASH, str(lanzador)], cwd=str(base), env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=3600,
                        stdin=subprocess.DEVNULL)
     assert "SHIM-NO-" not in r.stdout, f"el shim no es el primero del PATH: {r.stdout[:80]!r}"
     return {k: ((base / f"reg_{k}").read_text(encoding="utf-8", errors="replace") if (base / f"reg_{k}").exists() else "") for k in range(len(ordenes))}
