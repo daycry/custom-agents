@@ -811,7 +811,7 @@ El lector compartido consulta el estado y entrega JSON saneado. Su plazo de
 6.000 ms (`CUSTOM_AGENTS_CODEX_QUERY_TIMEOUT_MS` lo sube, de 1.000 a 60.000)
 corre desde que el worker está listo y se recorta al tope exterior (límite +
 3 s, mínimo 7 s) menos 2 s de reserva para la limpieza: con un worker lento la
-consulta expira antes, en vez de recibir el SIGKILL a mitad de la limpieza. Una
+consulta expira antes, en vez de recibir el SIGKILL a mitad de la limpieza. El helper que lanza `/doctor` (10 s de tope) descuenta su propio arranque: tope exterior = 8 s − arranque (mínimo 3 s) y límite = ese tope − 3 s. Una
 salida recibida fuera de plazo se descarta y produce `unknown` con
 `cli-timeout`; en Windows el árbol de la CLI se mata con la raíz viva
 (`taskkill /T`, sin esperar al barrido de respaldo) y solo cuentan los procesos nacidos tras el lanzamiento; con la raíz ya muerta, el barrido por identidad corre fuera del job del worker

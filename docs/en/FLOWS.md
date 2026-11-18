@@ -809,7 +809,7 @@ The shared reader queries state and returns sanitized JSON. Its 6,000 ms
 deadline (`CUSTOM_AGENTS_CODEX_QUERY_TIMEOUT_MS` raises it, from 1,000 to
 60,000) runs from the moment the worker is ready and is clipped to the outer
 cap (limit + 3 s, minimum 7 s) minus a 2 s cleanup reserve: with a slow worker
-the query expires earlier instead of receiving the SIGKILL mid-cleanup. Output
+the query expires earlier instead of receiving the SIGKILL mid-cleanup. The helper `/doctor` launches (10 s cap) discounts its own startup: outer cap = 8 s − startup (minimum 3 s) and limit = that cap − 3 s. Output
 received after the deadline is discarded and returns `unknown` with
 `cli-timeout`; on Windows the CLI tree is killed with the root alive
 (`taskkill /T`, without waiting for the fallback sweep) and only processes born after the launch count; with the root already dead, the identity sweep runs outside the worker's job
