@@ -401,11 +401,12 @@ GREEN: `python scripts/build-handbook.py --edition 2026-11-12` regeneró las tre
 - [ ] Los dos CHANGELOG declaran el cambio rompedor, qué se retira, cómo migrar (memoria local o Kairos) y el commit recuperable.
 - [ ] ADR-020, ADR-021 y la nota de ADR-018 quedan propuestos por el servicio de memoria (no a mano).
 
-### T-10 — Retirar el marco de knowledge-services sin backends (decidido)
+### T-10 — Conservar el marco de knowledge-services sin adaptadores incluidos (revisado 2026-11-18)
 
 - **Descripción**: Sin backends, `knowledge-services` queda como marco dormido y se retira entero; la iniciativa de Kairos lo recupera del commit anotado en T-08. Medido: `knowledge-sync.py` 576 + `backends/__init__.py` 94 de código, 1.212 de test, 469 de docs de la skill y `knowledge-find.py:1377-1934` (558 líneas de lectura por `--intent`). `outbox.py` NO es del marco: lo usan el journal, `doctor.py` y `knowledge-schema.py`, y se queda.
 - **Decidido por el usuario el 2026-11-10**: opción (b): el marco se retira y la iniciativa de Kairos lo recupera del commit anotado en T-08.
-- **Changelog**: Se retira el marco de publicación a backends de knowledge-services: no queda código dormido sin adaptador.
+- **Revisado por el usuario el 2026-11-18 (supersede la opción (b))**: el marco **se conserva**. El plugin debe permitir enchufar cualquier MCP de memoria externo (Kwipu, Kairos u otro) y no fijarse a Kairos. Se quedan el contrato de 6 funciones, la carga de adaptadores por `type`, el `routing` fail-closed, `knowledge-sync.py`, `outbox.py` y `REGISTRO`/`registrar()` de `capabilities.py`, sin adaptadores incluidos, con sus tests sobre el adaptador de prueba y una guía de «cómo añadir un backend». T-08 y T-09 solo quitan los adaptadores concretos de Kwipu y Graphiti. El adaptador MCP genérico (mapa de herramientas, configurable en `/setup`) llega con la iniciativa de Kairos. Orden: la retirada T-08..T-10 se adelanta y va justo después de cerrar la Fase 1. La Descripción, los Archivos, la Verificación y los criterios de abajo son los de la opción (b): se replanifican al ejecutar la tarea.
+- **Changelog**: El marco de knowledge-services se conserva sin adaptadores incluidos: cualquier MCP de memoria externo se puede añadir como backend.
 - **Estado**: borrador
 - **Tiempo humano**: est. 6h · real —
 - **Tiempo IA (ejec.)**: est. 1.5h · real —
