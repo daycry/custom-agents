@@ -1397,7 +1397,8 @@ def test_d2_burst_of_eight_parallel_tool_events_on_a_full_ring_loses_none(api, p
     # events.tail without reading the ring, so the REAL 1 s wait is enough again and the children no longer scale
     # TOOL_LOCK_WAIT; test_agent_activity_tail.py runs the burst with the real deadlines (no scale at all).
     assert lost == [], lost
-    value = doc(project)
+    assert api.fold_tail(project)['status'] == 'ok'   # fix18: the burst waits in events.tail (the view holds 508); the fold trims the ring to 500
+    value = ring_doc(project)
     assert len(value['events']) == 500 and value['recortado'] == 8
     assert sorted(e['tool'] for e in value['events'][-8:]) == sorted('T%d' % i for i in range(8))
 

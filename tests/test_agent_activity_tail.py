@@ -231,3 +231,14 @@ def test_d2_rafaga_sobre_el_anillo_lleno_con_la_espera_REAL_no_pierde_ninguno(ap
         assert perdidos == [], perdidos
     visto = tools(api.history(project))
     assert sum(1 for t in visto if t.startswith('T') and t[1:].isdigit()) == count - len(perdidos)
+
+
+def test_la_cola_no_guarda_la_sesion_ni_el_agente_en_claro(api, project):
+    """(anadido tras el RED, k14) La serie del panel (`test_panel_privacy`) lo cazo: la primera version de la cola guardaba `session`/`agent` en claro; el anillo solo guarda sus seudonimos."""
+    boot(api, project)
+    assert api.record(project, entry(tool='T0'))['status'] == 'ok'
+    raw = (state(project) / 'events.tail').read_bytes()
+    assert raw.count(b'\n') == 1
+    for secreto in (b'session-secret-id', b'agent-secret-id'):
+        assert secreto not in raw
+    assert tools(api.history(project)) == ['T0']

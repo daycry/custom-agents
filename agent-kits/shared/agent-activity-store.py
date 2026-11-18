@@ -359,10 +359,11 @@ def _signature(path, io):
         return None
 
 
-def _tail_line(entry, now):
-    """One tail record: a random id (the key that recognizes a line already folded) and the entry without `nowait`."""
-    row = {k: entry[k] for k in ('runtime', 'scope', 'session', 'agent', 'role', 'tool', 'resumen', 'duracion_ms', 'resultado')}
-    row['window'] = list(entry['window']) if entry['window'] else None
+def _tail_line(marker, entry, now):
+    """One tail record: a random id (the key that recognizes a line already folded), the entry WITHOUT the raw session/agent (only their keyed pseudonyms, as the ring stores them) and no `nowait`."""
+    run_key, parent_key, session_key = _run_keys(marker, entry['runtime'], entry['scope'], entry['session'], entry['agent'])
+    row = {k: entry[k] for k in ('runtime', 'scope', 'role', 'tool', 'resumen', 'duracion_ms', 'resultado')}
+    row.update(run_key=run_key, parent_key=parent_key, session_key=session_key, window=list(entry['window']) if entry['window'] else None)
     return _json({'id': secrets.token_hex(8), 'at': now, 'e': row}) + b'\n'
 
 
@@ -387,10 +388,17 @@ def _read_tail(state, io):
             row = _strict(line)
             _need(type(row) is dict and set(row) == {'id', 'at', 'e'} and type(row['id']) is str and _TAIL_ID.fullmatch(row['id'])
                 and type(row['at']) in (int, float) and math.isfinite(row['at']) and 0 <= row['at'] <= MAX_REVISION and type(row['e']) is dict, 'invalid_state')
-            e = dict(row['e'], nowait=False)
-            _need(e.get('window') is None or (type(e['window']) is list and len(e['window']) == 2), 'invalid_state')
-            e['window'] = tuple(e['window']) if e.get('window') else None
-            rows.append({'id': row['id'], 'at': row['at'], 'entry': _entry(e)})
+            e = row['e']
+            _need(set(e) == {'runtime', 'scope', 'role', 'tool', 'resumen', 'duracion_ms', 'resultado', 'run_key', 'parent_key', 'session_key', 'window'}
+                and e['runtime'] in ('claude', 'codex', 'opencode') and e['scope'] in ('subagent', 'session')
+                and (e['role'] is None or e['role'] in _projection.ROLES) and _clean_text(e['tool'], 64) and _clean_text(e['resumen'], _projection.SUMMARY_MAX)
+                and _projection._opt_number(e['duracion_ms']) and e['resultado'] in (None, 'ok', 'error')
+                and type(e['run_key']) is str and _hex(e['run_key']) and type(e['session_key']) is str and _hex(e['session_key'])
+                and (e['parent_key'] is None or (type(e['parent_key']) is str and _hex(e['parent_key']))), 'invalid_state')
+            w = e['window']
+            _need(w is None or (type(w) is list and len(w) == 2 and w[0] in ('start', 'close') and _projection.normalize_tarea(w[1]) == w[1]), 'invalid_state')
+            e = dict(e, window=tuple(w) if w else None)
+            rows.append({'id': row['id'], 'at': row['at'], 'entry': e})
         except _Failure:
             raise _Failure('invalid_state')
         except (ValueError, TypeError, KeyError, RecursionError):
@@ -405,7 +413,8 @@ def _plegar(doc, marker, rows):
     hechos = set(doc.get('plegado', ()))
     for row in rows:
         if row['id'] not in hechos:
-            _tool_mutation(row['entry'])(doc, marker, row['at'])
+            e = row['entry']
+            _apply_tool(doc, e, e['run_key'], e['parent_key'], e['session_key'], row['at'])
     doc['plegado'] = [row['id'] for row in rows][-MAX_PLEGADO:]
 
 
@@ -450,10 +459,10 @@ def _update_events(root, state, io, config_signature, deadline, mutate, nowait=F
 
 def _append_tool_event(root, state, io, config_signature, deadline, entry):
     """The hot path of a tool event: append one line under the lock, without reading or validating the ring; fold when the tail passes TAIL_FOLD_BYTES."""
-    _marker, _, ignore_signature = _base(root, state, io)
+    marker, _, ignore_signature = _base(root, state, io)
     now = time.time()
     _need(type(now) in (int, float) and math.isfinite(now) and 0 <= now <= MAX_REVISION, 'invalid_clock')
-    line = _tail_line(entry, now)
+    line = _tail_line(marker, entry, now)
     _enabled(root, io)  # An observed opt-out before the write prevents it.
     _need(_ignore(state, io) == ignore_signature, 'unsafe_state')
 
@@ -509,18 +518,23 @@ def _lifecycle_mutation(runtime, scope, session, agent, role, event):
 def _tool_mutation(entry):
     def mutate(doc, marker, now):
         run_key, parent_key, session_key = _run_keys(marker, entry['runtime'], entry['scope'], entry['session'], entry['agent'])
-        _upsert_run(doc, run_key, entry['runtime'], entry['scope'], session_key, entry['role'], now)
-        window = entry['window']
-        tarea = None if window else _projection.attribute(doc['ventanas'], run_key=run_key, parent_key=parent_key, now=now)
-        _need(doc['revision'] < MAX_REVISION, 'revision_exhausted')
-        doc['revision'] += 1
-        doc['events'].append({'schema_version': 1, 'runtime': entry['runtime'], 'run_key': run_key, 'role': entry['role'],
-            'tool': entry['tool'], 'resumen': entry['resumen'], 'tarea': tarea, 'duracion_ms': entry['duracion_ms'],
-            'resultado': entry['resultado'], 'observed_at': now, 'revision': doc['revision']})
-        if window:
-            doc['ventanas'], _ = _projection.apply_window(doc['ventanas'], run_key=run_key, action=window[0],
-                tarea=window[1], now=now)
+        _apply_tool(doc, entry, run_key, parent_key, session_key, now)
     return mutate
+
+
+def _apply_tool(doc, entry, run_key, parent_key, session_key, now):
+    """One tool event on the document, from the PSEUDONYMS (`run_key`, `parent_key`, `session_key`): neither the ring nor the tail ever holds a raw session or agent id."""
+    _upsert_run(doc, run_key, entry['runtime'], entry['scope'], session_key, entry['role'], now)
+    window = entry['window']
+    tarea = None if window else _projection.attribute(doc['ventanas'], run_key=run_key, parent_key=parent_key, now=now)
+    _need(doc['revision'] < MAX_REVISION, 'revision_exhausted')
+    doc['revision'] += 1
+    doc['events'].append({'schema_version': 1, 'runtime': entry['runtime'], 'run_key': run_key, 'role': entry['role'],
+        'tool': entry['tool'], 'resumen': entry['resumen'], 'tarea': tarea, 'duracion_ms': entry['duracion_ms'],
+        'resultado': entry['resultado'], 'observed_at': now, 'revision': doc['revision']})
+    if window:
+        doc['ventanas'], _ = _projection.apply_window(doc['ventanas'], run_key=run_key, action=window[0],
+            tarea=window[1], now=now)
 
 
 def _id(value):

@@ -74,9 +74,11 @@ def assert_clean(blob, world, where):
 
 def test_events_json_has_no_personal_data(world):
     raw = (world.project / '.claude/agent-activity/events.json').read_bytes()
+    tail_path = world.project / '.claude/agent-activity/events.tail'
+    tail = tail_path.read_bytes() if tail_path.exists() else b''     # fix18: tool events wait in the tail until a fold: it must be as clean as the ring
     doc = json.loads(raw)
-    assert len(doc['events']) == 7
-    assert_clean(raw, world, 'events.json')
+    assert len(doc['events']) + len(tail.splitlines()) == 7
+    assert_clean(raw + tail, world, 'events.json + events.tail')
     assert b'PRIVATE PROMPT' not in raw and b'RAW ' not in raw
 
 
