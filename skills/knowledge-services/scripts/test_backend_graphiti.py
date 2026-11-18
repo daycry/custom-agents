@@ -1180,7 +1180,7 @@ class TestGraphitiFase2Fix3(unittest.TestCase):
 
     def _cfg(self, endpoint, **extra):
         cfg = {"_root": self.tmp, "group_id": "proy-test", "endpoint": endpoint,
-               "allow_remote": False, "timeout_ms": 2000, "provider": {"llm": "none"}}
+               "allow_remote": False, "timeout_ms": 30000, "provider": {"llm": "none"}}
         cfg.update(extra)
         return cfg
 

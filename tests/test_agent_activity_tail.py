@@ -205,6 +205,76 @@ _BURST = ('import importlib.util,json,sys,time;'
     'time.sleep(max(0,float(sys.argv[5])-time.time()));print(json.dumps(m.record(sys.argv[2],e)))')
 
 
+def _lecturas_bajo_cerrojo(api, monkeypatch):
+    """Cuenta las lecturas de contenido y los listados de directorio que ocurren con el cerrojo tomado."""
+    held, bajo = [False], []
+    original = api._state_io.StateIO.locked
+
+    import contextlib
+
+    @contextlib.contextmanager
+    def locked(self, *a, **k):
+        with original(self, *a, **k):
+            held[0] = True
+            try:
+                yield
+            finally:
+                held[0] = False
+
+    monkeypatch.setattr(api._state_io.StateIO, 'locked', locked)
+    for name in ('read_bytes', 'list_names'):
+        real = getattr(api._reader, name)
+        def espia(*a, _real=real, _name=name, **k):
+            if held[0]:
+                bajo.append(_name)
+            return _real(*a, **k)
+        monkeypatch.setattr(api._reader, name, espia)
+    return bajo
+
+
+def test_fix18d_el_camino_caliente_no_lee_ni_lista_bajo_el_cerrojo(api, project, monkeypatch):
+    """T-06 fix18d (D2): con la maquina saturada leer un fichero cuesta 25-120 ms y el cerrojo retenia 150-250 ms por escritor (8 x 200 ms > 1 s de espera). La validacion va ANTES del cerrojo;
+    dentro solo se comparan firmas `stat`. Mutante: volver a llamar a `_base`/`_enabled`/`_clean_temps` dentro del cerrojo (el codigo previo) hace que este test falle."""
+    boot(api, project)
+    bajo = _lecturas_bajo_cerrojo(api, monkeypatch)
+    assert api.record(project, entry(tool='T1'))['status'] == 'ok'
+    assert api.record(project, entry(tool='T2'))['status'] == 'ok'
+    assert bajo == []
+    assert len(tail_lines(project)) == 2
+
+
+def test_fix18d_si_cambia_el_propietario_entre_la_validacion_y_el_cerrojo_se_revalida_dentro(api, project, monkeypatch):
+    """La firma `stat` de `owner.json` cambia tras la validacion previa: el cerrojo ya no puede fiarse de ella y repite la validacion completa (como antes de fix18d) -- el evento se registra."""
+    boot(api, project)
+    original = api._prepare_tool_event
+
+    def preparar(root, state, io):
+        out = original(root, state, io)
+        owner = state / 'owner.json'
+        owner.write_bytes(owner.read_bytes())  # mismo contenido, otra firma (mtime/ctime)
+        return out
+
+    monkeypatch.setattr(api, '_prepare_tool_event', preparar)
+    bajo = _lecturas_bajo_cerrojo(api, monkeypatch)
+    assert api.record(project, entry(tool='T1'))['status'] == 'ok'
+    assert 'read_bytes' in bajo   # la revalidacion ocurrio bajo el cerrojo
+    assert tools(api.history(project)) == ['T1']
+
+
+def test_fix18d_un_opt_out_entre_la_validacion_y_el_cerrojo_impide_la_escritura(api, project, monkeypatch):
+    boot(api, project)
+    original = api._prepare_tool_event
+
+    def preparar(root, state, io):
+        out = original(root, state, io)
+        (root / '.claude' / 'dev.json').write_text('{"sesion":{"actividad":false}}', encoding='utf-8')
+        return out
+
+    monkeypatch.setattr(api, '_prepare_tool_event', preparar)
+    assert api.record(project, entry(tool='T1')) == {'status': 'unavailable', 'reason': 'disabled'}
+    assert tail_lines(project) == []
+
+
 @pytest.mark.serie
 @pytest.mark.parametrize('count', [8, 16])
 def test_d2_rafaga_sobre_el_anillo_lleno_con_la_espera_REAL_no_pierde_ninguno(api, project, count):

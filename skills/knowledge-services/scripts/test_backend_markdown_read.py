@@ -11,6 +11,11 @@ import time
 
 import pytest
 
+# The fixture's read budget is NOT the subject of the generic tests: a wall-clock 1.5 s expired
+# under CPU saturation (motivo deadline_read_agotado). Tests of the deadline set their own value
+# (and some use a fake clock), so the budget behaviour keeps its dedicated coverage.
+READ_BUDGET_MS = 30000
+
 
 @pytest.fixture
 def adapter():
@@ -42,12 +47,12 @@ def corpus(adapter, tmp_path):
                         "canonical_sha256": hashlib.sha256(raw.encode()).hexdigest()})
     cfg = {"_root": str(tmp_path.resolve()), "_backend_id": "owned",
            "export_dir": "published", "router": {"intents": {"semantico": True}},
-           "read": {"enabled": True, "timeout_ms": 1500}}
+           "read": {"enabled": True, "timeout_ms": READ_BUDGET_MS}}
     adapter.apply(adapter.plan(entries, cfg), cfg)
     ctx = {"root": str(tmp_path.resolve()), "backend_id": "owned",
            "backend_enabled": True, "intent": "semantico", "entries": entries,
            "filters": {"tipo": None, "area": None, "iniciativa": None, "claves": []},
-           "fingerprint": "1" * 64, "deadline": time.monotonic() + 1.5}
+           "fingerprint": "1" * 64, "deadline": time.monotonic() + READ_BUDGET_MS / 1000.0}
     ctx["refresh"] = lambda: ctx
     cfg["_read_context"] = ctx
     return cfg

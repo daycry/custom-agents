@@ -30,6 +30,7 @@ EVENTS = 'events.json'
 TAIL = 'events.tail'
 TAIL_FOLD_BYTES = 8192
 TAIL_MAX_BYTES = 65536
+PREPARE_ATTEMPTS = 6  # unlocked validation of a tool event: bounded retries against a concurrent writer (T-06 fix18d)
 MAX_PLEGADO = 512
 MAX_CLEAN = 8  # P-EI-1: own old temporaries removed per write
 CLEAN_AGE = 60
@@ -182,6 +183,7 @@ def _inventory(state):
     temps = {name for name in names if _TEMP.fullmatch(name)}
     _need(names - temps - {EVENTS, TAIL} == FIXED_NAMES, 'invalid_state')
     _need(len(temps) <= MAX_TEMPS, 'state_budget')
+    return temps
 
 
 def _ignore(state, io):
@@ -190,11 +192,13 @@ def _ignore(state, io):
     return signature
 
 
-def _base(root, state, io):
+def _base(root, state, io, temps=None):
     io.dirs(state)
     marker, owner_signature = _owner(root, state, io)
     ignore_signature = _ignore(state, io)
-    _inventory(state)
+    found = _inventory(state)
+    if temps is not None:
+        temps.extend(found)
     io.file(state / '.lock')
     return marker, owner_signature, ignore_signature
 
@@ -457,14 +461,40 @@ def _update_events(root, state, io, config_signature, deadline, mutate, nowait=F
             pass
 
 
-def _append_tool_event(root, state, io, config_signature, deadline, entry):
-    """The hot path of a tool event: append one line under the lock, without reading or validating the ring; fold when the tail passes TAIL_FOLD_BYTES."""
-    marker, _, ignore_signature = _base(root, state, io)
+def _prepare_tool_event(root, state, io):
+    """T-06 fix18d (D2): everything the hot path used to READ inside the lock (the owner marker, the ignore file, the inventory) is validated BEFORE it, unlocked and in parallel. A read of a
+    file costs 25-120 ms under CPU saturation (measured: a hold of 150-250 ms per writer, so a burst of 8 serialized to more than the 1 s wait). Returns what the locked step re-checks by `stat`, or None when the unlocked validation cannot conclude (the locked step then validates in full)."""
+    for attempt in range(PREPARE_ATTEMPTS):
+        temps = []
+        try:
+            marker, owner_signature, ignore_signature = _base(root, state, io, temps)
+            break
+        except _Failure as exc:
+            # Unlocked, the directory listing races with the writer holding the lock (it creates `events.tail`: the reader reports `changed_path`). A real foreign/corrupt state fails every attempt.
+            if str(exc) == 'invalid_state' and attempt < PREPARE_ATTEMPTS - 1:
+                time.sleep(0.002 * (attempt + 1))
+                continue
+            return None  # anything else (an over-budget inventory that the cleanup under the lock fixes, a foreign state): the full validation runs under the lock, as before fix18d
+    return {'marker': marker, 'owner': owner_signature, 'ignore': ignore_signature, 'temps': bool(temps)}
+
+
+def _append_tool_event(root, state, io, config_signature, deadline, entry, prepared):
+    """The hot path of a tool event: append one line under the lock, without reading or validating the ring; fold when the tail passes TAIL_FOLD_BYTES. Under the lock it only compares the
+    `stat` signatures of the files validated before it (owner marker, ignore file, `dev.json`): unchanged = the validation stands; changed = the full validation runs again here, as before."""
+    unchanged = (prepared is not None and io.file(state / 'owner.json') == prepared['owner'] and io.file(state / '.gitignore') == prepared['ignore']
+        and io.file(root / '.claude' / 'dev.json') == config_signature)
+    if unchanged:
+        marker = prepared['marker']
+        if prepared['temps']:
+            _clean_temps(state)
+    else:
+        _clean_temps(state)
+        marker, _, ignore_signature = _base(root, state, io)
+        _enabled(root, io)  # An observed opt-out before the write prevents it.
+        _need(_ignore(state, io) == ignore_signature, 'unsafe_state')
     now = time.time()
     _need(type(now) in (int, float) and math.isfinite(now) and 0 <= now <= MAX_REVISION, 'invalid_clock')
     line = _tail_line(marker, entry, now)
-    _enabled(root, io)  # An observed opt-out before the write prevents it.
-    _need(_ignore(state, io) == ignore_signature, 'unsafe_state')
 
     def tail_size():
         try:
@@ -822,11 +852,11 @@ def record(project, entry):
         state = root / '.claude' / 'agent-activity'
         created = _ensure_state(root, state, io, deadline)
         stop = min(deadline, started + (0 if entry['nowait'] else TOOL_LOCK_WAIT))
+        prepared = None if created else _prepare_tool_event(root, state, io)  # a state created by THIS call has no `.lock` yet: validated under it
         while True:  # single non-blocking attempts that yield to a waiting lifecycle writer (2-1)
             try:
                 with io.locked(state, deadline, created, wait=0, priority='yield'):
-                    _clean_temps(state)
-                    _append_tool_event(root, state, io, config_signature, deadline, entry)
+                    _append_tool_event(root, state, io, config_signature, deadline, entry, prepared)
                 return {'status': 'ok', 'reason': None}
             except _Failure as exc:
                 if str(exc) != 'state_busy' or time.monotonic() >= stop:
