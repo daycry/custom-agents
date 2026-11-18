@@ -3835,9 +3835,11 @@ test("fix16 (gap 11): Ctrl+C durante `codex plugin marketplace add` deja el mani
       // fix17 (gap 10): no basta con encontrarlo: `uninstall` DESHACE lo registrado y retira el manifiesto `incompleto` (y los ficheros copiados antes de la señal)
       const restantes = readdirSync(hogar, { recursive: true }).filter((f) => /\.custom-agents-install(\.plugin)?\.json$/.test(String(f)))
       assert.deepEqual(restantes, [], "uninstall dejo el manifiesto `incompleto` tras deshacer lo registrado")
-      // fix18 (gap 13): y lo que deshace es el `marketplace remove` REGISTRADO antes de lanzar el `add` (el fake de codex anota los `remove` en acciones.txt)
+      // fix18 (gap 13, REBATIDO con evidencia en la replica Linux): `uninstall` NO ejecuta `marketplace remove`. El registro `daycry` del marketplace es compartido por las instancias y
+      // sobrevive a la desinstalacion de una (install/providers.mjs:421-427: el `remove` solo existe como `siYaExiste` con `--force-marketplace`; test «Shared marketplace registration survives
+      // instance uninstall»). Lo que uninstall deshace aqui es el manifiesto `incompleto` y la cache (arriba). El fake de codex anota los `remove` en acciones.txt: no debe haber ninguno.
       const acciones = existsSync(join(bin, "acciones.txt")) ? readFileSync(join(bin, "acciones.txt"), "utf8") : ""
-      assert.match(acciones, /plugin marketplace remove daycry/, `uninstall no ejecuto \`marketplace remove\`: ${JSON.stringify(acciones)}`)
+      assert.doesNotMatch(acciones, /marketplace remove/, `uninstall ejecuto \`marketplace remove\` sobre un registro compartido: ${JSON.stringify(acciones)}`)
       assert.ok(!existsSync(join(hogar, ".codex", "plugins", "cache", "daycry")) || readdirSync(join(hogar, ".codex", "plugins", "cache", "daycry")).length === 0,
         "uninstall dejo lo que el instalador habia colocado en la cache de codex")
     } finally {
