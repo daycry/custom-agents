@@ -62,18 +62,23 @@ test('Windows (fix18, gap 3): el barrido se lanza FUERA del job del worker (cmd 
   assert.doesNotMatch(linea,/DETACHED_PROCESS/)
 })
 
-test('Windows (fix18, gap 3): con la raiz VIVA se confia en taskkill /T y NO se espera al barrido',{skip:!win && 'solo Windows'},()=>{
-  const llamadas=[]
-  const t0=Date.now()
-  const fake=(file,args,options)=>{
-    const h={pid:910000+llamadas.length,on(){return h},unref(){}}
-    llamadas.push({file:String(file),args,options,en:Date.now()-t0});return h
-  }
-  // taskkill «termina» enseguida; el barrido «sigue vivo» (alive devuelve true para el): si se esperase al barrido, se agotaria el presupuesto de 6 s
-  const vivo=pid=>pid===777 || (pid>=910000 && pid!==910000)
-  mod.terminateProcessTree(777,6000,6000,{since:1,rootAlive:true,deps:{spawn:fake,alive:vivo}})
-  assert.ok(llamadas.some(l=>/taskkill/i.test(l.file)),'taskkill /T primero')
-  assert.ok(Date.now()-t0<2500,`con la raiz viva se espero al barrido ${Date.now()-t0} ms`)
+test('Windows (fix18, gap 3): con la raiz VIVA se confia en taskkill /T: si acierta NO se lanza el barrido y si falla se cae a el',{skip:!win && 'solo Windows'},()=>{
+  const registro=(llamadas,tipo)=>(file,args,options)=>{llamadas.push({tipo,file:String(file),args,options});return {pid:910000+llamadas.length,status:0,on(){return this},unref(){}}}
+  // a) taskkill acierta (exit 0): ni un solo proceso mas (ni PowerShell, ni cmd)
+  const a=[]
+  mod.terminateProcessTree(777,6000,6000,{since:1,rootAlive:true,deps:{spawn:registro(a,'spawn'),spawnSync:registro(a,'sync'),alive:()=>true}})
+  assert.deepEqual(a.map(l=>[l.tipo,/taskkill/i.test(l.file)]),[['sync',true]],'con taskkill exit 0 no se lanza el barrido')
+  assert.deepEqual(a[0].args,['/T','/F','/PID','777'])
+  // b) taskkill falla (exit 1: la raiz murio entre medias): respaldo, fuera del job
+  const b=[]
+  const falla=(file,args,options)=>{b.push({tipo:'sync',file:String(file),args,options});return {status:1}}
+  mod.terminateProcessTree(777,6000,6000,{since:1,rootAlive:true,deps:{spawn:registro(b,'spawn'),spawnSync:falla,alive:()=>true}})
+  assert.equal(b.length,2);assert.equal(b[1].tipo,'spawn');assert.equal(b[1].options.detached,true)
+  assert.match([b[1].file,...b[1].args].join(' '),/-EncodedCommand/)
+  // c) la raiz ya esta muerta: solo el barrido
+  const c=[]
+  mod.terminateProcessTree(777,6000,6000,{since:1,until:2,rootAlive:false,deps:{spawn:registro(c,'spawn'),spawnSync:registro(c,'sync'),alive:()=>false}})
+  assert.deepEqual(c.map(l=>l.tipo),['spawn'])
 })
 
 test('el barrido comprueba la identidad (pid + fecha de creacion) en la MISMA orden, justo antes de cada Stop-Process',()=>{
@@ -115,32 +120,6 @@ console.log(correr('sonda-ca18',['otra','cosa'],${JSON.stringify(root)}).trim())
   } finally {removeTree(root)}
 })
 
-// --- gap 14 (anadido tras el RED, k11): la ruta REAL de `/doctor` (`node codex-plugin-state.mjs --project <dir>` con el plazo de 10 s de doctor.py) con un worker +2 s lento (el diseno de fix17 pedia +2 s
-// y solo se midio a mano con +1 s): `codex.cmd` colgado con un descendiente, 0 huerfanos y dentro de los 10 s.
-test('/doctor (fix18, gap 14): el helper de la consulta nativa con un worker +2 s lento termina en 10 s y no deja huerfanos',async()=>{
-  const root=mkdtempSync(join(tmpdir(),'ca-doctor18-')),bin=join(root,'bin'),flag=join(root,'nieto.pid');let nieto
-  mkdirSync(bin)
-  const executable=join(bin,win?'codex.cmd':'codex')
-  if(win) writeFileSync(executable,['@echo off','"'+process.execPath+'" "'+join(root,'plugin.mjs')+'" %*','exit /b %errorlevel%',''].join(String.fromCharCode(13,10))); else symlinkSync(process.execPath,executable)
-  writeFileSync(join(root,'package.json'),'{"type":"module"}')
-  writeFileSync(join(root,win?'plugin.mjs':'plugin'),`import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs'
-const n=spawn(process.execPath,['-e','setTimeout(()=>{},300000)'],{stdio:'ignore'});writeFileSync(${JSON.stringify(flag)},String(n.pid));writeFileSync(${JSON.stringify(flag+'.codex')},String(process.pid));setInterval(()=>{},1000)`)
-  const preload=join(root,'slow-worker.cjs')
-  writeFileSync(preload,"if(process.argv.includes('--query-worker'))Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,2000)")
-  const env={}
-  for(const key of ['SystemRoot','WINDIR','COMSPEC','PATHEXT','NODE_V8_COVERAGE'])if(process.env[key])env[key]=process.env[key]
-  Object.assign(env,{HOME:root,USERPROFILE:root,CODEX_HOME:join(root,'.codex'),NODE_OPTIONS:'--require '+JSON.stringify(preload.split(String.fromCharCode(92)).join('/')),
-    PATH:[bin,win?join(process.env.SystemRoot,'System32'):'/usr/bin:/bin'].join(delimiter)})
-  try {
-    const t0=Date.now()
-    const r=spawnSync(process.execPath,[MODULO,'--project',root],{cwd:root,env,encoding:'utf8',timeout:10000,killSignal:'SIGKILL'})
-    assert.equal(r.error,undefined,'doctor.py corta a los 10 s: el helper no puede pasar de ahi')
-    assert.ok(Date.now()-t0<10000,`${Date.now()-t0} ms`)
-    assert.match(r.stdout,/cli-timeout/)
-    assert.ok(existsSync(flag),'el fixture lanzo su descendiente');nieto=Number(readFileSync(flag,'utf8'))
-    assert.ok(await waitFor(()=>!alive(nieto),8000),'el descendiente de codex sigue vivo')
-  } finally {if(nieto)quiet(nieto);if(existsSync(flag+'.codex'))quiet(Number(readFileSync(flag+'.codex','utf8')));try{removeTree(root)}catch{/* un resto retiene el directorio */}}
-})
 
 // --- gap 3 (identidad de la raiz, anadido tras el RED, k12): un pid REUTILIZADO. La raiz salio en `until`; un proceso AJENO que recibio su pid despues (con su propio hijo) NO es la raiz ni desciende
 // de ella: con `rootAlive:false` (lo que los llamadores deciden por el evento `exit` de su handle) ni el ni su hijo mueren.
@@ -156,31 +135,4 @@ test('Windows (fix18, gap 3): el proceso ajeno que reutiliza el pid de la raiz y
     assert.equal(alive(ajeno.pid),true,'el proceso ajeno que reutilizo el pid murio')
     assert.equal(alive(hijo),true,'el hijo del ajeno murio')
   } finally {if(hijo)quiet(hijo);if(ajeno?.pid)quiet(ajeno.pid);removeTree(root)}
-})
-
-// --- gap 14 (anadido tras el RED, k11): el arranque lento de node del PROPIO helper no se suma al tope exterior. doctor.py corta a los 10 s desde que lanza al helper; el tope de la consulta
-// (limite + 3 s = 9 s) cuenta desde que el helper arranca el worker: con 1,5 s de arranque el total pasaba de 10 s (10,5 s sin el descuento; con el descuento, 9 s).
-test('/doctor (fix18, gap 14): el arranque lento del helper se descuenta del plazo de la consulta y el total cabe en 10 s',async()=>{
-  const root=mkdtempSync(join(tmpdir(),'ca-doctor18b-')),bin=join(root,'bin'),flag=join(root,'nieto.pid');let nieto
-  mkdirSync(bin)
-  const executable=join(bin,win?'codex.cmd':'codex')
-  if(win) writeFileSync(executable,['@echo off','"'+process.execPath+'" "'+join(root,'plugin.mjs')+'" %*','exit /b %errorlevel%',''].join(String.fromCharCode(13,10))); else symlinkSync(process.execPath,executable)
-  writeFileSync(join(root,'package.json'),'{"type":"module"}')
-  writeFileSync(join(root,win?'plugin.mjs':'plugin'),`import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs'
-const n=spawn(process.execPath,['-e','setTimeout(()=>{},300000)'],{stdio:'ignore'});writeFileSync(${JSON.stringify(flag)},String(n.pid));setInterval(()=>{},1000)`)
-  const preload=join(root,'slow-helper.cjs')
-  // el helper (no el CLI falso) tarda 1,5 s en arrancar Y su worker otros 2 s: el caso de la maquina saturada (sin el descuento el total pasaba de 10 s: 10,5 s)
-  writeFileSync(preload,"if(String(process.argv[1]).endsWith('codex-plugin-state.mjs'))Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,process.argv.includes('--query-worker') ? 2000 : 1500)")
-  const env={}
-  for(const key of ['SystemRoot','WINDIR','COMSPEC','PATHEXT','NODE_V8_COVERAGE'])if(process.env[key])env[key]=process.env[key]
-  Object.assign(env,{HOME:root,USERPROFILE:root,CODEX_HOME:join(root,'.codex'),NODE_OPTIONS:'--require '+JSON.stringify(preload.split(String.fromCharCode(92)).join('/')),
-    PATH:[bin,win?join(process.env.SystemRoot,'System32'):'/usr/bin:/bin'].join(delimiter)})
-  try {
-    const t0=Date.now()
-    const r=spawnSync(process.execPath,[MODULO,'--project',root],{cwd:root,env,encoding:'utf8',timeout:10000,killSignal:'SIGKILL'})
-    assert.equal(r.error,undefined,`el helper paso de los 10 s de doctor.py (${Date.now()-t0} ms)`)
-    assert.match(r.stdout,/cli-timeout/)
-    assert.ok(existsSync(flag));nieto=Number(readFileSync(flag,'utf8'))
-    assert.ok(await waitFor(()=>!alive(nieto),8000),'el descendiente de codex sigue vivo')
-  } finally {if(nieto)quiet(nieto);try{removeTree(root)}catch{/* un resto retiene el directorio */}}
 })

@@ -142,3 +142,63 @@ test('runBounded: devuelve stdout, stderr y el codigo de salida de un comando qu
   const noEsta=mod.runBounded({file:join(tmpdir(),'no-existe-ca-fix17'),args:[],timeoutMs:60000})
   assert.equal(noEsta.expirado,false);assert.notEqual(noEsta.status,0)
 })
+
+// fix18 (T-23, intento 18): las dos pruebas de /doctor viven AQUI, en el mismo fichero que las de «worker lento» de fix16/fix17: node ejecuta los ficheros de test en paralelo y estas cuatro miden el plazo de pared de la consulta nativa; en ficheros distintos competian entre si (y con la maquina) y daban rojo intermitente.
+import {fileURLToPath} from 'node:url'
+import {dirname} from 'node:path'
+const MODULO=join(dirname(fileURLToPath(import.meta.url)),'..','agent-kits','shared','codex-plugin-state.mjs')
+
+// --- gap 14 (anadido tras el RED, k11): la ruta REAL de `/doctor` (`node codex-plugin-state.mjs --project <dir>` con el plazo de 10 s de doctor.py) con un worker +2 s lento (el diseno de fix17 pedia +2 s
+// y solo se midio a mano con +1 s): `codex.cmd` colgado con un descendiente, 0 huerfanos y dentro de los 10 s.
+test('/doctor (fix18, gap 14): el helper de la consulta nativa con un worker +2 s lento termina en 10 s y no deja huerfanos',async()=>{
+  const root=mkdtempSync(join(tmpdir(),'ca-doctor18-')),bin=join(root,'bin'),flag=join(root,'nieto.pid');let nieto
+  mkdirSync(bin)
+  const executable=join(bin,win?'codex.cmd':'codex')
+  if(win) writeFileSync(executable,['@echo off','"'+process.execPath+'" "'+join(root,'plugin.mjs')+'" %*','exit /b %errorlevel%',''].join(String.fromCharCode(13,10))); else symlinkSync(process.execPath,executable)
+  writeFileSync(join(root,'package.json'),'{"type":"module"}')
+  writeFileSync(join(root,win?'plugin.mjs':'plugin'),`import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs'
+const n=spawn(process.execPath,['-e','setTimeout(()=>{},300000)'],{stdio:'ignore'});writeFileSync(${JSON.stringify(flag)},String(n.pid));writeFileSync(${JSON.stringify(flag+'.codex')},String(process.pid));setInterval(()=>{},1000)`)
+  const preload=join(root,'slow-worker.cjs')
+  writeFileSync(preload,"if(process.argv.includes('--query-worker'))Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,2000)")
+  const env={}
+  for(const key of ['SystemRoot','WINDIR','COMSPEC','PATHEXT','NODE_V8_COVERAGE'])if(process.env[key])env[key]=process.env[key]
+  Object.assign(env,{HOME:root,USERPROFILE:root,CODEX_HOME:join(root,'.codex'),NODE_OPTIONS:'--require '+JSON.stringify(preload.split(String.fromCharCode(92)).join('/')),
+    PATH:[bin,win?join(process.env.SystemRoot,'System32'):'/usr/bin:/bin'].join(delimiter)})
+  try {
+    const t0=Date.now()
+    const r=spawnSync(process.execPath,[MODULO,'--project',root],{cwd:root,env,encoding:'utf8',timeout:10000,killSignal:'SIGKILL'})
+    assert.equal(r.error,undefined,'doctor.py corta a los 10 s: el helper no puede pasar de ahi')
+    assert.ok(Date.now()-t0<10000,`${Date.now()-t0} ms`)
+    assert.match(r.stdout,/cli-timeout/)
+    assert.ok(existsSync(flag),'el fixture lanzo su descendiente');nieto=Number(readFileSync(flag,'utf8'))
+    assert.ok(await waitFor(()=>!alive(nieto),8000),'el descendiente de codex sigue vivo')
+  } finally {if(nieto)quiet(nieto);if(existsSync(flag+'.codex'))quiet(Number(readFileSync(flag+'.codex','utf8')));try{removeTree(root)}catch{/* un resto retiene el directorio */}}
+})
+
+// --- gap 14 (anadido tras el RED, k11): el arranque lento de node del PROPIO helper no se suma al tope exterior. doctor.py corta a los 10 s desde que lanza al helper; el tope de la consulta
+// (limite + 3 s = 9 s) cuenta desde que el helper arranca el worker: con 1,5 s de arranque el total pasaba de 10 s (10,5 s sin el descuento; con el descuento, 9 s).
+test('/doctor (fix18, gap 14): el arranque lento del helper se descuenta del plazo de la consulta y el total cabe en 10 s',async()=>{
+  const root=mkdtempSync(join(tmpdir(),'ca-doctor18b-')),bin=join(root,'bin'),flag=join(root,'nieto.pid');let nieto
+  mkdirSync(bin)
+  const executable=join(bin,win?'codex.cmd':'codex')
+  if(win) writeFileSync(executable,['@echo off','"'+process.execPath+'" "'+join(root,'plugin.mjs')+'" %*','exit /b %errorlevel%',''].join(String.fromCharCode(13,10))); else symlinkSync(process.execPath,executable)
+  writeFileSync(join(root,'package.json'),'{"type":"module"}')
+  writeFileSync(join(root,win?'plugin.mjs':'plugin'),`import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs'
+const n=spawn(process.execPath,['-e','setTimeout(()=>{},300000)'],{stdio:'ignore'});writeFileSync(${JSON.stringify(flag)},String(n.pid));setInterval(()=>{},1000)`)
+  const preload=join(root,'slow-helper.cjs')
+  // el helper (no el CLI falso) tarda 1,5 s en arrancar Y su worker otros 2 s: el caso de la maquina saturada (sin el descuento el total pasaba de 10 s: 10,5 s)
+  writeFileSync(preload,"if(String(process.argv[1]).endsWith('codex-plugin-state.mjs'))Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,process.argv.includes('--query-worker') ? 2000 : 1500)")
+  const env={}
+  for(const key of ['SystemRoot','WINDIR','COMSPEC','PATHEXT','NODE_V8_COVERAGE'])if(process.env[key])env[key]=process.env[key]
+  Object.assign(env,{HOME:root,USERPROFILE:root,CODEX_HOME:join(root,'.codex'),NODE_OPTIONS:'--require '+JSON.stringify(preload.split(String.fromCharCode(92)).join('/')),
+    PATH:[bin,win?join(process.env.SystemRoot,'System32'):'/usr/bin:/bin'].join(delimiter)})
+  try {
+    const t0=Date.now()
+    const r=spawnSync(process.execPath,[MODULO,'--project',root],{cwd:root,env,encoding:'utf8',timeout:10000,killSignal:'SIGKILL'})
+    assert.equal(r.error,undefined,`el helper paso de los 10 s de doctor.py (${Date.now()-t0} ms)`)
+    assert.match(r.stdout,/cli-timeout/)
+    assert.ok(existsSync(flag));nieto=Number(readFileSync(flag,'utf8'))
+    assert.ok(await waitFor(()=>!alive(nieto),8000),'el descendiente de codex sigue vivo')
+  } finally {if(nieto)quiet(nieto);try{removeTree(root)}catch{/* un resto retiene el directorio */}}
+})
+

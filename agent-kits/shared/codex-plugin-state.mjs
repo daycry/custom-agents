@@ -22,7 +22,8 @@ const validVersion = value => typeof value==='string' && /^[A-Za-z0-9.+-]{1,64}$
 //  - `since` (ms, reloj de pared: el instante del lanzamiento menos 100 ms): un proceso solo cuenta si su `CreationDate` >= `since` y >= la de su padre; si la raiz esta MUERTA
 //    (`rootAlive:false`), los hijos directos ademas deben ser anteriores a `until` (el instante en que SALIO: el evento `exit` del llamador; un hijo de un proceso que reutilizo el pid nace despues).
 //    Los llamadores deciden `rootAlive` por el estado real de su handle (`exitCode`/`exit`), no por `alive(pid)`: con el handle abierto el pid no se reutiliza.
-//  - Con la raiz VIVA el dueño del temporizador mata con `taskkill /T /F` (0,6-1,1 s con carga; ya filtra por fecha de creacion) y SOLO espera a taskkill: no al barrido.
+//  - Con la raiz VIVA el dueño del temporizador mata con `taskkill /T /F` (0,6-1,1 s con carga; ya filtra por fecha de creacion) y, si acierta (exit 0), NO lanza el barrido: un PowerShell CIM detras
+//    suma 1-4 s de CPU que nadie espera y perturba lo que corra despues. Solo si taskkill falla se cae al barrido.
 //  - El barrido CIM (una proyeccion `ProcessId,ParentProcessId,CreationDate` y busqueda en anchura en el cliente) es el respaldo para los huerfanos fuera del arbol y el UNICO mecanismo con la
 //    raiz muerta. Se lanza FUERA del job del worker (fix18): un PowerShell hijo normal muere cuando el worker sale (job de libuv con KILL_ON_JOB_CLOSE) y la foto CIM tarda 1-4 s con carga, mas
 //    que el presupuesto; con `detached` puro (DETACHED_PROCESS) PowerShell no tiene consola y sale SIN ejecutar nada (medido), asi que va con `cmd /c start /b` (detached) y `-EncodedCommand`
@@ -53,34 +54,33 @@ export function terminateProcessTree(pid,budgetMs=TREE_KILL_TOTAL_MS,maxMs=TREE_
     try {process.kill(-pid,'SIGKILL')} catch {/* process group already gone */}
     return
   }
-  const launch=deps?.spawn || spawn,isAlive=deps?.alive || alive
+  const launch=deps?.spawn || spawn,launchSync=deps?.spawnSync || spawnSync,isAlive=deps?.alive || alive
   const deadline=Date.now()+Math.min(maxMs,Math.max(0,Number.isFinite(budgetMs) ? budgetMs : TREE_KILL_TOTAL_MS))
   const system=join(process.env.SystemRoot || 'C:\\Windows','System32')
-  const live=rootAlive && isAlive(pid)
-  let killer
-  // 1) con la raiz VIVA, `taskkill /T /F`. NO se lanza `detached`: la limpieza cabe antes del SIGKILL exterior gracias a `queryPlan` (reserva de 2 s) y al presupuesto sin suelo.
-  if(live) {
-    try {killer=launch(join(system,'taskkill.exe'),['/T','/F','/PID',String(pid)],{stdio:'ignore',windowsHide:true});killer.on('error',()=>{});killer.unref()} catch {killer=undefined}
+  // 1) con la raiz VIVA, `taskkill /T /F` y nada mas si acierta: el arbol cae en 0,6-1,1 s con carga y un barrido CIM detras solo suma 1-4 s de CPU de un PowerShell que nadie espera. NO se lanza
+  //    `detached` (la limpieza cabe antes del SIGKILL exterior gracias a `queryPlan`, reserva de 2 s, y al presupuesto sin suelo).
+  if(rootAlive && isAlive(pid)) {
+    try {
+      const r=launchSync(join(system,'taskkill.exe'),['/T','/F','/PID',String(pid)],{stdio:'ignore',windowsHide:true,timeout:Math.max(500,deadline-Date.now())})
+      if(r && r.status===0) return
+    } catch {/* taskkill no pudo: queda el barrido */}
   }
-  // 2) respaldo: barrido por identidad, FUERA del job del worker (sobrevive a su salida) y sin esperarlo.
+  // 2) respaldo (la raiz ya estaba muerta o taskkill fallo): barrido por identidad, FUERA del job del worker (sobrevive a su salida) y sin esperarlo.
   try {
     const powershell=join(system,'WindowsPowerShell/v1.0/powershell.exe')
-    const script=sweepScript(pid,Math.max(0,Math.floor(since)),Math.max(0,Math.floor(until)),live)
+    const script=sweepScript(pid,Math.max(0,Math.floor(since)),Math.max(0,Math.floor(until)),Boolean(rootAlive))
     const sweeper=launch(process.env.COMSPEC || join(system,'cmd.exe'),['/d','/c',`start "" /b "${powershell}" -NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand ${encodedCommand(script)}`],
       {stdio:'ignore',windowsHide:true,detached:true,windowsVerbatimArguments:true})
     sweeper.on('error',()=>{});sweeper.unref()
-  } catch {/* sin barrido: queda taskkill */}
-  if(!killer) return
-  const wait=new Int32Array(new SharedArrayBuffer(4))
-  while(Date.now()<deadline && killer.pid && isAlive(killer.pid)) Atomics.wait(wait,0,0,50)
+  } catch {/* sin barrido */}
 }
 
 // Plazos de la consulta nativa (fix17, gap 4). El `SIGKILL` exterior de `runCodexQuery` llega a `outerMs(limit)` del lanzamiento; el plazo de la consulta (listo + limite) se recorta a
 // ese tope MENOS la reserva de la limpieza, sin suelo que pase del SIGKILL: con un worker lento (carga) la consulta expira antes, el arbol se mata con la raiz viva y no quedan huerfanos.
 // Tope exterior: limite + 3 s y, como minimo, 7 s (el valor de siempre para plazos pequeños). Con el plazo por defecto son 9 s, dentro de los 10 s del diagnostico.
 const outerMs=limit=>Math.max(limit+3000,7000)
-export function queryPlan({launchedAt,readyAt,limit}) {
-  const outerKill=launchedAt+outerMs(limit)
+export function queryPlan({launchedAt,readyAt,limit,outer}) {
+  const outerKill=launchedAt+(Number.isFinite(outer) ? outer : outerMs(limit))
   return {outerKill,deadline:Math.min(readyAt+limit,outerKill-CLEANUP_RESERVE_MS),cleanupBy:outerKill-200}
 }
 
@@ -104,7 +104,7 @@ function executable(env) {
 // The synchronous caller waits only for our Node worker. The worker owns an asynchronous
 // watchdog and kills the native tree before exiting, even when SIGTERM is ignored or a
 // descendant retains native stdout. Native pipe handles never reach this outer wait.
-export function runCodexQuery(args, {cwd,timeout,env=process.env}={}) {
+export function runCodexQuery(args, {cwd,timeout,env=process.env,outer}={}) {
   executable(env) // Preserve the missing-CLI classification without starting a worker.
   if(JSON.stringify(args)!==JSON.stringify(QUERY_ARGS)) throw new Error('unsupported native query arguments')
   const cap=capMs(env)
@@ -112,8 +112,10 @@ export function runCodexQuery(args, {cwd,timeout,env=process.env}={}) {
   try {
     // NoDefaultCurrentDirectoryInExePath: the worker and the npm shim it starts never resolve
     // `node` (or any command) from the project directory, where it could be planted.
-    return execFileSync(process.execPath,[HELPER,'--query-worker',String(Date.now()+limit),String(limit)],
-      {cwd,env:{...env,NoDefaultCurrentDirectoryInExePath:'1'},timeout:outerMs(limit),killSignal:'SIGKILL',encoding:'utf8',stdio:['ignore','pipe','pipe'],maxBuffer:4*1024*1024})
+    // fix18 (gap 14): `outer` (ms) lo fija el helper de `/doctor` para que su arranque + la consulta quepan en los 10 s de doctor.py; sin el, limite + 3 s (minimo 7 s).
+    const outerBudget=Number.isFinite(outer) && outer>=2000 ? Math.floor(outer) : outerMs(limit)
+    return execFileSync(process.execPath,[HELPER,'--query-worker',String(Date.now()+limit),String(limit),String(outerBudget)],
+      {cwd,env:{...env,NoDefaultCurrentDirectoryInExePath:'1'},timeout:outerBudget,killSignal:'SIGKILL',encoding:'utf8',stdio:['ignore','pipe','pipe'],maxBuffer:4*1024*1024})
   } catch(error) {
     if(error.status===124) error.code='ETIMEDOUT'
     throw error
@@ -122,10 +124,10 @@ export function runCodexQuery(args, {cwd,timeout,env=process.env}={}) {
 
 // fix16 (gap 21): con `limit` (relativo) el plazo corre desde que el worker esta LISTO (aqui): el arranque lento de node bajo carga no lo consume. fix17 (gap 4): y se recorta al tope
 // exterior menos la reserva de la limpieza (`queryPlan`). Sin `limit` (sondas antiguas) `deadline` es absoluto, como antes.
-function queryWorker(deadline,limit) {
+function queryWorker(deadline,limit,outer) {
   let cleanupBy
   if(limit!==undefined) {
-    const plan=queryPlan({launchedAt:deadline-limit,readyAt:Date.now(),limit})
+    const plan=queryPlan({launchedAt:deadline-limit,readyAt:Date.now(),limit,outer})
     deadline=plan.deadline;cleanupBy=plan.cleanupBy
   } else cleanupBy=deadline+4000
   deadline=Math.min(deadline,Date.now()+capMs(process.env))
@@ -223,10 +225,10 @@ export function parseCodexPluginState(raw) {
   return {state:'installed',enabled:matches[0].enabled,version:matches[0].version,reason:null}
 }
 
-export function queryCodexPlugin({cwd,runner=runCodexQuery,timeout}={}) {
+export function queryCodexPlugin({cwd,runner=runCodexQuery,timeout,outer}={}) {
   try {
     // Explicit local marketplace avoids the native CLI's default remote-catalog listing.
-    return parseCodexPluginState(runner([...QUERY_ARGS],{cwd,timeout}))
+    return parseCodexPluginState(runner([...QUERY_ARGS],{cwd,timeout,...(outer===undefined ? {} : {outer})}))
   } catch(error) {
     return unknown(error?.code==='ENOENT' ? 'cli-unavailable' : error?.code==='ETIMEDOUT' || error?.expirado ? 'cli-timeout' : 'cli-failed')
   }
@@ -234,14 +236,16 @@ export function queryCodexPlugin({cwd,runner=runCodexQuery,timeout}={}) {
 
 if(process.argv[1] && resolve(process.argv[1])===HELPER) {
   const args=process.argv.slice(2)
-  if((args.length===2 || args.length===3 && /^\d{1,16}$/.test(args[2])) && args[0]==='--query-worker' && /^\d{1,16}$/.test(args[1])) queryWorker(Number(args[1]),args.length===3 ? Number(args[2]) : undefined)
+  if(args.length>=2 && args.length<=4 && args[0]==='--query-worker' && args.slice(1).every(a=>/^\d{1,16}$/.test(a))) queryWorker(Number(args[1]),args.length>=3 ? Number(args[2]) : undefined,args.length===4 ? Number(args[3]) : undefined)
   else if(args.length===2 && args[0]==='--run-bounded') runBoundedWorker(args[1])
   else {
     const valid=args.length===0 || args.length===2 && args[0]==='--project' && Boolean(args[1])
     // fix18 (gap 14): `/doctor` (doctor.py) corta al helper a los 10 s DESDE QUE LO LANZA, y el tope exterior de la consulta (limite + 3 s) cuenta desde que `runCodexQuery` arranca el worker: con la
     // maquina saturada el arranque de node del propio helper (0,3-1,5 s) se sumaba y el total pasaba de 10 s (medido: 10,29 s con un worker +2 s lento). El limite descuenta ese arranque
-    // (`performance.now()` cuenta desde el inicio del proceso): helper + consulta caben en 9 s por construccion mientras el arranque no pase de unos 3 s.
+    // (`performance.now()` cuenta desde el inicio del proceso): el tope exterior de la consulta pasa a ser 9 s MENOS el arranque (minimo 3 s) y el limite, ese tope menos 3 s (entre 1 s y 6 s):
+    // arranque + consulta + limpieza caben en 9 s por construccion, tambien con un arranque de varios segundos.
     const arranque=Math.round(performance.now())
-    console.log(JSON.stringify(valid ? queryCodexPlugin({cwd:args.length ? resolve(args[1]) : process.cwd(),timeout:Math.max(1000,CODEX_QUERY_TIMEOUT_MS-arranque)}) : unknown('invalid-arguments')))
+    const outer=Math.max(3000,9000-arranque)
+    console.log(JSON.stringify(valid ? queryCodexPlugin({cwd:args.length ? resolve(args[1]) : process.cwd(),timeout:Math.max(1000,Math.min(CODEX_QUERY_TIMEOUT_MS,outer-3000)),outer:Math.max(2000,outer)}) : unknown('invalid-arguments')))
   }
 }
