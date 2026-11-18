@@ -1003,6 +1003,34 @@ def _enlazar_dir(objetivo, enlace):
         pytest.skip(f"no se puede crear un enlace de directorio: {e}")
 
 
+def _so_sigue_la_junction_en_o_excl():
+    """Sonda del SO (una vez): ¿`O_CREAT|O_EXCL` a traves de un enlace de directorio recien creado crea el
+    fichero en el destino? Windows con KB5135385 (2026-11) lo rechaza con `FileExistsError` sin crear nada;
+    antes (y en POSIX) lo seguia. Los tests de ventana TOCTOU (CWE-59/367) afirman el contrato de seguridad
+    en AMBOS comportamientos: si se sigue, se detecta y se nombra; si se rechaza, no se escribe fuera."""
+    global _SONDA_JUNCTION
+    if _SONDA_JUNCTION is None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            destino, enlace = os.path.join(d, "destino"), os.path.join(d, "enlace")
+            _enlazar_dir(destino, enlace)
+            try:
+                fd = os.open(os.path.join(enlace, "f"), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                os.close(fd)
+                _SONDA_JUNCTION = os.path.exists(os.path.join(destino, "f"))
+            except FileExistsError:
+                _SONDA_JUNCTION = False
+            finally:
+                try:
+                    os.rmdir(enlace) if os.name == "nt" else os.unlink(enlace)
+                except OSError:
+                    pass
+    return _SONDA_JUNCTION
+
+
+_SONDA_JUNCTION = None
+
+
 def test_f2fix1_gap31_grabar_exige_flag_is_true_no_truthy(tmp_path):
     """gap #31: `grabar` usa la MISMA puerta que `cambiar_estado` (`flag is True`)."""
     raiz, cfg, store = _proyecto(tmp_path)
@@ -3839,8 +3867,14 @@ def test_f2fix4_gap82_padre_cambiado_entre_la_comprobacion_y_la_creacion_se_dete
     assert hecho and "CWE-59/367" in msg and "la reserva cases/ramp.steep/v002 queda" in msg, msg
     ficheros, dirs = _foto(aprobado)
     assert {k: v for k, v in ficheros.items() if k != "artifacts.json"} == antes[0] and dirs == antes[1]
-    assert json.loads(ficheros["artifacts.json"]) == CASO["artifacts"]          # el NUEVO, el del recorder
     assert (otro / "artifacts.json").read_bytes() == b"ajeno\n"
+    if not _so_sigue_la_junction_en_o_excl():
+        # SO que RECHAZA la creacion exclusiva a traves del enlace (Windows con KB5135385): el contrato de
+        # seguridad se cumple aun mas fuerte: nada se crea, modifica ni borra fuera del store.
+        assert "artifacts.json" not in ficheros and ficheros == antes[0], sorted(ficheros)
+        assert "retiralo" not in msg and "otro" not in msg, msg
+        return
+    assert json.loads(ficheros["artifacts.json"]) == CASO["artifacts"]          # el NUEVO, el del recorder
     if paso == "sigue":
         assert "retiralo a mano" in msg and "approved" in msg and "no localizado" not in msg, msg
     else:
@@ -4648,9 +4682,16 @@ def test_f2fix5_gap98_final_se_crea_tras_comprobar_vnnn_y_nada_se_retira(tmp_pat
         monkeypatch.setattr(rec.os, "mkdir", mkdir)
     with pytest.raises(rec.Rechazo) as e:
         rec.grabar(_caso(), cfg, raiz)
-    assert "enlace" in str(e.value), str(e.value)
+    msg = str(e.value)
     ficheros, dirs = _foto(aprobado)
     assert ficheros == antes[0]
+    if cuando != "tras_s1" and not _so_sigue_la_junction_en_o_excl():
+        # SO que RECHAZA la creacion exclusiva a traves del enlace: se rechaza (exit 1, el store cambio, la
+        # reserva queda) y NADA se crea, modifica ni borra en approved/ (ni siquiera el `final/` vacio).
+        assert "el store cambio" in msg and "la reserva cases/ramp.steep/v002 queda" in msg, msg
+        assert dirs == antes[1], dirs
+        return
+    assert "enlace" in msg, msg
     assert dirs == (antes[1] if cuando == "tras_s1" else sorted(antes[1] + ["final"])), dirs
     if cuando != "tras_s1":
         assert os.listdir(str(aprobado / "final")) == []

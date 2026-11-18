@@ -433,6 +433,34 @@ def _enlazar_dir(objetivo, enlace):
         pytest.skip(f"no se puede crear un enlace de directorio: {e}")
 
 
+def _so_sigue_la_junction_en_o_excl():
+    """Sonda del SO (una vez): ¿`O_CREAT|O_EXCL` a traves de un enlace de directorio recien creado crea el
+    fichero en el destino? Windows con KB5135385 (2026-11) lo rechaza con `FileExistsError` sin crear nada;
+    antes (y en POSIX) lo seguia. Los tests de ventana TOCTOU (CWE-59/367) afirman el contrato de seguridad
+    en AMBOS comportamientos: si se sigue, se detecta y se nombra; si se rechaza, no se escribe fuera."""
+    global _SONDA_JUNCTION
+    if _SONDA_JUNCTION is None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            destino, enlace = os.path.join(d, "destino"), os.path.join(d, "enlace")
+            _enlazar_dir(destino, enlace)
+            try:
+                fd = os.open(os.path.join(enlace, "f"), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                os.close(fd)
+                _SONDA_JUNCTION = os.path.exists(os.path.join(destino, "f"))
+            except FileExistsError:
+                _SONDA_JUNCTION = False
+            finally:
+                try:
+                    os.rmdir(enlace) if os.name == "nt" else os.unlink(enlace)
+                except OSError:
+                    pass
+    return _SONDA_JUNCTION
+
+
+_SONDA_JUNCTION = None
+
+
 def test_t09_version_que_es_un_enlace_de_directorio_no_se_exporta(tmp_path):
     raiz, cfg, store = _store_basico(tmp_path)
     v2 = store / "cases" / "a.x" / "v002"
@@ -675,6 +703,12 @@ def test_t09_118_export_sustituido_por_enlace_se_detecta_y_se_nombra(tmp_path, m
         _ensamblar(cfg, raiz)
     monkeypatch.undo()
     msg = str(e.value)
+    if not _so_sigue_la_junction_en_o_excl():
+        # SO que RECHAZA la creacion exclusiva a traves del enlace (Windows con KB5135385): no se escribe
+        # fuera, el aviso nombra la condicion CWE-59/367 y el export queda incompleto (se conserva).
+        assert "train.jsonl" in msg and "CWE-59/367" in msg and "incompleto" in msg and "se conserva" in msg, msg
+        assert "quedo en" not in msg and os.listdir(curado) == [], (msg, os.listdir(curado))
+        return
     assert "train.jsonl" in msg and "quedo en" in msg and "lessons" in msg and "incompleto" in msg
     assert "no borra nada" in msg
     assert sorted(os.listdir(curado)) == ["train.jsonl"]        # nada mas se escribio a traves del enlace
@@ -1081,6 +1115,13 @@ def test_t09_136_140_ventana_del_temporal_del_manifiesto(tmp_path, monkeypatch):
         _ensamblar(cfg, raiz)
     monkeypatch.undo()
     msg = str(e.value)
+    if not _so_sigue_la_junction_en_o_excl():
+        # SO que RECHAZA la creacion exclusiva a traves del enlace: el temporal ni se crea (nada que retirar)
+        assert tamanos == [], tamanos
+        assert os.listdir(curado) == [] and "quedo en" not in msg and "incompleto" in msg, msg
+        (aparte,) = [n for n in os.listdir(store / "exports") if n.endswith(".aparte")]
+        assert sorted(os.listdir(store / "exports" / aparte)) == ["benchmark.jsonl", "train.jsonl"]
+        return
     assert tamanos == [0], tamanos                                   # ni un byte del manifiesto
     assert os.listdir(curado) == []                                  # nada queda en el arbol curado
     assert "quedo en" not in msg and "ya se retiro" in msg and "incompleto" in msg, msg
