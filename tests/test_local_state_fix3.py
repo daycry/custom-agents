@@ -23,6 +23,14 @@ import pytest
 # (deadline_exceeded, T-23 fix4); pasan en serie: corren en el paso `-m serie`.
 pytestmark = pytest.mark.serie
 
+
+# T-06 fix20: estas pruebas comprueban la SEMANTICA del cerrojo (byte 0 / byte 1, sin `flock`), no la velocidad: con el plazo real de 1 s del ciclo de vida (que no se toca en produccion) una captura
+# cuesta ~285 operaciones de fichero y en una maquina cargada (2-15 ms por `stat`/`open`) agotaba `deadline_exceeded` -- tambien con el almacen anterior a fix18d. Se INYECTA la escala de plazos
+# (`CUSTOM_AGENTS_ACTIVITY_DEADLINE_SCALE`, solo actua bajo pytest), como el resto de la suite de actividad.
+@pytest.fixture(autouse=True)
+def _plazos_inyectados(monkeypatch):
+    monkeypatch.setenv('CUSTOM_AGENTS_ACTIVITY_DEADLINE_SCALE', '20')
+
 SHARED = Path(__file__).resolve().parents[1] / 'agent-kits' / 'shared'
 INF = float('inf')
 

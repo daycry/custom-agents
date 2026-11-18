@@ -851,8 +851,9 @@ def record(project, entry):
         config_signature = _enabled(root, io)
         state = root / '.claude' / 'agent-activity'
         created = _ensure_state(root, state, io, deadline)
-        stop = min(deadline, started + (0 if entry['nowait'] else TOOL_LOCK_WAIT))
         prepared = None if created else _prepare_tool_event(root, state, io)  # a state created by THIS call has no `.lock` yet: validated under it
+        # T-06 fix20: the wait is for the LOCK, so it counts from here, after the unlocked work (under load that work is 0.2-0.6 s per process and used to eat the wait of a burst); `deadline` still caps the whole call.
+        stop = min(deadline, time.monotonic() + (0 if entry['nowait'] else TOOL_LOCK_WAIT))
         while True:  # single non-blocking attempts that yield to a waiting lifecycle writer (2-1)
             try:
                 with io.locked(state, deadline, created, wait=0, priority='yield'):
