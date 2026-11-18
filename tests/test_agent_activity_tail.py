@@ -275,6 +275,42 @@ def test_fix18d_un_opt_out_entre_la_validacion_y_el_cerrojo_impide_la_escritura(
     assert tail_lines(project) == []
 
 
+def test_fix20_la_espera_del_cerrojo_cuenta_desde_que_acaba_la_preparacion_sin_cerrojo(api, project, monkeypatch):
+    """T-06 fix20 (D2): la validacion previa de fix18d corre ANTES del cerrojo y bajo carga cuesta 0,2-0,6 s por proceso; `TOOL_LOCK_WAIT` (1 s) es la espera DEL cerrojo y debe medirse desde que se
+    empieza a esperarlo, no desde el arranque del hook (si no, 8 hooks en rafaga perdian eventos con `state_busy` sin haber esperado el segundo entero). Reloj falso: la preparacion consume 0,9 s y el
+    cerrojo esta ocupado 0,5 s despues; con la espera desde el arranque solo quedaban 0,1 s y el evento se perdia."""
+    boot(api, project)
+    clock = [1000.0]
+    fake = type('Clock', (), {'monotonic': staticmethod(lambda: clock[0]), 'time': staticmethod(time.time),
+        'sleep': staticmethod(lambda seconds: clock.__setitem__(0, clock[0] + seconds))})
+    monkeypatch.setattr(api, 'time', fake)
+    original, release = api._prepare_tool_event, []
+
+    def preparar(root, state_path, io):
+        out = original(root, state_path, io)
+        clock[0] += 0.9
+        release.append(clock[0] + 0.5)
+        return out
+
+    class Busy:
+        def __init__(self, io):
+            self._io = io
+
+        def __getattr__(self, name):
+            return getattr(self._io, name)
+
+        def locked(self, *args, **kwargs):
+            if clock[0] < release[0]:
+                raise api._Failure('state_busy')
+            return self._io.locked(*args, **kwargs)
+
+    real_io = api._io
+    monkeypatch.setattr(api, '_prepare_tool_event', preparar)
+    monkeypatch.setattr(api, '_io', lambda *a, **k: Busy(real_io(*a, **k)))
+    assert api.record(project, entry(tool='T1')) == {'status': 'ok', 'reason': None}
+    assert len(tail_lines(project)) == 1
+
+
 @pytest.mark.serie
 @pytest.mark.parametrize('count', [8, 16])
 def test_d2_rafaga_sobre_el_anillo_lleno_con_la_espera_REAL_no_pierde_ninguno(api, project, count):
