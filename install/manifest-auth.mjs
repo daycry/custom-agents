@@ -2,6 +2,7 @@
 // with a private user key and a destination-bound context before using any claim.
 import {createHmac,randomBytes,timingSafeEqual} from 'node:crypto'
 import {constants,lstatSync,fstatSync,openSync,closeSync,readFileSync,writeFileSync,mkdirSync,realpathSync} from 'node:fs'
+import {mkdirP,writeFileExclusive} from './mkdir-p.mjs'
 import {homedir} from 'node:os'
 import {resolve,join,dirname,relative,isAbsolute,sep,posix} from 'node:path'
 
@@ -78,8 +79,8 @@ function key(context,create) {
   }
   regularPath(dirname(path));regularPath(path,{file:true})
   if(create) {
-    mkdirSync(dirname(path),{recursive:true,mode:0o700});regularPath(dirname(path))
-    try {writeFileSync(path,randomBytes(32),{flag:'wx',mode:0o600})}
+    mkdirP(dirname(path),{mode:0o700});regularPath(dirname(path))
+    try {writeFileExclusive(path,randomBytes(32),{mode:0o600})}
     catch(error) {if(error.code!=='EEXIST')throw error}
   }
   regularPath(path,{file:true})

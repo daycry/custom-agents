@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,existsSync,rmSync,symlinkSync,lstatSync,readdirSync,realpathSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
-import {mkdirP} from '../install/mkdir-p.mjs'
+import {mkdirP,writeFileExclusive} from '../install/mkdir-p.mjs'
 
 const tipo=process.platform==='win32'?'junction':'dir'
 const conRaiz=fn=>{const raiz=mkdtempSync(join(tmpdir(),'ca-fix19-'));try{return fn(raiz)}finally{rmSync(raiz,{recursive:true,force:true})}}
@@ -44,3 +44,15 @@ test('mkdirP: devuelve la mascara de modo pedida en los directorios nuevos (POSI
   assert.equal(lstatSync(destino).mode&0o777,0o700)
 }))
 
+
+test('writeFileExclusive: crea un fichero nuevo a traves de un enlace y no pisa uno existente ni un enlace colgante',()=>conRaiz(raiz=>{
+  const real=join(raiz,'real');mkdirSync(real);const enlace=join(raiz,'link');symlinkSync(real,enlace,tipo)
+  writeFileExclusive(join(enlace,'key'),Buffer.from('abc'),{mode:0o600})
+  assert.equal(readFileSync(join(real,'key'),'utf8'),'abc')
+  assert.throws(()=>writeFileExclusive(join(enlace,'key'),'otra'),e=>e.code==='EEXIST')
+  assert.equal(readFileSync(join(real,'key'),'utf8'),'abc','no se sobrescribe')
+  const destino=join(raiz,'fuera')
+  try {symlinkSync(destino,join(real,'colgante'),'file')} catch(e) {if(e.code==='EPERM')return;throw e}   // sin privilegio de symlink de ficheros en Windows
+  assert.throws(()=>writeFileExclusive(join(enlace,'colgante'),'x'),e=>['EEXIST','EPERM','ENOENT'].includes(e.code))
+  assert.equal(existsSync(destino),false,'el componente final no se sigue')
+}))

@@ -21,13 +21,14 @@
 //   · DEGRADA, NO BLOQUEA — un proveedor que falla no impide instalar los demás; el exit code
 //     lo refleja al final.
 
+import {mkdirP} from './mkdir-p.mjs'
 import {manifestContext,signManifest,readManifest,regularPath,setTrustAnchors} from './manifest-auth.mjs'
 import {
   readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, statSync, rmSync, readdirSync, rmdirSync,
   renameSync, chmodSync, realpathSync, lstatSync, unlinkSync, mkdtempSync, symlinkSync, openSync, closeSync,
 } from "node:fs"
 import { createHash, randomUUID } from "node:crypto"
-import { dirname, join, resolve, relative, sep, isAbsolute } from "node:path"
+import { dirname, basename, join, resolve, relative, sep, isAbsolute } from "node:path"
 import { fileURLToPath } from "node:url"
 import { createInterface, emitKeypressEvents } from "node:readline"
 import { execFileSync } from "node:child_process"
@@ -217,7 +218,7 @@ export function leerJsonEstricto(p) {
  * bytes. Con `rename`, o está el contenido viejo o está el nuevo, nunca nada a medias.
  */
 export function escribirAtomico(p, contenido, options = {}) {
-  mkdirSync(dirname(p), { recursive: true })
+  mkdirP(dirname(p))
   const modo = (() => {
     try { return existsSync(p) ? statSync(p).mode & 0o7777 : null } catch { return null }
   })()
@@ -1407,11 +1408,15 @@ export function instalarCodexNativo({dir,scope,version,marketplaceRoot,home=code
   const realHome=resolve(home)
   validarCacheCodex(realHome)
   const args=["plugin","add",PLUGIN_ID,"--json"]
-  let isolated=null, link=null
+  let isolated=null
   try {
     let nativeHome=realHome
     if(scope==="project") {
-      isolated=mkdtempSync(join(tempRoot,"custom-agents-codex-"))
+      // fix19: el home aislado es un directorio REAL. Antes la cache del marketplace era una junction a la cache real, pero en
+      // Windows con KB5135385 el `codex` nativo no puede crear directorios a traves de una junction ("el plugin no se habilita").
+      // La entrada que instala se promueve a la cache real solo si el add tiene exito (el fallo no toca la cache del usuario).
+      // `tempRoot` se resuelve a su ruta real: crear el directorio temporal a traves de un TEMP enlazado tampoco funciona alli.
+      isolated=mkdtempSync(join(realpathSync(tempRoot),"custom-agents-codex-"))
       nativeHome=isolated
       // fix16 (gap 11): marca de propietario (el pid de ESTE instalador): `limpiarRestosCodex` borra al arrancar los directorios de una ejecución muerta
       // y respeta los de un instalador vivo. El directorio es 0700 (mkdtemp) y la copia del config.toml 0600.
@@ -1421,11 +1426,7 @@ export function instalarCodexNativo({dir,scope,version,marketplaceRoot,home=code
       const contents=existsSync(userConfig) ? readFileSync(userConfig) : Buffer.from("")
       validarSnapshotCodex(contents.toString("utf8"))
       writeFileSync(join(isolated,"config.toml"),contents,{flag:"wx",mode:0o600})
-      const namespace=join(realHome,"plugins","cache",MKT)
-      mkdirSync(namespace,{recursive:true})
-      mkdirSync(join(isolated,"plugins","cache"),{recursive:true})
-      link=join(isolated,"plugins","cache",MKT)
-      symlinkSync(namespace,link,process.platform==="win32" ? "junction" : "dir")
+      mkdirSync(join(isolated,"plugins","cache",MKT),{recursive:true})
     } else if(scope!=="user") throw new Error("unsupported Codex installation scope")
     const options={cwd:dir,env:{...process.env,CODEX_HOME:nativeHome}}
     let nativeArgs=args
@@ -1454,15 +1455,35 @@ export function instalarCodexNativo({dir,scope,version,marketplaceRoot,home=code
     }
     const expected=join(realHome,"plugins","cache",MKT,PLUGIN,version)
     const alias=join(nativeHome,"plugins","cache",MKT,PLUGIN,version)
-    if(!mismaRuta(result.installedPath,alias) || !existsSync(expected) || !statSync(expected).isDirectory()
-      || !mismaRuta(realpathSync(result.installedPath),expected)) {
+    if(!mismaRuta(result.installedPath,alias) || !existsSync(alias) || lstatSync(alias).isSymbolicLink() || !statSync(alias).isDirectory()
+      || !mismaRuta(realpathSync(result.installedPath),realpathSync(alias))) {
       throw new Error("Codex native add did not materialize the expected cache entry")
     }
+    if(scope==="project") promoverEntradaCodex(alias,expected)
+    if(!existsSync(expected) || !statSync(expected).isDirectory()) throw new Error("Codex native add did not materialize the expected cache entry")
     return {pluginId:PLUGIN_ID,version:result.version,installedPath:expected}
   } finally {
-    // Unlink the owned junction first. Cleanup never recursively follows a link into the cache.
-    if(link) {try {unlinkSync(link)} catch {/* creation may have failed */}}
     if(isolated) rmSync(isolated,{recursive:true,force:true})
+  }
+}
+
+/** fix19: copia la entrada instalada en el home aislado junto a su destino (mismo volumen) y la intercambia por rename. */
+function promoverEntradaCodex(desde,hasta) {
+  mkdirP(dirname(hasta))
+  hasta=join(realpathSync(dirname(hasta)),basename(hasta))   // crear directorios a traves de un ancestro enlazado falla en Windows+KB5135385
+  const marca=`${process.pid}-${Math.random().toString(36).slice(2,8)}`
+  const nueva=`${hasta}.new-${marca}`, vieja=`${hasta}.old-${marca}`
+  let movida=false
+  try {
+    cpSync(desde,nueva,{recursive:true,errorOnExist:true,force:false})
+    if(existsSync(hasta)) {renameSync(hasta,vieja);movida=true}
+    renameSync(nueva,hasta)
+  } catch(error) {
+    if(movida && !existsSync(hasta)) {try {renameSync(vieja,hasta)} catch {/* mejor esfuerzo */}}
+    throw error
+  } finally {
+    rmSync(nueva,{recursive:true,force:true})
+    rmSync(vieja,{recursive:true,force:true})
   }
 }
 
@@ -1803,7 +1824,7 @@ function prepareOwnedFiles(plan,previous,provider,opts) {
 
 function saveSharedCaches(files,provider,complete=false) {
   for(const cache of files.sharedCaches.values()) {
-    regularPath(cache.root);mkdirSync(cache.root,{recursive:true});regularPath(cache.root)
+    regularPath(cache.root);mkdirP(cache.root);regularPath(cache.root)
     regularPath(cache.path,{file:true})
     const receipt=signManifest({plugin:'custom-agents',provider:provider.id,scope:'user',modo:'shared-cache',version:VERSION,
       artifactHashes:cache.hashes,files:Object.keys(cache.hashes),
@@ -2041,7 +2062,7 @@ function ejecutar(provider, opts, selectedModels) {
             if (now !== action.before) throw new Error('native agent changed before copy')
             escritos.push(action.to); nativeAgents[action.to.split(sep).join('/')] = action.sha256
             guardar('incompleto',new Error('copiando agente nativo'))
-            mkdirSync(dirname(action.to),{recursive:true})
+            mkdirP(dirname(action.to))
             escribirAtomico(action.to,action.content ?? readFileSync(action.from,'utf8'))
             if (action.binding) plan.push(action.binding)
             n++
@@ -2064,7 +2085,7 @@ function ejecutar(provider, opts, selectedModels) {
         // deshacer es que ya esté inventariado. Cuesta un JSON pequeño por paso.
         escritos.push(...destinos.filter(path=>!ownedFiles.get(path)?.shared))
         try { guardar("incompleto", new Error(`copiando ${paso.from}`)) } catch { /* mejor esfuerzo */ }
-        mkdirSync(dirname(paso.to), { recursive: true })
+        mkdirP(dirname(paso.to))
         for(const target of destinos)writeOwnedFile(target,ownedFiles)
       }
       if (opts.dryRun) escritos.push(...destinos.filter(path=>!ownedFiles.get(path)?.shared))   // en disco ya se apuntaron antes de copiar

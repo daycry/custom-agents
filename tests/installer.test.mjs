@@ -10,6 +10,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, chmodSync, symlinkSync, linkSync, truncateSync, copyFileSync, renameSync, utimesSync } from "node:fs"
+import { mkdirP } from "../install/mkdir-p.mjs"
 import { tmpdir, homedir } from "node:os"
 import { join, dirname, resolve, delimiter } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
@@ -35,7 +36,7 @@ test('B5 shared fallback cache supports two independent projects', () => {
   const fixture=mkdtempSync(join(tmpdir(),'ca-shared-cache-'))
   const bundle=join(fixture,'bundle'), home=join(fixture,'home')
   mkdirSync(join(bundle,'install'),{recursive:true})
-  for(const name of ['install.mjs','providers.mjs','modules.mjs','manifest-auth.mjs'])
+  for(const name of ['install.mjs','providers.mjs','modules.mjs','manifest-auth.mjs','mkdir-p.mjs'])
     copyFileSync(join(ROOT,'install',name),join(bundle,'install',name))
   mkdirSync(join(bundle,'agent-kits','shared'),{recursive:true})
   for(const name of ['modules.json','codex-plugin-state.mjs'])copyFileSync(join(ROOT,'agent-kits','shared',name),join(bundle,'agent-kits','shared',name))
@@ -98,7 +99,7 @@ const cli = (args, opts = {}) => {
   const inheritedPath=process.env.PATH || process.env.Path
   const allowed=/^(?:SystemRoot|WINDIR|COMSPEC|PATHEXT|OS|PROCESSOR_ARCHITECTURE|NO_COLOR|CI|HOME|USERPROFILE|CODEX_HOME|APPDATA|LOCALAPPDATA|XDG_CONFIG_HOME|CLAUDE_CONFIG_DIR|CODEX_FAKE_LOG|CODEX_FAKE_FAIL_ADD|CUSTOM_AGENTS_EXEC_TIMEOUT_MS|CUSTOM_AGENTS_CODEX_QUERY_TIMEOUT_MS|CUSTOM_AGENTS_PYTHON|CODEX_FAKE_MODEL_RACE|MARCA|NODE_V8_COVERAGE)$/i
   const env=Object.fromEntries(Object.entries(merged).filter(([key])=>allowed.test(key)))
-  const ownedTemp=join(ownedHome,'temp');mkdirSync(ownedTemp,{recursive:true})
+  const ownedTemp=join(ownedHome,'temp');mkdirP(ownedTemp)   // fix19: un HOME enlazado (junction) no admite mkdir a traves de el en Windows+KB5135385
   Object.assign(env,{NO_COLOR:"1",HOME:ownedHome,USERPROFILE:ownedHome,CODEX_HOME:ownedCodex,
     TEMP:ownedTemp,TMP:ownedTemp,PATH:requestedPath && requestedPath!==inheritedPath ? requestedPath : [SUITE_BIN,SAFE_SYSTEM_PATH].join(delimiter)})
   for(const [key,fallback] of [['APPDATA',join(ownedHome,'AppData/Roaming')],['LOCALAPPDATA',join(ownedHome,'AppData/Local')],
