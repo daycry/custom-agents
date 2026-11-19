@@ -1,0 +1,11 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // Servidor MCP local del proyecto. Sin credenciales en el fichero: usa variables de entorno.
+  "mcp": {
+    "{{servidor}}": {
+      "type": "local",
+      "command": ["{{comando_mcp}}", "-y", "<paquete-del-servidor>"],
+      "enabled": true
+    }
+  }
+}

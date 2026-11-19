@@ -13,10 +13,10 @@ is named.
 1. **Open an issue first** with the *New piece* form (`.github/ISSUE_TEMPLATE/pieza-nueva.yml`):
    what problem it solves, who invokes it, which existing pieces it touches. Small fixes do not
    need an issue — go straight to a PR.
-2. **Use the `plugin-dev` skill** inside Claude Code (`skills/plugin-dev/`): it walks the decision
-   tree (agent vs skill vs command vs shared fragment), fills the frontmatter (`name`, `model`,
-   `tools`, `dependencies`, trigger phrase in the `description`) from the templates in
-   `skills/plugin-dev/templates/`, and lists the validation steps below.
+2. **Read `skills/project-extensions/references/custom-agents-repo.md`**: the rules for THIS
+   repository (decision tree of pieces, frontmatter, validation, docs). The `project-extensions` skill
+   creates pieces from its per-runtime templates (`skills/project-extensions/templates/`), but its
+   repo-specific checklist is that reference, and it lists the validation steps below.
 3. **Where things go** (rule of thumb from `CONVENTIONS.md`): used by 2+ agents → `skills/`;
    private to one agent → `agent-kits/<agent>/`; repeated prompt fragment → `agent-kits/shared/`;
    any calculation or verdict → a **script with tests and exit codes**, never agent prose.
@@ -105,8 +105,9 @@ ask for evidence (test output, lint output) rather than descriptions — include
 ## En español (resumen)
 
 - **Antes de nada** lee [`CLAUDE.md`](CLAUDE.md) y [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md).
-- **Proponer una pieza**: abre un issue con el formulario *Pieza nueva* y usa la skill `plugin-dev`
-  dentro de Claude Code para crearla con el frontmatter, el tiering y las dependencias correctas.
+- **Proponer una pieza**: abre un issue con el formulario *Pieza nueva* y lee
+  `skills/project-extensions/references/custom-agents-repo.md` (reglas de este repo: frontmatter, tiering y
+  dependencias correctas); la skill `project-extensions` aporta las plantillas.
   Compartido → `skills/`; privado → `agent-kits/<agente>/`; fragmento repetido → `agent-kits/shared/`;
   cálculos y veredictos → script con tests y exit codes. `SKILL.md` ≤ 200 líneas, detalle en `references/`.
 - **Checklist antes del PR**: `python3 scripts/lint_plugin.py` (0 errores) · `python3 -m pytest -q tests agent-kits/shared skills/adversarial-review/scripts skills/code-health/scripts skills/dependency-upgrade/scripts skills/changelog-sync/scripts skills/unit-tests/scripts skills/api-contract/scripts skills/jira-sync/scripts evals` · `python3 evals/check.py` · evals de activación (positivo literal + paráfrasis + negativo vecino) · doc ES+EN en el mismo cambio · entrada en `CHANGELOG.md` `[Unreleased]` y `CHANGELOG.es.md` `[Sin publicar]` (sin crear la sección de versión: la crea `release.py`) · copias `.MANUAL-COPY` sincronizadas · `.sh` en `100755`.

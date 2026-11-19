@@ -1476,7 +1476,7 @@ def lint_duplicate_triggers(root):
     Es la colisión más barata de cazar (copiar un disparador de una pieza a otra sin darse cuenta) —
     NO detecta solapes semánticos con frases distintas (los cuatro que resolvió ADR-011 lo eran;
     esos los sigue cazando la revisión humana en la puerta de "pieza nueva" de
-    skills/plugin-dev/SKILL.md)."""
+    skills/project-extensions/references/custom-agents-repo.md)."""
     check = _cargar_evals_check(root)
     repo = check.piezas(root) if check else _piezas_local(root)
     por_frase = {}

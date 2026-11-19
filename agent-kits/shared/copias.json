@@ -397,7 +397,7 @@
       "copias": [
         {
           "ruta": "scripts/export-skills.py",
-          "rango": "36-45"
+          "rango": "35-44"
         },
         {
           "ruta": "skills/jira-sync/scripts/jira-flow.py",

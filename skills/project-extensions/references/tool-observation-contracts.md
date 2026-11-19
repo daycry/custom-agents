@@ -1,11 +1,11 @@
 # Contratos de herramientas y observaciones
 
 Léela solo cuando diseñes o cambies la interfaz de algo que un agente invoca y cuya salida vuelve a
-su contexto: un script de kit o de skill, la salida de un hook (`systemMessage`/`additionalContext`)
+su contexto: un script de un agente o de una skill, la salida de un hook (`systemMessage`/`additionalContext`)
 o una tool de un servidor MCP propio. El agente no lee el código: decide con el nombre, las
 entradas, la salida, el exit code y el mensaje de error. Eso es el contrato.
 
-La regla de determinismo (Paso 2, regla 1) dice *dónde* va el cálculo; esta referencia dice *qué
+La regla de determinismo (`SKILL.md`, Paso 2) dice *dónde* va el cálculo; esta referencia dice *qué
 forma* tiene lo que el agente ve. Servidores MCP (transporte, permisos, stdout reservado al
 protocolo): `skills/delivery-practices/references/delivery-tools.md`.
 
@@ -14,14 +14,14 @@ protocolo): `skills/delivery-practices/references/delivery-tools.md`.
 | Decisión | Regla | Señal de que está mal |
 |---|---|---|
 | Lectura frente a escritura | Operaciones separadas (subcomando o `--dry-run`/`--check` frente a la acción), porque el permiso y la revisión dependen del efecto | Para ver qué haría hay que ejecutarlo |
-| Mismo objeto, mismo riesgo | Subcomandos de un mismo script (patrón `journal.py capture-end · replay · …`) en vez de un script por acción: menos selección ambigua | Dos scripts con nombres parecidos que el agente confunde |
+| Mismo objeto, mismo riesgo | Subcomandos de un mismo script (`capturar`, `reintentar`, `estado`…) en vez de un script por acción: menos selección ambigua | Dos scripts con nombres parecidos que el agente confunde |
 | Riesgo distinto | Pieza o subcomando propio con su confirmación; un efecto externo se prepara aparte y se ejecuta con aprobación ligada al objeto | Un flag inocuo cambia de leer a publicar |
 | Tool nueva | Solo si un riesgo o un coste observado lo justifica; si no, un flag de la existente | Una tool por cada verbo del dominio |
 
 ## Nombres y entradas
 
 - **Nombre estable.** Renombrar un script, subcomando o flag rompe prompts, evals y exports: es un
-  cambio de contrato (callers, `scripts/export-interop.py --check`, CHANGELOG), no un refactor.
+  cambio de contrato (quien lo llama, lo que se genera a partir de él, el changelog), no un refactor.
 - **Portabilidad del nombre.** MCP admite letras ASCII, dígitos, `_`, `-` y `.` (1-128); la API de
   Claude exige `^[a-zA-Z0-9_-]{1,128}$`, sin punto. Un nombre que deba valer en ambos evita el punto.
 - **Entradas estrechas.** Valores cerrados (`choices`) antes que texto libre; nada de parámetro
@@ -42,7 +42,7 @@ protocolo): `skills/delivery-practices/references/delivery-tools.md`.
 - **Presupuesto explícito:** salida acotada en líneas o bytes, con aviso de truncado y cómo pedir
   el resto (`--limit`, filtro, paginación). Truncar en silencio hace que el agente razone sobre
   un resultado parcial como si fuera completo. Topes de hooks: `references/claude-code-contracts.md`.
-- **Codificación:** UTF-8 en ambos sentidos (Paso 2, regla 6).
+- **Codificación:** UTF-8 en ambos sentidos (reconfigura `stdin`/`stdout`/`stderr` con `errors="replace"`).
 - **Lo que la tool no devuelve** se dice en su ayuda o descripción, para que el agente no lo
   busque por inferencia.
 
@@ -55,7 +55,7 @@ Cada salida responde a lo que el agente necesita para su siguiente paso:
 | Estado en la primera línea (`ok` · `gap` · `error`, o ✅/⚠️/❌) | Es lo que se lee aunque el resto se trunque |
 | Qué se comprobó y sobre qué (ruta, ID, revisión) | Evita aplicar el resultado a otro objeto |
 | Evidencia mínima (`fichero:línea`, conteos) | Permite citar sin volver a leer |
-| Siguiente paso o comando que lo arregla (patrón `agent-kits/shared/doctor.py`) | Convierte el error en acción |
+| Siguiente paso o comando que lo arregla | Convierte el error en acción |
 | Lo no comprobado, como ausente (`null`, «no medido»), nunca como cero | Un cero inventado pasa por dato |
 | Si el resultado es terminal o transitorio | Decide si tiene sentido repetir |
 
@@ -96,7 +96,7 @@ adaptador la recorta, declara qué quita.
 ## Verificación
 
 - Un test por clase de salida (correcto, gap, uso, ausente, truncado) que compruebe el exit code y
-  la primera línea; codificación en `tests/test_console_encoding.py`.
+  la primera línea; y una prueba de codificación con una consola no UTF-8.
 - Dos diseños de tool se comparan con el protocolo de `skills/outcome-evals/references/protocol.md`
   (mismos casos, mismas condiciones); sin medición no se afirma que uno mejore la tasa de éxito.
 

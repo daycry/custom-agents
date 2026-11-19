@@ -17,13 +17,17 @@ que la sesión la haya cargado, conectado o autorizado; el runtime decide eso.
 
 ## Dónde añadirlas
 
+Para crearlas sin escribir a mano cada formato, la skill `project-extensions` pregunta para qué runtimes,
+rellena una plantilla por runtime en la carpeta de abajo y comprueba con `project-pieces.py` que la pieza
+aparece en el inventario. Nunca escribe en la caché del plugin.
+
 Usa las carpetas y formatos del entorno en que trabajas. No copies tus piezas
 al caché del plugin: una actualización sustituye ese bundle.
 
 | Componente | Claude Code | Codex | OpenCode |
 |---|---|---|---|
 | Agentes del proyecto | `.claude/agents/<nombre>.md` | `.codex/agents/<nombre>.toml`; también roles en `.codex/config.toml` | `.opencode/agents/<nombre>.md`; también `agents` (V2) o `agent` (V1) en `opencode.json`/`.jsonc` |
-| Skills del proyecto | `.claude/skills/<nombre>/SKILL.md` | `.agents/skills/<nombre>/SKILL.md` | `.opencode/skills`, `.claude/skills` o `.agents/skills`, con `<nombre>/SKILL.md` |
+| Skills del proyecto | `.claude/skills/<nombre>/SKILL.md` | `.agents/skills/<nombre>/SKILL.md` (Codex también lee `.codex/skills/`; este lector solo lista `.agents/skills/`) | `.opencode/skills`, `.claude/skills` o `.agents/skills`, con `<nombre>/SKILL.md` |
 | Comandos propios | `.claude/commands/<nombre>.md` | El lector no atribuye comandos a Codex por una carpeta de proyecto | `.opencode/commands/<nombre>.md`; también `commands` (V2) o `command` (V1) en la configuración |
 | Fuentes de tools | Nombres declarados por agentes; no hay ejecutor genérico del plugin | Nombres declarados en la sesión; no se deducen exports de scripts | `.opencode/tools/*.{js,ts}`; el lector lista fuentes y no ejecuta sus exports |
 | MCP del proyecto | `.mcp.json`, clave `mcpServers`; también declaraciones por agente | `.codex/config.toml` y agentes TOML, clave `mcp_servers` | `opencode.json`/`.jsonc`, `mcp.servers` (V2) o `mcp` (V1) |

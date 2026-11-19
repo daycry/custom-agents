@@ -13,8 +13,8 @@
       "skills": [
         "capability-audit",
         "outcome-evals",
-        "plugin-dev",
-        "plugin-panel"
+        "plugin-panel",
+        "project-extensions"
       ],
       "commands": [
         "plugin-catalog"

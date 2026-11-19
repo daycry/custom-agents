@@ -30,7 +30,7 @@ custom-agents/               (se despliega como .claude/)
 ├── evals/                   # evals de ACTIVACIÓN: cases/<kind>-<nombre>.json por pieza · check.py (estático, CI) · run.py (local, claude -p)
 ├── *.yml.MANUAL-COPY        # ci.yml · release.yml · headless.yml (opcional: evals reales + hooks en sesión real, secret ANTHROPIC_API_KEY) → copia manual a .github/workflows/
 ├── github-templates.MANUAL-COPY/  # issue forms (bug · mejora · pieza-nueva) + PULL_REQUEST_TEMPLATE → copia manual a .github/ (test_ci_manual_copy vigila ambos árboles)
-├── CONTRIBUTING.md          # cómo proponer una pieza (plugin-dev), checklist pre-PR, commits T-XX:/feat:/chore:, copias .MANUAL-COPY
+├── CONTRIBUTING.md          # cómo proponer una pieza (project-extensions), checklist pre-PR, commits T-XX:/feat:/chore:, copias .MANUAL-COPY
 └── docs/                    # TODA la documentación (README índice, CONVENTIONS, FLOWS, INSTALL, agents/)
 ```
 
@@ -118,7 +118,7 @@ Invocan a los agentes **por nombre** y con puertas de control sobre la carpeta d
 | `debug-root-cause` | Causa raíz en 4 fases con evidencia; prohibido arreglar a ciegas. (/dev-cycle al 3.er rojo; a demanda) |
 | `adversarial-review` | Revisión adversarial del diff: lentes A (spec/plan) + B (corrección) + C seguridad y D rendimiento, condicionales (`review-lens-select.py`, con tests); fusión, Critical/Important/Minor, bucle acotado, rebate con evidencia, traza en el ledger. Fuente única del método. (/dev-cycle Fase 3, quick-implement; a demanda «revísame este diff») |
 | `rates-verify` | Actualiza `precioTokens` de `rates.json` desde la doc oficial, con fecha. (evaluator, /setup) |
-| `plugin-dev` | Meta-skill para desarrollar ESTE plugin: árbol de decisión de piezas, frontmatter/tiering/tools mínimos, validación TDD-ish, doc obligatoria, anti-patrones; plantillas de agente/skill/comando. (crear/modificar piezas del plugin) |
+| `project-extensions` | Crea agentes, skills, comandos, hooks, tools y MCP propios en el proyecto del usuario para Claude Code, Codex y OpenCode (carpeta y formato por runtime, plantillas, verificación con `project-pieces.py`, nunca en la caché del plugin). Las reglas de ESTE repo (árbol de decisión de piezas, frontmatter/tiering, validación, doc obligatoria, anti-patrones) viven en `skills/project-extensions/references/custom-agents-repo.md`, que solo se lee dentro de custom-agents. (crear piezas propias; a demanda) |
 | `quick-implement` | Atajo en lenguaje natural a la vía rápida de `/dev-cycle` (delegando en su fuente única): filtro de idoneidad + ledger + puertas. (peticiones «implementa X rápido» sin barra) |
 | `tdd` | Fuente única de RED-GREEN-REFACTOR: ley dura, evidencia `RED:` en el ledger, qué NO es TDD, `TDD n/a`, tabla de racionalización; `references/by-stack.md` + `anti-patterns.md`. (implementer con `dev.json` `tdd: true`, subagentes vía `task-brief.py`; a demanda) |
 | `code-health` | Informe DETERMINISTA de salud del código (`scripts/code-health.py`, 14 tests): duplicados por shingles (`fichero:línea`, %), tamaño/anidamiento/funciones largas, hotspots (`git log` × tamaño), TODO/FIXME con antigüedad; MD/`--json`/`--baseline`; sin git omite con aviso. No refactoriza ni busca vulnerabilidades. (evaluator P2 opt-in, planner deuda, /roadmap-brief; a demanda) |

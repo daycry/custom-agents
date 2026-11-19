@@ -151,11 +151,11 @@ external querying off until publication and sources are verified.
 
 ```mermaid
 flowchart TD
-    A[Write the adapter] --> B[Declare the backend, disabled]
-    B --> C[Allow categories]
-    C --> D[Preview with --dry-run]
-    D --> E[Publish and verify with --check]
-    E --> F[Authorize external querying if needed]
+    A["Write the adapter"] --> B["Declare the backend, disabled"]
+    B --> C["Allow categories"]
+    C --> D["Preview with --dry-run"]
+    D --> E["Publish and verify with --check"]
+    E --> F["Authorize external querying if needed"]
 ```
 
 1. **The administrator prepares the service.** Account, endpoint and credentials are theirs;
@@ -259,14 +259,7 @@ diagnostic and use a new destination. A legacy graph without a producer receipt
 has no verified freshness. Hooks and opening the dashboard do not launch extraction.
 See [the code-context contract and pilot](../CODE_CONTEXT.md).
 
-## Capture knowledge in the team's format
-
-[Workflows W-28 to W-30](knowledge-categories.md) cover project categories and
-templates: human meeting notes, agent FAQs and mixed procedures. Checking an
-inbox preserves originals. Proposing candidates, approving them and publishing
-them remain separate steps.
-
-## Choose and retire integrations without losing memory
+## W-22. Choose and retire integrations without losing memory
 
 Start from the need: local continuity, retrieval from a service of your own
 or code navigation. Enable only useful capabilities and test representative questions
@@ -278,3 +271,10 @@ pending publications or revocations with the administrator. Do not assume that
 removing a local setting deletes remote data. Document the resulting state and who
 maintains any remaining service or projection. Advanced contracts provide detailed
 configuration and recovery guidance alongside the examples above.
+
+## Capture knowledge in the team's format
+
+[Workflows W-28 to W-30](knowledge-categories.md) cover project categories and
+templates: human meeting notes, agent FAQs and mixed procedures. Checking an
+inbox preserves originals. Proposing candidates, approving them and publishing
+them remain separate steps.

@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "edition": "2026-11-12",
+  "edition": "2026-11-19",
   "language": "es",
   "pdf": "output/pdf/guia-resultados-calidad-custom-agents.pdf",
-  "pdf_sha256": "93641606b3356e534ef2786bd07ccba19384cf5e5e320c3f50bdfe8a73468707",
+  "pdf_sha256": "ac1a6890a2ec79501e96bd5af0fcc99043bf88397404be78343ee8d18fe8098e",
   "source_hash_method": "sha256-utf8-lf",
   "sources": {
-    "docs/guides/quality-playbook.md": "95b4641b8ad678bf891aecf777458c2618476e2beb19a0a1de29a78d991ac08e"
+    "docs/guides/quality-playbook.md": "2bc287e6ffb93e56d56ad4fca0849f58266298905712d9a4f27f9cc737e9f6a3"
   },
   "workflows": 0,
   "diagrams": [
@@ -37,8 +37,8 @@
     {
       "source": "docs/guides/quality-playbook.md",
       "index": 5,
-      "sha256": "e244a7b85d4a04e7b35ac66fbd7cf04f33d5eb52e0531db32e5b8f609dc1ceda",
-      "png_sha256": "6009f3434032a1690bdb4c7920969016bdd4a50528ad496e5d106e5d4ef87b51"
+      "sha256": "bba850af863a3dc27d35c3981372bad952b3652d994bcc6f6d759162201edf4a",
+      "png_sha256": "1bc146c41b42259c019f970414ea8e915c63afee26ce05ca4a36853e257e1c6f"
     }
   ],
   "renderer": "Chromium; offline resources; pre-rendered Mermaid PNG; final JavaScript disabled"

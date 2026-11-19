@@ -4,8 +4,7 @@ export-skills.py — exporta las SKILLS del plugin como paquete PORTABLE, agnós
 (paquete multi-entorno de SOLO skills): lo que viaja son los `skills/<n>/SKILL.md` con sus
 `references/`, `scripts/` y `assets/`, más los fragmentos de `agent-kits/shared/` que esas skills
 citan. NO viajan agentes, comandos, hooks ni statusline (dependen del runtime de Claude Code), ni
-las skills que solo son punteros a piezas que no viajan (`quick-implement` → `commands/dev-cycle.md`,
-`plugin-dev` → desarrollo de este repo). El README del paquete (ES+EN) lo explica con una tabla.
+las skills que solo son punteros a piezas que no viajan (`quick-implement` → `commands/dev-cycle.md`). El README del paquete (ES+EN) lo explica con una tabla.
 
 Formatos (`--format`):
   claude     skills/ + agent-kits/shared/ + README.md — se copia como `skills/` de un proyecto.
@@ -60,7 +59,6 @@ INDEX_ANCHO = 150                                 # caracteres por línea del í
 # skills que NO viajan: son punteros a piezas que dependen de Claude Code
 EXCLUIR_SKILLS = {
     "quick-implement": "es un atajo a `commands/dev-cycle.md` (comando de Claude Code, no viaja)",
-    "plugin-dev": "sirve para desarrollar ESTE plugin (agentes, comandos, hooks) — necesita el repo, no un proyecto",
 }
 # viaja, pero un paso depende de Claude Code (tabla del README del paquete)
 DEGRADA = (
@@ -354,8 +352,8 @@ Skills del plugin de Claude Code `custom-agents`, empaquetadas para usarlas **fu
 (Codex, Copilot, Cursor, Jules… todo lo que lee `AGENTS.md` o reglas de Cursor) o para copiarlas tal
 cual como carpeta `skills/` de un proyecto. Viajan los `SKILL.md` con sus `references/`, `scripts/`
 y `assets/` y los fragmentos de `agent-kits/shared/` que citan; **no** viajan agentes, comandos,
-hooks ni statusline (dependen de Claude Code), ni `quick-implement`/`plugin-dev` (punteros a piezas
-que no viajan). Degrada con aviso: `cybersecurity` (sin `Agent` tool, ejecuta las 8 dimensiones en
+hooks ni statusline (dependen de Claude Code), ni `quick-implement` (puntero a una pieza
+que no viaja). Degrada con aviso: `cybersecurity` (sin `Agent` tool, ejecuta las 8 dimensiones en
 secuencia con `references/agent-prompts.md`). Rutas: el `find` sobre `$PWD/.claude` y `$HOME/.claude` se reescribe a `find "${{PORTABLE_ROOT:-.}}" …`;
 ejecuta desde la carpeta que contiene `skills/` y `agent-kits/shared/` o exporta `PORTABLE_ROOT`.
 Verifica la integridad con `python3 scripts/export-skills.py --check <carpeta>`.

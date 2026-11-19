@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "edition": "2026-11-12",
+  "edition": "2026-11-19",
   "language": "es",
   "pdf": "output/pdf/guia-uso-eficiente-claude-codex.pdf",
-  "pdf_sha256": "cee19de3950f293c9c9c6e648387e115362585d138e585c8486ca44226cc4b0d",
+  "pdf_sha256": "a285973b73f4427a1ef27fdb1974f84624d9bd1fa9c05c73ec5e14f36958782a",
   "source_hash_method": "sha256-utf8-lf",
   "sources": {
-    "docs/guides/subscription-efficiency.md": "c99c31d95454d244187426282eefc0237b548971a2a6f05d61f7d05d345cc754"
+    "docs/guides/subscription-efficiency.md": "9e565bf942b6ada29018df2699c802cfc2929b85ea35fd6baec4740b66994817"
   },
   "workflows": 0,
   "diagrams": [
@@ -26,7 +26,7 @@
       "source": "docs/guides/subscription-efficiency.md",
       "index": 3,
       "sha256": "2f8d51ea294c092619ea35083ad71bac949eec093d51c031c377a4334ec4b001",
-      "png_sha256": "d80c91c2c6f285153aa06334ae53f8c2ee1b5a9277ec4c7a6cf2d9c68bdc63b2"
+      "png_sha256": "d761bae4fd5154bdf4cb70cebaea5168581f3d7fa21f77ff3e87c791c641d634"
     }
   ],
   "renderer": "Chromium; offline resources; pre-rendered Mermaid PNG; final JavaScript disabled"

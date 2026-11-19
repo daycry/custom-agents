@@ -366,7 +366,7 @@ project: `usage-meter.py start --artefacto "<slug>/T-XX"` before the first event
 `aprobado`.
 
 **Design rule (a rule of this repo — the «Determinismo» row of `CLAUDE.md` § «Reglas al trabajar
-aquí» and body rule 1 of the `plugin-dev` skill: «computations and verdicts go in scripts with tests
+aquí» and body rule 1 of `skills/project-extensions/references/custom-agents-repo.md`: «computations and verdicts go in scripts with tests
 and exit codes […], not in agent prose»; rule 8 of `CONVENTIONS.md` does not state it, it is where it
 is APPLIED to the ledger with `ledger-lint`/`qa-gate` —, taken to the integration layer):** whatever
 can be deterministic is not written by the model. And its corollary in context cost: the *one

@@ -75,7 +75,7 @@ fila nombra su dueño y una acción explícita:
 |---|---|---|
 | El bundle o una de sus piezas en un runtime | `install/` (método de `installation-lifecycle.md`) | `--dry-run`, autorización, `install`, `status` |
 | Un opt-in del proyecto | `/setup` | Relanzarlo para esa decisión |
-| Una pieza nueva del plugin | skill `plugin-dev` | Spec y ciclo normal |
+| Una pieza propia del proyecto (agente, skill, comando, hook, tool, MCP) | skill `project-extensions` | Spec y ciclo normal |
 | Una pieza propia del proyecto | Contrato de especialización del proyecto | Propuesta; la adopción la decide el usuario |
 | Una herramienta externa (CLI, navegador) | Usuario | Comando de instalación y comprobación |
 

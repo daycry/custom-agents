@@ -1,22 +1,22 @@
 {
   "schema_version": 1,
-  "edition": "2026-11-12",
+  "edition": "2026-11-19",
   "language": "es",
   "pdf": "output/pdf/custom-agents-manual-operativo.pdf",
-  "pdf_sha256": "09e574c0f1dc5257bb0b883a26961a172b2e2cb731967adec07e411b2ae290f8",
+  "pdf_sha256": "ff678cccb7a4b99b8347d97e0b56e9cda722ca82940d5e0df66d85a17aa2a89d",
   "source_hash_method": "sha256-utf8-lf",
   "sources": {
-    "docs/CUSTOMIZATION.md": "60a96f0390d80215806eb4cd6692bbb021ac46d805234dc3a4b1d456a2a92afd",
+    "docs/CUSTOMIZATION.md": "e98884bc155e2d9296caa002d3a7c100081c131a4a7c785c2c5b104f00d9cb1f",
     "docs/guides/product.md": "e79e74e409d28d560aee948b1189ec607877d56a5852f096bccb5441319fa9b0",
     "docs/guides/core-workflows.md": "2bf2562636f43b3456d500b622e2f82763d6e5ee49c30a2b8e54ffbab77629ef",
     "docs/guides/atlassian.md": "b267b4d3ad5966bf635e8c3162f88d1c3478c869b404e8f5a2c4549f30305c15",
     "docs/guides/redmine.md": "becc6f4a77ee095909081a62e409df337e861c70bf274b5df8ff740beac32580",
     "docs/guides/customization.md": "cbcdfd40642f3db953f1fcfa19ed7693361c8c52c0405b902c8e527abaaaef94",
     "docs/guides/operations.md": "f7809b98b6f89359e5a30244a51a12a16b48d96132b1211b53e580c2edc6ea23",
-    "docs/guides/memory.md": "d538072b2a1a13e52bc5769a7ca6de17278cdb43aea448cb25f015ca2c18ccb8",
-    "docs/guides/dashboard.md": "5326daf35f02b969a7dd8e11706698970daa55853445994bded98dfc42ea9793",
-    "docs/guides/knowledge-categories.md": "c023508e1d7ddbeab2c7f05ce7357831ae54e343e96ad28c22453e0acd9d2383",
-    "docs/reference/product.md": "1e0bcec98c685b5e24731562c03db4f442da6d6571a8a2ee58c85ed280c06902",
+    "docs/guides/memory.md": "5f47ce09b359d213a9cc718706fab3698cc43bddce9551c6fe92a1794d0ca654",
+    "docs/guides/dashboard.md": "cb841302390ff5c50c3a98b4ca27fab67168a8d3718633bb1c4de45029106b08",
+    "docs/guides/knowledge-categories.md": "1fae49b367dea49f1ebe4a201a64fefa762d993c543310b260bbe8b786c0cdcb",
+    "docs/reference/product.md": "4110a97fc2b3b086ef69af9e7b5f5c72930010ef843b0346760e4daab56104bd",
     "docs/reference/core-workflows.md": "dd3e638d838a1c785d8bf25ab00862c252b3e892f5d3c55b56426bc1649f391c",
     "docs/reference/atlassian.md": "77599c9b7872da4e6a2984f8f7ebf6f53371a9e28bb93f4cb67a6963ac90e7d1",
     "docs/reference/redmine.md": "f26d53b7ea562429b28f68f9fc80e0b8a8ab29807344e012d1c5e91deef75fa2",
@@ -25,10 +25,10 @@
     "docs/examples/integrations/atlassian.json": "e078db5372915b4b340c2f8c272eca529e8421cbf8200f7f9bf33886cc380bde",
     "docs/examples/integrations/project.json": "ae6b42350c074c552336643079f9cce7122bae2725f443f4e29bd1423c3380ee",
     "docs/examples/integrations/project-redmine/SKILL.md": "827782cb2a48faff25fddc13074531c404500c1da8c460fdc59b6778937762a3",
-    "docs/examples/integrations/memory.json": "4ca23f192ee3e9b15cdd139169cdbe88fdc468ffbaeaf2f1e3e431fe41441a17",
-    "docs/examples/memory/taxonomy.json": "2ad8e3d6a220acd4347218f6d5935b365129d38838047a4a21d6bea439e291a3",
+    "docs/examples/integrations/memory.json": "beb62a9d26cf4b8c5a2e254c6b9acc3af81b651a579d3d63e141910caebdd2d8",
+    "docs/examples/memory/taxonomy.json": "cc72242e77aaa4fb9b921354b2ff12a4abcb7a6f5289f6e2ea2737727db775a7",
     "docs/examples/dashboard/workspaces.json": "7c382c6dbfbbca76e8878ce93100c061e6660c01a56f23531aacf4c1d30c1ecf",
-    "agent-kits/shared/modules.json": "ec316ee4a0fd090b67c7288db446a14bfe24e900a52682e3dd80ec92562a5888",
+    "agent-kits/shared/modules.json": "797af316116118e320028303f7ba544b3f690df250f628c1fe76deeb0c207dfc",
     "docs/examples/memory/categories/meetings.json": "ca1ded473ae54863d31700c110ee0d1a32f0ac26a9f86091de7b6f44aa89ba33",
     "docs/examples/memory/categories/faq.json": "67c3cb03a72271aec2ea09457a516273fed63b01f31ff3f16008a61c0e018721",
     "docs/examples/memory/categories/mixed.json": "42e51ab0d7e44e749ac89dce9daebf48cab0fffc7d67d65a69ab3c5b36ae9067"
@@ -93,13 +93,13 @@
       "source": "docs/guides/core-workflows.md",
       "index": 7,
       "sha256": "977c08e7e249889caa98338a30fdb0720910d425c6d2eccefe7f372bfb8dc92b",
-      "png_sha256": "f35ce34291d403eb7410b727e2e6de24881fb47cfcb210abfc8c308787eb4d10"
+      "png_sha256": "8d08b4264d88eeaa559fd2a694b663c2e471d2bdd9125304fdb333dc40931bc1"
     },
     {
       "source": "docs/guides/atlassian.md",
       "index": 1,
       "sha256": "6c2b1bd34d30b702d4222a909a759a85b2632d3cb964b0ee085ce1f1fd13677b",
-      "png_sha256": "7cd8cac3a42661c1b36dc941f995c527aa97e3faea983b42bd4a50dcb8a58460"
+      "png_sha256": "867041f4048e22a084899018a52f6b01bf805461788af221a19f6fb7a26364fd"
     },
     {
       "source": "docs/guides/atlassian.md",
@@ -164,8 +164,8 @@
     {
       "source": "docs/guides/memory.md",
       "index": 1,
-      "sha256": "1a90df0e7e569592c949b02d58fa8acd3cca13abf99e43d3702127fccd96cfbe",
-      "png_sha256": "c66f4ef11f750151a0ca2dc37327715b60d5b38a787b63912a1a1c041cd40091"
+      "sha256": "3619bb932191395e54c1391acd2f0140510040f7c637391a65f15914104e9772",
+      "png_sha256": "f7a6c9fbc25f95616cd875880208ffb3276a0cf9279abd8e0a6466de0617b5ba"
     },
     {
       "source": "docs/guides/memory.md",
@@ -176,20 +176,14 @@
     {
       "source": "docs/guides/memory.md",
       "index": 3,
-      "sha256": "c7ee39034179575074c2ebf9b3587581fe8c323c36f87ae6fc202c4252c3a25c",
-      "png_sha256": "70f8b6eb0e8c0c9aeb71fe4ad42bc3ddec62ae66985ea9774ac0e4ec18ad5e54"
+      "sha256": "3f59615d14ada5b9eead435118d488cd0e4992088e2b9dc07dbe9b91d73d083b",
+      "png_sha256": "2d89a90ea903afa5e522e2f6fc9790bfc634b89700173e0e2a8a315624d153a5"
     },
     {
       "source": "docs/guides/memory.md",
       "index": 4,
       "sha256": "5976af719cdfd568067bacecf976f94aef0bbf01ec861748331073495739aa8d",
-      "png_sha256": "2731cb26ec30a6e18d7cb863975d7ab107b2ad0a20ae10c8b7231b000babacb4"
-    },
-    {
-      "source": "docs/guides/memory.md",
-      "index": 5,
-      "sha256": "3613d5b1b5134be13b521c8258e131716aa4f11d30db002d3435785a5f078015",
-      "png_sha256": "b486df8a3ce18ed1e28e0ae5eaa179767f36c266067099fd24cbb7fe2123d1ec"
+      "png_sha256": "8c5dea4950cde0e1bfc99d600347aa4676743de292c95eed65d4de922fabe716"
     },
     {
       "source": "docs/guides/dashboard.md",
@@ -236,8 +230,8 @@
     {
       "source": "docs/guides/knowledge-categories.md",
       "index": 2,
-      "sha256": "3a02a9ddd71376e325ed7feab74902a087866247a8c7be6ed11e712b4e6903d9",
-      "png_sha256": "6c2e6f2bb655f15999d2394ef918683541f23f33f9fb87fb7514a9bf48c0d71b"
+      "sha256": "148713d9cebd9dbd9929ff2c0cca29cefd3241de40606ac3ad9e28e7d68fdcaa",
+      "png_sha256": "9b13eb3333e7ff3cce0c55670eb0dc2dcc490643d3599bd4710c59035260de7e"
     }
   ],
   "renderer": "Chromium; offline resources; pre-rendered Mermaid PNG; final JavaScript disabled"

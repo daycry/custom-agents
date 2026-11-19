@@ -312,7 +312,7 @@ def test_fix1_memoria_no_desaparece_si_la_en_curso_no_tiene_aciertos(tmp_path):
 def test_fix1_a5_ningun_documento_cita_el_matcher_sin_clear():
     viejo = 'startup|resume|compact'
     for rel in ('docs/CONVENTIONS.md', 'docs/en/CONVENTIONS.md', 'agent-kits/shared/README.md',
-                'agent-kits/shared/skill-index.py', 'skills/plugin-dev/references/claude-code-contracts.md',
+                'agent-kits/shared/skill-index.py', 'skills/project-extensions/references/claude-code-contracts.md',
                 'docs/observability.md', 'docs/en/observability.md', 'hooks/session-context.sh'):
         assert viejo not in (ROOT / rel).read_text(encoding='utf-8'), rel
 

@@ -4,7 +4,7 @@
 
 La `description` de una skill, comando o agente es una **promesa de activación**: «Claude me
 invocará cuando el usuario diga X». Esta carpeta convierte esa promesa en algo que se **prueba**,
-no que se asume (lección [`LES-011`](../docs/knowledge/lessons/LES-011-plugin-dev-activacion-se-prueba-con-evals.md)):
+no que se asume (lección `LES-011` (memoria técnica local)):
 para cada pieza del plugin hay prompts reales de usuario que **deben** dispararla (positivos) y
 prompts vecinos que **no** deben (negativos, los valiosos: comparten vocabulario pero piden otra
 cosa — p. ej. una petición con incógnitas no debe ir a `quick-implement` sino a `/pm-cycle`).

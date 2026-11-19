@@ -69,7 +69,7 @@ método/ejecutor que un comando aplica a los agentes, a menor escala).
 `tests/test_lint_plugin.py`). Es un aviso, no un error: cazamos la colisión más barata (copiar un
 disparador de una pieza a otra) — los cuatro solapes de este documento usaban frases **distintas**
 que un match literal no habría encontrado; esos los sigue cazando la revisión humana en la puerta de
-"pieza nueva" de `skills/plugin-dev/SKILL.md`.
+"pieza nueva" de `skills/project-extensions/references/custom-agents-repo.md`.
 
 ## Memoria prospectiva y límites (Bloque 23)
 

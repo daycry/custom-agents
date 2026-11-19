@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """Suite de `skills/project-extensions/` (plugin-audit-2 T-11).
 
-La skill sustituye a `plugin-dev` (que explicaba como se construye ESTE repo) y crea agentes,
+La skill sustituye a la antigua de desarrollo del plugin (que explicaba como se construye ESTE repo) y crea agentes,
 skills, comandos, hooks, tools y MCP en el proyecto del usuario, en la carpeta y el formato de cada
 runtime (Claude Code, Codex, OpenCode). Estas pruebas demuestran, sin red y sin tocar el repo:
 
-  1. la skill existe, `plugin-dev` no, y su SKILL.md es un mapa corto y generico (sin rutas ni
+  1. la skill existe, la antigua no, y su SKILL.md es un mapa corto y generico (sin rutas ni
      herramientas propias de este repo: eso vive en `references/custom-agents-repo.md`);
   2. las plantillas, rellenadas en un proyecto temporal y colocadas donde la tabla de la skill dice,
      las inventaria `agent-kits/shared/project-pieces.py` (lo que ven `/work-context` y el panel)
      sin ningun aviso, para cada runtime;
   3. la tabla de rutas de la skill coincide con la de `docs/PROJECT-EXTENSIONS.md`;
-  4. ninguna pieza del repo sigue citando `plugin-dev` y `CONTRIBUTING.md`/`CLAUDE.md` apuntan a la
+  4. ninguna pieza del repo sigue citando la skill antigua y `CONTRIBUTING.md`/`CLAUDE.md` apuntan a la
      referencia propia de custom-agents.
 
 Ejecutar: python tests/test_project_extensions_skill.py   (o python -m pytest -q tests/test_project_extensions_skill.py)
@@ -30,6 +30,7 @@ SKILL_MD = os.path.join(SKILL, "SKILL.md")
 TEMPLATES = os.path.join(SKILL, "templates")
 PIECES = os.path.join(ROOT, "agent-kits", "shared", "project-pieces.py")
 DOC_TABLA = os.path.join(ROOT, "docs", "PROJECT-EXTENSIONS.md")
+ANTIGUA = "plugin-" + "dev"        # nombre de la skill retirada (partido para que este fichero no la cite)
 
 
 def _leer(ruta):
@@ -37,11 +38,11 @@ def _leer(ruta):
         return f.read()
 
 
-def _plantilla(nombre, **valores):
-    texto = _leer(os.path.join(TEMPLATES, nombre))
+def _plantilla(archivo, **valores):
+    texto = _leer(os.path.join(TEMPLATES, archivo))
     for clave, valor in valores.items():
         texto = texto.replace("{{" + clave + "}}", valor)
-    assert "{{" not in texto, f"{nombre}: placeholder sin rellenar"
+    assert "{{" not in texto, f"{archivo}: placeholder sin rellenar"
     return texto
 
 
@@ -63,7 +64,7 @@ def _inventario(proyecto):
 
 def test_la_skill_existe_y_plugin_dev_no():
     assert os.path.isfile(SKILL_MD)
-    assert not os.path.exists(os.path.join(ROOT, "skills", "plugin-dev"))
+    assert not os.path.exists(os.path.join(ROOT, "skills", ANTIGUA))
     texto = _leer(SKILL_MD)
     assert re.search(r"^name: project-extensions$", texto, re.M)
     descripcion = re.search(r"^description: >\n((?:  .*\n)+)", texto, re.M).group(1)
@@ -111,7 +112,7 @@ CASOS = {
         ("skill.template.md", ".opencode/skills/revisor-sql/SKILL.md", "skill"),
         ("command.opencode.template.md", ".opencode/commands/revisar-sql.md", "command"),
         ("tool.opencode.template.ts", ".opencode/tools/sqlcheck.ts", "tool-source"),
-        ("mcp.opencode.template.jsonc", "opencode.json", "mcp"),
+        ("mcp.opencode.template.jsonc", "opencode.jsonc", "mcp"),
     ],
 }
 VALORES = {"nombre": "revisor-sql", "descripcion": "Revisa consultas SQL del proyecto. Úsalo cuando el usuario diga «revisa este SQL».",
@@ -158,16 +159,18 @@ def test_las_rutas_de_la_skill_son_las_de_docs_project_extensions():
     skill = _leer(SKILL_MD)
     doc = _leer(DOC_TABLA)
     rutas = set(re.findall(r"`((?:\.claude|\.codex|\.agents|\.opencode)/[A-Za-z{}<>*./-]+|\.mcp\.json|opencode\.json)`", skill))
+    # Los hooks no los inventaria `project-pieces.py`: su ruta no esta en la tabla de la doc.
+    rutas -= {".claude/settings.json", ".opencode/plugins/"}
     assert len(rutas) >= 10, rutas
     for ruta in sorted(rutas):
         base = ruta.split("<")[0].split("{")[0].split("*")[0].rstrip("/")
         assert base in doc, f"{ruta}: la skill cita una carpeta que docs/PROJECT-EXTENSIONS.md no tiene"
 
 
-# ------------------------------------------------------------------ 4. nada sigue citando plugin-dev
+# ------------------------------------------------------------------ 4. nada sigue citando la skill antigua
 
 def test_ninguna_pieza_cita_ya_plugin_dev():
-    r = subprocess.run(["git", "grep", "-l", "plugin-dev", "--", ".", ":!docs/roadmap", ":!docs/knowledge", ":!CHANGELOG*"],
+    r = subprocess.run(["git", "grep", "-l", ANTIGUA, "--", ".", ":!docs/roadmap", ":!docs/knowledge", ":!CHANGELOG*"],
                        cwd=ROOT, capture_output=True, text=True, encoding="utf-8")
     assert r.stdout.strip() == "", r.stdout
 

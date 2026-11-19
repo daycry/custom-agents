@@ -24,10 +24,9 @@
       "id": "changelog-sync-neg-release",
       "prompt": "Haz el release 1.16.0: sube la versión, crea el tag y publícalo.",
       "expect": {
-        "activates": false,
-        "redirect": "skill:plugin-dev"
+        "activates": false
       },
-      "notes": "Vecino: el release (bump + tag + sección de versión) es scripts/release.py vía plugin-dev, no esta skill."
+      "notes": "Vecino: el release (bump + tag + sección de versión) es scripts/release.py (reglas del repo en project-extensions/references/custom-agents-repo.md), no esta skill."
     },
     {
       "id": "changelog-sync-neg-documenter",

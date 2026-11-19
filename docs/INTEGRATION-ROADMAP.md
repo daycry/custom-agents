@@ -46,4 +46,4 @@ de fase 1 mantiene su entrega registrada en su propio ledger.
 indica que los agentes de plugin ignoran `hooks`, `mcpServers` y `permissionMode`
 de su frontmatter. La guardia declarada del implementer debe probarse por modo
 de instalación y ajustarse antes de afirmar su cobertura en plugins. Véanse los
-[contratos verificados](../skills/plugin-dev/references/claude-code-contracts.md).
+[contratos verificados](../skills/project-extensions/references/claude-code-contracts.md).

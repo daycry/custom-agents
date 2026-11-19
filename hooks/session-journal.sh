@@ -24,7 +24,7 @@
 #            explícita también lo cambia. No configuramos esa variable automáticamente.
 #            EXEC FORM (`command: node`, `args: [launcher, script]`) está soportada desde
 #            Claude Code 2.1.139 y evita tokenizar una línea de shell.
-#            Referencia interna: skills/plugin-dev/references/claude-code-contracts.md
+#            Referencia interna: skills/project-extensions/references/claude-code-contracts.md
 #            SessionEnd y command-hook-fields, verificada 2026-10-11. El respeto del límite requiere medición.
 #   medido → `tests/session-end-budget.test.mjs` (launcher `run-hook.mjs` → `journal-capture.py`, la
 #            ruta real de Claude Code; este script queda para la prueba manual). 2026-10-13: Linux

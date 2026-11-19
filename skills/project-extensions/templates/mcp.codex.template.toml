@@ -1,0 +1,5 @@
+# .codex/config.toml — servidor MCP del proyecto. Las credenciales NO van aquí: declara el nombre
+# de la variable de entorno que las contiene, nunca su valor.
+[mcp_servers.{{servidor}}]
+command = "{{comando_mcp}}"
+args = ["-y", "<paquete-del-servidor>"]

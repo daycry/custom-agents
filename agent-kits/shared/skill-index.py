@@ -71,7 +71,7 @@ PRIORIDAD = {
                 "roadmap-status", "plugin-catalog"),
     "skill": ("quick-implement", "adversarial-review", "tdd", "unit-tests", "debug-root-cause",
               "changelog-sync", "stack-practices", "backend-practices", "frontend-quality",
-              "code-health", "dependency-upgrade", "api-contract", "cybersecurity", "plugin-dev"),
+              "code-health", "dependency-upgrade", "api-contract", "cybersecurity", "project-extensions"),
     "agent": ("implementer", "planner", "qa", "reviewer", "evaluator", "analyst", "architect",
               "documenter", "nemesis", "knowledge-curator"),
 }

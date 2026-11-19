@@ -38,4 +38,4 @@ qa); si su tabla está llena, sustituye a la fila que menos haya aparecido en su
 
 **Quién la lleva hoy:** `agents/implementer.md` (excusas del que implementa),
 `skills/adversarial-review/SKILL.md` (excusas del REVISOR) y `agents/qa.md` (excusas de qa).
-Una pieza nueva con DoD o veredicto la añade en su checklist (`skills/plugin-dev/SKILL.md`).
+Una pieza nueva con DoD o veredicto la añade en su checklist (`skills/project-extensions/references/custom-agents-repo.md`).

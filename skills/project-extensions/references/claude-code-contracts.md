@@ -1,9 +1,10 @@
-# Contratos oficiales de Claude Code que usa este plugin — verificados con fecha
+# Contratos oficiales de Claude Code — verificados con fecha
 
-Léelo desde `plugin-dev` **antes de hacer WebFetch**: si el contrato que necesitas está aquí y tiene
+Léelo desde `project-extensions` **antes de hacer WebFetch**: si el contrato que necesitas está aquí y tiene
 menos de 90 días, úsalo; si dudas o han pasado más de 90 días, re-verifica (sección final) y actualiza
 la fecha de la fila. Fuente de todas las filas: `https://code.claude.com/docs/en/<página>.md`.
-**Última verificación completa: 2026-09-03.**
+**Última verificación completa: 2026-09-03.** Las columnas «Uso en custom-agents» / «Motivo» de las tablas
+describen decisiones del plugin custom-agents: son informativas, no requisitos de tu proyecto.
 
 | Contrato | Página | Verificado |
 |---|---|---|
@@ -31,11 +32,11 @@ la fecha de la fila. Fuente de todas las filas: `https://code.claude.com/docs/en
 
 **Placeholders / entorno:** `${CLAUDE_PROJECT_DIR}`, `${CLAUDE_PLUGIN_ROOT}` (cambia al actualizar el plugin), `${CLAUDE_PLUGIN_DATA}` (persistente); exportados también como variables de entorno al proceso del hook (+ `CLAUDE_EFFORT`). En shell-form, entre comillas dobles. **Timeouts** por defecto: 600 s (`command`/`http`/`mcp_tool`; 30 s en `UserPromptSubmit`/`PreModelSwitch`/`PostModelSwitch`, 10 s en `MessageDisplay`), 30 s `prompt`, 60 s `agent`; `SessionEnd` comparte 1,5 s entre todos sus hooks (el `timeout` de un hook de plugin no lo eleva; un `timeout` mayor en settings puede elevarlo hasta 60 s, y `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` permite cambiarlo de forma explícita).
 
-**Tope de caracteres (10.000):** este repo lo cita desde 2026-09-02 (`CONVENTIONS` regla 8, `skill-index.py` ≤ 3.500 para caber). **En la lectura de hoy de `hooks.md` NO se localizó el número** → marcado **«a re-verificar»**: hasta confirmarlo, mantén el límite propio (≤ 3.500 + contexto de retoma ≤ 15 líneas) como presupuesto conservador.
+**Tope de caracteres (10.000):** custom-agents lo cita desde 2026-09-02 y mantiene su propio índice de arranque por debajo (≤ 3.500). **En la lectura de hoy de `hooks.md` NO se localizó el número** → marcado **«a re-verificar»**: hasta confirmarlo, mantén un límite propio conservador para lo que inyecta un hook de inicio.
 
 ## 2. Subagentes (`sub-agents.md`)
 
-| Campo | Valores oficiales | ¿Lo usamos? | Por qué |
+| Campo | Valores oficiales | Uso en custom-agents | Motivo |
 |---|---|---|---|
 | `name`, `description` | obligatorios; description con disparadores | **Sí** | Base de la activación (evals) |
 | `model` | `sonnet` · `opus` · `haiku` · `fable` · `inherit` · id completo `claude-…` | **Sí** (`haiku|sonnet|opus|inherit`; el linter no admite `fable` ni ids en el frontmatter — `dev.json` `modelos` sí admite ids) | Tiering de CONVENTIONS |
@@ -43,8 +44,8 @@ la fecha de la fila. Fuente de todas las filas: `https://code.claude.com/docs/en
 | `tools` | nombres, `Agent`, `Agent(tipo)`, `mcp__<server>` | **Sí**, mínimos | `reviewer` sin Write/Edit por construcción |
 | `disallowedTools` | nombres, `mcp__*` | No | Preferimos lista blanca `tools` |
 | `skills` | lista (precarga el contenido COMPLETO) | Solo si la skill hace falta en TODAS las ejecuciones (token-diet) | ≈15k tokens por precarga opt-in |
-| `hooks` | `PreToolUse`/`PostToolUse`/`Stop` con alcance del agente **nativo de proyecto/usuario**; ignorado en agentes de plugin | Declarado en `implementer`; no acredita ejecución al instalar como plugin | ADR-007; revisión de alcance pendiente en la fase de capacidades |
-| `isolation` | `worktree` | **No** | Choca con el opt-in `worktree` de `dev.json` |
+| `hooks` | `PreToolUse`/`PostToolUse`/`Stop` con alcance del agente **nativo de proyecto/usuario**; ignorado en agentes de plugin | Declarado en su agente que escribe código; no acredita ejecución al instalar como plugin | Decisión del plugin; sin efecto en tu proyecto |
+| `isolation` | `worktree` | **No** | Choca con el opt-in `worktree` de la configuración del plugin |
 | `memory` | `user` · `project` · `local` | **No** | La memoria del proyecto es `docs/knowledge/` (versionada, revisable) |
 | `permissionMode`, `maxTurns`, `background`, `color`, `mcpServers`, `initialPrompt` | ver doc | No | Sin necesidad hoy |
 
@@ -66,7 +67,7 @@ separada de aprobación y de la conexión efectiva. [Fuente](https://code.claude
 ## 3. Skills (`skills.md`)
 
 - **Commands = skills:** «Custom commands have been merged into skills» — `.claude/commands/x.md` y `.claude/skills/x/SKILL.md` crean el mismo `/x`; los ficheros de `commands/` aceptan el mismo frontmatter salvo `name` y `paths`. Por eso el índice de piezas dice «los comandos se invocan por `/` o por descripción».
-- **Frontmatter:** `name`, `description` (recomendada; **el listado trunca description + `when_to_use` a 1.536 caracteres** → nuestro aviso a 1.200), `argument-hint`, `disable-model-invocation` (solo el usuario la invoca; su description sale del contexto), `user-invocable: false` (solo Claude), `allowed-tools`/`disallowed-tools` (por turno), `model` y `effort` (mismos valores que subagentes; con `context: fork` fijan el modelo del subagente), `context: fork` + `agent`, `paths` (globs de activación), `metadata`, `compatibility`. No usamos `disable-model-invocation` (queremos auto-activación) ni `paths`.
+- **Frontmatter:** `name`, `description` (recomendada; **el listado trunca description + `when_to_use` a 1.536 caracteres** → el linter del plugin avisa a 1.200), `argument-hint`, `disable-model-invocation` (solo el usuario la invoca; su description sale del contexto), `user-invocable: false` (solo Claude), `allowed-tools`/`disallowed-tools` (por turno), `model` y `effort` (mismos valores que subagentes; con `context: fork` fijan el modelo del subagente), `context: fork` + `agent`, `paths` (globs de activación), `metadata`, `compatibility`. No usamos `disable-model-invocation` (queremos auto-activación) ni `paths`.
 - **Sustituciones en el cuerpo:** `$ARGUMENTS`, `$ARGUMENTS[N]`/`$N`, `${CLAUDE_SKILL_DIR}`, `${CLAUDE_PROJECT_DIR}`, `${CLAUDE_EFFORT}` y, en skills de plugin, `${CLAUDE_PLUGIN_ROOT}`/`${CLAUDE_PLUGIN_DATA}`. El `SKILL.md` invocado entra **completo** y persiste en el contexto → regla «skills cortas» (ADR-008).
 
 ## 4. CLI headless (`headless.md`)

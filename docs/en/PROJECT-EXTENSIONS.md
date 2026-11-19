@@ -17,13 +17,17 @@ and the actual session determine those facts.
 
 ## Where to add them
 
+To create them without hand-writing each format, the `project-extensions` skill asks which runtimes you
+target, fills a per-runtime template into the folder below and checks with `project-pieces.py` that the piece
+shows up in the inventory. It never writes into the plugin cache.
+
 Use your runtime's native folders and formats. Keep your components outside the
 plugin cache, which updates replace.
 
 | Component | Claude Code | Codex | OpenCode |
 |---|---|---|---|
 | Project agents | `.claude/agents/<name>.md` | `.codex/agents/<name>.toml`; also roles in `.codex/config.toml` | `.opencode/agents/<name>.md`; also `agents` (V2) or `agent` (V1) in `opencode.json`/`.jsonc` |
-| Project skills | `.claude/skills/<name>/SKILL.md` | `.agents/skills/<name>/SKILL.md` | `.opencode/skills`, `.claude/skills` or `.agents/skills`, containing `<name>/SKILL.md` |
+| Project skills | `.claude/skills/<name>/SKILL.md` | `.agents/skills/<name>/SKILL.md` (Codex also reads `.codex/skills/`; this reader lists only `.agents/skills/`) | `.opencode/skills`, `.claude/skills` or `.agents/skills`, containing `<name>/SKILL.md` |
 | User commands | `.claude/commands/<name>.md` | The reader does not infer Codex commands from a project directory | `.opencode/commands/<name>.md`; also configured `commands` (V2) or `command` (V1) entries |
 | Tool sources | Agent-declared names; no generic plugin executor | Session-declared names; no inference of script exports | `.opencode/tools/*.{js,ts}`; sources are listed without running exports |
 | Project MCP | `.mcp.json`, `mcpServers`; also agent-scoped declarations | `.codex/config.toml` and agent TOML, `mcp_servers` | `opencode.json`/`.jsonc`, `mcp.servers` (V2) or `mcp` (V1) |

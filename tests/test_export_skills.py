@@ -249,7 +249,7 @@ def test_repo_real_exporta_y_pasa_el_check(tmp_path):
     assert r.returncode == 0, r.stderr
     assert "skills/adversarial-review/SKILL.md" in r.stdout and "hash:" in r.stdout
     rels = ES.listar(str(out))
-    assert not any(r_.startswith(("skills/quick-implement/", "skills/plugin-dev/", "agents/", "commands/", "hooks/")) for r_ in rels)
+    assert not any(r_.startswith(("skills/quick-implement/", "agents/", "commands/", "hooks/")) for r_ in rels)
     assert "agent-kits/shared/ledger-lint.py" in rels        # cierre: scope-check.py lo carga por nombre
     assert ES.check(str(out)) == []
     esperadas = sorted(d for d in os.listdir(os.path.join(ROOT, "skills"))

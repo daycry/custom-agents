@@ -46,4 +46,4 @@ catalog retains its recorded delivery in its own ledger.
 agents ignore `hooks`, `mcpServers` and `permissionMode` in their frontmatter.
 The declared implementer guard needs installation-mode dispatch tests and an
 implementation update before claiming plugin coverage. See the
-[verified contracts](../../skills/plugin-dev/references/claude-code-contracts.md).
+[verified contracts](../../skills/project-extensions/references/claude-code-contracts.md).

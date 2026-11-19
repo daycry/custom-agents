@@ -428,7 +428,7 @@ Personaliza cuando haya un consumidor y una necesidad concreta. Un procedimiento
 
 Antes de añadir una pieza, busca si ya existe una que cubra el caso. Define cuándo debe activarse y cuándo debe redirigir a otra. Incluye entradas, salida, permisos, errores, límites y verificación. Una descripción atractiva sin un procedimiento comprobable no mejora el catálogo.
 
-Para cambios del propio plugin, utiliza `plugin-dev` y sus convenciones. Para extensiones locales, consulta [extensiones de proyecto](../PROJECT-EXTENSIONS.md), [especialización](../SPECIALIZATION.md) y la [guía de personalización](customization.md). Verifica conflictos de nombres y disponibilidad efectiva en cada cliente.
+Para cambios del propio plugin, lee `skills/project-extensions/references/custom-agents-repo.md` y sus convenciones. Para extensiones locales, consulta [extensiones de proyecto](../PROJECT-EXTENSIONS.md), [especialización](../SPECIALIZATION.md) y la [guía de personalización](customization.md). Verifica conflictos de nombres y disponibilidad efectiva en cada cliente.
 
 ### Stack y versión importan
 

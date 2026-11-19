@@ -1,0 +1,18 @@
+# .codex/agents/{{nombre}}.toml — agente independiente de Codex.
+# name, description y developer_instructions son obligatorios; el resto (model, sandbox_mode…) es opcional.
+name = "{{nombre}}"
+description = "{{descripcion}}"
+developer_instructions = """
+# {{nombre}} — <rol en una línea>
+
+<Qué problema resuelve y qué NO hace.>
+
+## Proceso
+1. <Qué lee primero y qué evidencia produce.>
+2. <Qué decide y cómo lo comprueba.>
+3. <Cómo entrega.>
+
+## Reglas duras
+- <Regla no negociable.>
+- Lo que se pueda comprobar va a un script con salida y exit code, no a prosa.
+"""

@@ -1,0 +1,58 @@
+{
+  "target": "skill:project-extensions",
+  "cases": [
+    {
+      "id": "project-extensions-literal",
+      "prompt": "Crea un agente para este proyecto que revise las consultas SQL antes de cada merge y que funcione en Claude Code y en Codex.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          ".claude/agents/"
+        ]
+      },
+      "notes": "Disparador literal «crea un agente para este proyecto»: pregunta runtimes, escribe en las carpetas del proyecto y verifica con project-pieces.py."
+    },
+    {
+      "id": "project-extensions-parafrasis",
+      "prompt": "Quiero conectar un servidor MCP de SQLite a mi proyecto de OpenCode y que el agente pueda consultarlo; no sé dónde se declara.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "opencode.json"
+        ]
+      },
+      "notes": "Sin nombrar la skill: el MCP de OpenCode va en opencode.json y la skill lo escribe con su plantilla."
+    },
+    {
+      "id": "project-extensions-repo",
+      "prompt": "Añade una skill nueva al plugin custom-agents con su script determinista, su test y su fila en docs/README.md.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "custom-agents-repo.md"
+        ]
+      },
+      "notes": "Dentro del repo de custom-agents la skill remite a su referencia propia (linter, interop, changelog, docs)."
+    },
+    {
+      "id": "project-extensions-neg-documenter",
+      "prompt": "Documenta en docs/ cómo funciona el módulo de facturación a partir del código actual.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:documenter"
+      },
+      "notes": "Vecino: documentar el proyecto es del documenter; esta skill crea piezas (agentes, skills, comandos…), no documentación."
+    },
+    {
+      "id": "project-extensions-neg-release",
+      "prompt": "Publica la versión 4.0.0 del plugin: mueve el changelog, haz el bump y crea la etiqueta.",
+      "expect": {
+        "activates": false
+      },
+      "notes": "Fuera de alcance: el release de custom-agents es scripts/release.py (reglas del repo en references/custom-agents-repo.md); esta skill no publica ni versiona."
+    }
+  ]
+}

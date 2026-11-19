@@ -160,11 +160,11 @@ permitidas y mantén la consulta externa apagada hasta comprobar publicación y 
 
 ```mermaid
 flowchart TD
-    A[Escribir el adaptador] --> B[Declarar el backend apagado]
-    B --> C[Autorizar categorías]
-    C --> D[Previsualizar con --dry-run]
-    D --> E[Publicar y verificar con --check]
-    E --> F[Autorizar consulta externa si se desea]
+    A["Escribir el adaptador"] --> B["Declarar el backend apagado"]
+    B --> C["Autorizar categorías"]
+    C --> D["Previsualizar con --dry-run"]
+    D --> E["Publicar y verificar con --check"]
+    E --> F["Autorizar consulta externa si se desea"]
 ```
 
 1. **El administrador prepara el servicio.** Cuenta, endpoint y credenciales son suyos;
@@ -271,14 +271,7 @@ el diagnóstico y usa un destino nuevo. Un grafo sin recibo automático se prese
 como legado sin vigencia verificada, no como contexto actual certificado. Los hooks
 y abrir el panel no lanzan extracciones. [Contrato y piloto](../CODE_CONTEXT.md).
 
-## Aportar conocimiento con el formato del equipo
-
-Los [workflows W-28 a W-30](knowledge-categories.md) explican cómo crear categorías
-y plantillas del proyecto. Distinguen actas aportadas por personas, FAQ redactadas
-por agentes y procedimientos mixtos. La revisión de una carpeta conserva los
-originales; proponer candidatos, aprobarlos y publicarlos son pasos separados.
-
-## Elegir y retirar integraciones sin perder la memoria
+## W-22. Elegir y retirar integraciones sin perder la memoria
 
 Empieza por el problema: continuidad local, consulta en un servicio propio o navegación
 de código. Habilita solo lo necesario y prueba preguntas representativas
@@ -291,3 +284,10 @@ operaciones separadas. Se documenta qué datos quedaron fuera, quién los mantie
 qué retención aplica. La búsqueda local debe seguir funcionando con todos los servicios
 apagados. Los [contratos avanzados](../../skills/knowledge-services/backends/README.md)
 detallan configuración, recibos y recuperación para el equipo técnico.
+
+## Aportar conocimiento con el formato del equipo
+
+Los [workflows W-28 a W-30](knowledge-categories.md) explican cómo crear categorías
+y plantillas del proyecto. Distinguen actas aportadas por personas, FAQ redactadas
+por agentes y procedimientos mixtos. La revisión de una carpeta conserva los
+originales; proponer candidatos, aprobarlos y publicarlos son pasos separados.

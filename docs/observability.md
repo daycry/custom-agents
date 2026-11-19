@@ -367,7 +367,7 @@ sesión. Para medirla en tu proyecto: `usage-meter.py start --artefacto "<slug>/
 primer evento y `close` tras `aprobado`.
 
 **Regla de diseño (regla del repo — fila «Determinismo» de `CLAUDE.md` § «Reglas al trabajar
-aquí» y regla de cuerpo 1 de la skill `plugin-dev`: «los cálculos y veredictos van en scripts con
+aquí» y regla de cuerpo 1 de `skills/project-extensions/references/custom-agents-repo.md`: «los cálculos y veredictos van en scripts con
 tests y exit codes […], no en prosa del agente»; la regla 8 de `CONVENTIONS.md` no la enuncia, es
 donde se APLICA al ledger con `ledger-lint`/`qa-gate` —, llevada a la capa de integración):** lo que
 puede ser determinista no lo redacta el modelo. Y su corolario en coste de contexto: el patrón de

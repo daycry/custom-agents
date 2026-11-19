@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "{{servidor}}": {
+      "command": "{{comando_mcp}}",
+      "args": ["-y", "<paquete-del-servidor>"],
+      "env": {}
+    }
+  }
+}
