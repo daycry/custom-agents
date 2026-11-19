@@ -23,6 +23,21 @@ function removeTree(root) {
     }
   }
 }
+// fix21: los barridos de respaldo (fix18) salen del job y nadie los espera; en Windows 11 26300 un barrido tarda 3-13 s (arranque de PowerShell + foto CIM), mas que el `sleep(5000)` de fix18, y su
+// PowerShell compite con los tests de plazo de pared de despues («worker lento», /doctor). Para poder ESPERARLOS el test inyecta `deps.spawn` (el producto ya lo admite): recibe la orden `cmd /c start /b
+// powershell -EncodedCommand <script>` y lanza ese mismo PowerShell con el mismo script como hijo directo, cuyo `exit` se espera. El sujeto de estos tests es el script de identidad (quien muere y quien
+// no), no la forma de lanzarlo (la cubren los tests de fix18).
+function barridoEsperable() {
+  const salidas=[]
+  const spawnObservable=(file,args,options)=>{
+    const m=/-EncodedCommand (\S+)/.exec(String(args[args.length-1]))
+    const hijo=spawn(join(process.env.SystemRoot,'System32','WindowsPowerShell','v1.0','powershell.exe'),['-NoProfile','-NonInteractive','-EncodedCommand',m[1]],{stdio:'ignore',windowsHide:true})
+    hijo.unref=()=>hijo   // el producto lo desreferencia; aqui se le ESPERA y el bucle de eventos no puede cerrarse antes
+    salidas.push(new Promise(r=>{hijo.on('exit',r);hijo.on('error',r)}))
+    return hijo
+  }
+  return {deps:{spawn:spawnObservable},acabado:()=>Promise.all(salidas)}
+}
 const quiet=pid=>{try{process.kill(pid,'SIGKILL')}catch{/* ya no esta */}}
 
 // Un padre P que lanza una victima V (un nodo dormido) y muere: V queda con `ParentProcessId` = pid de P, ya muerto. Es la forma de un proceso ANTERIOR que cuelga de un pid
@@ -39,18 +54,29 @@ async function victimaHuerfana(root) {
   return {padre:pid,victima:v}
 }
 
-test('Windows (fix17, gap 3): un proceso ANTERIOR al lanzamiento que cuelga del pid del arbol NO es un descendiente y sobrevive (pid reutilizado)',{skip:!win && 'solo Windows reutiliza pids con padres huerfanos'},async()=>{
+test('Windows (fix17, gap 3): un proceso ANTERIOR al lanzamiento que cuelga del pid del arbol NO es un descendiente y sobrevive (pid reutilizado)',{skip:!win && 'solo Windows reutiliza pids con padres huerfanos'},async t=>{
   const root=mkdtempSync(join(tmpdir(),'ca-reuse-'));let v
   try {
     const t0=Date.now()-500
     const o=await victimaHuerfana(root);v=o.victima
     await sleep(1500)
     const since=Date.now()      // el «lanzamiento» del arbol es POSTERIOR a la victima: el pid de P lo recibio otro proceso despues
-    mod.terminateProcessTree(o.padre,20000,20000,{since,rootAlive:false})
+    const b1=barridoEsperable()
+    mod.terminateProcessTree(o.padre,20000,20000,{since,rootAlive:false,deps:b1.deps})
+    // fix21: el barrido es asincrono (fix18): comprobar `alive` al instante pasaria aunque el barrido matase a la victima un segundo despues (mutante: la comparacion de fechas invertida seguia en verde).
+    // Se espera a que ACABE el barrido y solo entonces se afirma que la victima anterior sigue viva.
+    await b1.acabado()
     assert.equal(alive(v),true,'la victima es anterior al lanzamiento y no desciende de el: no se mata')
     // control positivo: con el lanzamiento ANTERIOR a la victima (es un huerfano legitimo del arbol que lanzamos), el mismo barrido la mata
-    mod.terminateProcessTree(o.padre,20000,20000,{since:t0,rootAlive:false})
-    assert.ok(await waitFor(()=>!alive(v),10000),'un huerfano legitimo (posterior al lanzamiento) si muere')
+    // fix21: con la raiz muerta el barrido NO se espera (fix18: sale del job del worker y se lanza con `cmd /c start /b`), asi que la muerte llega cuando acaba SU PowerShell: arranque (~1 s) + foto CIM
+    // (1-3 s; 4-11 s medidos con la maquina ocupada y dos barridos a la vez, como aqui) y, en Windows 11 26300, hasta ~7 s con la maquina «en reposo». La latencia del barrido no es el sujeto de este
+    // test (el sujeto es la IDENTIDAD: quien muere y quien no): el plazo es holgado y se anota lo medido.
+    const lanzado=Date.now(),b2=barridoEsperable()
+    mod.terminateProcessTree(o.padre,20000,20000,{since:t0,rootAlive:false,deps:b2.deps})
+    const murio=await waitFor(()=>!alive(v),60000)
+    t.diagnostic(`el huerfano legitimo murio a los ${Date.now()-lanzado} ms del lanzamiento del barrido`)
+    assert.ok(murio,'un huerfano legitimo (posterior al lanzamiento) si muere')
+    await b2.acabado()
   } finally {if(v)quiet(v);removeTree(root)}
 })
 
@@ -74,12 +100,13 @@ test('terminateProcessTree no pasa de su presupuesto aunque el pid siga vivo (si
     // un «arbol» cuyo pid esta vivo pero es ANTERIOR al lanzamiento (`since` en el futuro): no se actua sobre el y el sondeo no puede esperarlo
     assert.ok(await waitFor(()=>alive(dormido.pid),5000))
     const t0=Date.now()
-    mod.terminateProcessTree(dormido.pid,1500,1500,{since:Date.now()+3600_000,rootAlive:false})
+    const b3=barridoEsperable()
+    mod.terminateProcessTree(dormido.pid,1500,1500,{since:Date.now()+3600_000,rootAlive:false,deps:b3.deps})
     assert.equal(alive(dormido.pid),true,'un proceso anterior al lanzamiento no se mata')
     assert.ok(Date.now()-t0<6000,`espero ${Date.now()-t0} ms con un presupuesto de 1500`)
     // fix18: el barrido de respaldo sale del job del worker y NO se espera: este test lo lanza con la raiz «muerta» y, si acabase aqui, su PowerShell CIM (1-4 s de CPU) competiria con el fixture
     // del test siguiente (el de «worker lento», que tiene un margen de ~3 s para arrancar `codex.cmd`). Se le da tiempo de terminar.
-    await sleep(5000)
+    await b3.acabado()
   } finally {quiet(dormido.pid)}
 })
 
@@ -153,7 +180,7 @@ const MODULO=join(dirname(fileURLToPath(import.meta.url)),'..','agent-kits','sha
 
 // --- gap 14 (anadido tras el RED, k11): el arranque lento de node del PROPIO helper no se suma al tope exterior. doctor.py corta a los 10 s desde que lanza al helper; el tope de la consulta
 // (limite + 3 s = 9 s) cuenta desde que el helper arranca el worker: con 1,5 s de arranque el total pasaba de 10 s (10,5 s sin el descuento; con el descuento, 9 s).
-test('/doctor (fix18, gap 14): el arranque lento del helper se descuenta del plazo de la consulta y el total cabe en 10 s',async()=>{
+test('/doctor (fix18, gap 14): el arranque lento del helper se descuenta del plazo de la consulta y el total cabe en 10 s',async t=>{
   const root=mkdtempSync(join(tmpdir(),'ca-doctor18b-')),bin=join(root,'bin'),flag=join(root,'nieto.pid');let nieto
   mkdirSync(bin)
   const executable=join(bin,win?'codex.cmd':'codex')
@@ -173,6 +200,7 @@ const n=spawn(process.execPath,['-e','setTimeout(()=>{},300000)'],{stdio:'ignore
     const r=spawnSync(process.execPath,[MODULO,'--project',root],{cwd:root,env,encoding:'utf8',timeout:10000,killSignal:'SIGKILL'})
     assert.equal(r.error,undefined,`el helper paso de los 10 s de doctor.py (${Date.now()-t0} ms)`)
     assert.match(r.stdout,/cli-timeout/)
+    t.diagnostic(`total ${Date.now()-t0} ms; flag ${existsSync(flag)?'si':'NO'}; stdout ${String(r.stdout).slice(0,120)}`)
     assert.ok(existsSync(flag));nieto=Number(readFileSync(flag,'utf8'))
     assert.ok(await waitFor(()=>!alive(nieto),8000),'el descendiente de codex sigue vivo')
   } finally {if(nieto)quiet(nieto);try{removeTree(root)}catch{/* un resto retiene el directorio */}}
