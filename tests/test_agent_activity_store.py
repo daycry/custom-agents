@@ -1374,7 +1374,10 @@ _BURST = ('import importlib.util,json,sys,time;'
 
 # serie: mide tiempo o contiende por un lock con procesos hermanos; falla bajo `-n auto` por la carga ajena (T-23, plugin-audit-2)
 @pytest.mark.serie
-def test_d2_burst_of_eight_parallel_tool_events_on_a_full_ring_loses_none(api, project):
+def test_d2_burst_of_eight_parallel_tool_events_on_a_full_ring_loses_none(api, project, monkeypatch):
+    # plugin-audit-2 T-06 (user decision 2026-11-19): the subject is the CHILDREN's burst. The in-process setup (boot, fold_tail) is not, and under
+    # 4 CPU burners `capture` ran out of even the x20 budget; it gets a generous injected budget. The children are other processes and do not inherit it.
+    monkeypatch.setattr(api, 'LIFECYCLE_DEADLINE', 600.0)
     boot(api, project)
     now = time.time()
     heavy = [dict(old_event(i, now - 5), resumen=('git status %d ' % i).ljust(160, 'y')) for i in range(1, 501)]

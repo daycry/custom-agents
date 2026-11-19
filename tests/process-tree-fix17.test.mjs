@@ -189,8 +189,9 @@ test('/doctor (fix18, gap 14): el arranque lento del helper se descuenta del pla
   writeFileSync(join(root,win?'plugin.mjs':'plugin'),`import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs'
 const n=spawn(process.execPath,['-e','setTimeout(()=>{},300000)'],{stdio:'ignore'});writeFileSync(${JSON.stringify(flag)},String(n.pid));setInterval(()=>{},1000)`)
   const preload=join(root,'slow-helper.cjs')
-  // el helper (no el CLI falso) tarda 1,5 s en arrancar Y su worker otros 2 s: el caso de la maquina saturada (sin el descuento el total pasaba de 10 s: 10,5 s)
-  writeFileSync(preload,"if(String(process.argv[1]).endsWith('codex-plugin-state.mjs'))Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,process.argv.includes('--query-worker') ? 2000 : 1500)")
+  // el helper (no el CLI falso) tarda 2,5 s en arrancar Y su worker otros 2 s: el caso de la maquina saturada. T-06 (2026-11-19): con 1,5 s el mutante «sin descuento» (tope 9 s)
+  // acababa en 9,8 s y solo fallaba 1 de 3; con 2,5 s pasa de 10 s, y con el descuento el total no depende del arranque (tope 8 s menos el arranque: ~7,5-8,7 s medidos).
+  writeFileSync(preload,"if(String(process.argv[1]).endsWith('codex-plugin-state.mjs'))Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,process.argv.includes('--query-worker') ? 2000 : 2500)")
   const env={}
   for(const key of ['SystemRoot','WINDIR','COMSPEC','PATHEXT','NODE_V8_COVERAGE'])if(process.env[key])env[key]=process.env[key]
   Object.assign(env,{HOME:root,USERPROFILE:root,CODEX_HOME:join(root,'.codex'),NODE_OPTIONS:'--require '+JSON.stringify(preload.split(String.fromCharCode(92)).join('/')),
@@ -201,7 +202,15 @@ const n=spawn(process.execPath,['-e','setTimeout(()=>{},300000)'],{stdio:'ignore
     assert.equal(r.error,undefined,`el helper paso de los 10 s de doctor.py (${Date.now()-t0} ms)`)
     assert.match(r.stdout,/cli-timeout/)
     t.diagnostic(`total ${Date.now()-t0} ms; flag ${existsSync(flag)?'si':'NO'}; stdout ${String(r.stdout).slice(0,120)}`)
-    assert.ok(existsSync(flag));nieto=Number(readFileSync(flag,'utf8'))
+    // T-06 (2026-11-19, medido: 2 de 12 en reposo): con 1,5 s + 2 s de arranque simulado a la consulta le quedan ~2,1 s por diseno (el tope de 10 s es fijo) y a veces el codex falso ni
+    // llega a arrancar: el sujeto (el total cabe en 10 s) se cumple igual. Sin marca no se da por bueno en vacio: si codex arrancara DESPUES habria sobrevivido a la limpieza (huerfano).
+    if(!existsSync(flag)) {
+      await new Promise(done=>setTimeout(done,3000))
+      assert.ok(!existsSync(flag),'codex arranco despues de la consulta: sobrevivio a la limpieza del arbol')
+      t.diagnostic('codex no llego a arrancar dentro del plazo (maquina lenta): sin descendiente que comprobar')
+      return
+    }
+    nieto=Number(readFileSync(flag,'utf8'))
     assert.ok(await waitFor(()=>!alive(nieto),8000),'el descendiente de codex sigue vivo')
   } finally {if(nieto)quiet(nieto);try{removeTree(root)}catch{/* un resto retiene el directorio */}}
 })

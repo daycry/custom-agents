@@ -313,8 +313,12 @@ def test_fix20_la_espera_del_cerrojo_cuenta_desde_que_acaba_la_preparacion_sin_c
 
 @pytest.mark.serie
 @pytest.mark.parametrize('count', [8, 16])
-def test_d2_rafaga_sobre_el_anillo_lleno_con_la_espera_REAL_no_pierde_ninguno(api, project, count):
-    """Plazos reales (sin escala: 1 s de espera y 1,3 s de plazo). 8 de 8 es el criterio; la sonda de 16 se anota (no es un umbral del diseno)."""
+def test_d2_rafaga_sobre_el_anillo_lleno_con_la_espera_REAL_no_pierde_ninguno(api, project, count, monkeypatch):
+    """Plazos reales (sin escala: 1 s de espera y 1,3 s de plazo). 8 de 8 es el criterio; la sonda de 16 se anota (no es un umbral del diseno).
+
+    T-06 (decision del usuario, 2026-11-19): el sujeto es la RAFAGA de los hijos, con sus plazos reales. La preparacion en este proceso (`boot`, la lectura del historial) no lo es:
+    con 4 quemadores fallaba en `capture` -> `unavailable` aun con escala 20 (corridas de 35-72 s), asi que recibe un plazo amplio inyectado. Los hijos no lo heredan (otro proceso, entorno sin escala)."""
+    monkeypatch.setattr(api, 'LIFECYCLE_DEADLINE', 600.0)
     boot(api, project)
     now = time.time()
     heavy = [{'schema_version': 1, 'runtime': 'claude', 'run_key': 'a' * 64, 'role': None, 'tool': 'Bash', 'resumen': ('git status %d ' % i).ljust(160, 'y'),
