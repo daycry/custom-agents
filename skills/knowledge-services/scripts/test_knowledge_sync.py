@@ -798,3 +798,28 @@ def test_fix2_22_avisos_grupo_sanea_el_id_del_backend(tmp_path, capsys):
     cap = capsys.readouterr()
     assert "\x1b" not in cap.out and "‮" not in cap.out
     assert "mem" in cap.out and "memoria-b" in cap.out
+
+
+# ------------------------------------------------------------------ plugin-audit-2 T-08/T-10
+
+import pytest
+
+
+@pytest.mark.parametrize("bid,tipo", [("kwipu", "markdown-export"), ("graphiti", "graphiti"),
+                                      ("otro", "kwipu")])
+def test_backend_retirado_sale_con_mensaje_retirado_sin_traceback(tmp_path, capsys, bid, tipo):
+    """Una taxonomía heredada que declara un backend retirado no rompe con traceback: exit 2,
+    «retirado» y el camino para añadir un backend propio; sin prometer ningún sustituto."""
+    root = str(tmp_path)
+    d = os.path.join(root, ".claude", "knowledge-services")
+    os.makedirs(d, exist_ok=True)
+    categorias = [{"key": "ENRUTADA", "folder": "gotchas", "min_evidence": "observation",
+                   "routing": {bid: True}}]
+    cfg = {"version": 1, "id_prefix": "ca", "categories": categorias,
+           "backends": {bid: {"type": tipo, "enabled": True, "config": {}}}}
+    with open(os.path.join(d, "taxonomy.json"), "w", encoding="utf-8") as f:
+        json.dump(cfg, f)
+    assert ks_sync.main(["--backend", bid, "--root", root, "--check"]) == 2
+    err = capsys.readouterr().err
+    assert "retirado" in err and "add-backend.md" in err
+    assert "Traceback" not in err and "kairos" not in err.lower()

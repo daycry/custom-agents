@@ -43,9 +43,13 @@ def _taxonomy(root, backends=None):
 
 # ------------------------------------------------------------------ contrato basico
 
-def test_registro_base_declara_knowledge_gate_y_kwipu():
+def test_registro_base_declara_knowledge_gate_y_training_sin_backends_retirados():
+    """plugin-audit-2 T-08: el registro conserva `REGISTRO`/`registrar()` pero ya no declara las
+    capacidades de los backends retirados."""
     ids = {c["id"] for c in cap_mod.REGISTRO}
-    assert {"knowledge-gate", "kwipu"} <= ids
+    assert {"knowledge-gate", "training"} <= ids
+    assert not ({"kwipu", "graphiti"} & ids)
+    assert callable(cap_mod.registrar)
 
 
 def test_capacidad_tiene_las_seis_claves_del_contrato():
