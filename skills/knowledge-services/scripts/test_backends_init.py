@@ -6,6 +6,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BACKENDS_DIR = os.path.normpath(os.path.join(HERE, "..", "backends"))
+FIXTURES_DIR = os.path.join(HERE, "fixtures")  # adaptador de prueba (T-10): el plugin no incluye ninguno
 
 
 def _cargar():
@@ -20,9 +21,20 @@ def _cargar():
 binit = _cargar()
 
 
-def test_tipo_valido_markdown_export_carga():
-    mod = binit.cargar_adaptador("markdown-export", directorios=[BACKENDS_DIR])
-    assert callable(mod.health)
+def test_adaptador_de_prueba_carga_por_directorios_extra():
+    mod = binit.cargar_adaptador("adaptador-prueba", directorios=[FIXTURES_DIR])
+    assert all(callable(getattr(mod, f)) for f in binit.FUNCIONES_OBLIGATORIAS)
+
+
+def test_el_plugin_no_incluye_adaptadores_en_backends():
+    """T-10: `backends/` solo trae el cargador y su README; el tipo de prueba no se resuelve ahi."""
+    ficheros = sorted(n for n in os.listdir(BACKENDS_DIR) if n.endswith(".py"))
+    assert ficheros == ["__init__.py"]
+    try:
+        binit.cargar_adaptador("adaptador-prueba", directorios=[BACKENDS_DIR])
+        assert False
+    except binit.AdaptadorNoDisponible as e:
+        assert "no se encontró" in str(e)
 
 
 def test_tipo_con_escape_de_ruta_es_rechazado_sin_tocar_disco():
@@ -42,13 +54,12 @@ def test_tipo_desconocido_pero_con_forma_valida_da_mensaje_de_no_encontrado():
         assert "no se encontró" in str(e)
 
 
-def test_adaptador_graphiti_vacio_falla_con_mensaje_claro(tmp_path):
-    """graphiti-memory T-01 (CA-08): antes de que exista el adaptador real (T-04), un
-    `graphiti.py` vacío debe fallar el contrato con un mensaje que nombre las funciones que
-    faltan — nunca un traceback de `importlib` ni un `AttributeError` en tiempo de uso."""
-    (tmp_path / "graphiti.py").write_text("# adaptador aun no implementado\n", encoding="utf-8")
+def test_adaptador_vacio_falla_con_mensaje_claro(tmp_path):
+    """Un fichero de adaptador sin las 6 funciones falla el contrato con un mensaje que nombra las
+    que faltan — nunca un traceback de `importlib` ni un `AttributeError` en tiempo de uso."""
+    (tmp_path / "vacio.py").write_text("# adaptador aun no implementado\n", encoding="utf-8")
     try:
-        binit.cargar_adaptador("graphiti", directorios=[str(tmp_path)])
+        binit.cargar_adaptador("vacio", directorios=[str(tmp_path)])
         assert False, "debería haber levantado AdaptadorNoDisponible"
     except binit.AdaptadorNoDisponible as e:
         mensaje = str(e)
