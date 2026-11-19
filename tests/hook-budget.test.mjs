@@ -1,7 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
-// The launcher may only import Node builtins (tests/test_graphiti_security.py), so the budget
+// The launcher may only import Node builtins (tests/test_hook_network_egress.py), so the budget
 // function lives inside it between markers and is evaluated here from its source.
 const launcher = readFileSync(new URL('../hooks/run-hook.mjs', import.meta.url), 'utf8')
 const block = launcher.match(/\/\/ child-budget:start[\s\S]*?\/\/ child-budget:end/)

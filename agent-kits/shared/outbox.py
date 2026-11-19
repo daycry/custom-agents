@@ -6,7 +6,7 @@ Nace en la iniciativa `session-end-durable-capture` (C-05, `design.md` O1) para 
 `SessionEnd` (`journal.py capture-end`) sea instantánea: escribe un *envelope* aquí y la
 materialización (con git, IA opt-in, verificación) corre después, de forma recuperable
 (`journal.py replay`). El mismo contrato lo reutilizan otros exportadores de memoria
-(`knowledge-services` T-07, `graphiti-memory` T-05): una sola implementación de cola/staging
+(`knowledge-services` T-07): una sola implementación de cola/staging
 atómico para toda la cadena, con la MISMA idempotencia y el MISMO dead-letter.
 
 Solo stdlib; sin red; nunca ejecuta git ni IA (eso es responsabilidad del llamador, no de la cola).

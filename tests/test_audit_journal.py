@@ -31,20 +31,21 @@ def project(tmp_path):
     return root
 
 
-def test_r23_capability_probe_does_not_write_backend_bytecode_or_leak_global_flag(tmp_path):
+def test_r23_capability_probe_does_not_write_bytecode_or_leak_global_flag(tmp_path):
     code = """
 import importlib.util,json,sys
 s=importlib.util.spec_from_file_location('probe',sys.argv[1]);m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 sys.dont_write_bytecode=False
-assert m._graphiti_modo({'mode':'shadow'})=='shadow'
+assert callable(m.registrar)
+m.enumerar(sys.argv[2])
 print(json.dumps({'flag':sys.dont_write_bytecode}))
 """
     cache = tmp_path / 'cache'
-    result = subprocess.run([sys.executable, '-I', '-S', '-X', 'pycache_prefix=' + str(cache), '-c', code, str(SHARED / 'capabilities.py')],
+    result = subprocess.run([sys.executable, '-I', '-S', '-X', 'pycache_prefix=' + str(cache), '-c', code, str(SHARED / 'capabilities.py'), str(tmp_path)],
                             capture_output=True, text=True, encoding='utf8', timeout=30)
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout)['flag'] is False
-    assert not list(cache.rglob('graphiti*.pyc'))
+    assert not list(cache.rglob('knowledge*.pyc'))
 
 
 def test_r24_default_queue_cannot_follow_a_junction(tmp_path):

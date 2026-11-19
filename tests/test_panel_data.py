@@ -281,43 +281,48 @@ def test_backends_sin_ninguna_conexion_y_con_la_fecha_de_la_outbox_nunca_el_mtim
     import os
     from memoria_fixture import crear_proyecto
     proyecto = crear_proyecto(tmp_path)
-    for nombre in ('manifest.json',):
-        os.utime(proyecto / '.claude/knowledge-services/kwipu-export' / nombre, (86400, 86400))   # 1970-01-02
+    done = proyecto / '.claude/knowledge-services/_sync-outbox/memoria-a/done'
+    for nombre in os.listdir(done):
+        os.utime(done / nombre, (86400, 86400))   # 1970-01-02
     _sin_red(monkeypatch)
     filas = {b['backend']: b for b in _cargar().memoria(proyecto)['backends']}
-    assert filas['kwipu'] == {'backend': 'kwipu', 'tipo': 'markdown-export', 'situacion': 'configurado', 'entradas': 3,
-                              'ultima': '2026-10-02T11:30:00Z', 'ultima_parcial': False, 'interrumpida': False,
-                              'ui_url': None, 'ui_url_no_local': False}
-    assert filas['graphiti']['entradas'] == 2 and filas['graphiti']['interrumpida'] is True
-    assert filas['graphiti']['ultima'] is None            # sin outbox de graphiti: «sin datos», no el mtime del manifiesto
+    assert filas['memoria-a'] == {'backend': 'memoria-a', 'tipo': 'externo', 'situacion': 'configurado', 'entradas': None,
+                                  'ultima': '2026-10-02T11:30:00Z', 'ultima_parcial': False, 'interrumpida': False,
+                                  'ui_url': None, 'ui_url_no_local': False}
+    assert filas['memoria-b']['entradas'] is None and filas['memoria-b']['interrumpida'] is False
+    assert filas['memoria-b']['ultima'] is None            # sin outbox de memoria-b: "sin datos", no el mtime
     assert all('1970' not in json.dumps(f) for f in filas.values())
 
 
-def test_backend_sin_manifiesto_ni_outbox_es_sin_datos_y_ui_url_solo_si_se_declara(tmp_path, monkeypatch):
+def test_el_panel_no_inventa_backends_que_el_proyecto_no_declara(tmp_path):
     from memoria_fixture import crear_proyecto
     proyecto = crear_proyecto(tmp_path)
     ks = proyecto / '.claude/knowledge-services'
-    (ks / 'kwipu-export/manifest.json').unlink()
-    (ks / 'graphiti-manifest.json').unlink()
-    (ks / 'graphiti-manifest.pending.json').unlink()
     config = json.loads((ks / 'taxonomy.json').read_text(encoding='utf8'))
-    config['backends']['graphiti']['config']['ui_url'] = 'http://127.0.0.1:9000/ui'
-    config['backends']['kwipu']['config']['ui_url'] = 'javascript:alert(1)'
+    config['backends'] = {}
+    (ks / 'taxonomy.json').write_text(json.dumps(config), encoding='utf8')
+    assert _cargar().memoria(proyecto)['backends'] == []
+
+
+def test_ui_url_solo_si_se_declara_y_es_local(tmp_path, monkeypatch):
+    from memoria_fixture import crear_proyecto
+    proyecto = crear_proyecto(tmp_path)
+    ks = proyecto / '.claude/knowledge-services'
+    config = json.loads((ks / 'taxonomy.json').read_text(encoding='utf8'))
+    config['backends']['memoria-b']['config']['ui_url'] = 'http://127.0.0.1:9000/ui'
+    config['backends']['memoria-a']['config']['ui_url'] = 'javascript:alert(1)'
     (ks / 'taxonomy.json').write_text(json.dumps(config), encoding='utf8')
     _sin_red(monkeypatch)
     filas = {b['backend']: b for b in _cargar().memoria(proyecto)['backends']}
-    assert filas['kwipu']['entradas'] is None and filas['graphiti']['entradas'] is None
-    assert filas['graphiti']['ui_url'] == 'http://127.0.0.1:9000/ui' and filas['kwipu']['ui_url'] is None
-    assert filas['graphiti']['interrumpida'] is False
+    assert filas['memoria-b']['ui_url'] == 'http://127.0.0.1:9000/ui' and filas['memoria-a']['ui_url'] is None
 
 
-def test_backend_deshabilitado_se_dice_y_un_export_dir_fuera_del_proyecto_no_se_lee(tmp_path):
+def test_backend_deshabilitado_se_dice_como_tal(tmp_path):
     from memoria_fixture import crear_proyecto
     proyecto = crear_proyecto(tmp_path)
     ks = proyecto / '.claude/knowledge-services'
     config = json.loads((ks / 'taxonomy.json').read_text(encoding='utf8'))
-    config['backends']['kwipu']['enabled'] = False
-    config['backends']['kwipu']['config']['export_dir'] = '../fuera'
+    config['backends']['memoria-a']['enabled'] = False
     (ks / 'taxonomy.json').write_text(json.dumps(config), encoding='utf8')
-    fila = next(b for b in _cargar().memoria(proyecto)['backends'] if b['backend'] == 'kwipu')
+    fila = next(b for b in _cargar().memoria(proyecto)['backends'] if b['backend'] == 'memoria-a')
     assert fila['situacion'] == 'deshabilitado' and fila['entradas'] is None

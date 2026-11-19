@@ -179,7 +179,6 @@ def snapshot(d):
     return out
 
 
-
 @pytest.fixture(autouse=True)
 def _registro_de_la_maquina_fuera(tmp_path_factory, monkeypatch):
     """Gap B-3: NINGÚN test de esta suite puede leer el registro real de la máquina.
@@ -2225,12 +2224,12 @@ def test_linea_capacidad_activa_con_backend_en_vivo_via_taxonomy_json(tmp_path):
     assert l["estado"] == doctor.OK
 
 
-def test_doctor_py_no_menciona_kwipu_literalmente():
+def test_doctor_py_no_menciona_ningun_backend_literalmente():
     """T-09: todo lo que sabe este fichero sobre una capacidad concreta llega por el contrato
     `{id, config_path, enabled, health, doctor, setup_step}` de `capabilities.py` -- nunca un
     literal de backend en el propio codigo de /doctor."""
     texto = open(SCRIPT, encoding="utf-8").read()
-    assert "kwipu" not in texto.lower()
+    assert "kwipu" not in texto.lower() and "graphiti" not in texto.lower()
 
 
 def test_bloque_capacidades_via_capabilities_real_proyecto_sin_config(tmp_path):
@@ -2762,14 +2761,7 @@ def test_t10fix3_185_main_errores_de_uso(tmp_path, capsys):
     assert "--plugin-root" in capsys.readouterr().err
 
 
-# ------------------------------------------------------------------ graphiti-memory T-08 (CA-14)
-
-def test_doctor_no_nombra_la_capacidad_graphiti():
-    """CA-14: una capacidad opcional entra por `capabilities.py`; `/doctor` la recorre sin codigo
-    propio — este fichero no puede mencionarla."""
-    with open(os.path.join(HERE, "doctor.py"), encoding="utf-8") as f:
-        assert "graphiti" not in f.read().lower()
-
+# ------------------------------------------------------------------ CA-14 (capacidades por registro)
 
 def test_doctor_pinta_una_capacidad_nueva_sin_tocar_doctor_py(tmp_path):
     """La prueba de que el registro basta: una capacidad inventada al vuelo sale en el bloque."""
@@ -2933,76 +2925,6 @@ def test_f3fix3_gap137_el_detalle_de_un_error_de_config_sale_saneado(tmp_path):
 # ------------------------------------------------------------------ fix4 Fase 3 (#148, #152)
 
 BACKENDS_REALES = os.path.join(ROOT, "skills", "knowledge-services", "backends")
-_TEST_BACKEND_GRAPHITI = os.path.join(ROOT, "skills", "knowledge-services", "scripts",
-                                      "test_backend_graphiti.py")
-
-
-def _servidor_mcp_falso():
-    """El servidor MCP FALSO de la suite del adaptador (fixtures reales capturadas del stack),
-    reutilizado aqui para probar `/doctor` contra el adaptador REAL — no un doble de `verify`."""
-    spec_h = importlib.util.spec_from_file_location("ks_graphiti_tests_para_doctor",
-                                                    _TEST_BACKEND_GRAPHITI)
-    mod = importlib.util.module_from_spec(spec_h)
-    spec_h.loader.exec_module(mod)
-    return mod._ServidorMCPContext
-
-
-def _manifiesto_grande(tmp_path, n=250, borradas=()):
-    """Manifiesto con `n` entradas publicadas y el `get_episodes` que las sirve (menos las
-    `borradas`, que simulan un desfase REAL en el grafo), recortado a `max_episodes`."""
-    d = tmp_path / ".claude" / "knowledge-services"
-    d.mkdir(parents=True, exist_ok=True)
-    entradas = {f"mem.pattern.x{i:03d}": {"version": 1, "hash": "h"} for i in range(n)}
-    (d / "graphiti-manifest.json").write_text(
-        json.dumps({"group_id": "proy-test", "entradas": entradas}), encoding="utf-8")
-    vivos = [f"{id_}@1" for id_ in sorted(entradas) if id_ not in borradas]
-
-    def _get_episodes(args):
-        tope = int((args or {}).get("max_episodes") or 0)
-        return {"structuredContent": {"episodes": [
-            {"name": nombre, "group_id": "proy-test", "uuid": nombre} for nombre in vivos[:tope]]}}
-
-    return _get_episodes
-
-
-def _linea_graphiti(tmp_path, get_episodes):
-    ctx = _servidor_mcp_falso()
-    with ctx(respuestas_tools={"get_episodes": get_episodes}) as srv:
-        return doctor._linea_capacidad_backend(
-            "kb", "graphiti",
-            {"endpoint": srv.endpoint, "group_id": "proy-test", "mode": "read",
-             "timeout_ms": 5000, "max_episodes": 50000},
-            backends_real, BACKENDS_REALES, project=str(tmp_path),
-            # Estas pruebas verifican la CLASIFICACION (ventana de 200 sobre 250), no el tope
-            # duro de 2,5 s de /doctor (ese lo cubren C-09a / gap 94 / gap 124). Con la maquina
-            # cargada, handshake + 250 entradas superaban el tope y salia «no comprobado».
-            # `_cfg_con_timeout_topado` sigue acotando la ventana a CAPACIDAD_VENTANA_TOPE
-            # con cualquier `tope_ms`, asi que las aserciones conservan su sentido.
-            tope_ms=60000)
-
-
-def test_f3fix4_gap148_grafo_sano_mas_grande_que_la_ventana_de_doctor_no_es_aviso(tmp_path):
-    """Gap #148 (Important): con el recorte de ventana de /doctor (`CAPACIDAD_VENTANA_TOPE`, gap
-    #119) TODA instalacion con mas entradas que la ventana caia en la rama `incompleto` de #133 y
-    salia ⚠️ «verificacion incompleta» con un remedio (`max_respuesta_kb`/`max_episodes`) que el
-    propio /doctor pisa. Un grafo SANO no puede dar ⚠️ por el recorte del diagnostico."""
-    linea = _linea_graphiti(tmp_path, _manifiesto_grande(tmp_path, 250))
-    texto = json.dumps(linea, ensure_ascii=False)
-    assert linea["estado"] in (doctor.OK, doctor.INFO), texto
-    assert "200" in texto and "250" in texto, texto
-    assert "--check" in texto, texto
-    assert "max_respuesta_kb" not in texto and "max_episodes" not in texto, texto
-
-
-def test_f3fix4_gap148_la_linea_acotada_dice_que_no_ve_desfases_fuera_de_la_ventana(tmp_path):
-    """Gap #148: con la ventana recortada, un desfase REAL fuera de ella es indistinguible de lo
-    sano — la fila lo DICE (y manda a la verificacion completa) en vez de prometer lo que no
-    puede ver. 250 entradas, una borrada del grafo: mismo veredicto acotado, honesto."""
-    linea = _linea_graphiti(tmp_path, _manifiesto_grande(tmp_path, 250, borradas={"mem.pattern.x000"}))
-    texto = json.dumps(linea, ensure_ascii=False)
-    assert linea["estado"] in (doctor.OK, doctor.INFO), texto
-    assert "desfase" in texto.lower(), texto
-    assert "--check" in texto, texto
 
 
 def test_f3fix4_gap148_el_detalle_no_repite_el_conteo_de_sin_confirmar(tmp_path):
@@ -3182,7 +3104,7 @@ class _ModLento:
 def test_ca16_tope_ms_estricto_backend_lento_no_pasa_de_tope_mas_margen():
     ad = _AdaptadorLento(pausa_s=2.0)          # health + verify = 4 s sin tope duro
     t0 = time.monotonic()
-    l = doctor._linea_capacidad_backend("kwipu", "t", {}, _ModLento(ad), "d", tope_ms=400)
+    l = doctor._linea_capacidad_backend("docs", "t", {}, _ModLento(ad), "d", tope_ms=400)
     dur = time.monotonic() - t0
     assert dur <= (400 + doctor.CAPACIDAD_MARGEN_MS) / 1000 + 0.3, dur
     assert l["estado"] == doctor.AVISO and "no comprobado" in l["detalle"] and "tope" in l["detalle"], l
@@ -3190,14 +3112,14 @@ def test_ca16_tope_ms_estricto_backend_lento_no_pasa_de_tope_mas_margen():
 
 def test_ca16_backend_rapido_no_se_ve_afectado_por_el_tope_duro():
     ad = _AdaptadorLento(pausa_s=0.01)
-    l = doctor._linea_capacidad_backend("kwipu", "t", {}, _ModLento(ad), "d", tope_ms=2000)
+    l = doctor._linea_capacidad_backend("docs", "t", {}, _ModLento(ad), "d", tope_ms=2000)
     assert l["estado"] == doctor.OK and ad.llamadas == ["health", "verify"], l
 
 
 def test_ca16_el_hilo_abandonado_es_daemon_y_no_bloquea_la_salida():
     import threading
     ad = _AdaptadorLento(pausa_s=1.0)
-    doctor._linea_capacidad_backend("kwipu", "t", {}, _ModLento(ad), "d", tope_ms=300)
+    doctor._linea_capacidad_backend("docs", "t", {}, _ModLento(ad), "d", tope_ms=300)
     vivos = [t for t in threading.enumerate() if t.daemon and t is not threading.main_thread()]
     assert vivos and all(t.daemon for t in vivos)
 
@@ -3297,7 +3219,6 @@ def test_fix3_doctor_distingue_estado_ilegible_de_marcador_corrupto(tmp_path):
     estado.write_text("{ roto", encoding="utf-8")
     fatal = [l for l in doctor._marcadores(ROOT, str(tmp_path)) if l["estado"] == doctor.AVISO]
     assert fatal and "ilegible" in fatal[0]["detalle"] and "respáldalo" in fatal[0]["arreglo"], fatal
-
 
 
 def test_fix3_b5_doctor_avisa_de_un_ledger_ilegible_en_vez_de_decir_ninguna(tmp_path):

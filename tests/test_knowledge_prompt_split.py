@@ -51,7 +51,7 @@ def test_governed_detail_does_not_depend_on_a_remote_backend():
     detail = (SHARED / 'knowledge-check-governed.md').read_text(encoding='utf-8')
     assert 'candidates/**' in detail and 'estado: aceptada' in detail and 'estado: aprobado' in detail
     assert '--tipo adr' in detail and '--tipo gotcha' in detail
-    assert not re.search(r'(?:kwipu|graphiti).*enabled', detail, flags=re.I)
+    assert not re.search(r'backends?.*enabled', detail, flags=re.I)
 
 
 def test_portable_dependency_closure_keeps_detail_when_router_is_selected():

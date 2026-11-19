@@ -35,55 +35,25 @@ _TAXONOMY_FALLBACK = { \
     {
       "key": "DECISION",
       "folder": "adr",
-      "min_evidence": "human_confirmed_rule",
-      "routing": {"kwipu": False}
+      "min_evidence": "human_confirmed_rule"
     },
     {
       "key": "PATTERN",
       "folder": "gotchas",
-      "min_evidence": "multiple_validated_cases",
-      "routing": {"kwipu": False}
+      "min_evidence": "multiple_validated_cases"
     },
     {
       "key": "GOTCHA",
       "folder": "gotchas",
-      "min_evidence": "validated_case",
-      "routing": {"kwipu": False}
+      "min_evidence": "validated_case"
     },
     {
       "key": "LESSON",
       "folder": "lessons",
-      "min_evidence": "single_case",
-      "routing": {"kwipu": False}
+      "min_evidence": "single_case"
     }
   ],
-  "backends": {
-    "kwipu": {
-      "type": "markdown-export",
-      "enabled": False,
-      "config": {
-        "export_dir": ".claude/knowledge-services/kwipu-export",
-        "health": {"url": "http://127.0.0.1:8765/health", "timeout_ms": 800}
-      }
-    },
-    "graphiti": {
-      "type": "graphiti",
-      "enabled": False,
-      "config": {
-        "mode": "shadow",
-        "endpoint": "http://127.0.0.1:8001/mcp",
-        "allow_remote": False,
-        "provider": {"llm": "none"},
-        "entity_map": {},
-        "relations": [],
-        "router": {"intents": {"temporal": False, "relacional": False, "evidencia": False}},
-        "telemetria": False,
-        "health": {"url": "http://127.0.0.1:8001/health", "timeout_ms": 3000},
-        "timeout_ms": 3000,
-        "concurrency": 1
-      }
-    }
-  },
+  "backends": {},
   "evidence_levels": [
     "observation",
     "single_case",
@@ -399,8 +369,8 @@ def categorias_por_backend(config, backend_id):
 
 def categorias_por_backend_con_valor(config, backend_id):
     """Como `categorias_por_backend`, pero devuelve pares `(categoria, valor)` — `valor` es el
-    `true`/`"summary"` literal de `routing[backend_id]` (gap 2/10): sin esto, el consumidor (el
-    adaptador `markdown-export` de T-08) no podia distinguir "entero" de "solo resumen" y
+    `true`/`"summary"` literal de `routing[backend_id]` (gap 2/10): sin esto, el consumidor (un
+    adaptador) no podia distinguir "entero" de "solo resumen" y
     `categorias_por_backend` los colapsaba a la misma lista."""
     out = []
     for cat in config.get("categories") or []:

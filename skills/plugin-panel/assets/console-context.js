@@ -264,7 +264,7 @@ export function createContext(app){
   for(const [title,text] of [['Aprobado','Decisiones, reglas y aprendizajes que han pasado el proceso de curación.'],
    ['Propuestas','Candidatos pendientes de revisión. No se convierten en reglas por aparecer en esta vista.'],
    ['Journal','Continuidad de sesiones. Describe lo ocurrido y conserva pendientes; no es conocimiento aprobado.'],
-   ['Kwipu, Graphiti y Graphify','Integraciones opcionales con funciones diferentes. Configurar una no demuestra que esté conectada ni que su respuesta sea correcta.']]){
+   ['Servicios externos y Graphify','Integraciones opcionales con funciones diferentes. Configurar una no demuestra que esté conectada ni que su respuesta sea correcta.']]){
    body.append(el('h3',title),el('p',text))
   }
   body.append(button('Ver integraciones',app.safe(()=>app.navigate('integrations')),'quiet','plug'))
@@ -317,7 +317,7 @@ export function createContext(app){
     el('p','Aprobar memoria y publicarla son operaciones separadas. La lectura externa requiere su propia autorización.','small-muted'));grid.append(card)
   }
   if(!grid.childElementCount)empty(grid,'Elige las herramientas que os ayudan.','Puedes conectar seguimiento, documentación o memoria desde la configuración del proyecto. El core funciona sin ellas.','plug',[],true)
-  root.append(grid,el('p','El proyecto puede usar otros proveedores: una integración propia no necesita añadirse al catálogo del core. Graphify es un extractor de contexto de código opcional, distinto de Kwipu y Graphiti.','native-limits'))
+  root.append(grid,el('p','El proyecto puede usar otros proveedores: una integración propia no necesita añadirse al catálogo del core. Graphify es un extractor de contexto de código opcional, distinto de los servicios de memoria externos.','native-limits'))
  }
  function renderCatalog(){
   const root=$('catalog-content'),query=$('catalog-search').value.trim().toLowerCase(),grid=el('div',undefined,'catalog-grid')

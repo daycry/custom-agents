@@ -17,7 +17,7 @@
   var SITUACIONES_BACKEND = ['configurado', 'deshabilitado', 'no_configurado'];
   var ESTADOS_JOURNAL = ['ok', 'empty', 'not_found', 'incomplete', 'unavailable'];
   var BANDEJA = [['pending', 'Pendientes'], ['needs_changes', 'Cambios pedidos'], ['rejected', 'Rechazados']];
-  var ETIQUETA_BACKEND = { kwipu: 'Kwipu', graphiti: 'Graphiti' };
+  var ETIQUETA_BACKEND = {};
   var PLAZO_MS = 8000;
   var REINTENTO_MS = 3000;   // el servidor aun calcula la memoria (`calculando`): reintenta pronto, no a mano
   var CONTROLES = /[\u0000-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]/;

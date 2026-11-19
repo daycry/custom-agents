@@ -30,8 +30,8 @@ def api():
 @pytest.fixture
 def root(tmp_path):
     taxonomy = {'version': 1, 'id_prefix': 'owned', 'utility_scoring': False,
-                'categories': [{'key': 'DECISION', 'folder': 'adr', 'min_evidence': 'single_case', 'routing': {'kwipu': False}}],
-                'backends': {'kwipu': {'type': 'markdown-export', 'enabled': False, 'config': {'export_dir': 'published'}}}}
+                'categories': [{'key': 'DECISION', 'folder': 'adr', 'min_evidence': 'single_case', 'routing': {'docs': False}}],
+                'backends': {'docs': {'type': 'externo', 'enabled': False, 'config': {'dir': 'published'}}}}
     p = tmp_path / '.claude/knowledge-services/taxonomy.json'
     p.parent.mkdir(parents=True)
     p.write_text(json.dumps(taxonomy, indent=2), encoding='utf-8')
@@ -122,7 +122,7 @@ def test_proposal_rejects_change_after_preview_validation(api, root, definition,
 def test_configuration_rejects_serialized_taxonomy_over_read_budget(api, root, definition):
     path = root / api.TAXONOMY
     config = json.loads(path.read_text())
-    config['backends']['kwipu']['config']['preferences'] = {str(i): 'x' for i in range(14000)}
+    config['backends']['docs']['config']['preferences'] = {str(i): 'x' for i in range(14000)}
     path.write_text(json.dumps(config, separators=(',', ':')), encoding='utf-8')
     before = tree(root)
     assert path.stat().st_size < api.MAX_DOCUMENT
@@ -148,16 +148,13 @@ def test_B2_proposals_work_when_valid_taxonomy_omits_id_prefix(api, root, defini
     assert result['valid'] and result['written'], result
 
 
-@pytest.mark.parametrize('backend_name,group', [('graphiti', None), ('other-memory', None),
+@pytest.mark.parametrize('backend_name,group', [('externo', None), ('other-memory', None),
                                               ('other-memory', 'explicit-group')])
-def test_B2_policy_snapshot_supports_all_graphiti_defaults_without_config_writes(api, root, definition, backend_name, group):
+def test_B2_policy_snapshot_supports_declared_backends_without_config_writes(api, root, definition, backend_name, group):
     setup(api, root, definition)
     path = root / api.TAXONOMY
     config = json.loads(path.read_text())
-    default = api._load('knowledge-schema.py').default_taxonomy()
-    backend = copy.deepcopy(next(b for b in default['backends'].values() if b['type'] == 'graphiti'))
-    backend['enabled'] = False
-    backend['config'].pop('group_id', None)
+    backend = {'type': 'externo', 'enabled': False, 'config': {}}
     if group is not None:
         backend['config']['group_id'] = group
     config['backends'][backend_name] = backend

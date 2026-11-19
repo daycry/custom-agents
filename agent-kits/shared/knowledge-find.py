@@ -209,7 +209,7 @@ INDICE_VERSION = "5"                        # quoted scalar identity changes par
 CAMPOS = ("id", "tipo", "estado", "estado_detalle", "area", "titular", "ruta", "ruta_corta", "iniciativa",
           "fecha", "sucesores", "sustituye", "texto", "version", "evidencia", "enlaces", "category")
 
-# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
+# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las DOS copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
 # Gap #93 (Minor, fix5): la clase [\x00-\x1f\x7f] dejaba pasar tres familias que TAMBIEN
 # falsifican una linea de log o invierten visualmente el texto de un mensaje/`causa`: los
 # controles C1 (\x80-\x9f, entre ellos CSI \x9b), los separadores Unicode de linea/parrafo
@@ -228,47 +228,6 @@ def _sanear_detalle(texto):
     saneado = _CONTROL_O_ANSI_RE.sub(" ", str(texto))
     return saneado[:_SANEADO_TOPE_CHARS]
 # --8<-- fin sanear_detalle (funcion)
-
-
-# --8<-- group_id por defecto COMPARTIDO (memoria de grafo, T-07-fix1) — REPLICADO LITERAL en agent-kits/shared/knowledge-schema.py y agent-kits/shared/knowledge-find.py
-# Gap #97 (Critical, fix1 Fase 3): la derivacion del `group_id` por defecto (el slug Unicode del
-# directorio del proyecto) la aplicaba SOLO el validador al cargar la taxonomia, asi que el router
-# de `knowledge-find.py` -que NO carga el validador, para que ningun hook alcance codigo con
-# capacidad de red- servia al adaptador la config CRUDA; con la plantilla de fabrica (que no trae
-# `group_id`) el backend cortaba con «sin group_id» y la consulta devolvia 0 en la configuracion
-# NOMINAL. La regla vive aqui, una sola vez, y sin un solo import de red.
-_SLUG_UNICODE_SEP_RE = re.compile(r"[\W_]+", re.UNICODE)
-
-
-def _slug_unicode(nombre):
-    """Slug consciente de Unicode (NFKC + minusculas + separador de restos no alfanumericos),
-    para `group_id` (T-01-fix2 gap #23). A diferencia de un slug solo ASCII, conserva
-    letras/digitos no latinos (acentos, CJK, cirilico...) en vez de descartarlos todos y caer a
-    cadena vacia. Sin fallback fijo a proposito: ver `_group_id_por_defecto`."""
-    if not nombre:
-        return ""
-    normalizado = unicodedata.normalize("NFKC", nombre).lower()
-    return _SLUG_UNICODE_SEP_RE.sub("-", normalizado).strip("-")
-
-
-def _group_id_por_defecto(root):
-    """Slug Unicode del directorio del proyecto (`root=None` -> cwd real), o `""` si el nombre no
-    aporta ningun caracter alfanumerico. SIN fallback fijo: dos instalaciones con nombres "raros"
-    no pueden acabar compartiendo grupo remoto (fusionaria su memoria)."""
-    return _slug_unicode(os.path.basename(os.path.abspath(root if root is not None else ".")))
-
-
-def _config_con_group_id(cfg, root):
-    """Config EFECTIVA de un backend: la declarada MAS el `group_id` derivado si no lo trae (o lo
-    trae vacio). Nunca pisa un `group_id` explicito."""
-    efectiva = dict(cfg or {})
-    declarado = efectiva.get("group_id")
-    if not (isinstance(declarado, str) and declarado.strip()):
-        derivado = _group_id_por_defecto(root)
-        if derivado:
-            efectiva["group_id"] = derivado
-    return efectiva
-# --8<-- fin group_id por defecto COMPARTIDO
 
 
 # ------------------------------------------------------------------ normalización
@@ -1775,9 +1734,6 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
 
     motivos = []
     for bid, tipo_backend, cfg_backend in candidatos:
-        # Gap #97 (Critical): al adaptador le llega la config EFECTIVA -la declarada mas los
-        # defaults derivados-, nunca la cruda de `taxonomy.json`. Sin `group_id` efectivo no se
-        # consulta a ciegas: es la clave que acota la lectura al grupo del propio proyecto.
         if _config_privada(cfg_backend):
             motivos.append(f"`{bid}`: configuracion_privada_no_admitida")
             continue
@@ -1815,12 +1771,8 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
             cfg["_backend_id"] = bid
             cfg["_root"] = context["root"]
         else:
-            cfg = _config_con_group_id(cfg_backend, root)
+            cfg = dict(cfg_backend)
             cfg["_root"] = os.path.abspath(root or ".")
-        if tipo_backend != "markdown-export" and not cfg.get("group_id"):
-            motivos.append(f"`{bid}`: sin `group_id` efectivo (no esta declarado en "
-                           f"`taxonomy.json` y no se pudo derivar del directorio del proyecto)")
-            continue
         try:
             adaptador = binit.cargar_adaptador(tipo_backend, directorios=dirs)
         except Exception as e:  # noqa: BLE001 — incluye `AdaptadorNoDisponible`

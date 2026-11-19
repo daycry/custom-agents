@@ -18,8 +18,6 @@ MODULOS = {
     "plan-review": ROOT / "agent-kits/shared/plan-review.py",
     "agent-activity-store": ROOT / "agent-kits/shared/agent-activity-store.py",
     "knowledge-curation": ROOT / "agent-kits/shared/knowledge-curation.py",
-    "graphiti_publication": ROOT / "skills/knowledge-services/backends/graphiti_publication.py",
-    "graphiti_rebuild": ROOT / "skills/knowledge-services/backends/graphiti_rebuild.py",
 }
 
 

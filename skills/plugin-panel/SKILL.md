@@ -84,7 +84,7 @@ Ver ejecución abre el detalle acotado del grupo. El tiempo observado puede incl
 esperas; los hooks actuales no proporcionan tokens ni coste. Ausencia no es cero.
 
 Memoria usa lecturas locales explícitas con `agent-kits/shared/knowledge-view.py`;
-la vista no conecta Kwipu ni Graphiti. Los backends son opcionales por proyecto.
+la vista no conecta ningún servicio externo. Los backends son opcionales por proyecto.
 Encontrar una integración, herramienta o MCP no demuestra conexión ni autorización.
 El catálogo excluye fuentes personales en esta consola compartida.
 

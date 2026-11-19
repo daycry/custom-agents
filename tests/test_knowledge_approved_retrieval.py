@@ -310,7 +310,7 @@ def test_legacy_approved_exact_id_collision_is_ambiguous(consumer, mode):
 @pytest.mark.parametrize("problem", ["endpoint", "config-shape", "enabled"])
 def test_invalid_service_config_does_not_remove_valid_local_approved(consumer, problem):
     project = consumer[0]
-    _write_taxonomy(project, backend_type="graphiti")
+    _write_taxonomy(project, backend_type="externo")
     path = project / ".claude/knowledge-services/taxonomy.json"
     taxonomy = json.loads(path.read_text(encoding="utf-8"))
     backend = taxonomy["backends"]["fixture-backend"]

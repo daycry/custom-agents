@@ -71,7 +71,6 @@ def test_indice_real_del_repo_sin_derivados_y_sin_errores():
 def test_gitignore_declara_export_de_backends_no_versionado():
     with open(os.path.join(ROOT, ".gitignore"), "r", encoding="utf-8") as f:
         texto = f.read()
-    assert ".claude/knowledge-services/kwipu-export/" in texto
     assert ".claude/knowledge-services/*-export/" in texto
 
 
@@ -79,7 +78,7 @@ def test_git_check_ignore_cubre_export_derivado():
     """Un export derivado bajo `.claude/knowledge-services/<algo>-export/` queda ignorado por
     git (fuentes e índice coherentes sin derivados: el derivado nunca compite con la fuente)."""
     resultado = subprocess.run(
-        ["git", "check-ignore", "-q", ".claude/knowledge-services/kwipu-export/manifest.json"],
+        ["git", "check-ignore", "-q", ".claude/knowledge-services/docs-export/manifest.json"],
         cwd=ROOT)
     assert resultado.returncode == 0
 
@@ -90,6 +89,6 @@ def test_git_check_ignore_cubre_export_derivado_anidado():
     knowledge-index.sqlite`, unas lineas mas arriba en el mismo `.gitignore`)."""
     resultado = subprocess.run(
         ["git", "check-ignore", "-q",
-         "evals/fixtures/proyecto/.claude/knowledge-services/kwipu-export/manifest.json"],
+         "evals/fixtures/proyecto/.claude/knowledge-services/docs-export/manifest.json"],
         cwd=ROOT)
     assert resultado.returncode == 0

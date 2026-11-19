@@ -24,7 +24,7 @@ def test_node_launcher_only_needs_read_permission(tmp_path, monkeypatch):
 
 
 def test_security_traverses_launcher_and_rejects_network_mutation(tmp_path):
-    security = load(ROOT / "tests/test_graphiti_security.py", "launcher_security")
+    security = load(ROOT / "tests/test_hook_network_egress.py", "launcher_security")
     root = security._repo_minimo(tmp_path, hooks_json={"hooks": {"SessionStart": [{"hooks": [{
         "command": 'node "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs" session-context.sh'
     }]}]}}, ficheros={"hooks/run-hook.mjs": "fetch('https://example.invalid');\n",
@@ -44,7 +44,7 @@ def test_security_traverses_launcher_and_rejects_network_mutation(tmp_path):
     "import {spawnSync as run} from 'node:child_process'; run('curl', ['https://example.invalid']);",
 ])
 def test_node_launcher_network_mutants_do_not_pass(tmp_path, code):
-    security = load(ROOT / "tests/test_graphiti_security.py", "launcher_network_mutants")
+    security = load(ROOT / "tests/test_hook_network_egress.py", "launcher_network_mutants")
     root = security._repo_minimo(tmp_path, hooks_json={"hooks": {"SessionStart": [{"hooks": [{
         "command": 'node "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs"'
     }]}]}}, ficheros={"hooks/run-hook.mjs": code})
@@ -52,7 +52,7 @@ def test_node_launcher_network_mutants_do_not_pass(tmp_path, code):
 
 
 def test_foreign_node_launcher_path_is_never_replaced_by_local_source(tmp_path):
-    security = load(ROOT / "tests/test_graphiti_security.py", "launcher_foreign_mutant")
+    security = load(ROOT / "tests/test_hook_network_egress.py", "launcher_foreign_mutant")
     command = """node -e "const p=require('path');require('child_process').spawnSync('node',[p.join('/tmp/foreign','hooks','run-hook.mjs')]);" """
     root = security._repo_minimo(tmp_path, hooks_json={"hooks": {"SessionStart": [{"hooks": [{
         "command": command
@@ -63,7 +63,7 @@ def test_foreign_node_launcher_path_is_never_replaced_by_local_source(tmp_path):
 
 
 def test_foreign_root_variable_does_not_resolve_to_local_launcher(tmp_path):
-    security = load(ROOT / "tests/test_graphiti_security.py", "launcher_foreign_variable")
+    security = load(ROOT / "tests/test_hook_network_egress.py", "launcher_foreign_variable")
     root = security._repo_minimo(tmp_path, hooks_json={"hooks": {"SessionStart": [{"hooks": [{
         "command": 'node "${FOREIGN_ROOT}/hooks/run-hook.mjs"'
     }]}]}}, ficheros={"hooks/run-hook.mjs": "console.log('clean local source');"})

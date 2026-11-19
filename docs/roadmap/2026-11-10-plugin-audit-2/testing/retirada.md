@@ -34,3 +34,96 @@ específicos de Graphiti (lista y recuento más abajo, al ejecutar).
   `guia-resultados-calidad-custom-agents.pdf`) se regeneran con T-38; hoy aún citan los backends.
 - Cualquier export ya publicado (`kwipu-export/`, grafo de Graphiti) no se toca: la retirada es
   del plugin, no de tus datos.
+
+## Medidas (T-08)
+
+| Medida | Antes (`21ad63f`) | Después |
+|---|---|---|
+| `skills/knowledge-services/` (ficheros versionados · líneas) | 49 · 20.617 | 10 · 2.404 (marco + adaptador de prueba) |
+| Ficheros bajo `agent-kits skills tests install hooks scripts evals` que citan Kwipu/Graphiti | 90 · 46.971 líneas | 20 (ver «menciones declaradas») · las 63 supervivientes de la lista original suman 23.327 |
+| `tests/test_graphiti_security.py` → `tests/test_hook_network_egress.py` | 2.953 líneas · 126 tests | 1.913 líneas · 90 tests |
+| `tests/test_graphiti_model.py` | 418 líneas | borrado |
+
+## Tests Graphiti-específicos quitados de la suite «ningún hook hace red» (36)
+
+Clasificación por nombre; son los de episodios `add_memory`, proveedores Ollama, puertas CA-05/E18 sobre
+la escritura en el grafo y guardarraíl de red del cliente MCP (IMDS, redirecciones, sesión):
+- `test_aviso_de_grupo_del_sincronizador_es_solo_lectura_para_la_puerta_ca05`
+- `test_ca04_backend_sin_datos_no_bloquea_la_lectura_enrutada`
+- `test_ca04_endpoint_apagado_degrada_sin_bloquear`
+- `test_ca05_ninguna_pieza_ajena_invoca_el_sincronizador_en_modo_escritura`
+- `test_ca05_ninguna_pieza_invoca_primitivas_de_escritura_en_el_grafo`
+- `test_ca14_el_proveedor_real_que_inyecta_uuid_no_gasta_add_memory_y_acaba_en_dead_letter`
+- `test_ca14_ollama_invalido_acaba_en_dead_letter_sin_tocar_el_manifiesto`
+- `test_ca14_un_doble_de_proveedor_con_estructura_invalida_no_llega_a_add_memory`
+- `test_cada_salto_de_redireccion_se_revalida_contra_el_guardarrail`
+- `test_direcciones_sin_sentido_como_destino_se_rechazan`
+- `test_e18_ningun_agente_normal_cita_el_backend_graphiti`
+- `test_el_origen_de_un_salto_es_la_terna_esquema_host_puerto`
+- `test_el_recorrido_de_piezas_no_esta_vacio`
+- `test_el_servidor_mcp_falso_se_carga_una_sola_vez`
+- `test_f4fix2_el_modulo_de_apoyo_mcp_es_solo_ascii`
+- `test_f4fix2_la_validacion_exige_source_y_source_description_aunque_no_haya_base`
+- `test_f4fix2_las_references_de_la_skill_duena_no_estan_exentas_por_prefijo`
+- `test_f4fix2_probe_p3_una_variable_en_prosa_no_es_una_invocacion`
+- `test_f4fix2_probe_p6_y_p4_la_invocacion_multilinea_no_evade_la_puerta`
+- `test_f4fix2_un_bloque_que_parte_la_publicacion_en_dos_lineas_es_una_unidad`
+- `test_f4fix2_un_proveedor_que_altera_la_identidad_o_pierde_campos_no_llega_a_add_memory`
+- `test_f4fix2_una_invocacion_multilinea_de_solo_lectura_sigue_siendo_legitima`
+- `test_f4fix2_vacio_es_tambien_la_cadena_vacia_o_en_blanco`
+- `test_f4fix3_una_valla_sin_cerrar_cuenta_como_bloque_hasta_el_final`
+- `test_host_publico_sin_allow_remote_se_rechaza_antes_de_conectar`
+- `test_imds_se_rechaza_siempre_incluso_con_allow_remote`
+- `test_la_sesion_no_cruza_esquema_host_ni_puerto`
+- `test_la_sesion_tampoco_cruza_de_hostname_con_el_mismo_puerto`
+- `test_mutante_primitivas_en_una_pieza_inyectada_que_no_es_skill_md`
+- `test_mutantes_de_invocacion_del_sincronizador_no_pasan_la_puerta`
+- `test_ningun_episodio_lleva_texto_de_lo_excluido`
+- `test_openers_de_graphiti_ignoran_proxy_del_entorno`
+- `test_redirecciones_301_302_303_no_se_siguen`
+- `test_solo_las_entradas_aprobadas_y_enrutadas_generan_episodios`
+- `test_una_cadena_de_redirecciones_no_es_infinita`
+- `test_una_linea_de_solo_lectura_sigue_siendo_legitima`
+
+Se conservan los 90 restantes: escáner «ningún hook hace red» (recorrido transitivo, mutantes, AST,
+lanzador de Node con su SHA-256 revisado, almacén de actividad), y el espía de `cargar_adaptador`
+con el argv real de `hooks/session-context.sh`, ahora sobre un backend genérico de prueba.
+`pytest --collect-only` del fichero: 90 (= 126 − 36).
+
+## Decisiones tomadas al ejecutar (T-08)
+
+- **Mensaje «retirado»:** vive en `backends/__init__.py` (`RETIRADOS`, `VERSION_RETIRADA`), no en
+  `knowledge-sync.py`: el invariante «el núcleo no nombra ningún backend» y su test se conservan. Solo
+  afina el «no encontrado» (si el proyecto aporta su propio adaptador con ese `type`, se carga). No
+  menciona ningún sustituto.
+- **Router de lectura:** ya no deriva `group_id` (era de Graphiti): entrega la config declarada tal cual
+  (`copias.json` pierde los bloques `hosts_locales`, `direccion_prohibida_siempre`, `group_id_por_defecto`
+  y `modo_backend`; `sanear_detalle` baja de 5 a 2 copias: `knowledge-find.py` y `doctor.py`).
+- **Panel de memoria:** deja de leer manifiestos de adaptador; lista los backends declarados con la
+  fecha de su outbox y no inventa filas «no configurado» para Kwipu/Graphiti.
+- **`knowledge-schema.py`:** sin reglas por `type` (la validación de `backends.<id>` es la genérica de
+  `knowledge-taxonomy-local.py`); `--setup-id-prefix` ya no devuelve `instalacion_previa` ni avisa de
+  conocimiento exportado (eran manifiestos de los adaptadores retirados).
+- **Plantilla y respaldo de `taxonomy.json`:** `backends: {}` y categorías sin `routing` (fail-closed:
+  no exportan a ningún sitio).
+
+## Pregunta abierta para el usuario
+
+La **rama de lectura documental** `markdown-export` de `knowledge-find.py` (`_documental_prepare`),
+`knowledge-read-context.py`, `documental_read_options` de `knowledge-taxonomy-local.py` y la definición
+`documentalConfig` del esquema eran la lectura de Kwipu. No estaban en el alcance de T-08 y quedan como
+código sin adaptador que lo sirva (sus tests propios siguen en verde; los que cargaban el adaptador real
+se quitaron). ¿Se retiran en una tarea aparte?
+
+## Menciones declaradas (lo que sigue citando los nombres tras T-08)
+
+- Guardas de ausencia y compatibilidad: `skills/knowledge-services/backends/__init__.py` (`RETIRADOS`),
+  `skills/knowledge-services/scripts/test_knowledge_sync.py` (backend retirado sale con «retirado»),
+  `agent-kits/shared/test_capabilities.py`, `agent-kits/shared/test_knowledge_schema.py` (taxonomía heredada
+  valida con reglas genéricas), `agent-kits/shared/test_doctor.py` y `tests/test_knowledge_router.py`
+  (el núcleo no nombra ningún backend), `tests/test_hook_network_egress.py` (cabecera histórica).
+- Documentación y evals que retira T-09: `agent-kits/dev-cycle/references/phase4-knowledge-gate.md`,
+  `agent-kits/shared/{README,doctor-reference}.md`, `evals/cases/{command-setup,skill-knowledge-category-template,skill-knowledge-services}.json`,
+  `skills/knowledge-category-template/SKILL.md`, `skills/knowledge-services/{SKILL.md,backends/README.md,references/project-integration.md}`,
+  `tests/fixtures/opencode-v2-agent-contract.json` (descripción del agente `knowledge-curator`).
+- Fuera de alcance, congelada: `skills/training-data-services/**` (la retira o no T-32).

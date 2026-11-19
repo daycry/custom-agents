@@ -27,7 +27,7 @@ Exit codes: 0 ok · 1 con errores de índice/taxonomía/salud/desfase/apply · 2
 Gaps de la revisión de dos lentes corregidos en este fichero (Fase 3, intento 2, fix2, 2026-09-18):
   - #116: un `apply()` que lanza excepción ya NO manda el envelope directo a `dead_letter` (que
     quema su presupuesto de reintentos de un solo fallo, posiblemente transitorio: red intermitente
-    al bridge de Kwipu). Ahora usa `reencolar_o_dead_letter(item, causa, backoff=True)`: reintenta
+    al servidor del backend). Ahora usa `reencolar_o_dead_letter(item, causa, backoff=True)`: reintenta
     con backoff creciente hasta `MAX_INTENTOS` de `outbox.py`, y solo entonces cae a dead-letter —
     mismo criterio que ya se usaba para el envelope "ajeno" bloqueando la cola.
   - #120: un envelope AJENO (no el de esta corrida) que bloquea `reclamar()` ya NO se manda a
@@ -145,8 +145,7 @@ def _cargar_por_ruta(ruta, nombre_modulo):
 
 # Gap #93 (fix5) y #25 (T-14): la causa se imprime por stderr y se persiste en la dead-letter.
 # Se quitan las secuencias ANSI y TODA la clase Unicode Cc/Cf/Zl/Zp (C0, C1, bidi, marcas de
-# direccion U+200E/U+200F/U+061C, separadores de linea/parrafo), con el mismo criterio que
-# `_escapar` de kwipu-project-add.py. Sin caracteres literales invisibles en el fuente.
+# direccion U+200E/U+200F/U+061C, separadores de linea/parrafo). Sin caracteres literales invisibles en el fuente.
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 _CATEGORIAS_PELIGROSAS = frozenset(("Cc", "Cf", "Zl", "Zp"))
 _TOPE_CAUSA_CHARS = 400

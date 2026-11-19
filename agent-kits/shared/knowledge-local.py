@@ -232,7 +232,7 @@ def _ruta_segura_dentro(base, ruta, base_real=None):
 _ESTADOS_VALIDOS_APROBADO = {"aprobado"}
 
 # gap 84/96 (revisión Fase 3 intento 1): `id` tiene que cumplir la MISMA forma que ya asume
-# `markdown_export.py` («`knowledge_id` ya cumple `[A-Za-z0-9._-]+`, lo exige el Curator») — pero
+# los adaptadores («`knowledge_id` ya cumple `[A-Za-z0-9._-]+`, lo exige el Curator») — pero
 # nadie lo comprobaba aquí. Sin este chequeo, `id: "../../ESCAPE"` pasaba el índice intacto y
 # cualquier adaptador que componga una ruta con ese `id` (p. ej. `<export_dir>/<id>.md`) escribe
 # fuera de `export_dir` (CWE-22). Defensa en profundidad: el adaptador vuelve a validar la misma
@@ -441,7 +441,7 @@ def index_snapshot(sources, config, include_source=False, root="."):
             "fuentes": fuentes, "tags": tags, "cuerpo": cuerpo,
             # gap 110 (revision de dos lentes, intento 2 fix2): `resumen` explicito del
             # frontmatter, si el autor lo escribio - se propaga tal cual hasta el adaptador
-            # (`markdown_export._cuerpo_segun_modo`), que ya lo usaba pero nunca lo recibia
+            # (el adaptador que se enchufe), que ya lo usaba pero nunca lo recibia
             # porque ni el indice ni `knowledge-sync.py` lo extraian.
             "resumen": fm.get("resumen"),
         }

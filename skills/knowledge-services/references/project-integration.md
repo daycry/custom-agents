@@ -25,10 +25,11 @@ en la taxonomía y autorización de consulta son independientes de declarar un b
 
 Presenta vista previa, destino, entradas aprobadas y categorías antes de publicar.
 Usa `--dry-run`, luego la operación autorizada; registra los recibos reales del
-adaptador. En Kwipu, exportar, indexar y consultar son pasos diferentes. En Graphiti,
-encolar no es confirmar persistencia. Los resultados inciertos se reconcilian con
-los diarios existentes; no crees otra cola ni publiques candidatos o conversaciones.
-Los recibos y respuestas generadas no aprueban conocimiento nuevo.
+adaptador. Exportar, indexar y consultar son pasos diferentes, y encolar no es confirmar
+persistencia. Los resultados inciertos se reconcilian con los diarios existentes; no crees
+otra cola ni publiques candidatos o conversaciones. Los recibos y respuestas generadas no
+aprueban conocimiento nuevo. El plugin no incluye adaptadores: el del proyecto se carga por
+`backends/<type>.py` o por `--backends-dir`.
 
 Una integración de proyecto puede usar otro proveedor mediante su propia skill y
 contrato. No modifica el core ni reutiliza tipos de backend ajenos. Instalar una

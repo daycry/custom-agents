@@ -1,37 +1,17 @@
 #!/usr/bin/env python3
-"""Suite de REGRESION DE SEGURIDAD de la memoria Graphiti (iniciativa `graphiti-memory`, T-09).
+"""Suite «ningun hook hace red» (antes parte de la regresion de seguridad de la memoria Graphiti,
+retirada en plugin-audit-2 T-08; ver `docs/roadmap/2026-11-10-plugin-audit-2/testing/retirada.md`).
 
-No repite los tests del adaptador (`skills/knowledge-services/scripts/test_backend_graphiti.py`):
-pina, con tests PROPIOS y desde la raiz del repo, los invariantes que la spec declara fuera de
-alcance o fail-closed y que un cambio futuro podria romper en silencio:
+Pina, con tests PROPIOS y desde la raiz del repo, el invariante que la spec declara fuera de
+alcance y que un cambio futuro podria romper en silencio: **ninguna llamada de red desde hooks**.
+Ningun script alcanzable desde `hooks/hooks.json` -recorrido TRANSITIVO de los `.sh`/`.py` que
+cita el CODIGO, no los comentarios- importa `urllib.request`/`http.client`/`socket` con fines de
+conexion, ni invoca `knowledge-sync.py`/`capabilities.py`, ni pasa `--intent`/`--backends-dir` a
+`knowledge-find.py`; ademas, el argv REAL que `hooks/session-context.sh` le pasa no llega a
+`cargar_adaptador` (espia vivo, no solo lectura estatica). Tambien la cargan
+`tests/test_hook_launcher_security.py` y `tests/hook-budget.test.mjs`.
 
-  1. **Ninguna llamada de red desde hooks** (`spec.md`, «Fuera de alcance»): ningun script
-     alcanzable desde `hooks/hooks.json` -recorrido TRANSITIVO de los `.sh`/`.py` que cita el
-     CODIGO, no los comentarios- importa `urllib.request`/`http.client`/`socket` con fines de
-     conexion, ni invoca `knowledge-sync.py`/`capabilities.py`, ni pasa `--intent`/`--backends-dir`
-     a `knowledge-find.py`; ademas, el argv REAL que `hooks/session-context.sh` le pasa no llega a
-     `cargar_adaptador` (espia vivo, no solo lectura estatica).
-  2. **Ningun dato excluido llega al grafo** (CA-01/CA-07): con un `approved/` que mezcla
-     categorias con y sin `routing.graphiti`, mas ficheros FUERA de `approved/` (journal,
-     candidates, un `.log` de prompts y un fichero con «prompt» en el nombre), `knowledge-sync`
-     solo genera `add_memory` de las entradas aprobadas Y enrutadas, y ningun `episode_body`
-     contiene texto de lo excluido.
-  3. **CA-14**: una salida estructurada INVALIDA del proveedor `ollama` degrada a dead-letter via
-     `outbox.py` sin corromper el grafo ni el manifiesto publicado; **CA-04**: endpoint apagado y
-     backend sin datos degradan sin bloquear el ciclo.
-  4. **CA-05**: ninguna pieza fuera de la skill `knowledge-services` invoca escritura en el grafo
-     (`add_memory`/`add_triplet`/`clear_graph`/`delete_*`/`knowledge-sync --backend graphiti apply`)
-     y ningun agente distinto de `knowledge-curator` (que documenta la PROHIBICION) cita el
-     backend — Puerta E18 de `docs/agents/CONTRACTS.md`.
-  5. **Guardarrail de red del cliente MCP** como regresion del REPO: IMDS en sus cuatro formas,
-     `0.0.0.0`/`::`, hosts publicos sin `allow_remote`, redirecciones 301/302/303 no seguidas y la
-     sesion que no cruza `(esquema, host, puerto)` — con servidores efimeros propios en loopback y
-     cero `connect()` real fuera de loopback.
-
-Sin red real: el servidor Graphiti de `127.0.0.1:8001` NO interviene (se reutiliza el servidor MCP
-FALSO de la suite del adaptador y se levantan servidores efimeros propios en `127.0.0.1:0`).
-
-Ejecutar: python -m pytest -q tests/test_graphiti_security.py
+Ejecutar: python -m pytest -q tests/test_hook_network_egress.py
 """
 import ast
 import hashlib
@@ -48,7 +28,6 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOOKS_JSON = os.path.join(ROOT, "hooks", "hooks.json")
 SHARED = os.path.join(ROOT, "agent-kits", "shared")
-KS_SCRIPTS = os.path.join(ROOT, "skills", "knowledge-services", "scripts")
 KS_BACKENDS = os.path.join(ROOT, "skills", "knowledge-services", "backends")
 
 
@@ -64,28 +43,7 @@ _hook_security = sys.modules.get("custom_agents_hook_security_support") or _carg
     os.path.join(ROOT, "tests", "hook_security_support.py"), "custom_agents_hook_security_support")
 
 
-# El servidor MCP falso (fixtures reales capturadas del stack) y el constructor de entradas se
-# REUTILIZAN; los tests de abajo son propios.
-#
-# Gap #166 (Minor, fix1 Fase 4): antes se importaba `test_backend_graphiti.py` POR RUTA con un
-# nombre de modulo propio, asi que bajo la invocacion unica de pytest de CI ese fichero de tests se
-# cargaba DOS veces (dos juegos de fixtures y dos clases de handler, con estado compartido entre
-# suites). Ahora las dos suites cargan el modulo de APOYO `_mcp_fake.py` con el mismo nombre
-# canonico y comprobando `sys.modules`: una sola ejecucion por proceso.
-def _cargar_apoyo_mcp():
-    nombre = "ks_graphiti_mcp_fake"
-    if nombre in sys.modules:
-        return sys.modules[nombre]
-    return _cargar(os.path.join(KS_SCRIPTS, "_mcp_fake.py"), nombre)
-
-
-_apoyo_mcp = _cargar_apoyo_mcp()
-ServidorMCP = _apoyo_mcp._ServidorMCPContext
-
-ks_sync = _cargar(os.path.join(KS_SCRIPTS, "knowledge-sync.py"), "ks_sync_seguridad")
-gr = _cargar(os.path.join(KS_BACKENDS, "graphiti.py"), "ks_graphiti_seguridad")
 kf = _cargar(os.path.join(SHARED, "knowledge-find.py"), "kf_seguridad")
-ob = _cargar(os.path.join(SHARED, "outbox.py"), "outbox_seguridad")
 
 
 # ====================================================================== 1. sin red desde hooks
@@ -1330,7 +1288,7 @@ def _proyecto_con_backend_de_grafo_habilitado(root):
         "categories": [{"key": "DECISION", "folder": "adr", "min_evidence": "observation"}],
         "evidence_levels": ["observation", "single_case", "validated_case",
                             "multiple_validated_cases", "human_confirmed_rule"],
-        "backends": {"graphiti": {"type": "graphiti", "enabled": True, "config": {
+        "backends": {"memoria": {"type": "externo", "enabled": True, "config": {
             "mode": "read", "group_id": "proy-seguridad", "endpoint": "http://127.0.0.1:8001/mcp",
             "allow_remote": False, "timeout_ms": 2000,
             "router": {"intents": {"relacional": True}}}}},
@@ -1364,8 +1322,8 @@ def _espia_de_carga_de_adaptador(monkeypatch):
 
 def _argv_del_hook(flags, root):
     valores = {"--root": root, "--limit": "0",
-               "--contexto": "Checklist de Tareas - Memoria Graphiti",
-               "--iniciativa": "graphiti-memory"}
+               "--contexto": "Checklist de Tareas - Memoria del grafo",
+               "--iniciativa": "otra-iniciativa"}
     argv = []
     for flag in flags:
         argv.append(flag)
@@ -1384,7 +1342,7 @@ def test_el_espia_de_adaptadores_si_salta_cuando_se_pasa_intent(tmp_path, monkey
     assert kf.main(_argv_del_hook(_flags_reales_de_session_context(), root)
                    + ["--intent", "relacional"]) == 0
     capsys.readouterr()
-    assert cargas == ["graphiti"], cargas
+    assert cargas == ["externo"], cargas
 
 
 def test_el_argv_real_del_hook_no_carga_ningun_adaptador(tmp_path, monkeypatch, capsys):
@@ -1400,7 +1358,6 @@ def test_el_argv_real_del_hook_no_carga_ningun_adaptador(tmp_path, monkeypatch, 
     assert kf.main(_argv_del_hook(flags, root)) == 0
     assert cargas == [], cargas
     assert "aciertos" in json.loads(capsys.readouterr().out)
-
 
 
 # ============================================ 2. ningun dato excluido llega al grafo (CA-01/CA-07)
@@ -1423,488 +1380,16 @@ def _escribir(ruta, texto):
         f.write(texto)
 
 
-def _entrada_md(root, folder, fichero, id_, category, cuerpo, version=1, estado="aprobado"):
-    _escribir(os.path.join(root, "docs", "knowledge", "approved", folder, fichero),
-              "---\nid: %s\nversion: %s\nestado: %s\ncategory: %s\nevidencia: observation\n"
-              "fuentes:\n  - docs/x.md\ntags:\n  - clave:valor\n---\n\n%s\n"
-              % (id_, version, estado, category, cuerpo))
-
-
-def _taxonomia_graphiti(root, endpoint, provider=None, extra_config=None, tipo="graphiti"):
-    """Taxonomia con UN backend `graphiti` habilitado y tres categorias: enrutada, sin `routing`
-    declarado y `routing.graphiti: false` (CA-07, fail-closed)."""
-    config = {
-        "llm": "ollama", "model": "qwen2.5:7b", "base_url": "http://127.0.0.1:11434/v1",
-    } if provider is None else provider
-    cfg_backend = {
-        "mode": "shadow", "endpoint": endpoint, "group_id": "proy-seguridad",
-        "allow_remote": False, "timeout_ms": 2000, "provider": config,
-    }
-    cfg_backend.update(extra_config or {})
-    taxonomia = {
-        "version": 1,
-        "id_prefix": "ks",
-        "categories": [
-            {"key": "ENRUTADA", "folder": "gotchas", "min_evidence": "observation",
-             "routing": {"graphiti": True}},
-            {"key": "SIN_ROUTING", "folder": "lessons", "min_evidence": "observation"},
-            {"key": "DESACTIVADA", "folder": "adr", "min_evidence": "observation",
-             "routing": {"graphiti": False}},
-        ],
-        "evidence_levels": ["observation", "single_case", "validated_case",
-                            "multiple_validated_cases", "human_confirmed_rule"],
-        "backends": {"graphiti": {"type": tipo, "enabled": True, "config": cfg_backend}},
-    }
-    _escribir(os.path.join(root, ".claude", "knowledge-services", "taxonomy.json"),
-              json.dumps(taxonomia, ensure_ascii=False))
-    return taxonomia
-
-
-def _proyecto_con_datos_excluidos(root, endpoint, **kwargs):
-    """`approved/` con las tres categorias + ficheros FUERA de `approved/` que la spec declara
-    fuera de alcance (journal, candidates, un `.log` de prompts y un fichero con `prompt` en el
-    nombre): nada de eso puede llegar al grafo."""
-    _taxonomia_graphiti(root, endpoint, **kwargs)
-    _entrada_md(root, "gotchas", "GOT-001.md", "got-1", "ENRUTADA", MARCA_ENRUTADA)
-    _entrada_md(root, "lessons", "LES-001.md", "les-1", "SIN_ROUTING", MARCA_SIN_ROUTING)
-    _entrada_md(root, "adr", "ADR-001.md", "adr-1", "DESACTIVADA", MARCA_ROUTING_FALSE)
-    _escribir(os.path.join(root, "docs", "knowledge", "journal", "2026-09-22-sesion.md"),
-              "# Journal\n\n" + MARCA_JOURNAL + "\n")
-    _escribir(os.path.join(root, "docs", "knowledge", "candidates", "pending", "cand-1.md"),
-              "---\nid: cand-1\n---\n\n" + MARCA_CANDIDATA + "\n")
-    _escribir(os.path.join(root, ".claude", "session-prompts-abc123.log"),
-              MARCA_LOG + "\n")
-    _escribir(os.path.join(root, "docs", "knowledge", "journal", "prompt-2026-09-22.md"),
-              MARCA_PROMPT + "\n")
-
-
-def _add_memory(llamadas):
-    return [args for nombre, args in llamadas if nombre == "add_memory"]
-
-
-def test_solo_las_entradas_aprobadas_y_enrutadas_generan_episodios(tmp_path, capsys):
-    """CA-01 + CA-07: una categoria sin `routing.graphiti: true` NUNCA genera episodios, y lo que
-    vive fuera de `approved/` no existe para el sincronizador."""
-    root = str(tmp_path)
-    with ServidorMCP() as srv:
-        _proyecto_con_datos_excluidos(root, srv.endpoint)
-        codigo = ks_sync.main(["--backend", "graphiti", "--root", root, "--json"])
-        llamadas = list(srv.llamadas)
-    salida = capsys.readouterr()
-    assert codigo == 0, salida.err
-    episodios = _add_memory(llamadas)
-    assert len(episodios) == 1, [e.get("name") for e in episodios]
-    assert episodios[0]["name"].startswith("got-1@")
-    assert episodios[0]["group_id"] == "proy-seguridad"
-    # las omitidas por routing se DICEN (no se silencian), pero no viajan
-    assert "omitida(s) por routing" in salida.err
-
-
-def test_ningun_episodio_lleva_texto_de_lo_excluido(tmp_path, capsys):
-    """El `episode_body` (y cualquier otro argumento de cualquier tool) no puede contener texto de
-    las entradas no enrutadas ni de los ficheros fuera de `approved/`."""
-    root = str(tmp_path)
-    with ServidorMCP() as srv:
-        _proyecto_con_datos_excluidos(root, srv.endpoint)
-        assert ks_sync.main(["--backend", "graphiti", "--root", root, "--json"]) == 0
-        llamadas = list(srv.llamadas)
-    capsys.readouterr()
-    crudo = json.dumps(llamadas, ensure_ascii=False)
-    for marca in _MARCAS_EXCLUIDAS:
-        assert marca not in crudo, marca
-    assert MARCA_ENRUTADA in crudo               # y lo que SI esta enrutado, viaja
-
-
 # ================================ 3. CA-14 (ollama invalido -> dead-letter) y CA-04 (degradacion)
 
 # Salida estructurada INVALIDA de Ollama, en sus dos formas reales: (a) el proveedor devuelve una
 # estructura que no cumple el contrato de `add_memory`, y (b) el servidor rechaza la llamada porque
 # el modelo local devolvio un JSON roto (`structured_output_mode: json_object`).
-_ERROR_OLLAMA_JSON_ROTO = {
-    "isError": True,
-    "content": [{"type": "text", "text": "ollama structured output invalid: "
-                                          "json.decoder.JSONDecodeError: Expecting ',' delimiter"}],
-}
-
-
-def _dead_letter(dir_outbox):
-    """Contenido de `dead-letter/` (la carpeta no existe hasta que `outbox.py` la crea)."""
-    try:
-        return sorted(os.listdir(os.path.join(dir_outbox, "dead-letter")))
-    except FileNotFoundError:
-        return []
-
-
-def _proveedor_ollama_roto(_config, _episodio):
-    """Fixture: el proveedor `ollama` devuelve una salida estructurada que NO es un episodio
-    valido (esquema incorrecto: sin `name`/`group_id`)."""
-    return {"episode_body": "{\"entities\": [", "modelo": "qwen2.5:7b"}
-
-
-def test_ca14_un_doble_de_proveedor_con_estructura_invalida_no_llega_a_add_memory(tmp_path,
-                                                                                  monkeypatch):
-    """CA-14, primera forma: una salida estructurada invalida hace fallar la op ANTES de gastar la
-    llamada de red — el grafo no ve nada y el manifiesto PUBLICADO no se toca (no hay datos
-    corruptos).
-
-    Gap #154 (Important, fix1 Fase 4): este test inyecta un DOBLE en la entrada `ollama` de
-    `PROVEEDORES` (el proveedor real de `ollama` no se ejerce aqui; el titulo anterior lo vendia
-    como si si). Al proveedor REAL, mutado en una copia del modulo, lo ejerce
-    `test_ca14_el_proveedor_real_que_inyecta_uuid_...`, justo debajo."""
-    root = str(tmp_path)
-    with ServidorMCP() as srv:
-        monkeypatch.setitem(gr._gp.PROVEEDORES, "ollama", _proveedor_ollama_roto)
-        cfg = {"_root": root, "group_id": "proy-seguridad", "endpoint": srv.endpoint,
-               "allow_remote": False, "timeout_ms": 2000,
-               "provider": {"llm": "ollama", "model": "qwen2.5:7b"}}
-        ops = gr.plan([_apoyo_mcp._entrada()], cfg)
-        assert ops, "sin operaciones no habria nada que probar"
-        fallo = None
-        try:
-            gr.apply(ops, cfg)
-        except gr.ErrorMCP as e:
-            fallo = e
-        # lo PRIMERO: ni una llamada de red con datos incompletos (el grafo no ve nada)
-        assert _add_memory(srv.llamadas) == []
-        assert fallo is not None, "apply() debia fallar con una salida estructurada invalida"
-        assert "estructura invalida" in str(fallo)
-    assert not os.path.isfile(gr._manifest_path(cfg))
-
-
-def test_ca14_ollama_invalido_acaba_en_dead_letter_sin_tocar_el_manifiesto(tmp_path, capsys):
-    """CA-14 de punta a punta por `knowledge-sync`: el servidor rechaza `add_memory` porque el
-    modelo local devolvio un JSON roto. El envelope se reintenta (nunca se pierde al primer golpe)
-    y acaba en `dead-letter/` con la causa REAL; el manifiesto publicado no llega a existir y el
-    CLI sale con 1 y mensaje, sin traceback."""
-    root = str(tmp_path)
-    dir_outbox = os.path.join(root, ".claude", "knowledge-services", "_sync-outbox", "graphiti")
-    manifiesto = os.path.join(root, ".claude", "knowledge-services", "graphiti-manifest.json")
-    with ServidorMCP(respuestas_tools={"add_memory": _ERROR_OLLAMA_JSON_ROTO}) as srv:
-        _proyecto_con_datos_excluidos(root, srv.endpoint)
-
-        codigo = ks_sync.main(["--backend", "graphiti", "--root", root, "--json"])
-        err = capsys.readouterr().err
-        assert codigo == 1
-        assert "apply()" in err and "puede haberse aplicado parcialmente" in err
-        assert "--outbox-status" in err
-        assert "envelope: reencolado" in err          # nunca dead-letter al primer fallo
-        assert _dead_letter(dir_outbox) == []
-
-        for _ in range(2):                            # intentos 2 y 3 -> MAX_INTENTOS
-            ob.reintentar_ahora(dir_outbox)           # sin esperar el backoff real
-            ks_sync.main(["--backend", "graphiti", "--root", root, "--json"])
-            capsys.readouterr()
-
-    muertos = _dead_letter(dir_outbox)
-    causa_json = next((n for n in muertos if n.endswith(".causa.json")), None)
-    assert causa_json, ("el envelope fallido nunca llego a dead-letter", muertos)
-    with open(os.path.join(dir_outbox, "dead-letter", causa_json), encoding="utf-8") as f:
-        causa = json.load(f)
-    assert causa["intentos"] >= 3
-    assert "isError" in causa["causa"] and "ollama" in causa["causa"].lower()
-    # nada corrupto: no hay publicacion, ni manifiesto pendiente huerfano con datos del fallo
-    assert not os.path.isfile(manifiesto)
-
-
-def test_ca04_endpoint_apagado_degrada_sin_bloquear(tmp_path, capsys):
-    """CA-04: con el endpoint apagado, `health` da error/off CON detalle, `puede_leer` es false con
-    razon, y `--check` sale con 1 sin traceback (el ciclo sigue: nadie lanza)."""
-    root = str(tmp_path)
-    apagado = "http://127.0.0.1:1"
-    cfg = {"_root": root, "group_id": "proy-seguridad", "endpoint": apagado, "mode": "read",
-           "allow_remote": False, "timeout_ms": 300, "provider": {"llm": "ollama", "model": "m"}}
-    salud = gr.health(cfg)
-    assert salud["estado"] in ("off", "error", "degradado"), salud
-    assert salud.get("detalle"), salud
-    lectura = gr.puede_leer(cfg)
-    assert lectura["puede"] is False and lectura["razon"]
-
-    _proyecto_con_datos_excluidos(root, apagado)
-    codigo = ks_sync.main(["--backend", "graphiti", "--root", root, "--check", "--json"])
-    salida = capsys.readouterr()
-    assert codigo == 1
-    assert "Traceback" not in salida.err and "Traceback" not in salida.out
-
-
-def test_ca04_backend_sin_datos_no_bloquea_la_lectura_enrutada(tmp_path):
-    """CA-04: un backend vivo pero SIN datos no es un error — `verify` es `ok` y una consulta
-    enrutada devuelve cero aciertos con motivo, nunca una excepcion."""
-    root = str(tmp_path)
-    with ServidorMCP(respuestas_tools={"search_nodes": {"structuredContent": {"result": {"nodes": []}}},
-                                       "search_memory_facts": {"structuredContent": {"result": {"facts": []}}},
-                                       "get_episodes": {"structuredContent": {"result": {"episodes": []}}}}) as srv:
-        cfg = {"_root": root, "group_id": "proy-seguridad", "endpoint": srv.endpoint,
-               "mode": "read", "allow_remote": False, "timeout_ms": 2000,
-               "provider": {"llm": "ollama", "model": "m"}}
-        veredicto = gr.verify(cfg)
-        assert veredicto["ok"] is True, veredicto
-        respuesta = gr.consultar(cfg, {"intent": "relacional", "texto": "grafo", "limit": 5})
-    assert isinstance(respuesta, dict)
-    assert respuesta.get("aciertos") == []
-
-
-def _backends_con_proveedor_que_inyecta_uuid(tmp_path):
-    """Mutate the real provider in a complete private module bundle.
-
-    New episodes must not supply an existing remote identity. The mutation injects
-    one before publication; missing dependencies cannot masquerade as that rejection.
-    """
-    bundle = os.path.join(str(tmp_path), "provider-fixture")
-    destino = os.path.join(bundle, "skills", "knowledge-services", "backends")
-    shutil.copytree(KS_BACKENDS, destino)
-    shutil.copytree(os.path.join(ROOT, "agent-kits", "shared"), os.path.join(bundle, "agent-kits", "shared"))
-    shutil.copy2(os.path.join(destino, "graphiti.py"), os.path.join(destino, "graphiti_inyecta_uuid.py"))
-    ruta = os.path.join(destino, "graphiti_providers.py")
-    texto = _texto(ruta)
-    ancla = "    salida = dict(episodio)"    # sin el salto: el repo usa CRLF
-    assert ancla in texto, "cambio `_con_instrucciones_de_extraccion`: la mutacion ya no aplica"
-    _escribir(ruta, texto.replace(ancla, ancla + chr(10) + '    salida["uuid"] = "00000000-0000-0000-0000-000000000000"', 1))
-    return destino, "graphiti-inyecta-uuid"
-
-
-def test_ca14_el_proveedor_real_que_inyecta_uuid_no_gasta_add_memory_y_acaba_en_dead_letter(
-        tmp_path, capsys):
-    """Con el proveedor REAL mutado para inyectar un `uuid`, `apply()` falla ANTES de
-    `add_memory` (cero llamadas de escritura al grafo), el envelope acaba en `dead-letter/` con la
-    causa y ni el manifiesto publicado ni el `.pending` registran la entrada: no queda ni un
-    episodio huerfano que `revoke` no pueda invalidar."""
-    root = str(tmp_path)
-    dir_outbox = os.path.join(root, ".claude", "knowledge-services", "_sync-outbox", "graphiti")
-    base_manifiesto = os.path.join(root, ".claude", "knowledge-services")
-    backends, tipo = _backends_con_proveedor_que_inyecta_uuid(tmp_path)
-    argv = ["--backend", "graphiti", "--root", root, "--json", "--backends-dir", backends]
-    with ServidorMCP() as srv:
-        _proyecto_con_datos_excluidos(root, srv.endpoint, tipo=tipo)
-        assert ks_sync.main(argv) == 1
-        err = capsys.readouterr().err
-        assert "no puede declarar un UUID remoto" in err, err
-        assert "uuid" in err.lower(), err
-        for _ in range(2):                            # intentos 2 y 3 -> MAX_INTENTOS
-            ob.reintentar_ahora(dir_outbox)
-            ks_sync.main(argv)
-            capsys.readouterr()
-        # lo PRIMERO: el grafo no vio NADA (ni un `add_memory` con datos que el manifiesto no
-        # podra referenciar)
-        assert _add_memory(srv.llamadas) == [], _add_memory(srv.llamadas)
-    muertos = _dead_letter(dir_outbox)
-    causa_json = next((n for n in muertos if n.endswith(".causa.json")), None)
-    assert causa_json, ("el envelope fallido nunca llego a dead-letter", muertos)
-    with open(os.path.join(dir_outbox, "dead-letter", causa_json), encoding="utf-8") as f:
-        causa = json.load(f)
-    assert causa["intentos"] >= 3
-    assert "uuid" in causa["causa"].lower(), causa["causa"]
-    assert not os.path.isfile(os.path.join(base_manifiesto, "graphiti-manifest.json"))
-    pendiente = os.path.join(base_manifiesto, "graphiti-manifest.pending.json")
-    if os.path.isfile(pendiente):                     # se escribe vacio ANTES de la primera op
-        with open(pendiente, encoding="utf-8") as f:
-            assert json.load(f).get("entradas") == {}, "el `.pending` registro un episodio que el grafo no tiene"
-
-
-# ------------------------------------------ fix2 Fase 4: identidad y campos perdidos (#174/#180)
-
-def _proveedor_que_muta(campo, valor):
-    """Proveedor doble que devuelve el episodio construido con UN campo cambiado (o vaciado)."""
-    def _proveedor(_config, episodio):
-        salida = dict(episodio)
-        salida[campo] = valor
-        return salida
-    return _proveedor
-
-
-_MUTACIONES_DEL_PROVEEDOR = (
-    # (campo, valor, texto que el rechazo debe citar) -- identidad alterada (mutante N3)
-    ("group_id", "otro-proyecto", "identidad alterada: ['group_id']"),
-    ("uuid", "00000000-0000-0000-0000-000000000000", "no puede declarar un UUID remoto"),
-    ("name", "otra-entrada@1", "identidad alterada: ['name']"),
-    # campos que `_episodio_upsert` construyo y el proveedor vacia (mutante N4)
-    ("category", "", "episodio construido: ['category']"),
-    ("entity_type", "", "episodio construido: ['entity_type']"),
-    ("hash_enviado", "", "episodio construido: ['hash_enviado']"),
-    # vacio de verdad, no solo `None` (mutante N5)
-    ("episode_body", "   ", "vacios: ['episode_body']"),
-    ("name", "", "vacios: ['name']"),
-)
-
-
-def test_f4fix2_un_proveedor_que_altera_la_identidad_o_pierde_campos_no_llega_a_add_memory(
-        tmp_path, monkeypatch):
-    """Gaps #174 y #180: de las comprobaciones que fix1 puso antes de `add_memory`, solo `uuid`
-    ausente tenia test. Un proveedor que re-identifica el episodio (`group_id`/`uuid`/`name`
-    distintos: escritura cruzada o pisado de otro episodio) o que VACIA un campo construido
-    (`category`/`entity_type`/`hash_enviado`, `episode_body="   "`) cae con `ErrorMCP` y cero
-    `add_memory`. Mutantes que mueren aqui: N3 `_CAMPOS_EPISODIO_IDENTIDAD = ()`, N4
-    `perdidos = []` y N5 `_vacio_para_add_memory -> valor is None`."""
-    for indice, (campo, valor, cita) in enumerate(_MUTACIONES_DEL_PROVEEDOR):
-        with ServidorMCP() as srv:
-            monkeypatch.setitem(gr._gp.PROVEEDORES, "ollama", _proveedor_que_muta(campo, valor))
-            cfg = {"_root": os.path.join(str(tmp_path), "caso-%d" % indice),
-                   "group_id": "proy-seguridad", "endpoint": srv.endpoint, "allow_remote": False,
-                   "timeout_ms": 2000, "provider": {"llm": "ollama", "model": "qwen2.5:7b"}}
-            os.makedirs(cfg['_root'])
-            ops = gr.plan([_apoyo_mcp._entrada()], cfg)
-            assert ops, "sin operaciones no habria nada que probar"
-            fallo = None
-            try:
-                gr.apply(ops, cfg)
-            except gr.ErrorMCP as e:
-                fallo = e
-            assert _add_memory(srv.llamadas) == [], (campo, valor)
-        assert fallo is not None, ("el proveedor que muta `%s` paso la validacion" % campo, valor)
-        assert cita in str(fallo), (campo, valor, str(fallo))
-        assert not os.path.isfile(gr._manifest_path(cfg)), (campo, valor)
-
-
-def test_f4fix2_la_validacion_exige_source_y_source_description_aunque_no_haya_base():
-    """Gap #180, mutante N1: `source`/`source_description` fuera de
-    `_CAMPOS_EPISODIO_OBLIGATORIOS`. Con un episodio construido que SI los trae, el chequeo de
-    «perdidos» lo tapa; sin base contra la que comparar, solo lo ve la lista de obligatorios."""
-    completo = {"name": "x@1", "episode_body": "b", "group_id": "g",
-                "source": "text", "source_description": "custom-agents:graphiti-memory"}
-    gr._validar_episodio_del_proveedor(dict(completo), {})          # el completo pasa
-    for campo in ("source", "source_description"):
-        episodio = dict(completo)
-        del episodio[campo]
-        try:
-            gr._validar_episodio_del_proveedor(episodio, {})
-            raise AssertionError("un episodio sin `%s` paso la validacion (mutante N1)" % campo)
-        except gr.ErrorMCP as e:
-            assert "vacios: ['%s']" % campo in str(e), str(e)
-
-
-def test_f4fix2_vacio_es_tambien_la_cadena_vacia_o_en_blanco():
-    """Gap #180, mutante N5: `_vacio_para_add_memory` reducido a `valor is None` deja pasar
-    `name=""` y `uuid="   "` cuando no hay base contra la que comparar la identidad."""
-    assert gr._vacio_para_add_memory(None) and gr._vacio_para_add_memory("")
-    assert gr._vacio_para_add_memory("   ") and not gr._vacio_para_add_memory("x")
-    for campo, valor in (("name", ""), ("episode_body", "   ")):
-        episodio = {"name": "x@1", "episode_body": "b", "group_id": "g",
-                    "source": "text", "source_description": "d", campo: valor}
-        try:
-            gr._validar_episodio_del_proveedor(episodio, {})
-            raise AssertionError("`%s=%r` paso la validacion (mutante N5)" % (campo, valor))
-        except gr.ErrorMCP as e:
-            assert "vacios: ['%s']" % campo in str(e), str(e)
-
-
-# ================================ 4. CA-05: ninguna pieza escribe en el grafo por su cuenta
-
-# La skill DUEÑA (el sincronizador y su documentacion) es la unica que puede describir la
-# escritura: el invariante es que NADIE MAS la invoque. Gap #179 (Minor, fix2 Fase 4): la exencion
-# era por PREFIJO (`skills/knowledge-services/`), asi que cualquier `references/*.md` de la skill
-# -que se inyecta en el contexto de un agente igual que su `SKILL.md`- quedaba sin puerta. Ahora es
-# NOMINAL, fichero a fichero, y cada entrada dice por que:
-#   - `backends/README.md` documenta el CONTRATO de las tools del adaptador (`add_memory`,
-#     `add_triplet`...): es la doc del adaptador, no una instruccion a un agente.
-#   - `SKILL.md` es estricta para las primitivas, pero documenta la publicacion POR EL
-#     SINCRONIZADOR (`knowledge-sync.py --backend <id>`), que es justo el camino permitido.
-#   - `references/kwipu-adapter.md` documenta la publicacion del backend `kwipu` (export Markdown,
-#     no el grafo): exenta SOLO para `--backend kwipu`; cualquier otro backend en ella es FALLO.
-# El resto de `references/*.md` no esta exento.
-PIEZAS_EXENTAS_DE_PRIMITIVAS = ("skills/knowledge-services/backends/README.md",)
-# pieza -> backends que puede publicar (`None` = la documentacion del propio sincronizador)
-PIEZAS_EXENTAS_DE_SINCRONIZADOR = {
-    "skills/knowledge-services/SKILL.md": None,
-    "skills/knowledge-services/backends/README.md": None,
-    "skills/knowledge-services/references/kwipu-adapter.md": ("kwipu",),
-}
-
-
-def _backend_de(texto):
-    tokens = _tokens(texto)
-    return tokens[tokens.index("--backend") + 1] if "--backend" in tokens[:-1] else None
-
-
-def _exenta(etiqueta, texto):
-    if etiqueta not in PIEZAS_EXENTAS_DE_SINCRONIZADOR:
-        return False
-    permitidos = PIEZAS_EXENTAS_DE_SINCRONIZADOR[etiqueta]
-    return permitidos is None or _backend_de(texto) in permitidos
-_PRIMITIVAS_ESCRITURA = ("add_memory", "add_triplet", "clear_graph", "delete_episode",
-                         "delete_entity_edge", "delete_group")
-_FLAGS_SOLO_LECTURA = ("--check", "--dry-run", "--outbox-status", "--propose-config",
-                        "--avisos-grupo")
-# Gap #157: `--check` NO blanquea una linea que ademas publica; y una publicacion no siempre se
-# escribe con `--backend <id>` a secas (`apply`/`revoke` son subcomandos del mismo camino).
-_TOKENS_DE_ESCRITURA = ("apply", "revoke", "--rebuild")
-_DIRECTORIOS_NO_PIEZA = {"tests", "fixtures", "__pycache__", "node_modules", ".git"}
-
-
-def _piezas(root=ROOT):
-    """Piezas que se INYECTAN en el contexto de un agente (etiqueta relativa -> ruta):
-    `agents/*.md`, `commands/*.md` y TODO `.md` bajo `skills/` y `agent-kits/` (gap #157: un
-    `references/*.md` o un fragmento de `agent-kits/shared/` instruye igual que una `SKILL.md`, y
-    quedaban fuera del recorrido). Se excluyen tests y fixtures, que no instruyen a nadie."""
-    piezas = {}
-    for carpeta in ("agents", "commands"):
-        base = os.path.join(root, carpeta)
-        if not os.path.isdir(base):
-            continue
-        for nombre in sorted(os.listdir(base)):
-            if nombre.endswith(".md"):
-                piezas[carpeta + "/" + nombre] = os.path.join(base, nombre)
-    for carpeta in ("skills", "agent-kits"):
-        base = os.path.join(root, carpeta)
-        if not os.path.isdir(base):
-            continue
-        for directorio, subdirs, ficheros in os.walk(base):
-            subdirs[:] = sorted(d for d in subdirs if d not in _DIRECTORIOS_NO_PIEZA)
-            for nombre in sorted(ficheros):
-                if not nombre.endswith(".md") or nombre.startswith("test_"):
-                    continue
-                ruta = os.path.join(directorio, nombre)
-                piezas[os.path.relpath(ruta, root).replace(os.sep, "/")] = ruta
-    return piezas
-
-
-def _tokens(linea):
-    """Tokens de una linea de instrucciones: se sueltan comillas, backticks y parentesis, asi que
-    `python3 "$KS/knowledge-sync.py" --backend graphiti` da los mismos tokens que la forma sin
-    entrecomillar (gap #157: el literal `knowledge-sync.py --backend` exigia que las dos palabras
-    fueran CONTIGUAS, y la regla 5 del repo obliga justo a lo contrario)."""
-    return [t for t in re.split(r"""[\s`"'()<>,]+""", linea.strip()) if t]
-
-
-_INTERPRETES = ("python", "python3", "py", "bash", "sh", "$")
-_SPAN_DE_CODIGO_RE = re.compile(r"`([^`]+)`")
-
-
-def _variable_en_codigo(linea, en_codigo):
-    """Gap #181 (Minor, fix2 Fase 4): un token `$…` solo cuenta como la RUTA del sincronizador si
-    va en codigo -bloque con valla, linea que arranca por el interprete, o un span de codigo que
-    lleve tambien el `--backend`-. En prosa (`la ruta vive en $KS`) no es una invocacion."""
-    if en_codigo or (_tokens(linea)[:1] and _tokens(linea)[0].lower() in _INTERPRETES):
-        return any(t.startswith("$") for t in _tokens(linea))
-    for span in _SPAN_DE_CODIGO_RE.findall(linea):
-        tokens = _tokens(span)
-        if "--backend" in tokens and any(t.startswith("$") for t in tokens):
-            return True
-    return False
-
-
-def _invocacion_de_escritura(linea, en_codigo=False):
-    """Motivo por el que la linea (logica) es una ESCRITURA en el grafo, o `None`. Reconoce la
-    invocacion con la ruta entrecomillada o en variable (`"$KSSKILL"`, en codigo) y los flags en
-    cualquier orden; el `--check` solo exime si en la MISMA unidad no hay
-    `apply`/`revoke`/`--rebuild`."""
-    tokens = _tokens(linea)
-    if "--backend" not in tokens:
-        return None
-    cita_script = any(t.endswith("knowledge-sync.py") for t in tokens)
-    if not (cita_script or _variable_en_codigo(linea, en_codigo)):
-        return None
-    escritura = [t for t in tokens if t in _TOKENS_DE_ESCRITURA]
-    lectura = [t for t in tokens if t in _FLAGS_SOLO_LECTURA]
-    if escritura:
-        return "publica en el grafo (%s) aunque la linea traiga %s" % (
-            ", ".join(escritura), lectura or "ningun flag de solo lectura")
-    if not lectura:
-        return "invoca `--backend` sin ningun flag de solo lectura"
-    return None
 
 
 def _unidades(texto):
     """Gap #175 (Important, fix2 Fase 4): la puerta era LINEA A LINEA, y la invocacion multilinea
-    natural de un bloque bash (`python3 "$KS/knowledge-sync.py" \\` + `--backend graphiti apply`)
+    natural de un bloque bash (`python3 "$KS/knowledge-sync.py" \\` + `--backend <id> apply`)
     la evadia. Devuelve `[(linea_inicial, texto, en_codigo, es_bloque)]`: cada linea LOGICA (las
     continuaciones con barra invertida final se unen) y, ademas, cada bloque con valla completo
     como una unidad (`es_bloque` = linea de la valla de cierre; `False` en las lineas), para la
@@ -1937,512 +1422,21 @@ def _unidades(texto):
     return unidades
 
 
-def _ofensores_de_primitivas(root=ROOT):
-    ofensores = []
-    for etiqueta, ruta in sorted(_piezas(root).items()):
-        if etiqueta in PIEZAS_EXENTAS_DE_PRIMITIVAS:
-            continue                      # doc del contrato del adaptador (exencion NOMINAL)
-        texto = _texto(ruta)
-        for primitiva in _PRIMITIVAS_ESCRITURA:
-            if primitiva in texto:
-                ofensores.append((etiqueta, primitiva))
-    return ofensores
-
-
-def _ofensores_de_sincronizador(root=ROOT):
-    ofensores = []
-    for etiqueta, ruta in sorted(_piezas(root).items()):
-        propios, lineas_ofensoras = [], set()
-        for numero, texto, en_codigo, es_bloque in _unidades(_texto(ruta)):
-            if es_bloque:
-                continue
-            motivo = _invocacion_de_escritura(texto, en_codigo)
-            if motivo and not _exenta(etiqueta, texto):   # exencion NOMINAL (gap #179)
-                propios.append((etiqueta, numero, motivo, texto.strip()[:120]))
-                lineas_ofensoras.add(numero)
-        for numero, texto, _en_codigo, es_bloque in _unidades(_texto(ruta)):
-            if not es_bloque:
-                continue
-            motivo = _invocacion_de_escritura(texto, True)
-            ya_visto = any(numero < n < es_bloque for n in lineas_ofensoras)
-            if motivo and motivo.startswith("publica") and not ya_visto                     and not _exenta(etiqueta, texto):
-                propios.append((etiqueta, numero, "bloque: " + motivo, texto.strip()[:120]))
-        ofensores += propios
-    return ofensores
-
-
-def test_el_recorrido_de_piezas_no_esta_vacio():
-    """Andamiaje: sin piezas, los dos tests de abajo pasarian en vacio. Gap #157: exige tambien
-    las piezas que se inyectan sin ser `SKILL.md` (referencias y fragmentos compartidos)."""
-    piezas = _piezas()
-    for esperada in ("agents/knowledge-curator.md", "commands/dev-cycle.md",
-                     "skills/knowledge-services/SKILL.md",
-                     "skills/adversarial-review/references/lens-prompts.md",
-                     "agent-kits/shared/knowledge-check.md"):
-        assert esperada in piezas, (esperada, len(piezas))
-    assert len(piezas) >= 100, len(piezas)
-
-
-def test_ca05_ninguna_pieza_invoca_primitivas_de_escritura_en_el_grafo():
-    """CA-05: solo el sincronizador escribe. Ninguna pieza (agente, comando, skill, referencia o
-    fragmento compartido), incluida la `SKILL.md` duena, manda
-    `add_memory`/`add_triplet`/`clear_graph`/`delete_*` por su cuenta."""
-    assert _ofensores_de_primitivas() == [], _ofensores_de_primitivas()
-
-
-def test_ca05_ninguna_pieza_ajena_invoca_el_sincronizador_en_modo_escritura():
-    """Fuera de la skill `knowledge-services`, una pieza puede NOMBRAR `knowledge-sync.py`, pero
-    solo en un modo de SOLO LECTURA (`--check`/`--dry-run`/`--outbox-status`/`--propose-config`):
-    una publicacion real (`--backend <id>` a secas, `apply`, `revoke` o `--rebuild`) es escritura
-    en el grafo, este la ruta entrecomillada, en variable o con los flags en otro orden."""
-    assert _ofensores_de_sincronizador() == [], _ofensores_de_sincronizador()
-
-
 # ----------------------------------------------------- mutantes de la puerta CA-05 (gap #157)
 # Los cinco sobre un repo MINIMO en `tmp_path`: tres formas de invocacion que el literal anterior
 # no veia y dos piezas inyectadas que no estaban en el recorrido.
 
-def _repo_de_piezas(tmp_path, piezas):
-    """Repo de mentira con las piezas indicadas (`{ruta relativa: contenido}`)."""
-    root = os.path.join(str(tmp_path), "repo-piezas")
-    for rel, contenido in piezas.items():
-        _escribir(os.path.join(root, *rel.split("/")), contenido)
-    return root
-
-
-_MUTANTES_INVOCACION = (
-    ("ruta entrecomillada (regla 5)",
-     'python3 "$KS/knowledge-sync.py" --backend graphiti --root .'),
-    ("flags reordenados",
-     "python3 skills/knowledge-services/scripts/knowledge-sync.py --rebuild --backend graphiti"),
-    ("`--check` y despues, sin --check, publica",
-     "primero `knowledge-sync.py --backend graphiti --check` y despues "
-     "`knowledge-sync.py --backend graphiti apply`"),
-    ("ruta en variable, estilo de la SKILL.md",
-     'python3 "$KSSKILL" --backend graphiti --root .'),
-)
-
-
-def test_aviso_de_grupo_del_sincronizador_es_solo_lectura_para_la_puerta_ca05(tmp_path):
-    """T-11 (CA-15): `--avisos-grupo` no escribe en el grafo (estado local + un `get_episodes` opt-in
-    en loopback), asi que `/setup` puede nombrarlo; la puerta no debe confundirlo con publicar."""
-    root = _repo_de_piezas(tmp_path, {"commands/setup.md": "# setup"+chr(10)+chr(10)+
-        "python3 skills/knowledge-services/scripts/knowledge-sync.py --backend graphiti --avisos-grupo"+chr(10)})
-    assert _ofensores_de_sincronizador(root) == []
-
-
-def test_mutantes_de_invocacion_del_sincronizador_no_pasan_la_puerta(tmp_path):
-    """Mutantes 1-4 del gap #157: cuatro formas REALES de publicar en el grafo desde una pieza
-    ajena que el literal `knowledge-sync.py --backend` + «hay un `--check` en la linea» dejaba
-    pasar (los tres primeros sobrevivian en la revision)."""
-    for descripcion, linea in _MUTANTES_INVOCACION:
-        root = _repo_de_piezas(tmp_path, {"commands/dev-cycle.md":
-                                          "# dev-cycle\n\n" + linea + "\n"})
-        ofensores = _ofensores_de_sincronizador(root)
-        assert ofensores, ("el mutante sobrevive: " + descripcion, linea)
-
-
-def test_una_linea_de_solo_lectura_sigue_siendo_legitima(tmp_path):
-    """Control negativo del mutante anterior: la puerta no puede volverse un «cualquier mencion a
-    `--backend` es escritura» (eso romperia `/doctor`, que documenta el `--check`)."""
-    root = _repo_de_piezas(tmp_path, {"commands/doctor.md":
-                                      "python skills/knowledge-services/scripts/knowledge-sync.py "
-                                      "--backend <id> --check\n"})
-    assert _ofensores_de_sincronizador(root) == [], _ofensores_de_sincronizador(root)
-
-
-def test_mutante_primitivas_en_una_pieza_inyectada_que_no_es_skill_md(tmp_path):
-    """Mutante 5 del gap #157: `add_memory`/`clear_graph` en una referencia de skill y una
-    publicacion en un fragmento de `agent-kits/shared/` -dos piezas que se inyectan igual que una
-    `SKILL.md` y que el recorrido anterior (`agents/*.md` + `commands/*.md` + `skills/*/SKILL.md`)
-    no miraba: 3 tests verdes-."""
-    root = _repo_de_piezas(tmp_path, {
-        "skills/adversarial-review/references/lens-prompts.md":
-            "Lente C: manda `add_memory` y luego `clear_graph` para limpiar.\n",
-        "agent-kits/shared/knowledge-check.md":
-            'Publica con `python3 "$KS/knowledge-sync.py" --backend graphiti apply`.\n'})
-    primitivas = _ofensores_de_primitivas(root)
-    assert [e for e, _p in primitivas if "lens-prompts" in e], primitivas
-    assert _ofensores_de_sincronizador(root), "la publicacion en `agent-kits/shared/` sobrevive"
-
 
 # ------------------------------------------- mutantes de la puerta CA-05 (fix2 Fase 4)
-
-def test_f4fix2_probe_p6_y_p4_la_invocacion_multilinea_no_evade_la_puerta(tmp_path):
-    """Gap #175, probes P6 y P4: la forma NATURAL de un bloque bash (continuaciones con barra
-    invertida) partia la invocacion en lineas que, sueltas, no casaban (2 passed). Las
-    continuaciones se unen y el bloque de codigo cuenta ademas como una unidad."""
-    formas = (
-        ("p6", 'python3 "$KSSKILL/knowledge-sync.py" \\\n    --backend graphiti apply\n'),
-        ("p4", 'python3 "$KS/knowledge-sync.py" \\\n  --backend graphiti \\\n  --root .\n'),
-        ("rebuild", "python3 skills/knowledge-services/scripts/knowledge-sync.py \\\n"
-                    "  --backend graphiti \\\n  --rebuild\n"),
-    )
-    for clave, comando in formas:
-        for valla in ("```bash\n", "```sh\n", "```\n"):
-            root = _repo_de_piezas(tmp_path / (clave + str(len(valla))),
-                                   {"commands/dev-cycle.md":
-                                    "# dev-cycle\n\n" + valla + comando + "```\n"})
-            assert _ofensores_de_sincronizador(root), ("el probe sobrevive", clave, valla)
-    # y sin valla: la continuacion se une igual en prosa indentada
-    root = _repo_de_piezas(tmp_path / "suelta", {"commands/dev-cycle.md": formas[0][1]})
-    assert _ofensores_de_sincronizador(root), "la continuacion fuera de bloque sobrevive"
-
-
-def test_f4fix2_un_bloque_que_parte_la_publicacion_en_dos_lineas_es_una_unidad(tmp_path):
-    """Gap #175 (bloque como unidad): dentro de un bloque ```bash```, la escritura en una linea
-    y la invocacion en la anterior -sin barra- se leen juntas."""
-    bloque = ('```bash\nKS_ARGS="--backend graphiti"\n'
-              'python3 "$KS/knowledge-sync.py" $KS_ARGS apply\n```\n')
-    root = _repo_de_piezas(tmp_path, {"commands/dev-cycle.md": bloque})
-    assert _ofensores_de_sincronizador(root), "el bloque partido sobrevive"
-
-
-def test_f4fix2_una_invocacion_multilinea_de_solo_lectura_sigue_siendo_legitima(tmp_path):
-    """Control negativo del #175: el `--check` partido en continuaciones no es escritura."""
-    root = _repo_de_piezas(tmp_path, {"commands/doctor.md":
-                                      '```bash\npython3 "$KS/knowledge-sync.py" \\\n'
-                                      '  --backend graphiti \\\n  --check\n```\n'})
-    assert _ofensores_de_sincronizador(root) == [], _ofensores_de_sincronizador(root)
-
-
-def test_f4fix3_una_valla_sin_cerrar_cuenta_como_bloque_hasta_el_final(tmp_path):
-    """Gap #190(d): la rama «valla sin cerrar» de `_unidades` no tenia test (mutante T1 vivo). Un
-    bloque ```bash que no se cierra se lee como bloque hasta el final del fichero, asi que la
-    escritura partida en dos lineas sin continuacion se sigue viendo."""
-    texto = ('```bash\nKS_ARGS="--backend graphiti"\n'
-             'python3 "$KS/knowledge-sync.py" $KS_ARGS apply\n')
-    bloques = [u for u in _unidades(texto) if u[3]]
-    assert bloques and bloques[0][0] == 1 and "apply" in bloques[0][1], _unidades(texto)
-    root = _repo_de_piezas(tmp_path, {"commands/dev-cycle.md": texto})
-    motivos = [o[2] for o in _ofensores_de_sincronizador(root)]
-    assert any(m.startswith("bloque: ") for m in motivos), motivos
-
-
-def test_f4fix2_probe_p3_una_variable_en_prosa_no_es_una_invocacion(tmp_path):
-    """Gap #181, probe P3: una linea de PROSA que menciona `--backend` y cita `$KS` rompia la
-    suite. Una variable solo cuenta como la ruta del sincronizador si es `$…/…knowledge-sync.py`
-    o si va en codigo (bloque, span de codigo con el `--backend`, o linea que arranca con el
-    interprete); en codigo, la forma variable SI se sigue viendo."""
-    prosa = ("El flag `--backend` elige el adaptador; la ruta de la skill vive en $KS y se "
-             "resuelve en runtime.\n")
-    root = _repo_de_piezas(tmp_path / "prosa", {"commands/dev-cycle.md": prosa})
-    assert _ofensores_de_sincronizador(root) == [], _ofensores_de_sincronizador(root)
-    for clave, texto in (("bloque", '```bash\npython3 "$KSSKILL" --backend graphiti --root .\n```\n'),
-                         ("span", 'Publica con `"$KSSKILL" --backend graphiti` a mano.\n'),
-                         ("interprete", 'python3 "$KSSKILL" --backend graphiti --root .\n')):
-        root = _repo_de_piezas(tmp_path / clave, {"commands/dev-cycle.md": texto})
-        assert _ofensores_de_sincronizador(root), "la forma variable en %s sobrevive" % clave
-
-
-def test_f4fix2_las_references_de_la_skill_duena_no_estan_exentas_por_prefijo(tmp_path):
-    """Gap #179: la exencion era por PREFIJO (`skills/knowledge-services/`), asi que una
-    `references/*.md` de la skill -que se inyecta igual que su `SKILL.md`- podia mandar
-    `clear_graph` o publicar sin que la puerta lo viera. Ahora la exencion es NOMINAL."""
-    root = _repo_de_piezas(tmp_path, {
-        "skills/knowledge-services/references/kwipu-adapter.md":
-            "Limpia con `clear_graph` y reescribe con `add_memory`.\n\n"
-            "```bash\npython3 \"$KS/knowledge-sync.py\" --backend graphiti apply\n```\n",
-        "skills/knowledge-services/backends/README.md": "La tool `add_memory` recibe ...\n"})
-    primitivas = _ofensores_de_primitivas(root)
-    assert [e for e, _p in primitivas if e.endswith("kwipu-adapter.md")], primitivas
-    assert not [e for e, _p in primitivas if e.endswith("backends/README.md")], primitivas
-    sincronizador = _ofensores_de_sincronizador(root)
-    assert [o for o in sincronizador if o[0].endswith("kwipu-adapter.md")], sincronizador
-    for pieza in PIEZAS_EXENTAS_DE_PRIMITIVAS + tuple(PIEZAS_EXENTAS_DE_SINCRONIZADOR):
-        assert not pieza.endswith("/"), pieza                         # nombres, no prefijos
-        assert os.path.isfile(os.path.join(ROOT, pieza)), pieza
-    # la referencia de kwipu SI puede documentar su propia publicacion, y solo esa
-    root = _repo_de_piezas(tmp_path / "kwipu", {
-        "skills/knowledge-services/references/kwipu-adapter.md":
-            'python3 "$KSSKILL" --backend kwipu --root <proyecto>' + chr(10)})
-    assert _ofensores_de_sincronizador(root) == [], _ofensores_de_sincronizador(root)
-
-
-def test_e18_ningun_agente_normal_cita_el_backend_graphiti():
-    """Puerta E18 de `docs/agents/CONTRACTS.md`, literal: `grep -rn -i graphiti agents/*.md |
-    grep -v knowledge-curator.md` -> vacio. `knowledge-curator.md` es la UNICA excepcion declarada
-    (documenta la PROHIBICION de escribir en el grafo, no una capacidad)."""
-    base = os.path.join(ROOT, "agents")
-    citas = []
-    for nombre in sorted(os.listdir(base)):
-        if not nombre.endswith(".md") or nombre == "knowledge-curator.md":
-            continue
-        for numero, linea in enumerate(_texto(os.path.join(base, nombre)).splitlines(), 1):
-            if "graphiti" in linea.lower():
-                citas.append(("agents/" + nombre, numero, linea.strip()[:100]))
-    assert citas == [], citas
-    curador = _texto(os.path.join(base, "knowledge-curator.md"))
-    assert "No exportas" in curador and "CONTRACTS.md` E18" in curador
-
 
 
 # ============================ 5. guardarrail de red del cliente MCP (regresion del repo)
 
 # IMDS de nube en sus cuatro formas (gaps #34c/#53/#71 de las Fases 2-3), direcciones sin sentido
 # como destino y un host publico: ninguna puede conectar, con `allow_remote` o sin el.
-_IMDS = (
-    ("http://169.254.169.254/mcp", "IPv4 link-local (IMDS)"),
-    ("http://[::ffff:169.254.169.254]:80/mcp", "IPv4-mapeada en IPv6 (gap #53)"),
-    ("http://[2002:a9fe:a9fe::1]:80/mcp", "6to4 hacia 169.254.169.254 (gap #71)"),
-    ("http://[2001:0:4136:e378:8000:63bf:3fff:fdd2]:80/mcp", "Teredo (gap #71)"),
-)
-_SIN_SENTIDO = (("http://0.0.0.0:8000/mcp", "no especificada IPv4"),
-                ("http://[::]:8000/mcp", "no especificada IPv6"))
-
-
-class _EspiaConexiones:
-    """Registra CADA `socket.create_connection` (por donde salen `urllib`/`http.client`) para
-    poder afirmar que no hubo ni un `connect()` fuera de loopback."""
-
-    def __init__(self, monkeypatch):
-        self.destinos = []
-        original = socket.create_connection
-
-        def _espia(direccion, *a, **k):
-            self.destinos.append(direccion)
-            return original(direccion, *a, **k)
-
-        monkeypatch.setattr(socket, "create_connection", _espia)
-
-    @property
-    def fuera_de_loopback(self):
-        return [d for d in self.destinos if str(d[0]) not in ("127.0.0.1", "::1", "localhost")]
-
-
-def test_imds_se_rechaza_siempre_incluso_con_allow_remote(monkeypatch):
-    """CWE-918: el endpoint de metadatos de nube se rechaza en sus cuatro formas, con
-    `allow_remote: false` Y con `true` (`allow_remote` autoriza redes remotas, nunca la red de
-    metadatos del propio host)."""
-    espia = _EspiaConexiones(monkeypatch)
-    for url, motivo in _IMDS:
-        for allow_remote in (False, True):
-            assert gr._host_permitido(url, allow_remote) is False, (url, motivo, allow_remote)
-            cliente = gr.ClienteMCP(url, timeout_s=1.0, allow_remote=allow_remote)
-            try:
-                cliente.initialize()
-                raise AssertionError("conecto contra %s (%s)" % (url, motivo))
-            except gr.HostNoPermitido:
-                pass
-    assert espia.destinos == []          # ni un connect(): se rechaza ANTES de tocar la red
-
-
-def test_direcciones_sin_sentido_como_destino_se_rechazan(monkeypatch):
-    espia = _EspiaConexiones(monkeypatch)
-    for url, motivo in _SIN_SENTIDO:
-        for allow_remote in (False, True):
-            assert gr._host_permitido(url, allow_remote) is False, (url, motivo, allow_remote)
-    assert espia.destinos == []
-
-
-def test_host_publico_sin_allow_remote_se_rechaza_antes_de_conectar(monkeypatch):
-    """Invariante local/privado del repo: sin `allow_remote: true` declarado, un host publico no
-    se intenta siquiera."""
-    espia = _EspiaConexiones(monkeypatch)
-    for url in ("http://8.8.8.8:8000/mcp", "https://1.1.1.1/mcp", "http://93.184.216.34/mcp"):
-        assert gr._host_permitido(url, False) is False, url
-        cliente = gr.ClienteMCP(url, timeout_s=1.0, allow_remote=False)
-        try:
-            cliente.initialize()
-            raise AssertionError("conecto contra %s sin allow_remote" % url)
-        except gr.HostNoPermitido:
-            pass
-    assert espia.destinos == []
-
-
-class _ServidorEfimero:
-    """Servidor HTTP propio en `127.0.0.1:0` (nunca fuera de loopback). `responder(handler)` decide
-    la respuesta de cada POST; `peticiones` guarda `(ruta, cabeceras, cuerpo)`."""
-
-    def __init__(self, responder):
-        self.peticiones = []
-        duenno = self
-
-        class Handler(BaseHTTPRequestHandler):
-            def do_POST(self):          # noqa: N802 - nombre impuesto por BaseHTTPRequestHandler
-                largo = int(self.headers.get("Content-Length", 0))
-                cuerpo = self.rfile.read(largo) if largo else b""
-                duenno.peticiones.append((self.path, dict(self.headers), cuerpo))
-                responder(self)
-
-            def log_message(self, *a, **k):
-                pass
-
-        self._httpd = HTTPServer(("127.0.0.1", 0), Handler)
-
-    def __enter__(self):
-        self._hilo = threading.Thread(target=self._httpd.serve_forever, daemon=True)
-        self._hilo.start()
-        return self
-
-    def __exit__(self, *exc):
-        self._httpd.shutdown()
-        self._httpd.server_close()
-
-    @property
-    def endpoint(self):
-        return "http://127.0.0.1:%d" % self._httpd.server_address[1]
-
-
-def _responder_initialize(handler):
-    cuerpo = json.dumps({"jsonrpc": "2.0", "id": 1,
-                         "result": {"protocolVersion": "2025-03-26", "capabilities": {},
-                                    "serverInfo": {"name": "efimero", "version": "0"}}}).encode()
-    handler.send_response(200)
-    handler.send_header("Content-Type", "application/json")
-    handler.send_header("Mcp-Session-Id", "sesion-del-destino")
-    handler.send_header("Content-Length", str(len(cuerpo)))
-    handler.end_headers()
-    handler.wfile.write(cuerpo)
-
-
-def _redirector(codigo, destino):
-    def _responder(handler):
-        handler.send_response(codigo)
-        handler.send_header("Location", destino)
-        handler.send_header("Content-Length", "0")
-        handler.end_headers()
-    return _responder
-
-
-def test_redirecciones_301_302_303_no_se_siguen(monkeypatch):
-    """Gap #34d: seguir un 301/302/303 re-POSTearia el cuerpo completo a un destino no elegido.
-    Solo 307/308 (que preservan el metodo) se siguen; el resto es error CITANDO la URL."""
-    espia = _EspiaConexiones(monkeypatch)
-    with _ServidorEfimero(_responder_initialize) as destino:
-        for codigo in (301, 302, 303):
-            with _ServidorEfimero(_redirector(codigo, destino.endpoint + "/mcp")) as origen:
-                cliente = gr.ClienteMCP(origen.endpoint, timeout_s=2.0, allow_remote=False)
-                try:
-                    cliente.initialize()
-                    raise AssertionError("siguio una redireccion %d" % codigo)
-                except gr.ErrorMCP as e:
-                    assert str(codigo) in str(e), (codigo, str(e))
-                assert origen.peticiones, codigo
-        assert destino.peticiones == []      # el destino de la redireccion nunca recibio nada
-    assert espia.fuera_de_loopback == []
-
-
-def test_la_sesion_no_cruza_esquema_host_ni_puerto(monkeypatch):
-    """Gap #78 (CWE-200): `127.0.0.1:A` y `127.0.0.1:B` son servicios DISTINTOS — un 307 **ni un
-    308** (los dos codigos que SI se siguen, porque preservan el metodo) puede llevarse el
-    `Mcp-Session-Id` de la sesion anterior a otro puerto."""
-    espia = _EspiaConexiones(monkeypatch)
-    for codigo in (307, 308):
-        with _ServidorEfimero(_responder_initialize) as destino:
-            with _ServidorEfimero(_redirector(codigo, destino.endpoint + "/mcp")) as origen:
-                cliente = gr.ClienteMCP(origen.endpoint, timeout_s=2.0, allow_remote=False)
-                cliente._session_id = "sesion-del-origen"
-                cliente.initialize()
-            cabeceras_origen = origen.peticiones[0][1]
-            cabeceras_destino = destino.peticiones[0][1]
-        assert cabeceras_origen.get("Mcp-Session-Id") == "sesion-del-origen", codigo
-        assert not any(k.lower() == "mcp-session-id" for k in cabeceras_destino), (codigo,
-                                                                                  cabeceras_destino)
-    assert espia.fuera_de_loopback == []
-
-
-def test_la_sesion_tampoco_cruza_de_hostname_con_el_mismo_puerto(monkeypatch):
-    """Misma terna del gap #78 aislando el HOST: `localhost` y `127.0.0.1` son el mismo destino
-    fisico y el MISMO puerto, pero no el mismo origen — un 307 entre ambos tira igual la cabecera
-    de sesion (el mutante «comparar solo el puerto» sobrevive sin este caso)."""
-    espia = _EspiaConexiones(monkeypatch)
-    peticiones = []
-
-    def _responder(handler):
-        # primer POST: redirige a SI MISMO por nombre; segundo: contesta el handshake
-        peticiones.append(dict(handler.headers))
-        if len(peticiones) == 1:
-            _redirector(307, "http://localhost:%s/mcp" % handler.server.server_address[1])(handler)
-        else:
-            _responder_initialize(handler)
-
-    with _ServidorEfimero(_responder) as servidor:
-        cliente = gr.ClienteMCP(servidor.endpoint, timeout_s=5.0, allow_remote=False)
-        cliente._session_id = "sesion-por-ip"
-        cliente.initialize()
-    # 1) initialize con la sesion vieja -> 307; 2) initialize ya SIN la sesion (otro origen);
-    # 3) la `notifications/initialized` posterior, que ya lleva la sesion NUEVA del handshake.
-    assert len(peticiones) >= 2, peticiones
-    assert peticiones[0].get("Mcp-Session-Id") == "sesion-por-ip"
-    assert not any(k.lower() == "mcp-session-id" for k in peticiones[1]), peticiones[1]
-    assert espia.fuera_de_loopback == []
-
-
-def test_cada_salto_de_redireccion_se_revalida_contra_el_guardarrail(monkeypatch):
-    """Gaps #34e/#71: que el PRIMER salto sea loopback no autoriza el segundo — un `Location`
-    hacia el IMDS (en sus cuatro formas) o hacia un host publico se rechaza en el salto, sin un
-    solo `connect()` fuera de loopback."""
-    espia = _EspiaConexiones(monkeypatch)
-    destinos = [url for url, _ in _IMDS] + ["http://8.8.8.8:8000/mcp", "http://[::]:8000/mcp"]
-    for destino in destinos:
-        with _ServidorEfimero(_redirector(307, destino)) as origen:
-            cliente = gr.ClienteMCP(origen.endpoint, timeout_s=2.0, allow_remote=False)
-            try:
-                cliente.initialize()
-                raise AssertionError("siguio la redireccion hacia %s" % destino)
-            except gr.HostNoPermitido:
-                pass
-            assert origen.peticiones, destino
-    assert espia.fuera_de_loopback == []
-
-
-def test_una_cadena_de_redirecciones_no_es_infinita(monkeypatch):
-    """`_MAX_REDIRECCIONES`: un servidor que se redirige a si mismo no puede tener al cliente (y
-    al ciclo que lo invoca) dando saltos para siempre."""
-    espia = _EspiaConexiones(monkeypatch)
-
-    def _siempre_redirige(handler):
-        _redirector(307, "http://127.0.0.1:%s/mcp" % handler.server.server_address[1])(handler)
-
-    with _ServidorEfimero(_siempre_redirige) as bucle:
-        cliente = gr.ClienteMCP(bucle.endpoint, timeout_s=5.0, allow_remote=False)
-        try:
-            cliente.initialize()
-            raise AssertionError("no corto la cadena de redirecciones")
-        except gr.ErrorMCP as e:
-            assert "demasiadas redirecciones" in str(e), str(e)
-        # Gap #158 (Minor, fix1 Fase 4): el oraculo era `gr._MAX_REDIRECCIONES + 1`, es decir, la
-        # constante del modulo MUTADO -subirla de 3 a 8 pasaba-. El tope esperado va literal.
-        assert len(bucle.peticiones) == 4, (len(bucle.peticiones), gr._MAX_REDIRECCIONES)
-    assert espia.fuera_de_loopback == []
-
-
-def test_el_origen_de_un_salto_es_la_terna_esquema_host_puerto():
-    """Gap #160 (Minor, fix1 Fase 4): el LIMITE declarado del test de sesion era que el cambio de
-    ESQUEMA no lo ejercia nadie (sin TLS real no hay servidor `https` efimero). `_origen` ya es una
-    funcion de modulo, asi que la terna se prueba unitariamente: dos URLs que SOLO difieren en el
-    esquema son origenes distintos (mutante «terna sin esquema»: muere aqui)."""
-    assert gr._origen("http://127.0.0.1:8000/mcp") != gr._origen("https://127.0.0.1:8000/mcp")
-    assert gr._origen("http://127.0.0.1:8000/mcp") == gr._origen("http://127.0.0.1:8000/otra/ruta")
-    assert gr._origen("http://127.0.0.1:8000/mcp") != gr._origen("http://127.0.0.1:8001/mcp")
-    assert gr._origen("http://127.0.0.1:8000/mcp") != gr._origen("http://localhost:8000/mcp")
-    assert gr._origen("http://[::1:8000/mcp") is None          # URL invalida: sin origen
 
 
 # ============================================ 6. higiene de la propia suite (gap #166)
-
-def test_el_servidor_mcp_falso_se_carga_una_sola_vez():
-    """Gap #166: el modulo de apoyo `_mcp_fake.py` no puede quedar cargado con DOS nombres de
-    modulo distintos (una copia por suite, con estado propio) bajo la invocacion unica de pytest
-    que usa CI."""
-    cargados = sorted(nombre for nombre, modulo in list(sys.modules.items())
-                      if getattr(modulo, "__file__", None)
-                      and os.path.basename(str(modulo.__file__)) == "_mcp_fake.py")
-    assert cargados == ["ks_graphiti_mcp_fake"], cargados
-
-
-def test_f4fix2_el_modulo_de_apoyo_mcp_es_solo_ascii():
-    """Gap #168 (Important): con acentos en sus comentarios, `_mcp_fake.py` entraba en
-    `SCRIPTS_CON_SIMBOLOS` de `tests/test_console_encoding.py` (criterio `es_pieza`: basename que
-    no empieza por `test_`), que le exigia un modo de arranque en `MODOS` -imposible para un modulo
-    de apoyo sin `__main__`- y CI se ponia en rojo (4 failed). Se elige la primera opcion del
-    arbitraje: el modulo de apoyo va sin caracteres no ASCII (`es_pieza` no cambia). Mutante:
-    re-acentuar un comentario -> muere aqui (y en la suite de consola)."""
-    with open(os.path.join(KS_SCRIPTS, "_mcp_fake.py"), "rb") as f:
-        crudo = f.read()
-    no_ascii = [(n, l[:60]) for n, l in enumerate(crudo.split(b"\n"), 1) if any(c > 127 for c in l)]
-    assert no_ascii == [], no_ascii
 
 
 def test_hook_scan_runtime_membership_is_data(tmp_path):
@@ -2501,7 +1495,7 @@ def test_hook_scan_adapter_spy_preserves_real_local_policy_reader(tmp_path, monk
     root = str(tmp_path)
     _proyecto_con_backend_de_grafo_habilitado(root)
     before, reason = kf.taxonomia(root)
-    assert reason is None and before["backends"]["graphiti"]["enabled"] is True
+    assert reason is None and before["backends"]["memoria"]["enabled"] is True
     loads = _espia_de_carga_de_adaptador(monkeypatch)
     after, reason = kf.taxonomia(root)
     assert reason is None and after == before
@@ -2546,7 +1540,6 @@ def test_hook_scan_parser_unknown_usage_is_not_exempt(tmp_path):
         assert _ofensores_de_red(root)
 
 
-
 import pytest
 
 @pytest.mark.parametrize("mutation", [
@@ -2566,7 +1559,6 @@ def test_hook_scan_parser_mutation_across_scopes_and_aliases_is_not_data(tmp_pat
     root = _repo_minimo(tmp_path / 'repo', hooks_json=_hook_que_lanza('agent-kits/shared/probe.py'),
                         ficheros={'agent-kits/shared/probe.py': body})
     assert _ofensores_de_red(root)
-
 
 
 @pytest.mark.parametrize("binding", [
@@ -2589,7 +1581,6 @@ def test_hook_scan_parser_mutation_with_assignment_forms_is_not_data(tmp_path, b
     assert _ofensores_de_red(root)
 
 
-
 @pytest.mark.parametrize("mutation", [
     'alias, *rest = p, None, None\nalias.add_argument = writer\n',
     '*rest, alias = None, None, p\nalias.add_argument = writer\n',
@@ -2609,7 +1600,6 @@ def test_hook_scan_parser_method_mutation_cannot_hide_runtime_argv(tmp_path, mut
     root = _repo_minimo(tmp_path / 'repo', hooks_json=_hook_que_lanza('agent-kits/shared/probe.py'),
                         ficheros={'agent-kits/shared/probe.py': body})
     assert _ofensores_de_red(root)
-
 
 
 @pytest.mark.parametrize("mutation", [
@@ -2921,33 +1911,3 @@ def test_activity_unrelated_namespace_declaration_keeps_local_quiet_data(tmp_pat
 
 # ====================================================================== auditoría 2026-11-09 (H-5)
 
-def test_openers_de_graphiti_ignoran_proxy_del_entorno(monkeypatch):
-    """El tráfico a Graphiti es solo local/privado: con HTTP(S)_PROXY definido (o proxy del
-    registro de Windows) el opener NO puede llevar un ProxyHandler con proxies; debe ser
-    `ProxyHandler({})`, como ya hace `markdown_export.py`."""
-    import urllib.request
-    for var in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"):
-        monkeypatch.setenv(var, "http://proxy.example.invalid:3128")
-    for var in ("NO_PROXY", "no_proxy"):
-        monkeypatch.delenv(var, raising=False)
-    construidos = []
-    real = urllib.request.build_opener
-
-    def espia(*handlers):
-        opener = real(*handlers)
-        construidos.append((handlers, opener))
-        return opener
-
-    monkeypatch.setattr(urllib.request, "build_opener", espia)
-    try:  # el puerto 9 está cerrado: el error de conexión es lo esperado, no el resultado
-        gr._post_json("http://127.0.0.1:9/mcp", {"jsonrpc": "2.0"}, {}, 0.3, False)
-    except (OSError, gr.ErrorMCP) as e:
-        assert "proxy.example.invalid" not in str(e) and "getaddrinfo" not in str(e), e
-    gr._get_health_endpoint("http://127.0.0.1:9/health", 0.3, False)
-    assert len(construidos) >= 2, "los dos caminos de red deben construir su opener"
-    for handlers, opener in construidos:
-        # build_opener añade ProxyHandler() (lee el entorno) salvo que se le pase uno explícito.
-        explicitos = [h for h in handlers if isinstance(h, urllib.request.ProxyHandler)]
-        assert explicitos and all(h.proxies == {} for h in explicitos), handlers
-        activos = [h.proxies for h in opener.handlers if isinstance(h, urllib.request.ProxyHandler)]
-        assert all(p == {} for p in activos), f"opener con proxy del entorno: {activos}"

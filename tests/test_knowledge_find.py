@@ -833,7 +833,7 @@ def test_enrutado_sobre_el_corpus_real_devops_trae_hooks_y_consola(real):
     assert not any(i in ids for i in ("LES-001", "LES-005", "LES-009")), "la estimación no es área de devops"
 
 
-# =============================================================== graphiti-memory T-07 · router por intent
+# =============================================================== router por intent (memory-retrieval)
 
 def test_intent_sin_backends_declarados_cae_al_camino_local_de_siempre(proyecto):
     """Un proyecto SIN `taxonomy.json` (el caso de fábrica) no cambia de comportamiento con

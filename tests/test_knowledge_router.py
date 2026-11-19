@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Tests del ROUTER POR CONFIGURACION de `agent-kits/shared/knowledge-find.py` (iniciativa
-`graphiti-memory`, T-07): `--intent <nombre>` decide, SOLO con la configuracion declarada en
+memory-retrieval): `--intent <nombre>` decide, SOLO con la configuracion declarada en
 `.claude/knowledge-services/taxonomy.json` (`backends.<id>.config.router.intents`), si una
 consulta se atiende localmente o contra un backend de grafo a traves de su adaptador (CA-12:
 ningun LLM decide el enrutado).
@@ -405,11 +405,11 @@ def _taxonomia_sin_group_id(root):
     return data
 
 
-# --------------------------------------------------------------- #97 (Critical): config efectiva
+# --------------------------------------------------------------- config declarada, sin defaults derivados
 
-def test_f3fix1_gap97_el_router_pasa_la_config_efectiva_con_group_id_derivado(tmp_path):
-    """La plantilla de fabrica NO trae `group_id`: si el router pasa la config cruda, el adaptador
-    corta con «sin group_id» y (por #102) la consulta devuelve 0 en la configuracion NOMINAL."""
+def test_el_router_pasa_la_config_declarada_sin_inventar_defaults(tmp_path):
+    """plugin-audit-2 T-08: el router ya no deriva ningun `group_id` (era de un backend retirado);
+    el adaptador recibe la config tal como esta en `taxonomy.json` y decide por su cuenta."""
     root = str(tmp_path)
     _corpus_local(root)
     _taxonomia_sin_group_id(root)
@@ -418,41 +418,16 @@ def test_f3fix1_gap97_el_router_pasa_la_config_efectiva_con_group_id_derivado(tm
                                           directorios=[stub])
     assert info["origen"] == "backend"
     with open(os.path.join(stub, "llamadas.json"), encoding="utf-8") as f:
-        llamada = json.load(f)
-    assert llamada["cfg_group_id"] == kf._group_id_por_defecto(root)
-    assert llamada["cfg_group_id"]
+        assert json.load(f)["cfg_group_id"] is None
 
 
-def test_f3fix1_gap97_group_id_declarado_gana_a_la_derivacion(tmp_path):
+def test_el_router_conserva_la_config_declarada(tmp_path):
     root = str(tmp_path)
     _taxonomia(root)                      # declara `group_id: proyecto-demo`
     stub = _escribir_stub(str(tmp_path / "bk"))
     kf.consultar_intent(root, "temporal", texto="memoria", limit=5, directorios=[stub])
     with open(os.path.join(stub, "llamadas.json"), encoding="utf-8") as f:
         assert json.load(f)["cfg_group_id"] == "proyecto-demo"
-
-
-def test_f3fix1_gap97_sin_group_id_efectivo_degrada_a_local_con_motivo(tmp_path, monkeypatch):
-    """Si ni la config ni el directorio aportan `group_id`, no se consulta a ciegas: local."""
-    root = str(tmp_path)
-    _taxonomia_sin_group_id(root)
-    stub = _escribir_stub(str(tmp_path / "bk"))
-    monkeypatch.setattr(kf, "_group_id_por_defecto", lambda _root: "")
-    aciertos, info = kf.consultar_intent(root, "temporal", texto="memoria", limit=5,
-                                         directorios=[stub])
-    assert aciertos is None and info["origen"] == "local"
-    assert "group_id" in info["motivo"]
-    assert not os.path.exists(os.path.join(stub, "llamadas.json"))
-
-
-def test_f3fix1_gap97_la_derivacion_es_la_misma_del_validador():
-    """Copia declarada (`copias.json`, ADR-016): el router no puede tener su propia regla."""
-    ks = importlib.util.spec_from_file_location(
-        "ks_para_router", os.path.join(ROOT, "agent-kits", "shared", "knowledge-schema.py"))
-    mod = importlib.util.module_from_spec(ks)
-    ks.loader.exec_module(mod)
-    for nombre in ("Mi Proyecto_X!!", "日本", "---", ""):
-        assert kf._slug_unicode(nombre) == mod._slug_unicode(nombre), nombre
 
 
 # --------------------------------------------------------------- #102: motivo => local
@@ -504,13 +479,13 @@ def test_f3fix1_gap103_el_enrutado_pasa_texto_derivado_y_claves_al_backend(tmp_p
     stub = _escribir_stub(str(tmp_path / "bk"))
     code, out, _err = run("--intent", "temporal", "--json", "--root", root, "--backends-dir", stub,
                           "--contexto", "Router por configuracion y memoria del grafo",
-                          "--tipo-tarea", "Backend", "--iniciativa", "graphiti-memory")
+                          "--tipo-tarea", "Backend", "--iniciativa", "otra-iniciativa")
     assert code == 0
     with open(os.path.join(stub, "llamadas.json"), encoding="utf-8") as f:
         consulta = json.load(f)["consulta"]
     assert consulta["texto"].strip(), consulta
     assert consulta["claves"], consulta
-    assert consulta["iniciativa"] == "graphiti-memory"
+    assert consulta["iniciativa"] == "otra-iniciativa"
     assert json.loads(out)["router"]["origen"] == "backend"
 
 
@@ -619,8 +594,8 @@ def test_f3fix1_gap101_el_argv_del_hook_no_carga_ningun_adaptador(tmp_path, monk
 
     monkeypatch.setattr(kf, "_cargar_modulo", _prohibido)
     code = kf.main(["--json", "--root", root, "--limit", "0",
-                    "--contexto", "Checklist de Tareas - Memoria Graphiti",
-                    "--iniciativa", "graphiti-memory"])
+                    "--contexto", "Checklist de Tareas - Memoria del grafo",
+                    "--iniciativa", "otra-iniciativa"])
     assert code == 0
     assert "aciertos" in json.loads(capsys.readouterr().out)
 
@@ -637,136 +612,8 @@ def test_f3fix1_gap110_el_docstring_documenta_intent_backends_dir_y_los_exit_2()
     assert "--related" in salidas and "--doctrina" in salidas
 
 
-# --------------------------------------------------------------- fix2 Fase 3: #117 y #123
-# El gap #117 (Important, intento 2) se cerro con un test verde que usaba un STUB con
-# `categoria: "adr"`/`area: "memoria"` — vocabulario que el adaptador REAL nunca produce. Estos
-# tests montan el camino COMPLETO: adaptador `graphiti.py` real + servidor MCP falso + las
-# categorias REALES de la taxonomia (`DECISION`/`GOTCHA`/`LESSON`).
+# --------------------------------------------------------------- fix2 Fase 3: #123
 
-_SUITE_GRAPHITI = os.path.join(ROOT, "skills", "knowledge-services", "scripts",
-                               "test_backend_graphiti.py")
-_BACKENDS_DIR = os.path.join(ROOT, "skills", "knowledge-services", "backends")
-
-
-def _cargar_suite_graphiti():
-    spec = importlib.util.spec_from_file_location("suite_graphiti_para_router", _SUITE_GRAPHITI)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-def _taxonomia_graphiti(root, endpoint, **extra_config):
-    """`taxonomy.json` con un backend `type: "graphiti"` REAL y las categorias de verdad."""
-    cfg = {"mode": "read", "endpoint": endpoint, "allow_remote": False, "group_id": "proy-test",
-           "provider": {"llm": "none"}, "timeout_ms": 5000,
-           "router": {"intents": {"temporal": True}}}
-    cfg.update(extra_config)
-    data = {
-        "version": 1,
-        "categories": [
-            {"key": "DECISION", "folder": "adr", "min_evidence": "validated_case"},
-            {"key": "GOTCHA", "folder": "gotchas", "min_evidence": "validated_case"},
-            {"key": "LESSON", "folder": "lessons", "min_evidence": "single_case"},
-        ],
-        "backends": {"grafo": {"type": "graphiti", "enabled": True, "config": cfg}},
-        "evidence_levels": ["observation", "single_case", "validated_case",
-                            "multiple_validated_cases", "human_confirmed_rule"],
-        "denylist": ["chain-of-thought"],
-    }
-    destino = os.path.join(root, ".claude", "knowledge-services")
-    os.makedirs(destino, exist_ok=True)
-    with open(os.path.join(destino, "taxonomy.json"), "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False)
-    return data
-
-
-def _grafo_real(suite, root, srv, categoria="DECISION", folder="adr",
-                ruta="docs/knowledge/approved/adr/ADR-100-grafo.md", tags=("area:memoria",)):
-    """Publica UNA entrada por el camino REAL (`plan`+`apply`) y devuelve sus episodios."""
-    graphiti = suite._cargar("graphiti.py", "graphiti_para_router")
-    entrada = suite._entrada(id_="ADR-100", version=1, category=categoria,
-                             evidencia="validated_case", cuerpo="Decision servida por el grafo.\n",
-                             ruta=ruta)
-    entrada["folder"] = folder
-    entrada["tags"] = list(tags)
-    cfg = {"_root": root, "group_id": "proy-test", "endpoint": srv.endpoint, "mode": "read",
-           "allow_remote": False, "timeout_ms": 5000, "provider": {"llm": "none"}}
-    graphiti.apply(graphiti.plan([dict(entrada)], cfg), cfg)
-    episodios = srv.episodios
-    assert len(episodios) == 1 and episodios[0]["uuid"]
-    assert all("uuid" not in a for n, a in srv.llamadas if n == "add_memory")
-    srv.handler_cls.respuestas_tools = _respuestas_grafo(episodios)
-    return episodios
-
-
-def _respuestas_grafo(episodios):
-    nodos = [{"name": e["name"], "uuid": e["uuid"], "summary": "Decision servida por el grafo"}
-             for e in episodios]
-    return {"get_episodes": {"structuredContent": {"episodes": episodios}},
-            "search_nodes": {"structuredContent": {"nodes": nodos}},
-            "search_memory_facts": {"structuredContent": {"facts": []}}}
-
-
-def test_f3fix2_gap117_el_camino_real_con_tipo_adr_sirve_el_acierto_del_grafo(tmp_path):
-    """Repro de la lente B: `--tipo adr` enrutado contra el adaptador REAL devolvia 0 porque el
-    adaptador servia `categoria: "DECISION"` y `tipo_normalizado("DECISION")` es `None`."""
-    suite = _cargar_suite_graphiti()
-    root = str(tmp_path)
-    _corpus_local(root)
-    with suite._ServidorMCPContext() as srv:
-        _grafo_real(suite, root, srv)
-        _taxonomia_graphiti(root, srv.endpoint)
-        aciertos, info = kf.consultar_intent(root, "temporal", texto="memoria", limit=5,
-                                             tipo="adr", directorios=[_BACKENDS_DIR])
-    assert info["origen"] == "backend", info
-    assert [a["id"] for a in aciertos] == ["ADR-100"], (aciertos, info)
-
-
-def test_f3fix2_gap117_el_camino_real_con_area_sirve_el_acierto_del_grafo(tmp_path):
-    suite = _cargar_suite_graphiti()
-    root = str(tmp_path)
-    _corpus_local(root)
-    with suite._ServidorMCPContext() as srv:
-        _grafo_real(suite, root, srv)
-        _taxonomia_graphiti(root, srv.endpoint)
-        aciertos, info = kf.consultar_intent(root, "temporal", texto="memoria", limit=5,
-                                             area="memoria", directorios=[_BACKENDS_DIR])
-    assert info["origen"] == "backend", info
-    assert [a["id"] for a in aciertos] == ["ADR-100"], (aciertos, info)
-
-
-def test_f3fix2_gap117_un_filtro_que_no_casa_cuenta_el_descarte_y_cae_a_local(tmp_path):
-    """`--tipo got` sobre un grafo que solo tiene un `DECISION`: el post-filtro lo tira, LO
-    CUENTA con motivo y el corpus LOCAL se consulta (antes: `origen: backend`, `total: 0`)."""
-    suite = _cargar_suite_graphiti()
-    root = str(tmp_path)
-    _corpus_local(root)
-    with suite._ServidorMCPContext() as srv:
-        _grafo_real(suite, root, srv)
-        _taxonomia_graphiti(root, srv.endpoint)
-        aciertos, info = kf.consultar_intent(root, "temporal", texto="memoria", limit=5,
-                                             tipo="gotcha", directorios=[_BACKENDS_DIR])
-    assert aciertos is None, (aciertos, info)      # None = «cae al camino local»
-    assert info["origen"] == "local", info
-    assert "post-filtro" in info["motivo"], info
-
-
-def test_f3fix2_gap117_la_forma_canonica_de_knowledge_check_devuelve_doctrina(tmp_path):
-    """La forma que prescribe `knowledge-check.md` (`--tipo adr --tipo-tarea … --contexto …`)
-    enrutada: con el adaptador real devolvia 0 aciertos; ahora sirve la entrada del grafo."""
-    suite = _cargar_suite_graphiti()
-    root = str(tmp_path)
-    _corpus_local(root)
-    with suite._ServidorMCPContext() as srv:
-        _grafo_real(suite, root, srv)
-        _taxonomia_graphiti(root, srv.endpoint)
-        code, out, _err = run("--intent", "temporal", "--json", "--root", root,
-                              "--backends-dir", _BACKENDS_DIR, "--tipo", "adr",
-                              "--tipo-tarea", "Implementacion", "--contexto", "memoria del grafo")
-    assert code == 0, _err
-    datos = json.loads(out)
-    assert datos["router"]["origen"] == "backend", datos["router"]
-    assert [a["id"] for a in datos["aciertos"]] == ["ADR-100"], datos
 
 
 def test_f3fix2_gap123_el_motivo_del_backend_sale_saneado(tmp_path):

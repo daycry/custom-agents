@@ -1745,7 +1745,7 @@ def _requiere_red(cap, entrada, backends_mod):
             and isinstance(entrada, dict) and bool(entrada.get("type")))
 
 
-# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
+# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las DOS copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
 # Gap #93 (Minor, fix5): la clase [\x00-\x1f\x7f] dejaba pasar tres familias que TAMBIEN
 # falsifican una linea de log o invierten visualmente el texto de un mensaje/`causa`: los
 # controles C1 (\x80-\x9f, entre ellos CSI \x9b), los separadores Unicode de linea/parrafo
@@ -1827,7 +1827,7 @@ def _cfg_con_timeout_topado(cfg_adaptador, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
     gap 133 (fix3): `tope_ms` se protege con un suelo (`_CAPACIDAD_TOPE_MS_MINIMO`) ANTES de
     aplicarlo — antes, un `tope_ms=0` (posible si `bloque_capacidades` llegaba a pasarlo, o si un
     llamador directo lo hacía) se escribía tal cual en `health_cfg["timeout_ms"]`, y
-    `markdown_export._timeout_s()` trata `valor <= 0` como "no configurado" y cae SILENCIOSAMENTE
+    un adaptador que normaliza el timeout trata `valor <= 0` como "no configurado" y cae SILENCIOSAMENTE
     al default de 800 ms — el recorte de `/doctor` desaparecía sin aviso justo en el caso límite."""
     cfg = dict(cfg_adaptador or {})
     health_cfg = dict(cfg.get("health") or {})
@@ -1983,7 +1983,7 @@ def _linea_capacidad_backend_sonda(cap_id, tipo, cfg_adaptador, backends_mod, ba
     `config` propia), vía el contrato de adaptador (`health`/`verify`) — `cfg_adaptador` es
     EXACTAMENTE lo que `knowledge-sync.py` le pasaría (`decl.get("config")`, nunca la entrada
     entera), MÁS `_root` (gap 111: la raíz real del proyecto diagnosticado, para que un backend
-    que resuelva rutas relativas — p. ej. `export_dir` de markdown_export.py, gap 88 — no caiga
+    que resuelva rutas relativas — p. ej. un `dir` de salida, gap 88 — no caiga
     al CWD del proceso de `/doctor`). `None` si no aplica (sin `type` declarado) — el llamador
     cae entonces al texto genérico `doctor` de la propia capacidad. Nunca lanza."""
     if not tipo:

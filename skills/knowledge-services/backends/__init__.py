@@ -6,9 +6,10 @@ backends/__init__.py — cargador del CONTRATO DE ADAPTADOR de `knowledge-servic
 backend concreto (CA-12). Ver `backends/README.md` para el contrato completo de las 6 funciones.
 
 Convención de nombre de fichero: `type` en `taxonomy.json` -> `backends/<type con "-" por "_">.py`
-(p. ej. `"markdown-export"` -> `markdown_export.py`). Un adaptador nuevo es un fichero nuevo en
-este directorio (o en el directorio extra que pase el llamador, ver `directorios`); el núcleo
-(`knowledge-sync.py`) no cambia.
+(p. ej. `"mi-backend"` -> `mi_backend.py`). Un adaptador nuevo es un fichero nuevo en este
+directorio (o en el directorio extra que pase el llamador, ver `directorios`); el núcleo
+(`knowledge-sync.py`) no cambia. El plugin NO incluye ningún adaptador: ver
+`skills/knowledge-services/references/add-backend.md`.
 
 Sin dependencias externas; solo stdlib (`importlib.util`).
 """
@@ -30,6 +31,13 @@ _TIPO_VALIDO_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
+# Tipos de backend que el plugin incluyó y retiró (plugin-audit-2 T-08, versión mayor 4.0.0). Solo
+# afina el mensaje de «no encontrado» para una taxonomía heredada: si el proyecto aporta su propio
+# adaptador con ese `type` en un directorio extra, se carga como cualquier otro.
+RETIRADOS = ("kwipu", "graphiti", "markdown-export")
+VERSION_RETIRADA = "4.0.0"
+GUIA = "skills/knowledge-services/references/add-backend.md"
+
 # Las 6 funciones del contrato de adaptador (design.md, "Contrato de adaptador"). Todas
 # obligatorias: `revoke` puede ser un no-op DECLARADO (una función que exista y no haga nada),
 # pero tiene que existir — un adaptador que no la define no cumple el contrato.
@@ -44,7 +52,7 @@ class AdaptadorNoDisponible(Exception):
 
 def _nombres_candidatos(tipo):
     """Dos convenciones de nombre válidas para el mismo `type` (ninguna hardcodea un backend
-    concreto): `<type>.py` (los adaptadores reales del plugin, p. ej. `markdown_export.py`) y
+    concreto): `<type>.py` (un adaptador del proyecto, p. ej. `mi_backend.py`) y
     `backend_<type>.py` (fixtures de test, p. ej. `backend_test.py` — evita que un `type: "test"`
     de fixture choque de nombre con un futuro módulo real `test.py`)."""
     base = tipo.replace('-', '_')
@@ -74,10 +82,16 @@ def cargar_adaptador(tipo, directorios=None):
             "espacios) — se rechaza antes de componer una ruta de fichero con él")
     dirs = list(directorios) if directorios else [HERE]
     ruta = _localizar(tipo, dirs)
+    if ruta is None and tipo in RETIRADOS:
+        raise AdaptadorNoDisponible(
+            f"el backend `{tipo}` está retirado desde la versión {VERSION_RETIRADA} del plugin "
+            f"(ver CHANGELOG) y su adaptador no disponible; para enchufar un backend propio "
+            f"consulta `{GUIA}`")
     if ruta is None:
         raise AdaptadorNoDisponible(
             f"no se encontró un adaptador para type=`{tipo}` (buscado como "
-            f"{' o '.join('`' + n + '`' for n in _nombres_candidatos(tipo))} en {dirs})")
+            f"{' o '.join('`' + n + '`' for n in _nombres_candidatos(tipo))} en {dirs}); "
+            f"para añadir un backend propio consulta `{GUIA}`")
     nombre_modulo = f"ks_backend_{tipo.replace('-', '_')}"
     spec = importlib.util.spec_from_file_location(nombre_modulo, ruta)
     if spec is None or spec.loader is None:

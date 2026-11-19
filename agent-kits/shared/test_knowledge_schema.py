@@ -25,8 +25,6 @@ def _valida(**over):
     return cfg
 
 
-# ------------------------------------------------------------------ estructura básica
-
 def test_default_template_es_valido():
     assert ks.validar(ks.default_taxonomy(), "template") == []
 
@@ -38,8 +36,8 @@ def test_default_fallback_es_valido():
 def test_default_fallback_coincide_con_el_template():
     """T-01-fix1 (lint_plugin.py, ADR-016): el respaldo embebido tiene que ser el MISMO contenido
     que `templates/taxonomy.json`, no solo cada uno valido por su lado — sin este test, el
-    respaldo podia divergir del canonico en SILENCIO (aqui detecta que faltaba
-    `backends.kwipu.config.health`)."""
+    respaldo podia divergir del canonico en SILENCIO (aqui detecta una clave que faltaba
+    en uno de los dos)."""
     with open(os.path.join(HERE, "templates", "taxonomy.json"), encoding="utf-8") as f:
         plantilla = json.load(f)
     respaldo = json.loads(json.dumps(ks._TAXONOMY_FALLBACK))
@@ -84,587 +82,56 @@ def test_min_evidence_fuera_de_evidence_levels():
     assert any("min_evidence" in e["campo"] for e in errores)
 
 
-# ------------------------------------------------------------------ routing fail-closed (CA-11)
-
 def test_routing_a_backend_no_declarado_falla():
     cfg = _valida(
-        backends={"kwipu": {"type": "markdown-export"}},
+        backends={"docs": {"type": "adaptador-prueba"}},
         categories=[{"key": "PATTERN", "folder": "patterns", "min_evidence": "observation",
-                     "routing": {"graphiti": True}}],
+                     "routing": {"otro": True}}],
     )
     errores = ks.validar(cfg, "t.json")
-    assert any("graphiti" in e["mensaje"] and "no declarado" in e["mensaje"] for e in errores)
-    assert any(e["campo"] == "categories[0].routing.graphiti" for e in errores)
+    assert any("otro" in e["mensaje"] and "no declarado" in e["mensaje"] for e in errores)
+    assert any(e["campo"] == "categories[0].routing.otro" for e in errores)
 
 
 def test_routing_a_backend_declarado_es_valido():
     cfg = _valida(
-        backends={"kwipu": {"type": "markdown-export"}},
+        backends={"docs": {"type": "adaptador-prueba"}},
         categories=[{"key": "PATTERN", "folder": "patterns", "min_evidence": "observation",
-                     "routing": {"kwipu": True}}],
+                     "routing": {"docs": True}}],
     )
     assert ks.validar(cfg, "t.json") == []
 
 
 def test_routing_valor_invalido():
     cfg = _valida(
-        backends={"kwipu": {"type": "markdown-export"}},
+        backends={"docs": {"type": "adaptador-prueba"}},
         categories=[{"key": "PATTERN", "folder": "patterns", "min_evidence": "observation",
-                     "routing": {"kwipu": "todo"}}],
+                     "routing": {"docs": "todo"}}],
     )
     errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "categories[0].routing.kwipu" for e in errores)
+    assert any(e["campo"] == "categories[0].routing.docs" for e in errores)
 
 
 def test_categoria_sin_routing_no_es_error_pero_no_exporta():
     cfg = _valida(
-        backends={"kwipu": {"type": "markdown-export"}},
+        backends={"docs": {"type": "adaptador-prueba"}},
         categories=[{"key": "PATTERN", "folder": "patterns", "min_evidence": "observation"}],
     )
     assert ks.validar(cfg, "t.json") == []
-    assert ks.categorias_por_backend(cfg, "kwipu") == []
+    assert ks.categorias_por_backend(cfg, "docs") == []
 
-
-# ------------------------------------------------------------------ backends
 
 def test_backend_sin_type_falla():
-    cfg = _valida(backends={"kwipu": {}})
+    cfg = _valida(backends={"docs": {}})
     errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.kwipu.type" for e in errores)
+    assert any(e["campo"] == "backends.docs.type" for e in errores)
 
 
 def test_backend_enabled_no_booleano():
-    cfg = _valida(backends={"kwipu": {"type": "markdown-export", "enabled": "si"}})
+    cfg = _valida(backends={"docs": {"type": "adaptador-prueba", "enabled": "si"}})
     errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.kwipu.enabled" for e in errores)
+    assert any(e["campo"] == "backends.docs.enabled" for e in errores)
 
-
-# ------------------------------------------------------------------ backends.graphiti (T-01, CA-09/CA-10/CA-12/CA-13)
-
-def _graphiti_config(**over):
-    cfg = {
-        "mode": "shadow",
-        "endpoint": "http://127.0.0.1:8001/mcp",
-        "group_id": "knowledge-graphs",
-        "allow_remote": False,
-        "provider": {"llm": "ollama", "model": "qwen2.5:7b", "base_url": "http://127.0.0.1:11434",
-                     "embedder": "ollama", "embedder_model": "nomic-embed-text"},
-        "entity_map": {"PATTERN": "Document"},
-        "relations": ["MITIGATES", "APPLIES_TO"],
-        "router": {"intents": {"temporal": True, "relacional": False, "evidencia": False}},
-        "telemetria": False,
-        "health": {"url": "http://127.0.0.1:8001/health", "timeout_ms": 3000},
-    }
-    cfg.update(over)
-    return cfg
-
-
-def _con_graphiti(config):
-    cfg = _valida()
-    cfg["backends"]["graphiti"] = {"type": "graphiti", "enabled": True, "config": config}
-    return cfg
-
-
-def test_graphiti_config_valida_no_da_error():
-    errores = ks.validar(_con_graphiti(_graphiti_config()), "t.json")
-    assert errores == []
-
-
-def test_graphiti_transition_relations_supported_modes():
-    for mode in ('episode', 'triplet'):
-        assert ks.validar(_con_graphiti(_graphiti_config(transition_relations=mode)), 't.json') == []
-
-
-def test_graphiti_transition_relations_invalid_modes():
-    for mode in ('guess', '', None, False, 1, [], {}):
-        errors = ks.validar(_con_graphiti(_graphiti_config(transition_relations=mode)), 't.json')
-        assert any(e['campo'] == 'backends.graphiti.config.transition_relations'
-                   and 'episode' in e['mensaje'] for e in errors)
-
-
-def test_graphiti_control_exclusions_accept_declared_server_types():
-    for value in ([], ['Organization','Document'], ['Entity','Entity']):
-        assert ks.validar(_con_graphiti(_graphiti_config(transition_excluded_entity_types=value)), 't.json') == []
-
-
-def test_graphiti_control_exclusions_reject_invalid_types():
-    for value in (None,False,'Organization',[''],['Org\nInjected'],list(map(str,range(129)))):
-        errors=ks.validar(_con_graphiti(_graphiti_config(transition_excluded_entity_types=value)), 't.json')
-        assert any(e['campo']=='backends.graphiti.config.transition_excluded_entity_types'
-                   and 'lista' in e['mensaje'] for e in errors)
-
-
-def test_graphiti_mode_invalido():
-    cfg = _con_graphiti(_graphiti_config(mode="lectura-total"))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.mode" for e in errores)
-
-
-def test_graphiti_endpoint_no_local_sin_allow_remote_falla():
-    cfg = _con_graphiti(_graphiti_config(endpoint="http://ejemplo-remoto.com/mcp", allow_remote=False))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.endpoint" for e in errores)
-
-
-def test_graphiti_endpoint_no_local_con_allow_remote_es_valido():
-    cfg = _con_graphiti(_graphiti_config(endpoint="http://ejemplo-remoto.com/mcp", allow_remote=True))
-    assert ks.validar(cfg, "t.json") == []
-
-
-def test_graphiti_endpoint_con_userinfo_falla_gap43():
-    """Gap #43 (revisión Fase 2 intento 1): userinfo (`usuario:token@host`) en `endpoint` pasaba
-    el guardarraíl de red y se imprimía verbatim en `detalle`/`HostNoPermitido`/dead-letter."""
-    cfg = _con_graphiti(_graphiti_config(endpoint="http://svc:TOKEN@127.0.0.1:8001/mcp"))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.endpoint" for e in errores)
-
-
-def test_graphiti_health_url_con_userinfo_falla_gap43():
-    cfg = _con_graphiti(_graphiti_config(health={"url": "http://svc:TOKEN@127.0.0.1:8001/health"}))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.health.url" for e in errores)
-
-
-def test_graphiti_provider_llm_invalido():
-    cfg = _con_graphiti(_graphiti_config(provider={"llm": "gemini"}))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.provider.llm" for e in errores)
-
-
-def test_graphiti_provider_none_no_exige_modelo():
-    cfg = _con_graphiti(_graphiti_config(provider={"llm": "none"}))
-    assert ks.validar(cfg, "t.json") == []
-
-
-def test_graphiti_provider_api_key_no_puede_ser_un_secreto_inline():
-    """CA-09: las credenciales viajan por NOMBRE de variable de entorno, nunca un valor literal
-    largo (heurística: un `api_key_env` con espacios no es un nombre de variable válido)."""
-    cfg = _con_graphiti(_graphiti_config(provider={"llm": "openai", "api_key_env": "sk-abc 123 real key"}))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.provider.api_key_env" for e in errores)
-
-
-def test_graphiti_provider_api_key_env_como_nombre_de_variable_es_valido():
-    cfg = _con_graphiti(_graphiti_config(
-        provider={"llm": "openai", "api_key_env": "OPENAI_API_KEY", "model": "gpt-4o-mini"}))
-    assert ks.validar(cfg, "t.json") == []
-
-
-def test_graphiti_provider_model_obligatorio_si_llm_no_es_none_gap37():
-    """Gap #37 (revisión Fase 2 intento 1): sin `provider.model`, `graphiti_providers.py` caía a
-    un modelo CABLEADO en el código (`qwen2.5:7b`/`gpt-4o-mini`/`claude-haiku`), contra CA-09."""
-    cfg = _con_graphiti(_graphiti_config(provider={"llm": "ollama"}))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.provider.model" for e in errores)
-    cfg_ok = _con_graphiti(_graphiti_config(provider={"llm": "ollama", "model": "qwen2.5:7b"}))
-    assert ks.validar(cfg_ok, "t.json") == []
-    cfg_none = _con_graphiti(_graphiti_config(provider={"llm": "none"}))
-    assert ks.validar(cfg_none, "t.json") == []
-
-
-def test_graphiti_episode_body_max_kb_valido_no_da_error():
-    """Gap #64/#60 (fix3): `episode_body_max_kb` (tope del cuerpo del episodio, gap #64) es una
-    clave declarada explícitamente en la lista cerrada de `config` de `knowledge-schema.py` desde
-    fix2, pero sin test dedicado en el esquema hasta ahora."""
-    cfg = _con_graphiti(_graphiti_config(episode_body_max_kb=256))
-    assert ks.validar(cfg, "t.json") == []
-
-
-def test_graphiti_episode_body_max_kb_invalido_falla():
-    for valor in (0, -1, "512", True):
-        cfg = _con_graphiti(_graphiti_config(episode_body_max_kb=valor))
-        errores = ks.validar(cfg, "t.json")
-        assert any(e["campo"] == "backends.graphiti.config.episode_body_max_kb" for e in errores), valor
-
-
-def test_graphiti_router_intents_valor_no_booleano():
-    cfg = _con_graphiti(_graphiti_config(router={"intents": {"temporal": "si"}}))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.router.intents.temporal" for e in errores)
-
-
-def test_graphiti_relations_no_lista_de_cadenas():
-    cfg = _con_graphiti(_graphiti_config(relations=[1, 2]))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.relations" for e in errores)
-
-
-def test_graphiti_entity_map_no_es_objeto_de_cadenas():
-    cfg = _con_graphiti(_graphiti_config(entity_map={"PATTERN": 1}))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.entity_map" for e in errores)
-
-
-def test_graphiti_health_timeout_ms_no_numerico():
-    cfg = _con_graphiti(_graphiti_config(health={"url": "http://127.0.0.1:8001/health", "timeout_ms": "rapido"}))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.health.timeout_ms" for e in errores)
-
-
-def test_graphiti_telemetria_no_booleana():
-    cfg = _con_graphiti(_graphiti_config(telemetria="no"))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.telemetria" for e in errores)
-
-
-def test_graphiti_allow_remote_no_booleano():
-    cfg = _con_graphiti(_graphiti_config(allow_remote="no"))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.allow_remote" for e in errores)
-
-
-# ------------------------------------------------------------------ T-01-fix1: revision de dos lentes, Fase 1 intento 1
-
-def test_graphiti_clave_desconocida_a_nivel_de_backend_falla():
-    """Gap #1: el ejemplo PLANO antiguo (`endpoint` fuera de `config`) tiene que dar error, no
-    pasar en silencio."""
-    cfg = _valida()
-    cfg["backends"]["graphiti"] = {
-        "type": "graphiti", "enabled": True,
-        "endpoint": "http://evil.com/mcp", "api_key": "sk-secreto-inline",
-        "config": _graphiti_config(),
-    }
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.endpoint" for e in errores)
-    assert any(e["campo"] == "backends.graphiti.api_key" for e in errores)
-
-
-def test_graphiti_clave_desconocida_en_config_falla():
-    cfg = _con_graphiti(_graphiti_config(api_key="sk-secreto-inline"))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.api_key" for e in errores)
-
-
-def test_graphiti_clave_desconocida_en_provider_falla():
-    cfg = _con_graphiti(_graphiti_config(provider={"llm": "ollama", "modelo": "qwen2.5:7b"}))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.provider.modelo" for e in errores)
-
-
-def test_graphiti_clave_desconocida_en_router_falla():
-    cfg = _con_graphiti(_graphiti_config(router={"intents": {"temporal": True}, "modelo": "gpt-4"}))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.router.modelo" for e in errores)
-
-
-def test_graphiti_clave_desconocida_en_health_falla():
-    cfg = _con_graphiti(_graphiti_config(health={"url": "http://127.0.0.1:8001/health", "puerto": 8001}))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.health.puerto" for e in errores)
-
-
-def test_group_id_sin_default_cableado_en_template():
-    """Gap #3: ni la plantilla ni el respaldo fijan `group_id` a `knowledge-graphs` (el grupo del
-    stack de referencia); dos consumidores en la misma maquina no pueden compartir grupo por
-    omision."""
-    tpl = ks.default_taxonomy()
-    assert "group_id" not in tpl["backends"]["graphiti"]["config"]
-    assert "group_id" not in ks._TAXONOMY_FALLBACK["backends"]["graphiti"]["config"]
-    assert ks.validar(tpl, "template") == []
-
-
-def test_group_id_se_deriva_del_slug_del_proyecto(tmp_path):
-    root = tmp_path / "Mi Proyecto Graphiti"
-    root.mkdir()
-    config, origen, _ruta, errores = ks.cargar_taxonomia(root=str(root))
-    assert origen == "default"
-    assert errores == []
-    assert config["backends"]["graphiti"]["config"]["group_id"] == "mi-proyecto-graphiti"
-
-
-def test_group_id_explicito_no_se_pisa(tmp_path):
-    proyecto = tmp_path / ".claude" / "knowledge-services"
-    proyecto.mkdir(parents=True)
-    cfg = _con_graphiti(_graphiti_config(group_id="grupo-explicito"))
-    (proyecto / "taxonomy.json").write_text(json.dumps(cfg), encoding="utf-8")
-    config, _origen, _ruta, _errores = ks.cargar_taxonomia(root=str(tmp_path))
-    assert config["backends"]["graphiti"]["config"]["group_id"] == "grupo-explicito"
-
-
-def test_group_id_vacio_es_invalido():
-    cfg = _con_graphiti(_graphiti_config(group_id=""))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.group_id" for e in errores)
-
-
-def test_graphiti_habilitado_sin_config_falla_en_endpoint_provider_y_mode():
-    """Gap #6: `{"type":"graphiti","enabled":true}` sin `config` ya no valida en silencio."""
-    cfg = _valida()
-    cfg["backends"]["graphiti"] = {"type": "graphiti", "enabled": True}
-    errores = ks.validar(cfg, "t.json")
-    campos = {e["campo"] for e in errores}
-    assert "backends.graphiti.config.endpoint" in campos
-    assert "backends.graphiti.config.provider.llm" in campos
-    assert "backends.graphiti.config.mode" in campos
-
-
-def test_graphiti_habilitado_config_vacia_falla_en_endpoint_provider_y_mode():
-    cfg = _valida()
-    cfg["backends"]["graphiti"] = {"type": "graphiti", "enabled": True, "config": {}}
-    errores = ks.validar(cfg, "t.json")
-    campos = {e["campo"] for e in errores}
-    assert "backends.graphiti.config.endpoint" in campos
-    assert "backends.graphiti.config.provider.llm" in campos
-    assert "backends.graphiti.config.mode" in campos
-
-
-def test_graphiti_deshabilitado_sin_config_no_exige_nada():
-    cfg = _valida()
-    cfg["backends"]["graphiti"] = {"type": "graphiti", "enabled": False}
-    assert ks.validar(cfg, "t.json") == []
-
-
-def test_graphiti_health_url_remota_publica_sin_allow_remote_falla():
-    """Gap #7: `health.url` pasa por el MISMO guardarraíl que `endpoint`."""
-    cfg = _con_graphiti(_graphiti_config(health={"url": "http://evil.com/health", "timeout_ms": 3000}))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.health.url" for e in errores)
-
-
-def test_graphiti_health_url_remota_con_allow_remote_es_valida():
-    cfg = _con_graphiti(_graphiti_config(
-        allow_remote=True, endpoint="http://ejemplo-remoto.com/mcp",
-        health={"url": "http://ejemplo-remoto.com/health", "timeout_ms": 3000}))
-    assert ks.validar(cfg, "t.json") == []
-
-
-def test_graphiti_health_timeout_ms_negativo_o_cero_falla():
-    """Gap #11."""
-    for valor in (-5, 0):
-        cfg = _con_graphiti(_graphiti_config(health={"url": "http://127.0.0.1:8001/health", "timeout_ms": valor}))
-        errores = ks.validar(cfg, "t.json")
-        assert any(e["campo"] == "backends.graphiti.config.health.timeout_ms" for e in errores), valor
-
-
-def test_graphiti_host_local_con_sufijo_docker_es_valido():
-    """Gap #15: mismo criterio de hosts locales que el adaptador Kwipu (`host.docker.internal`,
-    sufijos `.test`/`.local`/`.internal`), no solo loopback/IP privada literal."""
-    cfg = _con_graphiti(_graphiti_config(
-        endpoint="http://host.docker.internal:8001/mcp", allow_remote=False,
-        health={"url": "http://mi-graphiti.test/health", "timeout_ms": 3000}))
-    assert ks.validar(cfg, "t.json") == []
-
-
-# ------------------------------------------------------------------ mutantes M9/M10/M12 (gap #13)
-
-def test_graphiti_endpoint_host_local_por_subcadena_falla_m9():
-    """M9: `"localhost" in host` sobrevivia — `localhost.evil.com` NO es local."""
-    cfg = _con_graphiti(_graphiti_config(endpoint="http://localhost.evil.com/mcp", allow_remote=False))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.endpoint" for e in errores)
-
-
-def test_graphiti_endpoint_ip_publica_literal_falla_m10():
-    """M10: cualquier IP literal se aceptaba — una IP publica (`8.8.8.8`) sigue exigiendo
-    `allow_remote: true`."""
-    cfg = _con_graphiti(_graphiti_config(endpoint="http://8.8.8.8/mcp", allow_remote=False))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.endpoint" for e in errores)
-
-
-def test_graphiti_provider_vacio_falla_m12():
-    """M12: `provider: {}` (sin `llm`) tiene que fallar."""
-    cfg = _con_graphiti(_graphiti_config(provider={}))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.provider.llm" for e in errores)
-
-
-# ------------------------------------------------------------------ gap #14: allow_remote estricto, relations sin vacios
-
-def test_graphiti_allow_remote_string_no_autoriza_endpoint_remoto():
-    """Gap #14: `allow_remote: "no"` (string, truthy en Python) NO puede colarse como si
-    autorizara un endpoint remoto."""
-    cfg = _con_graphiti(_graphiti_config(endpoint="http://ejemplo-remoto.com/mcp", allow_remote="no"))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.allow_remote" for e in errores)
-    assert any(e["campo"] == "backends.graphiti.config.endpoint" for e in errores)
-
-
-def test_graphiti_relations_con_cadena_vacia_falla():
-    cfg = _con_graphiti(_graphiti_config(relations=["MITIGATES", ""]))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.relations" for e in errores)
-
-
-# --------------------------------------------- T-01-fix2 gap #20: entity_map con valor vacio (M15)
-
-def test_graphiti_entity_map_valor_vacio_falla_m15():
-    cfg = _con_graphiti(_graphiti_config(entity_map={"PATTERN": ""}))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.entity_map" for e in errores)
-
-
-def test_graphiti_entity_map_valor_blanco_falla():
-    cfg = _con_graphiti(_graphiti_config(entity_map={"PATTERN": "   "}))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.entity_map" for e in errores)
-
-
-# --------------------------------------------- T-01-fix2 gap #19: timeout_ms/concurrency de config
-
-def test_graphiti_config_timeout_ms_valido_no_da_error():
-    cfg = _con_graphiti(_graphiti_config(timeout_ms=3000))
-    assert ks.validar(cfg, "t.json") == []
-
-
-def test_graphiti_config_timeout_ms_no_numerico_falla():
-    cfg = _con_graphiti(_graphiti_config(timeout_ms="rapido"))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.timeout_ms" for e in errores)
-
-
-def test_graphiti_config_timeout_ms_negativo_o_cero_falla():
-    for valor in (-5, 0):
-        cfg = _con_graphiti(_graphiti_config(timeout_ms=valor))
-        errores = ks.validar(cfg, "t.json")
-        assert any(e["campo"] == "backends.graphiti.config.timeout_ms" for e in errores), valor
-
-
-def test_graphiti_config_timeout_ms_booleano_falla_m18():
-    """Gap #27 (mutante M18): `timeout_ms: true`/`False` es un `bool` (subclase de `int` en
-    Python) — sin el `isinstance(valor, bool)` explícito de `_numero_finito_mayor_que`,
-    `math.isfinite(True) and True > 0` daría `True` y la suite seguía en verde."""
-    for valor in (True, False):
-        cfg = _con_graphiti(_graphiti_config(timeout_ms=valor))
-        errores = ks.validar(cfg, "t.json")
-        assert any(e["campo"] == "backends.graphiti.config.timeout_ms" for e in errores), valor
-
-
-def test_graphiti_health_timeout_ms_booleano_falla_m18():
-    """Gap #27 (mutante M18), mismo guardarraíl en `health.timeout_ms`."""
-    for valor in (True, False):
-        cfg = _con_graphiti(_graphiti_config(
-            health={"url": "http://127.0.0.1:8001/health", "timeout_ms": valor}))
-        errores = ks.validar(cfg, "t.json")
-        assert any(e["campo"] == "backends.graphiti.config.health.timeout_ms" for e in errores), valor
-
-
-def test_graphiti_config_timeout_ms_flotante_falla_con_mensaje_que_dice_entero():
-    """Gap #30: el mensaje debe decir «entero» (CONVENTIONS documenta `timeout_ms` como entero de
-    milisegundos); antes decía «numérico, finito y mayor que 0», que un `3000.0` SÍ cumple aunque
-    la validación lo rechace por no ser `int`."""
-    cfg = _con_graphiti(_graphiti_config(timeout_ms=3000.0))
-    errores = ks.validar(cfg, "t.json")
-    campo = [e for e in errores if e["campo"] == "backends.graphiti.config.timeout_ms"]
-    assert campo, errores
-    assert "entero" in campo[0]["mensaje"]
-
-
-def test_graphiti_config_concurrency_valido_no_da_error():
-    cfg = _con_graphiti(_graphiti_config(concurrency=1))
-    assert ks.validar(cfg, "t.json") == []
-
-
-def test_graphiti_config_concurrency_invalido_falla():
-    for valor in (0, -1, 1.5, "1", True):
-        cfg = _con_graphiti(_graphiti_config(concurrency=valor))
-        errores = ks.validar(cfg, "t.json")
-        assert any(e["campo"] == "backends.graphiti.config.concurrency" for e in errores), valor
-
-
-def test_template_declara_timeout_ms_y_concurrency_por_defecto():
-    tpl = ks.default_taxonomy()
-    graphiti_cfg = tpl["backends"]["graphiti"]["config"]
-    assert graphiti_cfg["timeout_ms"] == 3000
-    assert graphiti_cfg["concurrency"] == 1
-    assert ks.validar(tpl, "template") == []
-
-
-# ------------------------------- T-01-fix2 gap #21: finitos (NaN/Infinity) en timeout_ms/concurrency
-
-def test_graphiti_health_timeout_ms_no_finito_falla():
-    for valor in (float("nan"), float("inf"), float("-inf"), 1e-09):
-        cfg = _con_graphiti(_graphiti_config(
-            health={"url": "http://127.0.0.1:8001/health", "timeout_ms": valor}))
-        errores = ks.validar(cfg, "t.json")
-        assert any(e["campo"] == "backends.graphiti.config.health.timeout_ms" for e in errores), valor
-
-
-def test_graphiti_config_timeout_ms_no_finito_falla():
-    for valor in (float("nan"), float("inf"), 1e-09):
-        cfg = _con_graphiti(_graphiti_config(timeout_ms=valor))
-        errores = ks.validar(cfg, "t.json")
-        assert any(e["campo"] == "backends.graphiti.config.timeout_ms" for e in errores), valor
-
-
-# ---------------------------------------------- T-01-fix2 gap #17: group_id derivado por `type`
-
-def test_con_group_id_por_defecto_deriva_por_type_no_por_clave_literal():
-    """Mutante M14: un backend `graphiti` con un ID DISTINTO de la clave literal `graphiti`
-    también recibe su `group_id` derivado — antes, `_con_group_id_por_defecto` solo miraba
-    `backends['graphiti']`, ignorando cualquier otro id declarado con `type: graphiti`."""
-    config = _valida()
-    graphiti_config = _graphiti_config()
-    del graphiti_config["group_id"]
-    config["backends"] = {"mi-grafo": {"type": "graphiti", "enabled": True, "config": graphiti_config}}
-    resultado = ks._con_group_id_por_defecto(config, "/tmp/mi-proyecto-x")
-    assert resultado["backends"]["mi-grafo"]["config"]["group_id"] == "mi-proyecto-x"
-
-
-def test_group_id_obligatorio_tras_derivar_si_directorio_sin_alfanumericos(tmp_path):
-    """Mutante M16: `group_id` faltante con `enabled: true` no puede validar en silencio — si el
-    slug del directorio del proyecto queda vacío (sin caracteres alfanuméricos), es un error
-    explícito en vez de un `group_id` ausente que T-04 resolvería cayendo al grupo por defecto del
-    cliente MCP (justo lo que el gap #3 original quería impedir)."""
-    root = tmp_path / "___"
-    proyecto = root / ".claude" / "knowledge-services"
-    proyecto.mkdir(parents=True)
-    cfg = _con_graphiti(_graphiti_config())
-    del cfg["backends"]["graphiti"]["config"]["group_id"]
-    (proyecto / "taxonomy.json").write_text(json.dumps(cfg), encoding="utf-8")
-    config, origen, _ruta, errores = ks.cargar_taxonomia(root=str(root))
-    assert origen == "proyecto"
-    assert "group_id" not in config["backends"]["graphiti"]["config"]
-    assert any("group_id" in e["campo"] for e in errores)
-
-
-def test_group_id_no_obligatorio_tras_derivar_si_backend_deshabilitado(tmp_path):
-    root = tmp_path / "___"
-    proyecto = root / ".claude" / "knowledge-services"
-    proyecto.mkdir(parents=True)
-    cfg = _con_graphiti(_graphiti_config())
-    cfg["backends"]["graphiti"]["enabled"] = False
-    del cfg["backends"]["graphiti"]["config"]["group_id"]
-    (proyecto / "taxonomy.json").write_text(json.dumps(cfg), encoding="utf-8")
-    config, _origen, _ruta, errores = ks.cargar_taxonomia(root=str(root))
-    assert not any("group_id" in e["campo"] for e in errores)
-
-
-# --------------------------------------------- T-01-fix2 gap #23: slug Unicode para group_id
-
-def test_group_id_se_deriva_con_slug_unicode_no_cae_a_ca(tmp_path):
-    root = tmp_path / "日本"
-    root.mkdir()
-    config, origen, _ruta, errores = ks.cargar_taxonomia(root=str(root))
-    assert origen == "default"
-    assert errores == []
-    assert config["backends"]["graphiti"]["config"]["group_id"] == "日本"
-    assert config["backends"]["graphiti"]["config"]["group_id"] != "ca"
-
-
-def test_group_id_se_deriva_con_slug_unicode_acentos(tmp_path):
-    root = tmp_path / "áéí"
-    root.mkdir()
-    config, _origen, _ruta, _errores = ks.cargar_taxonomia(root=str(root))
-    assert config["backends"]["graphiti"]["config"]["group_id"] == "áéí"
-
-
-def test_slug_unicode_normaliza():
-    assert ks._slug_unicode("Mi Proyecto_X!!") == "mi-proyecto-x"
-    assert ks._slug_unicode("") == ""
-    assert ks._slug_unicode("---") == ""
-    assert ks._slug_unicode("日本") == "日本"
-
-
-def test_template_por_defecto_declara_graphiti_deshabilitado():
-    """Regla del ledger: la plantilla gana el backend `graphiti` con `enabled: false` (opt-in)."""
-    tpl = ks.default_taxonomy()
-    assert tpl["backends"]["graphiti"]["type"] == "graphiti"
-    assert tpl["backends"]["graphiti"]["enabled"] is False
-    assert ks.validar(tpl, "template") == []
-
-
-# ------------------------------------------------------------------ estado/tag inválidos (CA-01, CA-13)
 
 def test_utility_scoring_no_booleano():
     cfg = _valida(utility_scoring="si")
@@ -682,8 +149,6 @@ def test_contenido_no_es_objeto():
     errores = ks.validar([1, 2, 3], "t.json")
     assert errores and errores[0]["fichero"] == "t.json"
 
-
-# ------------------------------------------------------------------ cargar_taxonomia (CA-01/CA-09)
 
 def test_cargar_taxonomia_sin_fichero_usa_default(tmp_path):
     config, origen, ruta, errores = ks.cargar_taxonomia(root=str(tmp_path))
@@ -713,8 +178,6 @@ def test_cargar_taxonomia_json_invalido(tmp_path):
     assert origen == "proyecto"
     assert errores and "JSON ilegible" in errores[0]["mensaje"]
 
-
-# ------------------------------------------------------------------ CLI
 
 def test_cli_default_exit_0():
     assert ks.main(["--default"]) == 0
@@ -762,8 +225,6 @@ def test_cli_ruta_es_directorio_exit_2(tmp_path):
     assert ks.main([str(d)]) == 2
 
 
-# ------------------------------------------------------------------ id_prefix por defecto (gap 5)
-
 def test_id_prefix_por_defecto_es_el_slug_del_directorio_raiz(tmp_path):
     root = tmp_path / "Mi Proyecto X"
     root.mkdir()
@@ -796,8 +257,6 @@ def test_slug_kebab_normaliza():
     assert ks._slug_kebab("---") == ""
 
 
-# ------------------------------------------------------------------ cargar_taxonomia root=None usa cwd (gap 12)
-
 def test_cargar_taxonomia_root_none_usa_el_cwd(tmp_path, monkeypatch):
     proyecto = tmp_path / ".claude" / "knowledge-services"
     proyecto.mkdir(parents=True)
@@ -811,8 +270,6 @@ def test_cargar_taxonomia_root_none_usa_el_cwd(tmp_path, monkeypatch):
     assert config["id_prefix"] == "mr"
 
 
-# ------------------------------------------------------------------ default_taxonomy nunca lanza (gap 14)
-
 def test_default_taxonomy_con_plantilla_corrupta_cae_al_respaldo(tmp_path, monkeypatch):
     p = tmp_path / "taxonomy.json"
     p.write_bytes("{\"version\": 1}".encode("utf-16"))
@@ -820,8 +277,6 @@ def test_default_taxonomy_con_plantilla_corrupta_cae_al_respaldo(tmp_path, monke
     resultado = ks.default_taxonomy()
     assert resultado == json.loads(json.dumps(ks._TAXONOMY_FALLBACK))
 
-
-# ------------------------------------------------------------------ folder inseguro (gap 6, CWE-22)
 
 def test_folder_con_traversal_falla():
     cfg = _valida(categories=[
@@ -878,8 +333,6 @@ def test_folder_simple_es_valido():
     assert ks.validar(cfg, "t.json") == []
 
 
-# ------------------------------------------------------------------ evidence_levels invalido (gap 7, 13)
-
 def test_evidence_levels_vacio_falla():
     cfg = _valida(evidence_levels=[])
     errores = ks.validar(cfg, "t.json")
@@ -892,18 +345,16 @@ def test_evidence_levels_no_iterable_no_lanza_typeerror():
     assert any(e["campo"] == "evidence_levels" for e in errores)
 
 
-# ------------------------------------------------------------------ routing: valor real, no solo booleano (gap 2, 10)
-
 def test_categorias_por_backend_con_valor_distingue_summary_de_true():
     cfg = _valida(
-        backends={"kwipu": {"type": "markdown-export"}},
+        backends={"docs": {"type": "adaptador-prueba"}},
         categories=[
-            {"key": "A", "folder": "a", "min_evidence": "observation", "routing": {"kwipu": True}},
-            {"key": "B", "folder": "b", "min_evidence": "observation", "routing": {"kwipu": "summary"}},
-            {"key": "C", "folder": "c", "min_evidence": "observation", "routing": {"kwipu": False}},
+            {"key": "A", "folder": "a", "min_evidence": "observation", "routing": {"docs": True}},
+            {"key": "B", "folder": "b", "min_evidence": "observation", "routing": {"docs": "summary"}},
+            {"key": "C", "folder": "c", "min_evidence": "observation", "routing": {"docs": False}},
         ],
     )
-    pares = ks.categorias_por_backend_con_valor(cfg, "kwipu")
+    pares = ks.categorias_por_backend_con_valor(cfg, "docs")
     valores = {cat["key"]: valor for cat, valor in pares}
     assert valores == {"A": True, "B": "summary"}
     assert "C" not in valores
@@ -911,15 +362,13 @@ def test_categorias_por_backend_con_valor_distingue_summary_de_true():
 
 def test_dos_taxonomias_con_routing_distinto_seleccionan_categorias_distintas():
     base = {"key": "A", "folder": "a", "min_evidence": "observation"}
-    cfg_habilitada = _valida(backends={"kwipu": {"type": "markdown-export"}},
-                              categories=[dict(base, routing={"kwipu": True})])
-    cfg_deshabilitada = _valida(backends={"kwipu": {"type": "markdown-export"}},
-                                 categories=[dict(base, routing={"kwipu": False})])
-    assert [c["key"] for c in ks.categorias_por_backend(cfg_habilitada, "kwipu")] == ["A"]
-    assert [c["key"] for c in ks.categorias_por_backend(cfg_deshabilitada, "kwipu")] == []
+    cfg_habilitada = _valida(backends={"docs": {"type": "adaptador-prueba"}},
+                              categories=[dict(base, routing={"docs": True})])
+    cfg_deshabilitada = _valida(backends={"docs": {"type": "adaptador-prueba"}},
+                                 categories=[dict(base, routing={"docs": False})])
+    assert [c["key"] for c in ks.categorias_por_backend(cfg_habilitada, "docs")] == ["A"]
+    assert [c["key"] for c in ks.categorias_por_backend(cfg_deshabilitada, "docs")] == []
 
-
-# ------------------------------------------------------------------ gap 27: taxonomy.json de usuario, UTF-16/BOM
 
 def test_cargar_taxonomia_con_bom_utf8_no_se_rechaza(tmp_path):
     """Gap 27: `taxonomy.json` guardado como "UTF-8 with BOM" (VS Code, Notepad) es JSON valido;
@@ -951,8 +400,6 @@ def test_cargar_taxonomia_en_utf16_no_lanza_unicodedecodeerror(tmp_path):
     assert "UnicodeDecodeError" in errores[0]["mensaje"]
 
 
-# ------------------------------------------------------------------ gap 29: id_prefix con root=None usa el cwd
-
 def test_id_prefix_con_root_none_usa_el_slug_del_cwd(tmp_path, monkeypatch):
     """Gap 29: `_con_id_prefix_por_defecto(config, root=None)` debia usar el cwd, igual que
     `cargar_taxonomia(root=None)` ya hace desde el gap 12 — antes caia directo a `"ca"` sin
@@ -983,104 +430,9 @@ def test_min_evidence_no_string_produce_un_solo_error():
 # ------------------------------------------------------------------ fix4 (#71/#75): defensa en
 # profundidad del guardarrail de red TAMBIEN en el validador estatico (el adaptador ya la tiene).
 
-def test_fix4_gap75_endpoint_al_imds_falla_incluso_con_allow_remote():
-    """Gap #75 (Important): el esquema daba por «local/privado» `169.254.169.254` (`is_private`
-    de `ipaddress` incluye el link-local IPv4), asi que una config con el endpoint de metadatos
-    de nube VALIDABA mientras el adaptador la rechaza SIEMPRE — defensa en profundidad rota
-    (CWE-1287). Mutante: quitar `_direccion_prohibida_siempre` del validador."""
-    for allow_remote in (False, True):
-        cfg = _con_graphiti(_graphiti_config(endpoint="http://169.254.169.254/mcp",
-                                              allow_remote=allow_remote))
-        errores = ks.validar(cfg, "t.json")
-        assert any(e["campo"] == "backends.graphiti.config.endpoint" for e in errores), allow_remote
-
-
-def test_fix4_gap75_endpoint_no_especificado_falla_siempre():
-    for endpoint in ("http://0.0.0.0:8001/mcp", "http://[::]:8001/mcp"):
-        cfg = _con_graphiti(_graphiti_config(endpoint=endpoint, allow_remote=True))
-        errores = ks.validar(cfg, "t.json")
-        assert any(e["campo"] == "backends.graphiti.config.endpoint" for e in errores), endpoint
-
-
-def test_fix4_gap75_health_url_al_imds_falla_siempre():
-    cfg = _con_graphiti(_graphiti_config(health={"url": "http://[::ffff:169.254.169.254]/health"},
-                                          allow_remote=True))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.health.url" for e in errores)
-
-
-def test_fix4_gap71_prefijos_de_transicion_ipv6_fallan_en_el_esquema():
-    """Gap #71 (Important): `2002::/16` (6to4) y `2001:0::/32` (Teredo) son `is_private=True` en
-    CPython, asi que un `2002:a9fe:a9fe::1` (= 169.254.169.254) colaba por el validador igual que
-    por el adaptador. Los tres literales del arbitraje, en el esquema."""
-    for host in ("[2002:a9fe:a9fe::1]", "[2001:0:4136:e378:8000:63bf:3fff:fdd2]",
-                 "[::ffff:169.254.169.254]"):
-        for allow_remote in (False, True):
-            cfg = _con_graphiti(_graphiti_config(endpoint=f"http://{host}:8001/mcp",
-                                                  allow_remote=allow_remote))
-            errores = ks.validar(cfg, "t.json")
-            assert any(e["campo"] == "backends.graphiti.config.endpoint" for e in errores), host
-
-
-def test_fix4_gap75_url_parseable_rechaza_una_url_que_no_parsea():
-    """La mitad de esquema de #63 tampoco tenia test propio (mutante s63: `_url_parseable`
-    devolviendo siempre `True`)."""
-    assert ks._url_parseable("http://127.0.0.1:8001/mcp") is True
-    assert ks._url_parseable("http://usuario[malo:x@127.0.0.1:8001/mcp") is False
-
-
-def test_fix4_gap75_endpoint_no_parseable_falla():
-    cfg = _con_graphiti(_graphiti_config(endpoint="http://usuario[malo:x@127.0.0.1:8001/mcp"))
-    errores = ks.validar(cfg, "t.json")
-    assert any(e["campo"] == "backends.graphiti.config.endpoint" for e in errores)
-
-
-def test_fix4_gap70_max_respuesta_kb_y_max_episodes_son_claves_declaradas():
-    """Gap #70: las dos opciones nuevas del adaptador (tope de lectura MCP y ventana de `verify`)
-    tienen que estar DECLARADAS en el esquema — una clave no declarada es error, no se ignora."""
-    cfg = _con_graphiti(_graphiti_config(max_respuesta_kb=8192, max_episodes=2000))
-    assert ks.validar(cfg, "t.json") == []
-
-
-def test_fix4_gap70_max_respuesta_kb_invalido_falla():
-    for valor in (0, -1, 1.5, "8192", True):
-        cfg = _con_graphiti(_graphiti_config(max_respuesta_kb=valor))
-        errores = ks.validar(cfg, "t.json")
-        assert any(e["campo"] == "backends.graphiti.config.max_respuesta_kb" for e in errores), valor
-
-
-def test_fix4_gap70_max_episodes_invalido_falla():
-    for valor in (0, -3, 2.5, "500"):
-        cfg = _con_graphiti(_graphiti_config(max_episodes=valor))
-        errores = ks.validar(cfg, "t.json")
-        assert any(e["campo"] == "backends.graphiti.config.max_episodes" for e in errores), valor
-
-
-# ------------------------------------------------------------------ Fase 3 - fix2 (#132)
-
-def test_f3fix2_gap132_el_validador_usa_la_copia_declarada_de_group_id(tmp_path):
-    """Gap #132 (salvedad de #97): `_config_con_group_id` estaba COPIADO aqui pero no lo llamaba
-    nadie (codigo muerto), y `_con_group_id_por_defecto` conservaba su propio predicado (`truthy`
-    frente a `isinstance(str) and strip()`): con `group_id: "   "` los dos caminos divergian -el
-    router derivaba el slug y el validador se quedaba con los espacios."""
-    config = {"backends": {"g": {"type": "graphiti", "enabled": True,
-                                 "config": {"group_id": "   "}}}}
-    ks._con_group_id_por_defecto(config, str(tmp_path / "mi-proyecto"))
-    derivado = config["backends"]["g"]["config"]["group_id"]
-    esperado = ks._config_con_group_id({"group_id": "   "}, str(tmp_path / "mi-proyecto"))["group_id"]
-    assert derivado == esperado == "mi-proyecto", (derivado, esperado)
-
-
-def test_f3fix2_gap132_un_group_id_explicito_sigue_intacto(tmp_path):
-    config = {"backends": {"g": {"type": "graphiti", "enabled": True,
-                                 "config": {"group_id": "mio"}}}}
-    ks._con_group_id_por_defecto(config, str(tmp_path / "otro"))
-    assert config["backends"]["g"]["config"]["group_id"] == "mio"
-
 
 # ------------------------------------------------------------------ setup-statusline-polish T-10/T-11
-# `id_prefix` elegible y derivación de nombre y `group_id` SOLO en instalaciones nuevas (CA-14);
-# avisos sin bloqueo (CA-15).
+# `id_prefix` elegible y derivación de nombre (CA-14).
 
 def _proyecto(tmp_path, nombre="mi-proyecto", taxonomy=None, manifiesto=None):
     root = tmp_path / nombre
@@ -1093,25 +445,13 @@ def _proyecto(tmp_path, nombre="mi-proyecto", taxonomy=None, manifiesto=None):
     return str(root)
 
 
-def _taxonomia_graphiti(enabled=False, **cfg):
-    t = ks.default_taxonomy()
-    t["backends"]["graphiti"]["enabled"] = enabled
-    t["backends"]["graphiti"]["config"].update(cfg)
-    return t
-
-
-def _group_id_efectivo(root):
-    config, _o, _r, _e = ks.cargar_taxonomia(root)
-    return config["backends"]["graphiti"]["config"].get("group_id")
-
-
 def _leer_tax(root):
     with open(os.path.join(root, ks.PROJECT_TAXONOMY_REL), encoding="utf-8") as f:
         return json.load(f)
 
 
 def test_CA_14_propone_el_slug_de_la_carpeta_y_valida_la_forma(tmp_path):
-    root = _proyecto(tmp_path, "Mi Proyecto_X", _taxonomia_graphiti())
+    root = _proyecto(tmp_path, "Mi Proyecto_X", ks.default_taxonomy())
     r = ks.preparar_id_prefix(root)
     assert r["propuesta"] == "mi-proyecto-x" and r["id_prefix"] == "mi-proyecto-x"
     assert ks.id_prefix_valido("abc-1") and not ks.id_prefix_valido("-abc")
@@ -1123,30 +463,20 @@ def test_CA_14_propone_el_slug_de_la_carpeta_y_valida_la_forma(tmp_path):
 def test_CA_14_carpeta_sin_alfanumericos_no_propone_ca(tmp_path):
     """fix1 #3: sin slug ASCII ya no cae a `ca` (lo compartian todos esos proyectos)."""
     import re
-    root = _proyecto(tmp_path, "---", _taxonomia_graphiti())
+    root = _proyecto(tmp_path, "---", ks.default_taxonomy())
     propuesta = ks.proponer_id_prefix(root)
     assert propuesta != "ca" and re.fullmatch(r"p-[0-9a-f]{8}", propuesta)
-
-
-def test_CA_14_instalacion_nueva_guarda_id_prefix_y_group_id_explicito(tmp_path):
-    root = _proyecto(tmp_path, "carpeta", _taxonomia_graphiti())
-    r = ks.preparar_id_prefix(root, "nombre-elegido", aplicar=True)
-    assert r["ok"] and r["escrito"] and r["instalacion_previa"] is False
-    guardado = _leer_tax(root)
-    assert guardado["id_prefix"] == "nombre-elegido"
-    assert guardado["backends"]["graphiti"]["config"]["group_id"] == "nombre-elegido"
-    assert _group_id_efectivo(root) == "nombre-elegido"
 
 
 def test_CA_14_sin_taxonomy_json_lo_crea_desde_la_plantilla(tmp_path):
     root = _proyecto(tmp_path, "carpeta")
     r = ks.preparar_id_prefix(root, "nuevo", aplicar=True)
     assert r["ok"] and r["escrito"]
-    assert _group_id_efectivo(root) == "nuevo"
+    assert _leer_tax(root)["id_prefix"] == "nuevo"
 
 
 def test_CA_14_id_prefix_invalido_rechaza_y_no_guarda(tmp_path):
-    root = _proyecto(tmp_path, "carpeta", _taxonomia_graphiti())
+    root = _proyecto(tmp_path, "carpeta", ks.default_taxonomy())
     ruta = os.path.join(root, ks.PROJECT_TAXONOMY_REL)
     antes = open(ruta, encoding="utf-8").read()
     r = ks.preparar_id_prefix(root, "Nombre Malo!", aplicar=True)
@@ -1154,44 +484,8 @@ def test_CA_14_id_prefix_invalido_rechaza_y_no_guarda(tmp_path):
     assert open(ruta, encoding="utf-8").read() == antes
 
 
-def test_CA_14_group_id_conservado_con_id_prefix_distinto_de_la_carpeta(tmp_path):
-    """Instalación previa (backend activo, group_id implícito de la carpeta): elegir un
-    `id_prefix` distinto NO cambia el `group_id` efectivo."""
-    root = _proyecto(tmp_path, "carpeta-vieja", _taxonomia_graphiti(enabled=True))
-    antes = _group_id_efectivo(root)
-    assert antes == "carpeta-vieja"
-    r = ks.preparar_id_prefix(root, "otro-nombre", aplicar=True)
-    assert r["instalacion_previa"] is True and r["escrito"] is True
-    assert _group_id_efectivo(root) == antes == "carpeta-vieja"
-    assert "group_id" not in _leer_tax(root)["backends"]["graphiti"]["config"]
-
-
-def test_CA_14_aviso_de_group_id_implicito_conservado(tmp_path):
-    root = _proyecto(tmp_path, "carpeta-vieja", _taxonomia_graphiti(enabled=True))
-    r = ks.preparar_id_prefix(root, "otro-nombre")
-    assert any("group_id" in a and "carpeta-vieja" in a for a in r["avisos"])
-    assert "backend graphiti activo" in r["motivos_previa"]
-
-
-def test_CA_14_instalacion_previa_por_manifiesto_publicado_o_pendiente(tmp_path):
-    for nombre in ("graphiti-manifest.json", "graphiti-manifest.pending.json"):
-        root = _proyecto(tmp_path / nombre, "c", _taxonomia_graphiti(),
-                         manifiesto=(nombre, {"group_id": "c", "entradas": {}}))
-        r = ks.preparar_id_prefix(root, "otro", aplicar=True)
-        assert r["instalacion_previa"] is True, nombre
-        assert _group_id_efectivo(root) == "c"
-
-
-def test_CA_14_group_id_explicito_nunca_se_toca(tmp_path):
-    root = _proyecto(tmp_path, "c", _taxonomia_graphiti(group_id="mio"))
-    r = ks.preparar_id_prefix(root, "otro", aplicar=True)
-    assert r["instalacion_previa"] is True
-    assert _group_id_efectivo(root) == "mio"
-    assert not r["avisos"]      # nada implícito que avisar
-
-
 def test_CA_14_preparar_no_escribe_sin_aplicar(tmp_path):
-    root = _proyecto(tmp_path, "c", _taxonomia_graphiti())
+    root = _proyecto(tmp_path, "c", ks.default_taxonomy())
     r = ks.preparar_id_prefix(root, "otro")
     assert r["ok"] and r["escrito"] is False
     assert "id_prefix" not in _leer_tax(root)
@@ -1211,77 +505,13 @@ def test_CA_14_taxonomy_ilegible_o_invalida_no_se_pisa(tmp_path):
 
 
 def test_CA_14_cli_setup_id_prefix_exit_codes(tmp_path, capsys):
-    root = _proyecto(tmp_path, "c", _taxonomia_graphiti())
+    root = _proyecto(tmp_path, "c", ks.default_taxonomy())
     assert ks.main(["--setup-id-prefix", "--root", root]) == 0
     assert json.loads(capsys.readouterr().out)["propuesta"] == "c"
     assert ks.main(["--setup-id-prefix", "--root", root, "--id-prefix", "MAL"]) == 2
     capsys.readouterr()
     assert ks.main(["--setup-id-prefix", "--root", root, "--id-prefix", "ok", "--aplicar"]) == 0
     assert json.loads(capsys.readouterr().out)["escrito"] is True
-
-
-def test_CA_15_aviso_renombrar_con_conocimiento_exportado(tmp_path):
-    tax = _taxonomia_graphiti()
-    tax["id_prefix"] = "viejo"
-    root = _proyecto(tmp_path, "c", tax, manifiesto=(
-        "graphiti-manifest.json", {"group_id": "c", "entradas": {"viejo.x": {"version": 1}}}))
-    r = ks.preparar_id_prefix(root, "nuevo", aplicar=True)
-    assert r["escrito"] is True          # no bloquea
-    aviso = [a for a in r["avisos"] if "knowledge_id" in a]
-    assert aviso and "viejo" in aviso[0] and "nuevo" in aviso[0] and "no migra" in aviso[0]
-
-
-def test_CA_15_aviso_renombrar_detecta_export_markdown(tmp_path):
-    tax = _taxonomia_graphiti()
-    tax["id_prefix"] = "viejo"
-    root = _proyecto(tmp_path, "c", tax)
-    exp = os.path.join(root, ".claude", "knowledge-services", "kwipu-export")
-    os.makedirs(exp)
-    with open(os.path.join(exp, "manifest.json"), "w", encoding="utf-8") as f:
-        json.dump({"entries": {"viejo.a": {}}}, f)
-    r = ks.preparar_id_prefix(root, "nuevo")
-    assert any("knowledge_id" in a for a in r["avisos"])
-
-
-def test_CA_15_sin_aviso_si_no_hay_nada_exportado_o_no_cambia(tmp_path):
-    tax = _taxonomia_graphiti()
-    tax["id_prefix"] = "viejo"
-    root = _proyecto(tmp_path, "c", tax)
-    assert not [a for a in ks.preparar_id_prefix(root, "nuevo")["avisos"] if "knowledge_id" in a]
-    root2 = _proyecto(tmp_path / "b", "c", tax, manifiesto=(
-        "graphiti-manifest.json", {"group_id": "c", "entradas": {"viejo.x": {}}}))
-    assert not [a for a in ks.preparar_id_prefix(root2, "viejo")["avisos"] if "knowledge_id" in a]
-
-
-def test_CA_15_aviso_manifiesto_ilegible_no_rompe(tmp_path):
-    tax = _taxonomia_graphiti()
-    tax["id_prefix"] = "viejo"
-    root = _proyecto(tmp_path, "c", tax)
-    with open(os.path.join(root, ".claude", "knowledge-services", "graphiti-manifest.json"), "w") as f:
-        f.write("{no json")
-    exp = os.path.join(root, ".claude", "knowledge-services", "kwipu-export")
-    os.makedirs(exp)
-    with open(os.path.join(exp, "manifest.json"), "w") as f:
-        f.write("[]")
-    r = ks.preparar_id_prefix(root, "nuevo")
-    assert r["ok"] and not [a for a in r["avisos"] if "knowledge_id" in a]
-
-
-# ------------------------------------------------------------------ setup-statusline-polish fix1 (#2, #3, #18)
-
-def test_fix1_3_carpetas_no_ascii_dan_group_id_distintos_estables_y_nunca_ca(tmp_path):
-    """#3: `知識` y `проект` compartian `ca` como `id_prefix` y, en instalacion nueva, como
-    `group_id` explicito: se mezclaba su memoria remota."""
-    a = _proyecto(tmp_path, "知識", _taxonomia_graphiti())
-    b = _proyecto(tmp_path, "проект", _taxonomia_graphiti())
-    pa, pb = ks.proponer_id_prefix(a), ks.proponer_id_prefix(b)
-    assert pa != pb and "ca" not in (pa, pb)
-    assert pa == ks.proponer_id_prefix(a) and pb == ks.proponer_id_prefix(b)      # deterministas
-    assert ks.id_prefix_valido(pa) and ks.id_prefix_valido(pb)
-    ra = ks.preparar_id_prefix(a, aplicar=True)
-    rb = ks.preparar_id_prefix(b, aplicar=True)
-    assert ra["propuesta"] == pa and rb["propuesta"] == pb
-    assert _group_id_efectivo(a) == pa != _group_id_efectivo(b) == pb
 
 
 def test_fix1_3_mismo_nombre_no_ascii_en_rutas_distintas_da_valores_distintos(tmp_path):
@@ -1295,7 +525,7 @@ def test_fix1_3_mismo_nombre_no_ascii_en_rutas_distintas_da_valores_distintos(tm
     ("NULL", "p-null"), ("n", "p-n"), ("mi-proyecto", "mi-proyecto"),
 ])
 def test_fix1_2_la_propuesta_siempre_es_texto_en_yaml(tmp_path, carpeta, esperada):
-    """#2: la propuesta es la clave que `kwipu-project-add.py` escribe sin comillas: nunca un
+    """#2: la propuesta es la clave que un backend externo puede escribir sin comillas: nunca un
     numero ni una palabra reservada de YAML 1.1 (antepone `p-`)."""
     root = _proyecto(tmp_path, carpeta)
     assert ks.proponer_id_prefix(root) == esperada
@@ -1304,7 +534,7 @@ def test_fix1_2_la_propuesta_siempre_es_texto_en_yaml(tmp_path, carpeta, esperad
 def test_fix1_18_temporal_no_predecible_ni_sigue_lo_plantado(tmp_path):
     """#18: el temporal era `taxonomy.json.<pid>.tmp`. Un directorio plantado con ese nombre hacia
     fallar la escritura; un enlace simbolico plantado desviaba la escritura a otro fichero."""
-    root = _proyecto(tmp_path, "c", _taxonomia_graphiti())
+    root = _proyecto(tmp_path, "c", ks.default_taxonomy())
     ruta = os.path.join(root, ks.PROJECT_TAXONOMY_REL)
     predecible = ruta + f".{os.getpid()}.tmp"
     os.mkdir(predecible)
@@ -1324,7 +554,7 @@ def test_fix1_18_temporal_no_predecible_ni_sigue_lo_plantado(tmp_path):
 
 
 def test_fix1_18_si_falla_el_reemplazo_no_quedan_temporales(tmp_path, monkeypatch):
-    root = _proyecto(tmp_path, "c", _taxonomia_graphiti())
+    root = _proyecto(tmp_path, "c", ks.default_taxonomy())
     d = os.path.dirname(os.path.join(root, ks.PROJECT_TAXONOMY_REL))
     antes = sorted(os.listdir(d))
 
@@ -1352,3 +582,40 @@ def test_fix2_24_preparar_id_prefix_rechaza_un_id_prefix_numerico(tmp_path):
     salida = ks.preparar_id_prefix(str(tmp_path), id_prefix="2048", aplicar=True)
     assert salida["ok"] is False and salida["escrito"] is False and "YAML" in salida["error"]
     assert not (tmp_path / ".claude" / "knowledge-services" / "taxonomy.json").exists()
+
+
+def test_CA_14_instalacion_nueva_guarda_el_id_prefix_y_nada_mas(tmp_path):
+    root = _proyecto(tmp_path, "carpeta", ks.default_taxonomy())
+    r = ks.preparar_id_prefix(root, "nombre-elegido", aplicar=True)
+    assert r["ok"] and r["escrito"] and "instalacion_previa" not in r
+    guardado = _leer_tax(root)
+    assert guardado["id_prefix"] == "nombre-elegido"
+    assert guardado["backends"] == {}
+
+
+def test_fix1_3_carpetas_no_ascii_dan_id_prefix_distintos_estables_y_nunca_ca(tmp_path):
+    """#3: `知識` y `проект` compartian `ca` como `id_prefix`: se mezclaban sus identificadores."""
+    a = _proyecto(tmp_path, "知識", ks.default_taxonomy())
+    b = _proyecto(tmp_path, "проект", ks.default_taxonomy())
+    pa, pb = ks.proponer_id_prefix(a), ks.proponer_id_prefix(b)
+    assert pa != pb and "ca" not in (pa, pb)
+    assert pa == ks.proponer_id_prefix(a) and pb == ks.proponer_id_prefix(b)      # deterministas
+    assert ks.id_prefix_valido(pa) and ks.id_prefix_valido(pb)
+    ra = ks.preparar_id_prefix(a, aplicar=True)
+    rb = ks.preparar_id_prefix(b, aplicar=True)
+    assert ra["propuesta"] == pa and rb["propuesta"] == pb
+    assert _leer_tax(a)["id_prefix"] == pa != _leer_tax(b)["id_prefix"] == pb
+
+
+def test_default_template_no_declara_backends_ni_routing():
+    """plugin-audit-2 T-08: el plugin no incluye backends; una categoria sin `routing` no exporta."""
+    tpl = ks.default_taxonomy()
+    assert tpl["backends"] == {}
+    assert all("routing" not in c for c in tpl["categories"])
+    assert ks.validar(tpl, "template") == []
+
+
+def test_taxonomia_heredada_con_backends_retirados_valida_con_reglas_genericas():
+    cfg = _valida(backends={"kwipu": {"type": "markdown-export", "enabled": True, "config": {}},
+                            "graphiti": {"type": "graphiti", "enabled": True, "config": {}}})
+    assert ks.validar(cfg, "heredada") == []

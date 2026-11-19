@@ -432,7 +432,7 @@ def _memoria_panel():
             'bandeja': {'estados': {'pending': {'situacion': 'ok', 'n': 1, 'items': [
                 {'candidato': p, 'titular': p, 'category': p}]}}, 'aprobadas': {'n': 1, 'items': [
                     {'id': 'ADR-001', 'titular': p, 'area': p}]}},
-            'backends': [{'backend': 'kwipu', 'tipo': p, 'situacion': 'configurado', 'entradas': 1,
+            'backends': [{'backend': 'docs', 'tipo': p, 'situacion': 'configurado', 'entradas': 1,
                           'ultima': '2026-10-02T11:30:00Z', 'interrumpida': False, 'ui_url': 'http://127.0.0.1:9/' + p}],
             'journal': {'status': 'ok', 'sesiones': [{
                 'fecha': '2026-10-10', 'iniciativa': 'alfa', 'resumen': p, 'objetivo': p, 'punto_actual': p,

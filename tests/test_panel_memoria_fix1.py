@@ -53,7 +53,7 @@ def _valida_en_node(tmp_path, memoria):
 def _backend(p, **extra):
     ks = p / '.claude/knowledge-services'
     config = json.loads((ks / 'taxonomy.json').read_text(encoding='utf8'))
-    config['backends']['kwipu']['config'].update(extra)
+    config['backends']['memoria-a']['config'].update(extra)
     (ks / 'taxonomy.json').write_text(json.dumps(config), encoding='utf8')
 
 
@@ -144,13 +144,13 @@ def memoria_base(tmp_path):
 
 @pytest.mark.parametrize('url,local', [
     ('http://localhost:9000/ui', True), ('http://127.0.0.1:9000/ui', True), ('http://[::1]:9000/ui', True),
-    ('http://kwipu.test/ui', True), ('http://192.168.1.5/ui', True), ('http://10.1.2.3:8080/', True),
-    ('http://172.20.0.2/x', True), ('https://kwipu.example.com/ui', False), ('http://127.0.0.1.evil.example/ui', False),
+    ('http://memoria.test/ui', True), ('http://192.168.1.5/ui', True), ('http://10.1.2.3:8080/', True),
+    ('http://172.20.0.2/x', True), ('https://memoria.example.com/ui', False), ('http://127.0.0.1.evil.example/ui', False),
     ('http://8.8.8.8/ui', False), ('http://172.32.0.1/ui', False)])
 def test_f4_4_la_url_de_interfaz_solo_se_ofrece_si_el_host_es_local(tmp_path, url, local):
     p = crear_proyecto(tmp_path)
     _backend(p, ui_url=url)
-    fila = next(b for b in _panel_data().memoria(p)['backends'] if b['backend'] == 'kwipu')
+    fila = next(b for b in _panel_data().memoria(p)['backends'] if b['backend'] == 'memoria-a')
     assert (fila['ui_url'] == url) is local and fila['ui_url_no_local'] is (not local)
 
 
@@ -158,7 +158,7 @@ def test_f4_4_la_pagina_dice_host_no_local_y_no_enlaza_un_host_externo(tmp_path,
     otro = json.loads(json.dumps(memoria_base))
     for b in otro['backends']:
         b['ui_url'], b['ui_url_no_local'] = None, True
-    otro['backends'][0]['ui_url'] = 'https://kwipu.example.com/ui'      # defensa en profundidad: aunque el dato llegue
+    otro['backends'][0]['ui_url'] = 'https://memoria.example.com/ui'      # defensa en profundidad: aunque el dato llegue
     _correr(tmp_path, '''const t=ids['memoria-backends'].textContent;
 assert.match(t,/interfaz: no declarada \\(host no local\\)/);
 assert.equal(walk(ids['memoria-backends'],n=>n.tagName==='a').length,0);''', datos=_exportado(otro))
@@ -169,7 +169,7 @@ def test_f4_10_una_url_que_anonimizar_alarga_se_descarta_y_la_pagina_sigue_valid
     p = crear_proyecto(tmp_path)
     _backend(p, ui_url='http://localhost:9000/' + 'ana/' * 40)
     limpio = servicio._scrub_memoria(_panel_data().memoria(p), _scrub(servicio))
-    fila = next(b for b in limpio['backends'] if b['backend'] == 'kwipu')
+    fila = next(b for b in limpio['backends'] if b['backend'] == 'memoria-a')
     assert fila['ui_url'] is None
     _valida_en_node(tmp_path, limpio)
 
@@ -223,12 +223,12 @@ def test_f4_6_una_fecha_imposible_o_con_digitos_unicode_en_el_manifiesto_es_sin_
     for malo in ('2026-13-45T10:00:00Z', '2026-02-30T10:00:00Z', '٢٠٢٦-١٠-٠٢T١١:٣٠:٠٠Z'):
         base = tmp_path / ('c' + str(abs(hash(malo))))
         p = crear_proyecto(base)
-        for f in (p / '.claude/knowledge-services/_sync-outbox/kwipu/done').iterdir():
+        for f in (p / '.claude/knowledge-services/_sync-outbox/memoria-a/done').iterdir():
             f.unlink()
-        (p / '.claude/knowledge-services/_sync-outbox/kwipu/done/sync-1.json.manifest.json').write_text(
+        (p / '.claude/knowledge-services/_sync-outbox/memoria-a/done/sync-1.json.manifest.json').write_text(
             json.dumps({'completado_en': malo}), encoding='utf8')
         m = _panel_data().memoria(p)
-        assert next(b for b in m['backends'] if b['backend'] == 'kwipu')['ultima'] is None, malo
+        assert next(b for b in m['backends'] if b['backend'] == 'memoria-a')['ultima'] is None, malo
         _valida_en_node(tmp_path, m)
 
 
@@ -274,7 +274,7 @@ def test_f4_6_el_tipo_y_la_categoria_alargados_por_anonimizar_siguen_dentro_del_
     _backend(p)
     ks = p / '.claude/knowledge-services/taxonomy.json'
     config = json.loads(ks.read_text(encoding='utf8'))
-    config['backends']['kwipu']['type'] = 'ana' * 13
+    config['backends']['memoria-a']['type'] = 'ana' * 13
     ks.write_text(json.dumps(config), encoding='utf8')
     (p / 'docs/knowledge/candidates/pending/2026-10-09-c.md').write_text('---\ncategory: ' + 'ana' * 13 + '\n---\n# C\n', encoding='utf8')
     limpio = servicio._scrub_memoria(_panel_data().memoria(p), _scrub(servicio))
@@ -285,15 +285,15 @@ def test_f4_6_el_tipo_y_la_categoria_alargados_por_anonimizar_siguen_dentro_del_
 
 def test_f4_7_un_listado_truncado_marca_la_fecha_como_parcial(tmp_path):
     p = crear_proyecto(tmp_path)
-    done = p / '.claude/knowledge-services/_sync-outbox/kwipu/done'
+    done = p / '.claude/knowledge-services/_sync-outbox/memoria-a/done'
     for n in range(300):
         (done / f'sync-{n:04d}.json.manifest.json').write_text(json.dumps({'completado_en': '2026-01-01T00:00:00Z'}), encoding='utf8')
-    kw = next(b for b in _panel_data().memoria(p)['backends'] if b['backend'] == 'kwipu')
+    kw = next(b for b in _panel_data().memoria(p)['backends'] if b['backend'] == 'memoria-a')
     assert kw['ultima_parcial'] is True
 
 
 def test_f4_7_un_listado_completo_no_es_parcial(tmp_path):
-    kw = next(b for b in _panel_data().memoria(crear_proyecto(tmp_path))['backends'] if b['backend'] == 'kwipu')
+    kw = next(b for b in _panel_data().memoria(crear_proyecto(tmp_path))['backends'] if b['backend'] == 'memoria-a')
     assert kw['ultima_parcial'] is False and kw['ultima'] == '2026-10-02T11:30:00Z'
 
 

@@ -59,9 +59,10 @@ def test_invalid_routing_cannot_authorize_any_entry(invalid):
 @pytest.mark.parametrize('numeric', [0, 1, 0.0, 1.0])
 def test_taxonomy_routing_rejects_numeric_boolean_aliases(numeric):
     config = taxonomy.default_taxonomy()
-    config['categories'][0]['routing']['kwipu'] = numeric
+    config['backends'] = {'docs': {'type': 'adaptador-prueba'}}
+    config['categories'][0]['routing'] = {'docs': numeric}
     errors = taxonomy.validar(config)
-    assert any(error['campo'] == 'categories[0].routing.kwipu' for error in errors)
+    assert any(error['campo'] == 'categories[0].routing.docs' for error in errors)
 
 
 def test_documental_read_defaults_disabled_and_accepts_explicit_bounded_policy():
@@ -89,27 +90,3 @@ def test_documental_read_router_is_strict(router):
     assert callable(getattr(taxonomy, 'documental_read_options', None)), 'read policy validation is absent'
     options, errors = taxonomy.documental_read_options({'router': router})
     assert options is None and errors
-
-
-def test_complete_schema_applies_shared_documental_read_policy():
-    spec = importlib.util.spec_from_file_location('read_policy_full_schema',
-        Path(__file__).with_name('knowledge-schema.py'))
-    schema = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(schema)
-    config = taxonomy.default_taxonomy()
-    config['backends']['kwipu']['config']['read'] = {'enabled': 1}
-    errors = schema.validar(config)
-    assert any(error['campo'] == 'backends.kwipu.config.read.enabled' for error in errors)
-
-
-def test_documental_explicit_limit_keys_match_runtime_adapter():
-    config = {'read': {'enabled': True, 'timeout_ms': 900, 'max_request_bytes': 512,
-        'max_answer_chars': 700, 'max_source_nodes': 3,
-        'max_response_bytes': 4096, 'max_snapshot_bytes': 8192}}
-    options, errors = taxonomy.documental_read_options(config)
-    assert errors == [] and options['max_answer_chars'] == 700
-    path = Path(__file__).resolve().parents[2] / 'skills/knowledge-services/backends/markdown_export.py'
-    spec = importlib.util.spec_from_file_location('read_runtime_policy_test', path)
-    adapter = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(adapter)
-    assert adapter._read_options(config) == {key: value for key, value in options.items() if key != 'enabled'}

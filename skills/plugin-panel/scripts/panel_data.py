@@ -935,18 +935,6 @@ def _fila_backend(project, reader, ident, cfg):
     fila = {'backend': ident, 'tipo': tipo[:40], 'situacion': 'deshabilitado' if cfg.get('enabled') is False else 'configurado',
             'entradas': None, 'ultima': None, 'ultima_parcial': False, 'interrumpida': False, 'ui_url': None,
             'ui_url_no_local': False}
-    if tipo == 'markdown-export':
-        carpeta = _ruta_del_proyecto(project, conf.get('export_dir') or KS + '/kwipu-export')
-        if carpeta:
-            manifiesto = _json_acotado(reader, project, carpeta + '/manifest.json')
-            if isinstance(manifiesto, dict) and isinstance(manifiesto.get('entries'), dict):
-                fila['entradas'] = len(manifiesto['entries'])
-            fila['interrumpida'] = _existe(reader, project, carpeta + '/manifest.pending.json')
-    elif tipo == 'graphiti':
-        manifiesto = _json_acotado(reader, project, KS + '/graphiti-manifest.json')
-        if isinstance(manifiesto, dict) and isinstance(manifiesto.get('entradas'), dict):
-            fila['entradas'] = len(manifiesto['entradas'])
-        fila['interrumpida'] = _existe(reader, project, KS + '/graphiti-manifest.pending.json')
     fila['ultima'], fila['ultima_parcial'] = _ultima_publicacion(reader, project, ident)
     url = conf.get('ui_url')
     if isinstance(url, str) and _URL_UI.fullmatch(url):
@@ -973,12 +961,7 @@ def _backends(project, reader, issue):
         issue('taxonomia_' + leida['status'])
     filas = [_fila_backend(project, reader, ident, cfg) for ident, cfg in list(configurados.items())[:MEM_MAX_BACKENDS]
              if isinstance(ident, str) and _BACKEND_RE.fullmatch(ident) and isinstance(cfg, dict)]
-    for ident, tipo in (('kwipu', 'markdown-export'), ('graphiti', 'graphiti')):
-        if not any(f['backend'] == ident for f in filas):
-            filas.append({'backend': ident, 'tipo': tipo, 'situacion': 'no_configurado', 'entradas': None, 'ultima': None,
-                          'ultima_parcial': False, 'interrumpida': False, 'ui_url': None, 'ui_url_no_local': False})
-    orden = {'kwipu': 0, 'graphiti': 1}
-    return sorted(filas, key=lambda f: (orden.get(f['backend'], 2), f['backend']))
+    return sorted(filas, key=lambda f: f['backend'])
 
 
 def _journal(project, redact):

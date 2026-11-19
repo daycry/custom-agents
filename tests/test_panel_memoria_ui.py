@@ -121,7 +121,7 @@ def test_el_secreto_se_redacta_antes_de_recortar(tmp_path):
 def test_sin_corpus_dice_no_encontrado_y_sin_datos(tmp_path):
     m = _panel_data().memoria(tmp_path)
     assert m['status'] in ('not_found', 'partial') and m['entradas'] == [] and m['total'] == 0
-    assert [b['situacion'] for b in m['backends']] == ['no_configurado', 'no_configurado']
+    assert m['backends'] == []
     assert m['journal']['sesiones'] == []
 
 
@@ -346,8 +346,8 @@ assert.ok(ids['memoria-lista-relaciones'].textContent.includes('<img src=x onerr
 def test_ca26_backends_con_fecha_de_la_fuente_sin_datos_y_sin_enlace_inventado(tmp_path, memoria):
     _correr(tmp_path, '''
 const t=ids['memoria-backends'].textContent;
-assert.match(t,/Kwipu/);assert.match(t,/3 entradas/);assert.match(t,/2026-10-02T11:30:00Z/);
-assert.match(t,/Graphiti/);assert.match(t,/2 entradas/);assert.match(t,/publicación interrumpida/);
+assert.match(t,/memoria-a/);assert.match(t,/2026-10-02T11:30:00Z/);
+assert.match(t,/memoria-b/);assert.match(t,/entradas: sin datos/);
 assert.match(t,/interfaz: no declarada/);
 assert.ok(!/ 0 entradas/.test(t));
 assert.equal(walk(ids['memoria-backends'],n=>n.tagName==='a').length,0,'sin ui_url no hay enlace');
@@ -356,13 +356,13 @@ assert.equal(walk(ids['memoria-backends'],n=>n.tagName==='a').length,0,'sin ui_u
 
 def test_ca26_backend_no_configurado_y_ui_url_declarada(tmp_path, memoria):
     otro = json.loads(json.dumps(memoria))
-    otro['backends'] = [{'backend': 'kwipu', 'tipo': 'markdown-export', 'situacion': 'no_configurado', 'entradas': None,
+    otro['backends'] = [{'backend': 'memoria-a', 'tipo': 'externo', 'situacion': 'no_configurado', 'entradas': None,
                          'ultima': None, 'interrumpida': False, 'ui_url': None},
-                        {'backend': 'graphiti', 'tipo': 'graphiti', 'situacion': 'configurado', 'entradas': None,
+                        {'backend': 'memoria-b', 'tipo': 'externo', 'situacion': 'configurado', 'entradas': None,
                          'ultima': None, 'interrumpida': False, 'ui_url': 'http://127.0.0.1:9000/ui'}]
     _correr(tmp_path, '''
 const t=ids['memoria-backends'].textContent;
-assert.match(t,/Kwipu: no configurado/);assert.match(t,/entradas: sin datos/);assert.match(t,/última publicación: sin datos/);
+assert.match(t,/memoria-a: no configurado/);assert.match(t,/entradas: sin datos/);assert.match(t,/última publicación: sin datos/);
 const a=walk(ids['memoria-backends'],n=>n.tagName==='a');assert.equal(a.length,1);
 assert.equal(a[0].attrs.href,'http://127.0.0.1:9000/ui');assert.match(a[0].attrs.rel,/noopener/);
 ''', datos=_exportado(otro))

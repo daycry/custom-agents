@@ -6,7 +6,7 @@ HERE=Path(__file__).resolve().parent
 def load():
     spec=importlib.util.spec_from_file_location('derived_read_surface',HERE/'knowledge-find.py')
     mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod);return mod
-def hit():return copy.deepcopy(json.loads((HERE/'fixtures/graphiti-derived-read.json').read_bytes())['aciertos'][0])
+def hit():return copy.deepcopy(json.loads((HERE/'fixtures/derived-read.json').read_bytes())['aciertos'][0])
 
 def test_native_derived_flags_survive_normalization_and_json():
     mod=load();raw=hit();normalized=mod.acierto_remoto(raw,'graph-memory')

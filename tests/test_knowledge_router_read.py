@@ -92,10 +92,9 @@ def spy_backend(router, monkeypatch, entries, output=None):
     return calls
 
 
-def test_documentary_routing_has_canonical_context_before_adapter_without_group(router, project, monkeypatch):
+def test_documentary_routing_has_canonical_context_before_adapter(router, project, monkeypatch):
     root, config, policy, entries = project
     calls = spy_backend(router, monkeypatch, entries)
-    monkeypatch.setattr(router, "_group_id_por_defecto", lambda _: "")
     hits, info = router.consultar_intent(root, "documental", texto="owned question", limit=1)
     assert info["origen"] == "backend", info
     assert len(hits) == 1 and hits[0]["id"] == entries[0]["id"]
@@ -191,17 +190,6 @@ def test_matching_filters_use_existing_canonical_semantics(router, project, monk
     assert info["origen"] == "backend" and len(hits) == 2
     ctx = next(call[1]["_read_context"] for call in calls if call[0] == "permission")
     assert ctx["filters_authorized"] is True and ctx["filters"]["claves"] == ["billing"]
-
-
-@pytest.mark.parametrize("kind", ["graphiti", "legacy-stub"])
-def test_historical_types_still_require_group(router, project, monkeypatch, kind):
-    root, config, policy, entries = project
-    config["backends"]["docs"]["type"] = kind
-    calls = spy_backend(router, monkeypatch, entries)
-    monkeypatch.setattr(router, "_group_id_por_defecto", lambda _: "")
-    hits, info = router.consultar_intent(root, "documental", texto="owned", config=config)
-    assert hits is None and info["origen"] == "local"
-    assert not [call for call in calls if call[0] in ("adapter", "permission", "query")]
 
 
 @pytest.mark.parametrize("defect", ["authority", "verified", "claims", "atomic", "missing_sources", "duplicate",
@@ -335,36 +323,3 @@ def test_taxonomy_symlink_is_not_read(router, project):
     assert loaded is None and reason
 
 
-@pytest.mark.parametrize("race", [False, True])
-def test_router_with_actual_documentary_adapter_and_loopback_post(router, project, race):
-    root, config, policy, entries = project
-    helper_path = Path(__file__).parents[1] / "skills/knowledge-services/scripts/test_backend_markdown_read.py"
-    spec = importlib.util.spec_from_file_location("owned_read_http_fixture", helper_path)
-    helper = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(helper)
-    adapter = helper.adapter.__wrapped__()
-    core = router._cargar_modulo(Path(router.HERE) / "knowledge-read-context.py", "owned_router_integration_context")
-    cfg = config["backends"]["docs"]["config"]
-    prepared = core.prepare(root, "docs", "documental", expected_config=cfg)
-    assert prepared["status"] == "ok", prepared
-    runtime = dict(cfg, _root=str(root.resolve()), _read_context=prepared["context"])
-    adapter.apply(adapter.plan(prepared["context"]["entries"], runtime), runtime)
-    snapshot = helper.graph(adapter, runtime)
-    for node in snapshot["nodes"]:
-        if node["type"] == "chunk": node["fm"]["project"] = "synthetic"
-    def mutate():
-        if race:
-            target = root / entries[0]["canonical_path"]
-            target.write_bytes(target.read_bytes().replace(b"version: 7", b"version: 8"))
-    with helper.bridge(cfg, [snapshot], helper.answer(snapshot), on_query=mutate) as calls:
-        policy.write_text(json.dumps(config), encoding="utf-8")
-        hits, info = router.consultar_intent(root, "documental", texto="Owned integration question", limit=1)
-    assert len([call for call in calls if call[0] == "POST"]) == 1
-    # Permission observes one snapshot; query observes its own pre/post pair.
-    assert len([call for call in calls if call[0] == "GET" and "snapshot?" in call[1]]) == 3
-    if race:
-        assert hits is None and info["origen"] == "local" and "respuesta_generada" not in info
-    else:
-        assert info["origen"] == "backend" and len(hits) == 1, info
-        assert len(info["respuesta_generada"]["source_nodes"]) == 2
-        assert info["respuesta_generada"]["autoridad"] == "ninguna"

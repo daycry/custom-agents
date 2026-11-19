@@ -3,12 +3,11 @@
 No repite la cobertura unitaria ya existente de cada pieza (`agent-kits/shared/
 test_knowledge_schema.py`, `test_knowledge_index_canonico.py`, `agent-kits/knowledge-curator/
 test_curator_gate.py`, `skills/knowledge-services/scripts/test_knowledge_sync.py`,
-`test_backend_markdown_export.py`, `agent-kits/shared/test_capabilities.py`): ejercita el flujo
+`agent-kits/shared/test_capabilities.py`): ejercita el flujo
 COMPLETO encadenado — taxonomía → índice → curator-gate (approve/reject) → knowledge-sync
 (dry-run/apply/check/rebuild/outbox-status) → doctor (bloque de capacidades) → export — sobre un
 proyecto sintético en `tempfile`, con el backend `test` (fixture de `evals/fixtures/
-knowledge-services/backend_test.py`) y, para los casos de red, `markdown-export` con un servidor
-HTTP falso en `127.0.0.1`. Añade además los tres casos heredados de la revisión de dos lentes
+knowledge-services/backend_test.py`). Añade además los tres casos heredados de la revisión de dos lentes
 (Fase 2 intento 2) que quedaron anotados para esta tarea: comentario/`#`/item vacío en una lista de
 bloque del frontmatter, `min_evidence` no-string, coste de `realpath` — esos ya tienen su RED/GREEN
 propio en `agent-kits/shared/test_knowledge_index_canonico.py` y `test_knowledge_schema.py`; aquí
@@ -51,7 +50,6 @@ ki = _load(os.path.join(SHARED, "knowledge-index.py"), "e2e_knowledge_index")
 cg = _load(os.path.join(CURATOR_KIT, "curator-gate.py"), "e2e_curator_gate")
 ks_sync = _load(os.path.join(KS_SCRIPTS, "knowledge-sync.py"), "e2e_knowledge_sync")
 capabilities = _load(os.path.join(SHARED, "capabilities.py"), "e2e_capabilities")
-markdown_export = _load(os.path.join(BACKENDS_DIR, "markdown_export.py"), "e2e_markdown_export")
 
 
 # ------------------------------------------------------------------ helpers ----
@@ -327,344 +325,6 @@ def test_type_con_escape_se_rechaza_antes_de_tocar_disco():
         finally:
             sys.path.remove(BACKENDS_DIR)
     assert "no cumple la forma" in str(exc_info.value)
-
-
-def test_export_dir_dentro_de_docs_knowledge_se_rechaza(tmp_path):
-    root = str(tmp_path)
-    cfg = {"_root": root, "export_dir": os.path.join("docs", "knowledge", "approved", "export")}
-    with pytest.raises(markdown_export.ConfigInvalida):
-        markdown_export._export_dir_resuelto(cfg)
-
-
-def test_export_dir_ancestro_del_root_se_rechaza(tmp_path):
-    root = os.path.join(str(tmp_path), "proyecto", "anidado")
-    os.makedirs(root, exist_ok=True)
-    cfg = {"_root": root, "export_dir": ".."}
-    with pytest.raises(markdown_export.ConfigInvalida):
-        markdown_export._export_dir_resuelto(cfg)
-
-
-def test_health_url_file_scheme_se_rechaza_sin_abrir_nada():
-    salud = markdown_export.health({"health": {"url": "file:///etc/passwd", "timeout_ms": 100}})
-    assert salud["estado"] == "error"
-
-
-def test_host_permitido_rechaza_scheme_file_con_host_local_declarado():
-    """Gap 142 (revisión de dos lentes, Fase 4 intento 1): el test anterior (`file:///etc/passwd`)
-    es vacuo — esa URL no tiene host (`urlsplit(...).hostname` es `None`), así que cae por «sin
-    host», no por el allowlist de esquemas: un mutante que añadiera `file` al allowlist
-    (`("http", "https", "file")`) seguiría pasando ese test sin que nadie lo notara. Con un host
-    LOCAL explícito (`file://localhost/x.json`) la única cosa que puede rechazar la URL es el
-    chequeo de esquema — si el mutante lo quitara, esto pasaría a `True`."""
-    assert markdown_export._host_permitido("file://localhost/x.json") is False
-    assert markdown_export._host_permitido("http://127.0.0.1/x") is True
-
-
-def test_health_url_file_scheme_con_host_local_se_rechaza_sin_resolver_dns(monkeypatch):
-    """Complementa el test anterior verificando además el efecto observable en `health()`: se
-    rechaza sin abrir ninguna conexión ni resolver DNS (espía sobre `socket.gethostbyname`)."""
-    llamadas = []
-    monkeypatch.setattr(
-        markdown_export.socket, "gethostbyname",
-        lambda h: llamadas.append(h) or (_ for _ in ()).throw(OSError("no debería llamarse")))
-    salud = markdown_export.health(
-        {"health": {"url": "file://localhost/x.json", "timeout_ms": 100}})
-    assert salud["estado"] == "error"
-    assert llamadas == []
-
-
-# gap 175 (revisión de dos lentes, Fase 4 intento 2): el test anterior de host público usaba
-# `example.com`, que hace una resolución DNS REAL en cada corrida de la suite (lenta, no
-# determinista sin red, y un host genuino de terceros al que no deberíamos apuntar ni para
-# resolverlo). Se retira en favor del siguiente, que cubre EXACTAMENTE el mismo caso (host
-# público rechazado, `estado == "error"`, `"no local"` en el detalle) con una IP literal y un
-# espía sobre `socket.gethostbyname` que demuestra que no hace ninguna llamada — ningún test de
-# esta suite hace ya DNS real.
-def test_health_url_host_publico_ip_literal_se_rechaza_sin_dns_real(monkeypatch):
-    """Gap 152: la versión con `example.com` hace una resolución DNS REAL (lenta y no
-    determinista en CI sin red); usando una IP pública LITERAL no hace falta resolver nada — el
-    rechazo se decide con `ipaddress.ip_address` puro, sin tocar la red — y sigue siendo un host
-    no local/privado genuino (no un accidente de "no hay DNS", que sería el motivo equivocado)."""
-    llamadas = []
-    monkeypatch.setattr(markdown_export.socket, "gethostbyname",
-                         lambda h: llamadas.append(h) or "0.0.0.0")
-    salud = markdown_export.health(
-        {"health": {"url": "http://93.184.216.34/health", "timeout_ms": 100}})
-    assert salud["estado"] == "error"
-    assert "no local" in salud["detalle"]
-    assert llamadas == []  # una IP literal no necesita resolución DNS
-
-
-def test_health_url_redireccion_a_host_publico_se_rechaza(tmp_path, monkeypatch):
-    """Un servidor local (permitido) que redirige a un host público no debe seguir la
-    redirección — mismo criterio SSRF que un `health.url` público directo.
-
-    Gap 179 (revisión Fase 4 intento 3): la versión anterior redirigía a `http://example.com/
-    health`, que hace una resolución DNS REAL (la evidencia del gap 175 — «ningún test de esta
-    suite hace ya DNS real» — era falsa mientras este test siguiera vivo). Se usa la misma IP
-    pública LITERAL que el gap 152 (`93.184.216.34`; `203.0.113.1`/TEST-NET-3 NO sirve aquí porque
-    `ipaddress.ip_address(...).is_private` la clasifica como privada/reservada en la stdlib, así
-    que `_host_permitido` la aceptaría y el test intentaría conectar de verdad) y un espía sobre
-    `socket.gethostbyname` que falla si se le llama con un hostname (no una IP) — así queda
-    demostrado que NINGÚN salto de esta cadena de redirección resuelve DNS de verdad."""
-    from http.server import BaseHTTPRequestHandler, HTTPServer
-
-    llamadas = []
-
-    def _gethostbyname_espia(host):
-        llamadas.append(host)
-        raise AssertionError(f"DNS real para {host!r}: gap 179, no debería resolverse nada")
-
-    monkeypatch.setattr(markdown_export.socket, "gethostbyname", _gethostbyname_espia)
-
-    class _Handler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            self.send_response(302)
-            self.send_header("Location", "http://93.184.216.34/health")
-            self.end_headers()
-
-        def log_message(self, *a, **k):  # noqa: D401 - silenciar logging de test
-            pass
-
-    httpd = HTTPServer(("127.0.0.1", 0), _Handler)
-    hilo = threading.Thread(target=httpd.serve_forever, daemon=True)
-    hilo.start()
-    try:
-        puerto = httpd.server_address[1]
-        salud = markdown_export.health(
-            {"health": {"url": f"http://127.0.0.1:{puerto}/health", "timeout_ms": 500}})
-        assert salud["estado"] == "error"
-        assert "redirecci" in salud["detalle"]
-        assert llamadas == [], f"hizo DNS real: {llamadas} (gap 179)"
-    finally:
-        httpd.shutdown()
-        httpd.server_close()  # gap 153: sin esto el socket queda en TIME_WAIT/abierto
-        hilo.join(timeout=2)
-        assert not hilo.is_alive(), "el hilo del servidor de test no terminó (gap 153)"
-
-
-def test_health_url_redireccion_a_location_mal_formado_no_lanza(tmp_path):
-    """Gap 184 (revisión Fase 4 intento 3): un `Location` con un corchete de IPv6 sin cerrar
-    (`http://[`) hace que `urllib.parse.urljoin`, dentro de `_urlopen_local`, lance `ValueError` —
-    antes escapaba de `health()` sin capturar (pese a que su docstring promete «nunca lanza»);
-    `verify()` ya lo capturaba porque su bloque agrupa `ValueError` por otra razón (el `json.loads`
-    del snapshot). `health()` debe degradar igual que las demás ramas de red, no lanzar."""
-    from http.server import BaseHTTPRequestHandler, HTTPServer
-
-    class _Handler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            self.send_response(302)
-            self.send_header("Location", "http://[")
-            self.end_headers()
-
-        def log_message(self, *a, **k):  # noqa: D401 - silenciar logging de test
-            pass
-
-    httpd = HTTPServer(("127.0.0.1", 0), _Handler)
-    hilo = threading.Thread(target=httpd.serve_forever, daemon=True)
-    hilo.start()
-    try:
-        puerto = httpd.server_address[1]
-        salud = markdown_export.health(
-            {"health": {"url": f"http://127.0.0.1:{puerto}/health", "timeout_ms": 500}})
-        assert salud["estado"] == "error"
-        assert "mal formad" in salud["detalle"]
-    finally:
-        httpd.shutdown()
-        httpd.server_close()
-        hilo.join(timeout=2)
-
-
-def test_health_url_servidor_local_responde_no_http_no_lanza(tmp_path):
-    """Gap 155: `health()` documenta «nunca lanza» pero dejaba escapar `http.client.HTTPException`
-    (un servidor local que responde texto que no es una respuesta HTTP válida — `BadStatusLine`,
-    subclase de `HTTPException`, no de `OSError`) hasta el llamador, que solo captura
-    `Exception` genérico en algunos sitios. Un servidor local (permitido por el allowlist de host)
-    que devuelve basura no-HTTP debe degradar a `estado: "error"`, nunca lanzar."""
-    import socket as socket_mod
-
-    servidor = socket_mod.socket(socket_mod.AF_INET, socket_mod.SOCK_STREAM)
-    servidor.bind(("127.0.0.1", 0))
-    servidor.listen(1)
-    puerto = servidor.getsockname()[1]
-
-    def _responder():
-        try:
-            conn, _addr = servidor.accept()
-            with conn:
-                conn.recv(1024)
-                conn.sendall(b"esto no es HTTP en absoluto\r\n\r\n")
-        except OSError:
-            pass
-
-    hilo = threading.Thread(target=_responder, daemon=True)
-    hilo.start()
-    try:
-        salud = markdown_export.health(
-            {"health": {"url": f"http://127.0.0.1:{puerto}/health", "timeout_ms": 500}})
-        assert salud["estado"] == "error"
-    finally:
-        servidor.close()
-        hilo.join(timeout=2)
-        assert not hilo.is_alive()
-
-
-def test_verify_url_servidor_local_responde_no_http_no_lanza(tmp_path):
-    """Gap 174: `health()` ya tenía cubierta la mitad de la excepción de `http.client.HTTPException`
-    (gap 155), pero `verify()` captura la MISMA excepción en su propia llamada a `/graph/snapshot`
-    (`markdown_export.py`) sin que ningún test la ejerciera — un mutante que quitara
-    `http.client.HTTPException` de la tupla de `except` de `verify()` seguía dejando la suite en
-    verde. Un servidor local (permitido) que responde texto no-HTTP debe degradar `verify()` a
-    `ok: False`, nunca lanzar."""
-    import socket as socket_mod
-
-    export_dir = str(tmp_path / "export")
-    os.makedirs(export_dir, exist_ok=True)
-    manifest_path = os.path.join(export_dir, "manifest.json")
-    with open(manifest_path, "w", encoding="utf-8") as f:
-        json.dump({"version": 1, "entries": {
-            "mr.pattern.x": {"ruta_relativa": "x.md", "hash": "abc"}}}, f)
-
-    servidor = socket_mod.socket(socket_mod.AF_INET, socket_mod.SOCK_STREAM)
-    servidor.bind(("127.0.0.1", 0))
-    servidor.listen(1)
-    puerto = servidor.getsockname()[1]
-
-    def _responder():
-        try:
-            conn, _addr = servidor.accept()
-            with conn:
-                conn.recv(1024)
-                conn.sendall(b"esto no es HTTP en absoluto\r\n\r\n")
-        except OSError:
-            pass
-
-    hilo = threading.Thread(target=_responder, daemon=True)
-    hilo.start()
-    try:
-        cfg = {"export_dir": export_dir,
-               "health": {"url": f"http://127.0.0.1:{puerto}/health", "timeout_ms": 500}}
-        resultado = markdown_export.verify(cfg)
-        assert resultado["ok"] is False
-        assert resultado["desfase"]
-    finally:
-        servidor.close()
-        hilo.join(timeout=2)
-        assert not hilo.is_alive()
-
-
-def test_health_y_verify_sanean_bytes_crudos_del_servidor_en_detalle_y_motivo(tmp_path):
-    """Gap 176 (CWE-117, señalado fuera de lente por la Lente B): `health()`/`verify()` embebían
-    los bytes crudos de la excepción de red (mensaje de `OSError`/`HTTPException`, que puede
-    contener lo que el servidor haya devuelto) directamente en `detalle`/`motivo`, que acaban
-    impresos por `/doctor` — un servidor que responda CRLF + secuencias ANSI podía inyectar
-    saltos de línea/color en esa salida. Se sanea: recorte a 200 caracteres y los caracteres de
-    control (incluidas secuencias ANSI) se sustituyen por un espacio."""
-    import socket as socket_mod
-
-    export_dir = str(tmp_path / "export")
-    os.makedirs(export_dir, exist_ok=True)
-    manifest_path = os.path.join(export_dir, "manifest.json")
-    with open(manifest_path, "w", encoding="utf-8") as f:
-        json.dump({"version": 1, "entries": {
-            "mr.pattern.x": {"ruta_relativa": "x.md", "hash": "abc"}}}, f)
-
-    def _servidor_con_basura_ansi():
-        servidor = socket_mod.socket(socket_mod.AF_INET, socket_mod.SOCK_STREAM)
-        servidor.bind(("127.0.0.1", 0))
-        servidor.listen(1)
-        puerto = servidor.getsockname()[1]
-
-        def _responder():
-            try:
-                conn, _addr = servidor.accept()
-                with conn:
-                    conn.recv(1024)
-                    conn.sendall(b"basura\r\n\x1b[31mrojo\x1b[0m\r\n\r\n")
-            except OSError:
-                pass
-
-        hilo = threading.Thread(target=_responder, daemon=True)
-        hilo.start()
-        return servidor, hilo, puerto
-
-    servidor, hilo, puerto = _servidor_con_basura_ansi()
-    try:
-        salud = markdown_export.health(
-            {"health": {"url": f"http://127.0.0.1:{puerto}/health", "timeout_ms": 500}})
-        assert salud["estado"] == "error"
-        assert "\r" not in salud["detalle"]
-        assert "\n" not in salud["detalle"]
-        assert "\x1b" not in salud["detalle"]
-        # gap 182 (revisión Fase 4 intento 3): la alternativa ANSI del patrón era INALCANZABLE
-        # (`[ -]` de `[\x00-\x1f\x7f]` casaba antes que `\x1b\[[0-9;]*[A-Za-z]` al ser la primera
-        # del `|`) — solo se sustituía el propio `\x1b`, dejando el resto de la secuencia
-        # (`[31m`, `[0m`) intacto en el texto. La aserción anterior (`"\x1b" not in ...`) no lo
-        # detectaba porque solo mira el ESC, no la secuencia completa.
-        assert "[31m" not in salud["detalle"], salud["detalle"]
-        assert "[0m" not in salud["detalle"], salud["detalle"]
-        assert len(salud["detalle"]) <= 200
-    finally:
-        servidor.close()
-        hilo.join(timeout=2)
-        assert not hilo.is_alive()
-
-    servidor, hilo, puerto = _servidor_con_basura_ansi()
-    try:
-        cfg = {"export_dir": export_dir,
-               "health": {"url": f"http://127.0.0.1:{puerto}/health", "timeout_ms": 500}}
-        resultado = markdown_export.verify(cfg)
-        assert resultado["ok"] is False
-        motivo = resultado["desfase"][0]["motivo"]
-        assert "\r" not in motivo
-        assert "\n" not in motivo
-        assert "\x1b" not in motivo
-        assert "[31m" not in motivo, motivo  # gap 182
-        assert "[0m" not in motivo, motivo  # gap 182
-        assert len(motivo) <= 200
-    finally:
-        servidor.close()
-        hilo.join(timeout=2)
-        assert not hilo.is_alive()
-
-
-def test_gap182_tope_200_se_aplica_al_texto_del_servidor_no_al_prefijo(tmp_path):
-    """Gap 182 (revisión Fase 4 intento 3): el tope de 200 caracteres se aplicaba DESPUÉS de
-    anteponer el prefijo propio (`f"respuesta no HTTP de {url}: ..."` pasaba ENTERO por
-    `_sanear_detalle`), así que una respuesta larga del servidor se llevaba menos de 200
-    caracteres de margen (el prefijo se comía parte del tope) y además el prefijo podía
-    desaparecer si el texto del servidor por sí solo ya llegaba a 200. El tope debe aplicarse
-    SOLO al texto no confiable del servidor, con el prefijo (de confianza, generado por este
-    módulo) SIEMPRE visible completo delante."""
-    import socket as socket_mod
-
-    servidor = socket_mod.socket(socket_mod.AF_INET, socket_mod.SOCK_STREAM)
-    servidor.bind(("127.0.0.1", 0))
-    servidor.listen(1)
-    puerto = servidor.getsockname()[1]
-    basura = b"X" * 5000
-
-    def _responder():
-        try:
-            conn, _addr = servidor.accept()
-            with conn:
-                conn.recv(1024)
-                conn.sendall(basura + b"\r\n\r\n")
-        except OSError:
-            pass
-
-    hilo = threading.Thread(target=_responder, daemon=True)
-    hilo.start()
-    try:
-        salud = markdown_export.health(
-            {"health": {"url": f"http://127.0.0.1:{puerto}/health", "timeout_ms": 500}})
-        assert salud["estado"] == "error"
-        assert salud["detalle"].startswith("respuesta no HTTP de "), salud["detalle"]
-        assert "X" * 200 in salud["detalle"], salud["detalle"]
-    finally:
-        servidor.close()
-        hilo.join(timeout=2)
-        assert not hilo.is_alive()
 
 
 # ------------------------------------------------------------------ hooks sin red ----
@@ -1286,27 +946,6 @@ def test_mutante_curator_gate_sin_extension_muere(tmp_path):
     assert ("malo.sh", "curator-gate") in ofensores
 
 
-def test_propose_config_backend_graphiti_imprime_propuesta_sin_aplicar_nada(tmp_path, capsys):
-    """Fix1 gap #36 (CA-13): `--propose-config` es la puerta de entrada que `graphiti_model.
-    proponer_config` no tenia -T-02 la aplazo "a T-04/T-05" y nadie la cablio-; comprueba que
-    imprime el YAML de `entity_types` y el `entity_map` propuesto SIN tocar ningun manifiesto ni
-    llamar a ningun servidor (no hay `endpoint` valido en la config del backend)."""
-    root = str(tmp_path)
-    categorias = [{"key": "GOTCHA", "folder": "gotchas", "min_evidence": "observation"}]
-    _taxonomy(root, categorias, backends={
-        "graphiti": {"type": "graphiti", "enabled": True,
-                     "config": {"group_id": "proy-test", "endpoint": "http://127.0.0.1:1",
-                                "provider": {"llm": "none"}, "mode": "shadow"}}})
-    rc = ks_sync.main(["--backend", "graphiti", "--root", root, "--propose-config"])
-    salida = capsys.readouterr().out
-    assert rc == 0
-    assert "entity_types" in salida
-    assert "GOTCHA" in salida
-    # nada de infraestructura de sincronizacion se creo (no llamo a apply/plan/health/verify)
-    assert not os.path.isfile(os.path.join(root, ".claude", "knowledge-services",
-                                            "graphiti-manifest.json"))
-
-
 def test_propose_config_en_un_backend_que_no_la_define_lo_dice_sin_nombrarlo(tmp_path, capsys):
     """Gap #77 (fix4): el nucleo ya no corta con `if tipo != "<un backend>"` -eso rompia el
     invariante «el nucleo no nombra ningun backend» (`improvement-plan.md:17`, CA-12)-: pregunta
@@ -1320,29 +959,7 @@ def test_propose_config_en_un_backend_que_no_la_define_lo_dice_sin_nombrarlo(tmp
     assert "no propone configuraci" in capsys.readouterr().err
 
 
-def test_propose_config_alcanzable_con_enabled_false(tmp_path, capsys):
-    """Fix2/fix3 gap #61 (Minor): la plantilla por defecto (`agent-kits/shared/templates/
-    taxonomy.json`) declara `backends.graphiti` con `enabled: false` -es la configuracion de
-    fabrica, el caso mas comun antes de habilitar el backend-. Antes de fix2 el chequeo
-    `if not decl.get("enabled", False): return 2` corria ANTES de la rama `--propose-config`,
-    asi que este modo (que no toca red ni manifiestos, solo propone `entity_map`/tipos a partir
-    de la taxonomia local) era INALCANZABLE justo en ese caso. Mutante: mover el chequeo de
-    `enabled` de vuelta a ANTES de `if args.propose_config:` reproduce el corte con `rc == 2`
-    que este test detecta."""
-    root = str(tmp_path)
-    categorias = [{"key": "GOTCHA", "folder": "gotchas", "min_evidence": "observation"}]
-    _taxonomy(root, categorias, backends={
-        "graphiti": {"type": "graphiti", "enabled": False,
-                     "config": {"group_id": "proy-test", "endpoint": "http://127.0.0.1:1",
-                                "provider": {"llm": "none"}, "mode": "shadow"}}})
-    rc = ks_sync.main(["--backend", "graphiti", "--root", root, "--propose-config"])
-    salida = capsys.readouterr().out
-    assert rc == 0
-    assert "entity_types" in salida
-    assert "GOTCHA" in salida
-
-
-# =============================================== graphiti-memory, revision Fase 3 intento 1 (fix1)
+# =============================================== revision Fase 3 intento 1 (fix1): documentacion y guardarrail
 # Gaps de DOCUMENTACION y de guardarrail que la revision devolvio con arbitraje explicito. Cada
 # uno falla si se revierte el texto correspondiente (son su unica puerta mecanica).
 
@@ -1358,7 +975,6 @@ def test_f3fix1_gap100_el_contrato_de_adaptador_documenta_consultar():
     assert "consultar(cfg, consulta)" in readme
     for clave in ("aciertos", "descartados", "motivo"):
         assert "`" + clave + "`" in readme, clave
-    assert "modo(cfg)" in readme          # #109: la otra funcion opcional del contrato
     # y ya no habla en futuro de un router que existe (T-07)
     assert "futuro router" not in readme
 
@@ -1383,20 +999,8 @@ def test_f3fix1_gap101_ningun_hook_invoca_el_nucleo_con_intent():
     assert ofensores == [], ofensores
 
 
-def test_f3fix1_gap108_router_default_esta_declarada_como_reservada():
-    """#108: `router.default` es config validada y documentada que ningun codigo lee; se declara
-    RESERVADA (CA-12 exige caer a local) en el esquema y en CONVENTIONS ES/EN."""
-    esquema = _texto("agent-kits", "shared", "schemas", "taxonomy.schema.json")
-    assert "reservada" in esquema.lower()
-    for doc in (("docs", "CONVENTIONS.md"), ("docs", "en", "CONVENTIONS.md")):
-        texto = _texto(*doc)
-        assert "router.default" in texto, doc
-        linea = [l for l in texto.splitlines() if "router.default" in l][0]
-        assert "reserv" in linea.lower(), doc
-
-
 def test_f3fix1_gap112_doctor_md_cualifica_la_iniciativa_del_criterio():
-    """#112: en la spec de `graphiti-memory`, CA-14 es OTRO criterio."""
+    """#112: en la spec de otra iniciativa, CA-14 es OTRO criterio."""
     # The notes moved out of the command into docs/ (audit H-44).
     doctor_md = _texto("agent-kits", "shared", "doctor-reference.md")
     assert "CA-14 de knowledge-services" in doctor_md

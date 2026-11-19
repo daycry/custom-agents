@@ -165,14 +165,14 @@ def test_integrations_view_never_exports_unvalidated_backend_settings(server):
     root=server.workspaces['one'].root
     config=root/'.claude/knowledge-services';config.mkdir(parents=True)
     secret='private-value-in-wrong-mode'
-    (config/'taxonomy.json').write_text(json.dumps({'backends':{'graphiti':{'type':'graphiti','enabled':False,'config':{'mode':{'private':secret}}}}}))
+    (config/'taxonomy.json').write_text(json.dumps({'backends':{'memoria':{'type':'externo','enabled':False,'config':{'mode':{'private':secret}}}}}))
     cookie=login(server)
     status,_,body=request(server,'/api/workspaces/one/integrations',cookie=cookie)
     assert status==200 and secret not in body.decode()
     assert json.loads(body)['memory_services'][0]['mode'] is None
 
 @pytest.mark.parametrize('contents',[
-    '{"backends":{"graphiti":42}}','x'*66000,
+    '{"backends":{"memoria":42}}','x'*66000,
     '{"backends":[]}','{"backends":false}','{"backends":0}','{"backends":""}','{"backends":null}',
 ],ids=['invalid-backend','oversized-config','empty-array','false','zero','empty-string','null'])
 def test_unreadable_or_malformed_memory_declarations_are_visible(server,contents):

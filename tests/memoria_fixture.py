@@ -39,31 +39,21 @@ def crear_proyecto(raiz, *, secreto_en_journal=False):
     (k / 'candidates' / 'rejected' / '.gitkeep').write_text('', encoding='utf8')
     ks = Path(raiz) / '.claude/knowledge-services'
     ks.mkdir(parents=True, exist_ok=True)
-    categorias = [{'key': 'DECISION', 'folder': 'adr', 'min_evidence': 'human_confirmed_rule', 'routing': {'kwipu': True, 'graphiti': True}},
-                  {'key': 'GOTCHA', 'folder': 'gotchas', 'min_evidence': 'validated_case', 'routing': {'kwipu': True, 'graphiti': True}},
-                  {'key': 'LESSON', 'folder': 'lessons', 'min_evidence': 'single_case', 'routing': {'kwipu': True, 'graphiti': True}}]
+    rutas = {'memoria-a': True, 'memoria-b': True}
+    categorias = [{'key': 'DECISION', 'folder': 'adr', 'min_evidence': 'human_confirmed_rule', 'routing': dict(rutas)},
+                  {'key': 'GOTCHA', 'folder': 'gotchas', 'min_evidence': 'validated_case', 'routing': dict(rutas)},
+                  {'key': 'LESSON', 'folder': 'lessons', 'min_evidence': 'single_case', 'routing': dict(rutas)}]
     (ks / 'taxonomy.json').write_text(json.dumps({
         'version': 1, 'utility_scoring': False, 'categories': categorias,
         'backends': {
-            'kwipu': {'type': 'markdown-export', 'enabled': True, 'config': {
-                'export_dir': '.claude/knowledge-services/kwipu-export',
-                'health': {'url': 'http://127.0.0.1:8765/health', 'timeout_ms': 800}}},
-            'graphiti': {'type': 'graphiti', 'enabled': True, 'config': {
-                'mode': 'shadow', 'endpoint': 'http://127.0.0.1:8001/mcp', 'allow_remote': False, 'provider': {'llm': 'none'},
-                'entity_map': {'DECISION': 'Document', 'GOTCHA': 'Document', 'LESSON': 'Document'}, 'relations': [],
-                'router': {'intents': {'temporal': False, 'relacional': False, 'evidencia': False}}, 'telemetria': False,
-                'health': {'url': 'http://127.0.0.1:8001/health', 'timeout_ms': 3000}, 'timeout_ms': 3000, 'concurrency': 1,
-                'group_id': 'demo'}}},
+            'memoria-a': {'type': 'externo', 'enabled': True, 'config': {}},
+            'memoria-b': {'type': 'externo', 'enabled': True, 'config': {}}},
         'evidence_levels': ['observation', 'single_case', 'validated_case', 'multiple_validated_cases', 'human_confirmed_rule'],
         'denylist': ['chain-of-thought']}), encoding='utf8')
-    (ks / 'kwipu-export').mkdir(exist_ok=True)
-    (ks / 'kwipu-export/manifest.json').write_text(json.dumps({'version': 1, 'entries': {'a': {}, 'b': {}, 'c': {}}}), encoding='utf8')
-    done = ks / '_sync-outbox/kwipu/done'
+    done = ks / '_sync-outbox/memoria-a/done'
     done.mkdir(parents=True)
     (done / 'sync-1.json.manifest.json').write_text(json.dumps({'completado_en': '2026-09-01T10:00:00Z'}), encoding='utf8')
     (done / 'sync-2.json.manifest.json').write_text(json.dumps({'completado_en': '2026-10-02T11:30:00Z'}), encoding='utf8')
-    (ks / 'graphiti-manifest.json').write_text(json.dumps({'group_id': 'demo', 'entradas': {'x': {}, 'y': {}}}), encoding='utf8')
-    (ks / 'graphiti-manifest.pending.json').write_text(json.dumps({'group_id': 'demo', 'entradas': {'x': {}, 'y': {}, 'z': {}}}), encoding='utf8')
     j = k / 'journal'
     j.mkdir(parents=True, exist_ok=True)
     objetivo = 'Cerrar la fase con token=' + SECRETO if secreto_en_journal else 'Cerrar la fase'
