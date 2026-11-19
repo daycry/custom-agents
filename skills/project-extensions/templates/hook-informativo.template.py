@@ -10,10 +10,8 @@ import sys
 
 # Consola no UTF-8 (Windows cp1252) o tuberías: reconfigurar ANTES de leer o imprimir.
 for _s in (sys.stdin, sys.stdout, sys.stderr):
-    try:
-        _s.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:  # noqa: BLE001 — sin reconfigure (capturas, pythonw): se sigue
-        pass
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure (capturas, pythonw): se sigue
 
 
 def main():

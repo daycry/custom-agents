@@ -17,11 +17,12 @@ def test_command_keeps_only_the_summary_and_a_pointer():
 
 def test_notes_moved_with_their_content_and_have_an_english_mirror():
     notes = read('agent-kits/shared/doctor-reference.md')
-    for marker in ('Ocho bloques', 'Automatizaciones: configuración, no ejecución', 'Memoria de grafo',
+    # plugin-audit-2 T-09: la nota «Memoria de grafo» (Graphiti, retirado en 4.0.0) pasa a «Backends de memoria enchufados».
+    for marker in ('Ocho bloques', 'Automatizaciones: configuración, no ejecución', 'Backends de memoria enchufados',
                    'CA-14 de knowledge-services', 'La versión del plugin es sin red por diseño'):
         assert marker in notes, marker
     english = read('docs/en/reference/doctor.md')
-    for marker in ('Eight blocks', 'Automations: configuration, not execution', 'graph memory',
+    for marker in ('Eight blocks', 'Automations: configuration, not execution', 'plugged-in memory backends',
                    'CA-14 of knowledge-services', 'The plugin version check is offline by design'):
         assert marker.lower() in english.lower(), marker
     for line in notes.splitlines():

@@ -627,6 +627,10 @@ def _modos():
                                                "--state", os.path.join(w, "w.json")], (0,), None)],
         "skills/roadmap-dashboard/scripts/build_dashboard.py":
             [("json", lambda w: ["--root", "docs/roadmap", "--json"], (0,), None)],
+        # plugin-audit-2 T-11 fix1: la plantilla de hook que `project-extensions` copia al proyecto del usuario
+        # LEE stdin (con emoji en la ruta) e imprime `systemMessage` con `ó`: misma regla que las piezas propias.
+        "skills/project-extensions/templates/hook-informativo.template.py":
+            [("evento UTF-8", lambda w: [], (0,), '{"tool_input":{"file_path":"docs/año 🐛.md"}}')],
         "skills/unit-tests/scripts/coverage-gate.py":
             # exit 2 = "no se detectó ningún stack soportado": es su error de USO, no un traceback, y
             # es la ruta barata (montar un proyecto con pytest real ejecutaría la suite entera).

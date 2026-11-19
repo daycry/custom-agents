@@ -127,6 +127,13 @@
       "after_sha256": "aab4d2bea59717c522d9a0d0c05158eb8803528a7bfba7b52ea9aa5d17a86986",
       "after_file": "commands/dev-cycle.md",
       "reason": "Audit H-41/H-42: the orchestrator applies capability-check and runs integration-route.py once per cycle and passes the selection (or «sin integraciones») to every dispatch, so roles do not re-read the fragments; method, ledger registration by planner, fact-driven re-selection, degradation without selector and the unchanged cycle gates are all kept."
+    },
+    {
+      "before_sha256": "6d1e6f5117ff94e8709a3f7876239770aa46c4c57b15b36e2d2c5013868d1133",
+      "before_file": "agent-kits/dev-cycle/references/phase4-knowledge-gate.md",
+      "after_sha256": "e970642498b0e88061fb68b5b44dd2eac716867378ef9dc27471b9c3648252be",
+      "after_file": "agent-kits/dev-cycle/references/phase4-knowledge-gate.md",
+      "reason": "plugin-audit-2 T-09: Kwipu and Graphiti are retired (4.0.0); the bullet now says that no external backend conditions the close. Same rule kept: approved stays correct, the export via knowledge-sync.py is asynchronous and rebuildable, and its failure is noted without stopping the cycle."
     }
   ]
 }
