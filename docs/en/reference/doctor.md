@@ -22,7 +22,7 @@ backend name appears in `agent-kits/shared/doctor.py`). If the project declares 
 `enabled: true` and its adapter loads (`backends/<type>.py` or `--backends-dir`), the «Optional capabilities» block shows
 the **live** network check that adapter does (`health()` + `verify()`), under the same time cap as any other capability
 and always against the declared **local** endpoint. A `type` without an adapter shows as unavailable and points to the
-framework guide. `/doctor` registers no MCP server and touches no global configuration: it only reads.
+guide `skills/knowledge-services/references/add-backend.md`. `/doctor` registers no MCP server and touches no global configuration: it only reads.
 
 `/doctor` trims the adapter read window to **200 entries** (it is a diagnosis, not an exhaustive verification). Two different rows come out of that:
 

@@ -29,7 +29,7 @@ adaptador. Exportar, indexar y consultar son pasos diferentes, y encolar no es c
 persistencia. Los resultados inciertos se reconcilian con los diarios existentes; no crees
 otra cola ni publiques candidatos o conversaciones. Los recibos y respuestas generadas no
 aprueban conocimiento nuevo. El plugin no incluye adaptadores: el del proyecto se carga por
-`backends/<type>.py` o por `--backends-dir`.
+`backends/<type>.py` o por `--backends-dir` (guía: `add-backend.md`).
 
 Una integración de proyecto puede usar otro proveedor mediante su propia skill y
 contrato. No modifica el core ni reutiliza tipos de backend ajenos. Instalar una

@@ -39,12 +39,12 @@ changelog: Changed
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Defectos | 7 | 8 | 87.5% | 0 / 16h | 0 / 5.0h | 0 / 1.25h | 0 / 1090k |
-| Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev) | 2 | 4 | 50% | 0 / 32h | 0 / 7.9h | 0 / 1.98h | 0 / 2100k |
+| Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev) | 3 | 4 | 75% | 0 / 32h | 0 / 7.9h | 0 / 1.98h | 0 / 2100k |
 | Fase 3 — Tokens | 0 | 11 | 0% | 0 / 30h | 0 / 8.2h | 0 / 2.05h | 0 / 2260k |
 | Fase 4 — Simplificación del código | 0 | 8 | 0.0% | 0 / 34.5h | 0 / 8.5h | 0 / 2.12h | 0 / 2470k |
 | Fase 5 — Alcance y entrenamiento | 0 | 5 | 0% | 0 / 26h | 0 / 6.5h | 0 / 1.62h | 0 / 1800k |
 | Fase 6 — Higiene del roadmap | 0 | 3 | 0% | 0 / 10h | 0 / 2.5h | 0 / 0.62h | 0 / 750k |
-| **TOTAL** | **9** | **39** | **23.1%** | **0 / 148.5h** | **0 / 38.6h** | **0 / 9.65h** | **0 / 10470k** |
+| **TOTAL** | **10** | **39** | **25.6%** | **0 / 148.5h** | **0 / 38.6h** | **0 / 9.65h** | **0 / 10470k** |
 
 Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +20 % está en el plan); tokens al precio de `.claude/rates.json`.
 
@@ -426,12 +426,21 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - **Decidido por el usuario el 2026-11-10**: opción (b): el marco se retira y la iniciativa de Kairos lo recupera del commit anotado en T-08.
 - **Revisado por el usuario el 2026-11-18 (supersede la opción (b))**: el marco **se conserva**. El plugin debe permitir enchufar cualquier MCP de memoria externo (Kwipu, Kairos u otro) y no fijarse a Kairos. Se quedan el contrato de 6 funciones, la carga de adaptadores por `type`, el `routing` fail-closed, `knowledge-sync.py`, `outbox.py` y `REGISTRO`/`registrar()` de `capabilities.py`, sin adaptadores incluidos, con sus tests sobre el adaptador de prueba y una guía de «cómo añadir un backend». T-08 y T-09 solo quitan los adaptadores concretos de Kwipu y Graphiti. El adaptador MCP genérico (mapa de herramientas, configurable en `/setup`) llega con la iniciativa de Kairos. Orden: la retirada T-08..T-10 se adelanta y va justo después de cerrar la Fase 1. Descripción, Archivos, Verificación y criterios replanificados el 2026-11-19.
 - **Changelog**: El marco de knowledge-services se conserva sin adaptadores incluidos: cualquier MCP de memoria externo se puede añadir como backend.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-11-19
 - **Tiempo humano**: est. 6h · real —
-- **Tiempo IA (ejec.)**: est. 1.5h · real —
+- **Tiempo IA (ejec.)**: est. 1.5h · real 1.33h (medido, `plugin-audit-2/T-10`; su ventana se solapa con la de T-08 porque el adaptador de prueba y la reapuntada de las suites se hicieron ANTES de borrar `markdown_export`, para no dejar el árbol en rojo)
 - **Dependencias**: T-08
-- **Archivos**: **Se crean:** `skills/knowledge-services/scripts/fixtures/adaptador_prueba.py` (las 6 funciones, en memoria, deterministas), `skills/knowledge-services/references/add-backend.md` (guía; espejo EN si la guía entra en `docs/en/`). **Se editan:** `skills/knowledge-services/{SKILL.md,backends/README.md,references/project-integration.md}`, `skills/knowledge-services/scripts/test_{backends_init,backend_verification,knowledge_sync,knowledge_sync_replay,manifest_publication}.py` (adaptador de prueba en vez de `markdown_export`), `agent-kits/shared/capabilities.py` (solo si queda una referencia a los adaptadores retirados), `agent-kits/shared/test_capabilities.py`, `evals/cases/skill-knowledge-services.json` (description real), `docs/{,en/}guides/memory.md` (enlace a la guía), `interop/**` (regenerado). **No se borra:** nada del marco; `outbox.py`, el journal y `knowledge-find.py --intent` quedan intactos.
+- **Archivos**: **Se crean:** `skills/knowledge-services/scripts/fixtures/adaptador_prueba.py` (las 6 funciones, en memoria, deterministas), `skills/knowledge-services/references/add-backend.md` (guía; espejo EN si la guía entra en `docs/en/`). **Se editan:** `skills/knowledge-services/{SKILL.md,backends/README.md,references/project-integration.md}`, `skills/knowledge-services/scripts/test_{backends_init,backend_verification,knowledge_sync,knowledge_sync_replay,manifest_publication}.py` (adaptador de prueba en vez de `markdown_export`), `agent-kits/shared/capabilities.py` (solo si queda una referencia a los adaptadores retirados), `agent-kits/shared/test_capabilities.py`, `evals/cases/skill-knowledge-services.json` (description real), `docs/{,en/}guides/memory.md` (enlace a la guía), `interop/**` (regenerado). **Añadidos al ejecutar (nota 2026-11-19):** `skills/knowledge-services/scripts/test_backends_init.py` (nuevo test de la guía y de que `backends/` no trae adaptadores), `commands/{setup,doctor}.md`, `agent-kits/shared/doctor-reference.md` y `docs/en/reference/doctor.md` (citan la guía), `docs/{,en/}guides/memory.md` (enlace a la guía, W-20), `skills/knowledge-services/references/project-integration.md`. `test_manifest_publication.py` se BORRA en vez de reapuntarse: probaba la finalización del manifiesto Windows (`_retryable_manifest_error`, lector nativo con `CreateFileW`) del adaptador Kwipu; el adaptador de prueba no tiene ese comportamiento y el diario de recuperación del marco lo cubre `test_knowledge_sync_replay.py` (parcial + reanudación). El adaptador de prueba guarda su estado en una carpeta (`cfg["dir"]`), no «en memoria»: el cargador relee el módulo en cada corrida y las suites de reanudación necesitan que el estado sobreviva entre llamadas. **No se borra:** nada del marco; `outbox.py`, el journal y `knowledge-find.py --intent` quedan intactos.
 - **Runtimes**: Sin diferencia por runtime: el marco es Python común; en `interop/` la skill sigue exportándose (Codex por el bundle, OpenCode por el índice).
+- RED: `test_el_plugin_no_incluye_adaptadores_en_backends` falló con `AssertionError: ['__init__.py', 'graphiti.py', …]` (8 adaptadores en `backends/`) en el commit `a0a6696`, deliberadamente rojo hasta el borrado de T-08; y `test_la_guia_add_backend_existe_y_la_citan_la_skill_setup_y_doctor_sin_prometer_sustitutos` falló con `assert False` sobre `os.path.isfile(…/add-backend.md)` al retirar la guía (y pasó al restaurarla) · 2026-11-19
+- **Evidencia** (salidas reales de esta sesión):
+  - Orden anti-rojo: commit `a0a6696` (adaptador de prueba + `test_backends_init`, `test_backend_verification` y `test_knowledge_sync_replay` reapuntados mientras `markdown_export` seguía existiendo; el RED deliberado es el de «sin adaptadores en backends/») → commit `17402f1` (T-08, borrado) → este commit (guía, citas, test de la guía).
+  - `pytest -q skills/knowledge-services/scripts agent-kits/shared/test_capabilities.py tests/test_knowledge_find.py tests/test_knowledge_router.py tests/test_knowledge_router_read.py tests/test_knowledge_services.py tests/test_hook_network_egress.py` → `434 passed, 3 skipped`.
+  - `git ls-files skills/knowledge-services/backends` → `skills/knowledge-services/backends/README.md` y `skills/knowledge-services/backends/__init__.py` (nada más).
+  - `knowledge-sync.py --backend viejo --check` con `type: kwipu` → «knowledge-sync: el backend «kwipu» está retirado desde la versión 4.0.0 del plugin (ver CHANGELOG) y su adaptador no disponible; para enchufar un backend propio consulta skills/knowledge-services/references/add-backend.md» y `exit=2`; con `type: graphiti`, igual; con `type: adaptador-prueba` y `--backends-dir skills/knowledge-services/scripts/fixtures` → `dry-run: 0 entrada(s) enrutada(s), 0 operacion(es)` y `exit=0`. `test_flujo_completo_plan_apply_verify_por_directorios` recorre dry-run, publicación y `--check` en verde.
+  - Puertas de runtimes: `export-interop.py --check` → `88 ficheros al día`; los 6 ficheros de pytest (con `test_skill_size`) → `139 passed`; `evals/check.py` → `0 errores`; `lint_plugin.py` → `0 errores`.
+  - Límite honesto: `/doctor` solo carga adaptadores de `backends/` del plugin; uno de carpeta propia se comprueba con `knowledge-sync.py --check --backends-dir` (la guía lo dice). Ampliar `/doctor` a un directorio de adaptadores del proyecto no estaba en el alcance: queda como pregunta para el usuario.
 - **Verificación**:
   - `pytest -q skills/knowledge-services/scripts agent-kits/shared/test_capabilities.py tests/test_knowledge_find.py tests/test_knowledge_router.py tests/test_knowledge_router_read.py tests/test_knowledge_services.py tests/test_hook_network_egress.py` → verde (rojo antes: tras T-08 las 5 suites del marco fallan al no encontrar `markdown_export`)
   - `git ls-files skills/knowledge-services/backends` → solo `__init__.py` y `README.md` (el plugin no incluye adaptadores)
@@ -439,9 +448,9 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
   - puertas de runtimes (cabecera) → verde
 
 **Criterios de aceptación**
-- [ ] El marco (cargador, contrato de 6 funciones, routing fail-closed, `knowledge-sync.py`, outbox, `REGISTRO`/`registrar()`, `knowledge-find --intent`) sigue funcionando y probado, sin ningún adaptador concreto en `backends/`.
-- [ ] Sus tests usan un adaptador de prueba fuera de `backends/`, cargado por `directorios`; ninguno depende de Kwipu ni de Graphiti.
-- [ ] Existe la guía «Cómo añadir un backend» y la skill, `/setup` y `/doctor` la citan en vez de prometer backends concretos; nada promete Kairos.
+- [x] El marco (cargador, contrato de 6 funciones, routing fail-closed, `knowledge-sync.py`, outbox, `REGISTRO`/`registrar()`, `knowledge-find --intent`) sigue funcionando y probado, sin ningún adaptador concreto en `backends/`.
+- [x] Sus tests usan un adaptador de prueba fuera de `backends/`, cargado por `directorios`; ninguno depende de Kwipu ni de Graphiti.
+- [x] Existe la guía «Cómo añadir un backend» y la skill, `/setup` y `/doctor` la citan en vez de prometer backends concretos; nada promete Kairos.
 
 ### T-11 — Generalizar plugin-dev en `project-extensions`: crear piezas en cualquier proyecto (replanificada por el usuario el 2026-11-19)
 

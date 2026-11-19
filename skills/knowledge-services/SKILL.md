@@ -102,8 +102,10 @@ python3 "$KSSKILL" --backend <id> --root . --outbox-status
   drena nada. Es el diagnóstico de referencia cuando una corrida sospecha que hay envelopes
   atascados.
 
-Añadir un backend nuevo: un fichero `<type>.py` con las 6 funciones — ver `backends/README.md`
-para el contrato exacto y `scripts/fixtures/adaptador_prueba.py` para un ejemplo completo.
+Añadir un backend nuevo: un fichero `<type>.py` con las 6 funciones. Lee
+[Cómo añadir un backend](references/add-backend.md) (contrato, dónde vive y cómo se carga, declaración en
+`taxonomy.json`, verificación con `--check` y `/doctor`) solo al escribir uno; `backends/README.md` trae el
+contrato exacto y `scripts/fixtures/adaptador_prueba.py` un ejemplo completo.
 
 ## Guardrails
 

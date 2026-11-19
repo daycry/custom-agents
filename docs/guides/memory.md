@@ -169,7 +169,7 @@ flowchart TD
 
 1. **El administrador prepara el servicio.** Cuenta, endpoint y credenciales son suyos;
    el plugin no los guarda ni los descubre.
-2. **El equipo técnico escribe el adaptador.** Es un fichero con las seis funciones del
+2. **El equipo técnico escribe el adaptador** (guía: [Cómo añadir un backend](../../skills/knowledge-services/references/add-backend.md)). Es un fichero con las seis funciones del
    [contrato](../../skills/knowledge-services/backends/README.md) (`health`, `plan`, `apply`,
    `verify`, `rebuild`, `revoke`), cargado por `type` desde `backends/<type>.py` o desde
    una carpeta propia con `--backends-dir`. Hay un adaptador de prueba de referencia en

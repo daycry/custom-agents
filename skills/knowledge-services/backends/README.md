@@ -11,8 +11,9 @@ tocar `knowledge-sync.py` ni `backends/__init__.py`.
 
 Desde la versión 4.0.0 este directorio solo trae el cargador (`__init__.py`) y este contrato: ningún
 adaptador concreto. Instalar el plugin no habilita ni configura ningún servicio externo. Un proyecto
-que quiera publicar o consultar un servicio de memoria escribe su propio adaptador (ver el adaptador
-de prueba, abajo) y lo declara en `taxonomy.json`. La publicación sigue limitada a las entradas
+que quiera publicar o consultar un servicio de memoria escribe su propio adaptador (guía:
+[`references/add-backend.md`](../references/add-backend.md); ejemplo: el adaptador de prueba, abajo) y lo
+declara en `taxonomy.json`. La publicación sigue limitada a las entradas
 aprobadas que el `routing` del proyecto autoriza.
 
 ## Autoridad y recuperación local

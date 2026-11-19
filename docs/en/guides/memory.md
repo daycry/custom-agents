@@ -160,7 +160,7 @@ flowchart TD
 
 1. **The administrator prepares the service.** Account, endpoint and credentials are theirs;
    the plugin neither stores nor discovers them.
-2. **The technical team writes the adapter.** One file with the six functions of the
+2. **The technical team writes the adapter** (guide: [How to add a backend](../../../skills/knowledge-services/references/add-backend.md)). One file with the six functions of the
    [contract](../../../skills/knowledge-services/backends/README.md) (`health`, `plan`,
    `apply`, `verify`, `rebuild`, `revoke`), loaded by `type` from `backends/<type>.py` or from
    your own folder through `--backends-dir`. A reference test adapter lives in

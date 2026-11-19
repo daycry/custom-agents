@@ -68,6 +68,22 @@ def test_adaptador_vacio_falla_con_mensaje_claro(tmp_path):
             assert funcion in mensaje
 
 
+def test_la_guia_add_backend_existe_y_la_citan_la_skill_setup_y_doctor_sin_prometer_sustitutos():
+    """T-10: la skill, `/setup` y `/doctor` dejan de prometer backends concretos y remiten a la guía;
+    ninguna de estas piezas nombra un sustituto concreto del backend retirado."""
+    raiz = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
+    guia = os.path.join(raiz, "skills", "knowledge-services", "references", "add-backend.md")
+    assert os.path.isfile(guia)
+    piezas = [os.path.join(raiz, *p) for p in (
+        ("skills", "knowledge-services", "SKILL.md"), ("commands", "setup.md"), ("commands", "doctor.md"))]
+    for ruta in piezas:
+        with open(ruta, encoding="utf-8") as f:
+            assert "add-backend.md" in f.read(), ruta
+    for ruta in piezas + [guia, os.path.join(BACKENDS_DIR, "README.md"), os.path.join(BACKENDS_DIR, "__init__.py")]:
+        with open(ruta, encoding="utf-8") as f:
+            assert "kairos" not in f.read().lower(), ruta
+
+
 if __name__ == "__main__":
     import unittest
     unittest.main()

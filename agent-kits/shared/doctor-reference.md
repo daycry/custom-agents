@@ -73,7 +73,7 @@ registra una capacidad por backend: `/doctor` no lleva ni una línea de código 
 backend en `taxonomy.json` con `enabled: true` y su adaptador carga (`backends/<type>.py` o `--backends-dir`), el bloque
 «Capacidades opcionales» pinta la comprobación de red **en vivo** que hace ese adaptador (`health()` + `verify()`), con el
 mismo tope de tiempo que cualquier otra capacidad y siempre contra el endpoint **local** declarado. Un `type` sin
-adaptador sale como no disponible y manda a la guía del marco. `/doctor` no registra ningún servidor MCP ni toca
+adaptador sale como no disponible y manda a la guía `skills/knowledge-services/references/add-backend.md`. `/doctor` no registra ningún servidor MCP ni toca
 configuración global: solo lee.
 
 `/doctor` recorta la ventana de lectura del adaptador a **200 entradas** (es un diagnóstico, no
