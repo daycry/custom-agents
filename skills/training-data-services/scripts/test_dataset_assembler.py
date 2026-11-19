@@ -2417,6 +2417,10 @@ def test_t10fix3_184_marca_bloqueada_no_ordena_retirarla(tmp_path, monkeypatch):
     raiz, cfg, store = _store_basico(tmp_path)
     _ensamblar(cfg, raiz, escribir=True)
     res = _vigentes(store, raiz)
+    # T-06 fix20: el resumen trae `hasta` (el instante en que vence el plazo de /doctor para el recuento, +0,3 s de margen propio de `estado_dataset`). Este test reutiliza `res` tras dos
+    # ensamblados y un bloqueo real: con la maquina saturada (4 quemadores de CPU) pasan >1,3 s, `estado_dataset` corta con «se agoto el tope de tiempo de /doctor» y el motivo nunca es el de
+    # la marca bloqueada (2 rojos de 10 con quemadores; 0 de 20 en reposo). El sujeto es el REMEDIO de una marca bloqueada, no el tope de tiempo (lo cubren los tests de `hasta`): sin `hasta` no hay tope.
+    res.pop("hasta", None)
     ruta = store / "exports" / asm.MARCA
     monkeypatch.setattr(rec, "ESPERA_REINTENTO_S", 0.001)
     soltar = _bloquear_exclusivo(ruta)
