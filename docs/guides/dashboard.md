@@ -305,6 +305,6 @@ flowchart TD
    evidencia y pide diagnóstico. No lo borres sólo para quitar el aviso. Una copia
    de proyecto puede necesitar su propio registro y conexiones nuevas.
 
-La guía de [memoria](memory.md) explica la recuperación de Kwipu, Graphify y
-Graphiti. La [referencia de consola](../../skills/plugin-panel/references/control-center.md)
+La guía de [memoria](memory.md) explica la recuperación de Graphify y de
+los servicios externos. La [referencia de consola](../../skills/plugin-panel/references/control-center.md)
 incluye el registro JSON, arranque directo, presupuestos y límites de protocolos.

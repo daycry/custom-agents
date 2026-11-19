@@ -76,5 +76,5 @@ a failed response can still have published bytes.
 | 2 | Usage, dependency, I/O or unverifiable state |
 
 Local reading remains available without external services. Transfer does not enable
-Kwipu, Graphiti, Graphify or models; those capabilities retain their own contracts
+any external service, Graphify or models; those capabilities retain their own contracts
 and opt-ins.

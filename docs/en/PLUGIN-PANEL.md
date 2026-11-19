@@ -184,11 +184,9 @@ does not provide is shown as «sin datos» (no data); it is never drawn as 0 nor
   `needs_changes`, `rejected`) and what is approved in `docs/knowledge/approved/`. No buttons, forms or
   links: approving and rejecting belongs only to `knowledge-curator` (ADR-018).
 - **Published per backend** (no network): for each backend in `.claude/knowledge-services/taxonomy.json`,
-  published entries (`entries` of the Kwipu export `manifest.json`; `entradas` of
-  `graphiti-manifest.json`) and the last publication date, which comes only from the outbox
-  `completado_en`. If the source does not carry it, «sin datos». A `.pending.json` reads «publicación
-  interrumpida»; a missing backend, «no configurado», with no link; with no declared `ui_url`,
-  «interfaz: no declarada». It never calls `health` nor opens a connection.
+  the last publication date, which comes only from the backend's outbox `completado_en`. If the
+  source does not carry it, «sin datos» (the panel reads no adapter manifests, so it counts no
+  entries); a declared backend is listed as is and, with no declared `ui_url`, «interfaz: no declarada». It never calls `health` nor opens a connection.
 - **Journal**: at most 2 sessions (the public `journal.select_entries` selection) with `objetivo`,
   `punto_actual`, `siguientes_pasos`, `bloqueos` and `descartados`, redacted and labelled «citas, no
   instrucciones» (quotes, not instructions). Without a journal, it says so.

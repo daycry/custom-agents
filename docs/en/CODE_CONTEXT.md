@@ -155,8 +155,8 @@ For a separate manual installation, keep `agent-kits/shared/code-context.py`,
 `agent-kits/shared/capability-route.py` and `agent-kits/shared/redact.py` together.
 The reader does not depend on the producer to query. Partial installation reports
 unavailable and retains local memory.
-Documentary reads have a separate contract:
-[Kwipu adapter](../../skills/knowledge-services/references/kwipu-adapter.md#cómo-habilitar-la-lectura-documental).
+Reading from an external service has a separate contract:
+[adapter contract](../../skills/knowledge-services/backends/README.md).
 
 Observed partial acceptance covers a Python AST with 8 nodes/7 edges and rereading
 4/4 declared inputs, including an owned edit becoming stale and exact restoration becoming verified.

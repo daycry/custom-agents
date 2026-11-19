@@ -25,7 +25,7 @@ Profile copies prepare each file in a private directory whose identity is record
 
 The outbox retains the need to retry, not permission to resend old bodies. Recovery replans against entries that remain approved and routed. Withdrawn content is not sent simply because it remains queued. Adapter partial receipts still participate in recovery.
 
-Graphiti `summary` sends the explicit summary or first paragraph, never the full body as a fallback. Projection identity is compared alongside source hash and version. Changing a projection for an already published identity requires incrementing the approved version; an actionable error prevents silently reporting an unchanged synchronization as successful. Remote identities are immutable: neither this change nor a rebuild deletes history already received by the server. Evaluate remote data removal separately using the backend's procedures.
+A `summary` entry sends the explicit summary or first paragraph, never the full body as a fallback. Projection identity is compared alongside source hash and version. Changing a projection for an already published identity requires incrementing the approved version; an actionable error prevents silently reporting an unchanged synchronization as successful. Remote identities are immutable: neither this change nor a rebuild deletes history already received by the server. Evaluate remote data removal separately using the backend's procedures.
 
 Confluence always excludes `docs/security-scan/**`, candidates and journal, even when project policy includes all Markdown and removes exclusions. Knowledge proposals record `content_origin` on creation; approval cannot relabel an agent proposal as human. These are declared provenance labels, not authenticated personal identities.
 

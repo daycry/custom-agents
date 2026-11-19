@@ -22,7 +22,7 @@ aceptado pertinente; las de alto impacto o contradictorias requieren resolución
 - **Omisión honesta.** Sin candidatos, di una línea ("sin candidatos de conocimiento que curar")
   y continúa a Fase 5. No es un gap ni bloquea el cierre. Una propuesta que no pudo persistirse
   se informa como tal; no se presenta como ausencia de propuestas.
-- **Kwipu/Graphiti nunca condicionan el cierre.** El servicio deja approved correcto y
+- **Un backend externo nunca condiciona el cierre.** El servicio deja approved correcto y
   Curator muestra el recibo o una operación pendiente explícita. La exportación por
   `knowledge-sync.py` sigue asíncrona y reconstruible; su fallo se anota y no detiene el ciclo.
 - **Handoff tardío de retro.** La retro de Fase 6 ocurre después de este Gate: sus propuestas

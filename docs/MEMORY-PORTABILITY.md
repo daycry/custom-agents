@@ -76,5 +76,5 @@ también `output_current`; una respuesta fallida puede tener bytes publicados.
 | 2 | Uso, dependencia, I/O o estado no verificable |
 
 La lectura local permanece disponible sin servicios externos. Trasladar notas no
-activa Kwipu, Graphiti, Graphify ni modelos; esas capacidades siguen sus contratos
+activa ningún servicio externo, Graphify ni modelos; esas capacidades siguen sus contratos
 y opt-ins propios.

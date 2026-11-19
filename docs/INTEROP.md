@@ -328,7 +328,7 @@ sustituye, y aquí está dicho.
 | **Guardia por agente** (`implementer`, `architect`) | Dispatcher global `PreToolUse` por ID propio; `hooks:` del agente de plugin se ignora | Dispatcher `PreToolUse` por ID propio | V2 `tool.execute.before` por ID propio; validación final de los tres runtimes en el roadmap |
 | `reviewer` de solo lectura | Sin Write/Edit; Bash sigue sujeto a permisos y responsabilidad del rol | El TOML no impone sandbox independiente; hereda permisos del padre | Regla `edit` con efecto `deny` en `permissions`; no equivale a prohibir toda escritura desde shell |
 | Statusline del roadmap | ✅ opt-in | ❌ | ❌ |
-| **Memoria de grafo** (capacidad `graphiti`, opt-in) | ✅ `/doctor` la comprueba en vivo por su adaptador | ✅ igual: el adaptador habla HTTP con el endpoint declarado, no con el MCP del runtime | Mismo adaptador opt-in; no se activa ningún backend al instalar |
+| **Backends de memoria enchufados** (marco `knowledge-services`, opt-in) | ✅ `/doctor` los comprueba en vivo por su adaptador | ✅ igual: el adaptador del proyecto habla con el endpoint que declare en `taxonomy.json`, no con el MCP del runtime | El plugin no incluye adaptadores; instalar no activa ningún backend |
 | Permisos de OpenCode | — | — | El instalador conserva `permission`/`permissions` y no añade grants globales. |
 
 ### Identidad y actualización de agentes

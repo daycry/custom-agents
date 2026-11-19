@@ -324,7 +324,7 @@ lost or substituted, and it is stated here.
 | **Per-agent guard** (`implementer`, `architect`) | Global `PreToolUse` dispatcher selects owned IDs; plugin agent `hooks:` is ignored | `PreToolUse` dispatcher selects owned IDs | V2 `tool.execute.before` selects owned IDs; final validation for all three runtimes remains in the roadmap |
 | Read-only `reviewer` | No Write/Edit; Bash remains subject to permissions and role responsibility | Role TOML does not impose an independent sandbox; inherits parent permissions | An `edit` rule with effect `deny` in `permissions`; does not prohibit every possible write through a shell |
 | Roadmap status line | ✅ opt-in | ❌ | ❌ |
-| **Graph memory** (`graphiti` capability, opt-in) | ✅ `/doctor` checks it live through its adapter | ✅ same: the adapter talks HTTP to the endpoint declared in `taxonomy.json`, not to the runtime's MCP | Same opt-in adapter; installing activates no backend |
+| **Plugged-in memory backends** (`knowledge-services` framework, opt-in) | ✅ `/doctor` checks them live through their adapter | ✅ same: the project's adapter talks to the endpoint it declares in `taxonomy.json`, not to the runtime's MCP | The plugin bundles no adapters; installing activates no backend |
 | OpenCode permissions | — | — | The installer preserves `permission`/`permissions` and adds no global grants. |
 
 ### Agent identity and upgrades

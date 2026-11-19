@@ -239,7 +239,7 @@ Revisa `/mcp` y, en Claude Code, `/context` para entender qué está cargado. La
 
 Pide «recupera la decisión aprobada sobre reintentos de envío» en lugar de «carga toda nuestra memoria». Comprueba la identidad, versión, estado y fuente de cada resultado relevante. Una propuesta sin aprobar no tiene el mismo valor que una decisión aceptada; un dato obsoleto no debe imponerse al código actual.
 
-Kwipu y Graphiti son integraciones opcionales. La publicación, la indexación y la consulta son operaciones distintas, y sus servicios pueden tener costes propios. Configurar una URL no acredita que la conexión funcione ni concede permiso para enviar todo el proyecto. Consulta la [guía de memoria](memory.md) para el recorrido de aprobación y la configuración.
+Los servicios externos de memoria son integraciones opcionales. La publicación, la indexación y la consulta son operaciones distintas, y sus servicios pueden tener costes propios. Configurar una URL no acredita que la conexión funcione ni concede permiso para enviar todo el proyecto. Consulta la [guía de memoria](memory.md) para el recorrido de aprobación y la configuración.
 
 ### Esperar sin volver a preguntar al modelo
 

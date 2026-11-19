@@ -155,7 +155,7 @@ Para usar estas herramientas por separado, conserva `agent-kits/shared/code-cont
 `agent-kits/shared/capability-route.py` y `agent-kits/shared/redact.py`.
 El lector no depende del productor para consultar.
 Una instalación parcial informa no disponible y conserva la memoria local.
-La lectura documental tiene otro contrato: [adaptador Kwipu](../skills/knowledge-services/references/kwipu-adapter.md#cómo-habilitar-la-lectura-documental).
+La lectura de un servicio externo tiene otro contrato: [contrato de adaptador](../skills/knowledge-services/backends/README.md).
 
 La aceptación parcial observada cubre AST Python de 8 nodos/7 arcos y relectura de 4/4
 inputs declarados, con edición propia stale y restauración exacta verificada.

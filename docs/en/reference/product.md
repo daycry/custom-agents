@@ -30,8 +30,8 @@ Short agent names are used here. Native IDs may be prefixed, such as
 `agent-kits/shared/modules.json` is the versioned catalog. Core contains lifecycle
 and quality methods. Jira, Confluence, specialist security, PDF, training, catalog
 tools and content/application capabilities have separate modules.
-`memory-integrations` distributes `knowledge-services` for optional Kwipu/Graphiti
-projections. Journal, Curator and local knowledge queries remain in the common
+`memory-integrations` distributes the `knowledge-services` framework (no bundled adapters)
+for optional projections to a service of the project's own. Journal, Curator and local knowledge queries remain in the common
 lifecycle without that module. Graphify is a selected external code-context
 extraction, not knowledge authority.
 

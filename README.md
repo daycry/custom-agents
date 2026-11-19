@@ -101,15 +101,14 @@ Most tooling around coding agents answers *how* to write the code. This plugin a
 Local memory works without Docker or a service. The panel and hooks keep their local
 readers; they do not start a stack or poll an external backend.
 
-Kwipu's `markdown-export` adapter can serve an explicit `knowledge-find.py --intent`
-request when the backend, `read.enabled` and that intent are enabled. Canonical entries,
-routing, full-scope filters, manifest and snapshot bindings gate the query before inference.
-Every chunk must match the authorized projection. An incompatible or changing source
-returns local fallback with a reason.
+A backend the project plugs in can serve an explicit `knowledge-find.py --intent`
+request when its adapter implements it and the intent is authorized; the plugin
+bundles no adapters. Any rejection or failure returns local fallback with a reason.
 
 The generated answer remains `no_verificada`, with `autoridad: ninguna` and
 `citas_por_afirmacion: false`. Its `source_nodes` identify retrieved sources; they do
-not prove each claim or approve the answer. See the [Kwipu read contract](skills/knowledge-services/references/kwipu-adapter.md#cómo-habilitar-la-lectura-documental).
+not prove each claim or approve the answer. See the
+[backend contract](skills/knowledge-services/backends/README.md).
 
 AST queries use a separate local artifact. The optional producer declares inputs and
 publishes an artifact-bound receipt; the reader rehashes every declared input per query.

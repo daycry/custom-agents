@@ -35,8 +35,8 @@ del runtime. Invocar un nombre inexistente no se resuelve inventando un agente.
 El catálogo versionado está en `agent-kits/shared/modules.json`. El núcleo agrupa
 las capacidades del ciclo de desarrollo y calidad. Jira, Confluence, auditoría
 especializada, PDF, training, catálogo y capacidades de contenido/aplicación tienen
-módulos propios. `memory-integrations` distribuye `knowledge-services` para las
-proyecciones opcionales Kwipu/Graphiti; el journal, el Curator y la consulta de
+módulos propios. `memory-integrations` distribuye el marco `knowledge-services` (sin adaptadores incluidos)
+para proyecciones opcionales a un servicio propio del proyecto; el journal, el Curator y la consulta de
 memoria local pertenecen al ciclo común y funcionan sin ese módulo. Graphify es
 una extracción externa elegida de contexto de código, no autoridad de memoria.
 Las dependencias de módulos se resuelven de forma determinista.

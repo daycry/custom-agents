@@ -74,6 +74,10 @@ qué entra, solo cómo se materializa.
 Además de las 6 obligatorias, un adaptador puede exponer estas; el núcleo las pide con
 `getattr(...)` y, si no están, sigue sin ellas (nunca son un requisito de carga).
 
+La lectura se invoca mediante `consultar(cfg, consulta)`: `cfg` contiene la configuración del backend y
+`consulta` describe la petición ya autorizada por el router. Esta función opcional devuelve resultados; no
+publica ni aprueba conocimiento. La tabla siguiente define su forma y los controles del llamador.
+
 | Función | Firma | Quién la usa | Qué significa que exista |
 |---|---|---|---|
 | `puede_leer` | `(cfg) -> {"puede": bool, "razon": str}` | el router de `knowledge-find.py --intent` | el backend decide si AUTORIZA una lectura ahora mismo (modo, salud, desfase). Sin `puede: true` exacto, el router no consulta |

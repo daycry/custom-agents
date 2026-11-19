@@ -94,7 +94,7 @@ flowchart LR
 ## Local memory, documentary reads and AST context
 
 `knowledge-find.py` retrieves local memory without Docker. An explicit `--intent`
-can request an authorized documentary read from `markdown-export`.
+can request an authorized read from a backend the project plugs in.
 The router requires backend, `read.enabled`, intent, a complete canonical corpus,
 routing and filters for the entire published set before importing the adapter or transmitting the question.
 
@@ -115,7 +115,7 @@ flowchart LR
 Binding checks chunk ID, version, hash, project and scope against the owned
 canonical corpus, projection and manifest. `source_nodes` are retrieved sources,
 without citations per claim. Observed stability does not guarantee atomicity or detect ABA.
-Details and opt-in: [Kwipu adapter](../../skills/knowledge-services/references/kwipu-adapter.md#cómo-habilitar-la-lectura-documental).
+Details and opt-in: [adapter contract](../../skills/knowledge-services/backends/README.md).
 
 ```mermaid
 flowchart LR
@@ -156,12 +156,10 @@ flowchart LR
   Pending -.-> Replay
 ```
 
-Markdown publishes per file with a pending manifest; a failure may leave updated
+An adapter that publishes per file keeps a pending manifest; a failure may leave updated
 or revoked files and does not roll back the batch. The CLI reports this possibility
-and `--outbox-status`. Only Windows retries final-manifest errors 5/32/33, at most
-four attempts while checking observed source and destination identities. Changes
-or persistent denials preserve pending state; these observations do not provide
-compare-and-swap against external writers. [Adapter contract](../../skills/knowledge-services/references/kwipu-adapter.md).
+and `--outbox-status`. There is no compare-and-swap against external writers.
+[Adapter contract](../../skills/knowledge-services/backends/README.md).
 
 ## Directed resume from existing records
 
@@ -696,7 +694,6 @@ flowchart LR
     A --> G[".claude/dev.json<br/>tdd · worktree · subagents · statusline<br/>revision.lenteSeguridad/lenteRendimiento ·<br/>tests.coberturaMinima<br/>(+ constitution decision)"]
     A -.->|"opt-in 5-bis"| SL[".claude/settings.json<br/>statusLine → roadmap-statusline.sh<br/>(absolute path)"]
     A --> H["docs/CONSTITUTION.md<br/>permanent principles (opt-in)<br/>read by ALL agents;<br/>lens A enforces them"]
-    A -.->|"opt-in 5-sexies"| KP["stack/kwipu/config/projects.yaml<br/>only APPENDS a marked block<br/>preview · confirmation · .bak copy<br/>(never runs build_view)"]
     C -.->|state| E[".claude/confluence-state.json"]
     D -.->|state| F[".claude/jira-state.json<br/>mapping · logged/day · bank"]
 ```
@@ -856,7 +853,7 @@ flowchart LR
   Check -->|explicit proposal| Pending[Pending candidate]
   Pending --> Curator[knowledge-curator]
   Curator --> Approved[Approved knowledge]
-  Approved -->|authorized publication| Backend[Kwipu or Graphiti]
+  Approved -->|authorized publication| Backend[Project external service]
 ```
 
 Review preserves declared origin. This declaration does not authenticate a person

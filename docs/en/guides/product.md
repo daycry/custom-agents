@@ -124,7 +124,7 @@ Done is not proof that the required checks passed.
 Core contains the common local lifecycle. Optional modules add capabilities such
 as a publication adapter or an external memory service. They are not requirements
 for every project. Local memory and its approval process remain available without
-Kwipu, Graphify or Graphiti.
+any external service or Graphify.
 
 A **profile** selects a starting set of modules: `core` for the local lifecycle,
 `developer` for the included technical specialties, `research` for research and

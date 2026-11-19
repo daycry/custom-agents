@@ -11,18 +11,18 @@ es contexto de código. Son informaciones distintas y necesitan controles distin
 ## Qué pertenece al core y qué es opcional
 
 El core conserva la memoria local y el proceso para proponer, revisar y aprobar
-conocimiento. **No necesita Kwipu, Graphiti ni Graphify para trabajar.** Los servicios
-externos se eligen por proyecto, igual que Jira, Confluence o Redmine. El módulo
-`memory-integrations` entrega la skill `knowledge-services` para publicar y consultar
-servicios cuando se configura; instalarlo no los activa.
+conocimiento. **No necesita ningún servicio externo ni Graphify para trabajar.** Los
+servicios externos se eligen por proyecto, igual que Jira, Confluence o Redmine. El módulo
+`memory-integrations` entrega el marco `knowledge-services` (cargador de adaptadores,
+routing cerrado y cola de recuperación), **sin adaptadores incluidos**: el proyecto añade el
+suyo. Instalarlo no activa nada.
 
 | Pieza | Para qué sirve | Qué no demuestra |
 |---|---|---|
 | Journal local | Retomar qué ocurrió y qué quedó pendiente en una sesión | Que las observaciones sean reglas aprobadas |
 | Candidatos | Proponer una decisión, patrón o lección con evidencia | Que ya se pueda usar como conocimiento aprobado |
 | Memoria aprobada | Consultar conocimiento aceptado por el proceso de curación | Que una respuesta generada a partir de ella sea correcta |
-| Kwipu opcional | Proyectar documentos aprobados y, si se autoriza, consultar su servicio documental | Que exportar archivos haya actualizado ya el índice externo |
-| Graphiti opcional | Proyectar episodios y relaciones; consultar con controles de procedencia | Que un envío en cola ya esté guardado o que todo hecho extraído sea cierto |
+| Servicio externo propio | Proyectar documentos aprobados a un servicio del proyecto mediante su adaptador y, si se autoriza, consultarlo | Que publicar ya haya actualizado el índice del servicio ni que una respuesta generada sea correcta |
 | Graphify opcional | Extraer estructura del código para localizar símbolos y relaciones | Que ese contexto esté aprobado, cubra todo el repositorio o siga vigente |
 
 Un **grafo** es un mapa de elementos relacionados: una decisión vinculada a su
@@ -36,7 +36,7 @@ flowchart TD
     B --> C[Revisión del Curator]
     C --> D[Memoria local aprobada]
     D --> E[Consulta local]
-    D -. Publicación elegida .-> F[Kwipu o Graphiti]
+    D -. Publicación elegida .-> F[Servicio externo del proyecto]
     G[Código declarado] -. Extracción elegida .-> H[Contexto Graphify]
     H --> I[Comprobar contra el código actual]
 ```
@@ -126,7 +126,7 @@ decir, si puede enviarse a cada backend. Un backend es un destino externo config
 Si una categoría no lo autoriza expresamente, no se publica en ese destino.
 
 El ejemplo completo [taxonomy.json](../examples/memory/taxonomy.json) usa el prefijo
-ficticio `portal`, incluye Kwipu y Graphiti y mantiene ambos apagados y todo el routing
+ficticio `portal`, declara un backend de ejemplo apagado y deja todo el routing
 desactivado. No lo copies sobre una configuración existente: revisa y fusiona las
 claves pertinentes con el administrador. Las categorías y la evidencia mínima son
 política del proyecto y no se reducen para lograr que una entrada pase.
@@ -143,65 +143,48 @@ El registro común elige la integración del workflow; la taxonomía conserva lo
 controles de categorías y lectura. No se duplican el Curator, el router de memoria
 ni la cola de recuperación para cada marca.
 
-## W-20. Integrar Kwipu y comprobar su publicación y consulta
+## W-20. Conectar un servicio de memoria propio
 
 ### Cuándo tiene sentido
 
-Elígelo si tu equipo ya administra un stack Kwipu compatible y quiere consultar
-conocimiento aprobado en su servicio documental. El plugin exporta Markdown con
-un inventario de lo publicado. **No instala Kwipu, Docker, modelos ni el bridge**,
-que es el servicio que atiende las peticiones del adaptador.
+Elígelo si tu equipo ya administra un servicio de memoria (por ejemplo, un servidor MCP) y
+quiere publicar allí el conocimiento aprobado o consultarlo desde allí. El plugin trae el
+marco y **no trae adaptadores**: los dos que incluía hasta la versión 3.x se retiraron en
+la 4.0.0 (ver el CHANGELOG), y la memoria local no cambia. No instala ni arranca servicios.
 
 ```text
-Queremos usar Kwipu para las decisiones aprobadas del portal. Prepara una vista
-previa con las entradas permitidas y el destino. Mantén la consulta externa
-apagada hasta comprobar publicación, indexado y fuentes. Explícame cada paso.
+Queremos publicar las decisiones aprobadas del portal en nuestro servicio de memoria.
+Explícame qué hay que escribir y declarar, prepara una vista previa con las entradas
+permitidas y mantén la consulta externa apagada hasta comprobar publicación y fuentes.
 ```
 
 ```mermaid
 flowchart TD
-    A[Elegir categorías y destino] --> B[Validar configuración]
-    B --> C[Previsualizar exportación]
-    C --> D[Publicar Markdown autorizado]
-    D --> E[Administrador actualiza índice Kwipu]
-    E --> F[Verificar correspondencia]
-    F --> G[Autorizar consulta externa si se desea]
+    A[Escribir el adaptador] --> B[Declarar el backend apagado]
+    B --> C[Autorizar categorías]
+    C --> D[Previsualizar con --dry-run]
+    D --> E[Publicar y verificar con --check]
+    E --> F[Autorizar consulta externa si se desea]
 ```
 
-1. **Preparar el servicio externo.** El administrador elige y fija una revisión
-   compatible de su stack Kwipu, configura sus modelos y verifica el bridge. La
-   integración espera salud, snapshot y consulta según el contrato del adaptador;
-   un servidor con el mismo nombre no demuestra compatibilidad. Este manual no
-   prescribe un instalador universal de Kwipu ni promete acceso a un stack ajeno.
-2. **Preparar el proyecto.** Se instala o incluye `memory-integrations` cuando el
-   modo de entrega admite selección. En la taxonomía se habilita el backend `kwipu`,
-   se elige `export_dir` separado de la memoria canónica y se comprueba `health.url`.
-   El ejemplo usa `http://127.0.0.1:8765/health`: es un destino de muestra, no un
-   servicio que el plugin arranque. El adaptador limita sus hosts a locales/privados.
-3. **Autorizar categorías.** Por ejemplo, `DECISION` puede tener
-   `routing: {"kwipu": true, "graphiti": false}`. Las otras categorías permanecen
-   apagadas hasta decidir lo contrario. Se valida el archivo antes de operar.
-4. **Revisar la exportación.** `--dry-run` muestra qué entradas aprobadas cambiarían
-   sin publicarlas. Se contrastan ID, versión, categoría y destino. Tras autorizar
-   la operación, la ejecución publica los archivos propios y su `manifest.json`,
-   el inventario que permite comprobarlos y actualizar sin duplicar.
-5. **Dar de alta el proyecto en Kwipu si hace falta.** `/setup` puede ayudar con
-   `kwipu-project-add.py`. Primero genera vista previa y huella del archivo
-   `projects.yaml`; el administrador revisa y aplica esa misma huella. Solo añade
-   un bloque y crea copia de seguridad. Una forma no reconocida se resuelve
-   manualmente; el script no modifica o elimina entradas existentes.
-6. **Actualizar el índice desde el stack.** El alta imprime los pasos externos
-   de construcción de la vista y reinicio necesarios para ese stack, pero no los
-   ejecuta. Los revisa y ejecuta su administrador. Exportar un archivo local no
-   demuestra que Kwipu ya lo encuentre en una consulta.
-7. **Verificar.** `--check` contrasta salud y correspondencia. «Incompleto» significa
-   que no pudo comprobar toda la ventana; no es un verde. Si detecta desfase, nombra
-   el remedio, sin reindexar por su cuenta. Abre además una entrada piloto y compara
-   ID, versión y contenido con el canon local.
-8. **Activar lectura solo si se desea.** Además de backend habilitado, necesita
-   `config.read.enabled: true` y el intent elegido en `config.router.intents`, por
-   ejemplo `evidencia: true`. Un intent explica la finalidad de la consulta. La
-   pregunta solo se envía después de comprobar fuentes autorizadas y actuales.
+1. **El administrador prepara el servicio.** Cuenta, endpoint y credenciales son suyos;
+   el plugin no los guarda ni los descubre.
+2. **El equipo técnico escribe el adaptador.** Es un fichero con las seis funciones del
+   [contrato](../../skills/knowledge-services/backends/README.md) (`health`, `plan`, `apply`,
+   `verify`, `rebuild`, `revoke`), cargado por `type` desde `backends/<type>.py` o desde
+   una carpeta propia con `--backends-dir`. Hay un adaptador de prueba de referencia en
+   `skills/knowledge-services/scripts/fixtures/`.
+3. **Se declara el backend, apagado.** En la taxonomía, `backends.<id>` con `type`,
+   `enabled: false` y su `config`. Un `type` sin adaptador sale con un mensaje claro, no con
+   un traceback.
+4. **Se autorizan categorías.** Por ejemplo, `DECISION` con `routing: {"<id>": true}`. Las
+   otras permanecen apagadas hasta decidir lo contrario. Se valida el archivo antes de operar.
+5. **Se revisa y publica.** `--dry-run` muestra qué entradas aprobadas cambiarían. Tras
+   autorizar la operación, la ejecución publica y la cola de recuperación conserva lo que
+   falle. `--check` contrasta salud y correspondencia; «incompleto» no es un verde.
+6. **La lectura es aparte.** Un adaptador que implemente `puede_leer` y `consultar` puede servir
+   `knowledge-find.py --intent`, con backend habilitado e intent autorizado; un fallo vuelve a
+   la búsqueda local con su motivo.
 
 Comandos para quien administra; se ejecutan desde el proyecto adecuado:
 
@@ -209,38 +192,20 @@ Comandos para quien administra; se ejecutan desde el proyecto adecuado:
 $MemorySkill = Join-Path $PluginRoot "skills/knowledge-services"
 $Sync = Join-Path $MemorySkill "scripts/knowledge-sync.py"
 python (Join-Path $SharedKit "knowledge-schema.py") (Join-Path $ProjectRoot ".claude/knowledge-services/taxonomy.json")
-python $Sync --root $ProjectRoot --backend kwipu --dry-run
+python $Sync --root $ProjectRoot --backend mi-servicio --backends-dir $CarpetaDelAdaptador --dry-run
 # Tras revisar y autorizar la publicación:
-python $Sync --root $ProjectRoot --backend kwipu
-python $Sync --root $ProjectRoot --backend kwipu --check
-# Solo después de habilitar y autorizar la lectura documental:
-python (Join-Path $SharedKit "knowledge-find.py") --root $ProjectRoot --intent evidencia --json "regla sobre rechazo"
-```
-
-Para el alta opcional del proyecto, `$StackRoot` es la carpeta elegida que contiene
-`kwipu/config/`. La huella siguiente se copia del resultado de la vista previa:
-
-```powershell
-$AddProject = Join-Path $MemorySkill "scripts/kwipu-project-add.py"
-python $AddProject --root $ProjectRoot --stack $StackRoot --backend kwipu --json
-# Tras revisar el bloque, usando la huella exacta recién obtenida:
-python $AddProject --root $ProjectRoot --stack $StackRoot --backend kwipu --apply --esperado "<sha256-de-la-vista-previa>"
+python $Sync --root $ProjectRoot --backend mi-servicio --backends-dir $CarpetaDelAdaptador
+python $Sync --root $ProjectRoot --backend mi-servicio --backends-dir $CarpetaDelAdaptador --check
 ```
 
 ### Qué recibes y qué hacer si falla
 
-La consulta distingue fuentes canónicas y `respuesta_generada`. Esta última es
-**texto generado sin autoridad y no verificado**. Sus `source_nodes` vinculan las
-fuentes recuperadas, pero no demuestran cada frase de la respuesta. Pide abrir la
-entrada concreta antes de tomar una decisión importante.
-
-Si el servicio falla, la consulta vuelve a memoria local e indica el motivo. Si
-cambian las fuentes o hay proyección pendiente, se rechaza la respuesta externa.
-Si una publicación se corta, puede haber archivos ya actualizados. Se conserva
-el diario pendiente y se consulta `--outbox-status`; no se borra el inventario para
-empezar a ciegas. Una siguiente ejecución autorizada reconcilia los cambios propios.
-No llames `--rebuild` a un reindexado de Kwipu: reconstruye la proyección del
-adaptador; el índice del stack sigue siendo responsabilidad externa.
+Una respuesta generada por el servicio es **texto sin autoridad y no verificado**: pide abrir
+la entrada concreta antes de tomar una decisión importante. Si el servicio falla, la consulta
+vuelve a memoria local e indica el motivo. Si una publicación se corta, puede haber archivos ya
+actualizados: se conserva el diario pendiente y se consulta `--outbox-status`; no se borra el
+inventario para empezar a ciegas. `--rebuild` reconstruye la proyección del adaptador; el
+índice del servicio sigue siendo responsabilidad de su administrador.
 
 ## W-21. Integrar Graphify para entender relaciones del código
 
@@ -306,116 +271,6 @@ el diagnóstico y usa un destino nuevo. Un grafo sin recibo automático se prese
 como legado sin vigencia verificada, no como contexto actual certificado. Los hooks
 y abrir el panel no lanzan extracciones. [Contrato y piloto](../CODE_CONTEXT.md).
 
-## W-22. Integrar Graphiti con publicación y lectura controladas
-
-### Cuándo elegirlo
-
-Graphiti es una proyección externa para episodios y relaciones de conocimiento.
-En este caso, un episodio es un documento publicado con su identidad y procedencia.
-Puede ayudar a consultar cómo cambió una regla o qué entradas se relacionan, pero
-requiere un servidor MCP compatible y administración propia. No es Graphify.
-
-```text
-Prepara Graphiti para el portal en un grupo exclusivo. Empieza publicando sin
-lectura externa. Verifica las identidades guardadas antes de habilitar consultas
-relacionales. No cambies ni reinicies nuestro servicio existente automáticamente.
-```
-
-```mermaid
-flowchart TD
-    A[Servidor compatible y grupo propio] --> B[Modo shadow y categorías elegidas]
-    B --> C[Vista previa y publicación autorizada]
-    C --> D[Confirmar UUID y contenido]
-    D --> E[Verificar versiones e historial]
-    E --> F{Se autoriza lectura externa}
-    F -- No --> G[Seguir con consulta local]
-    F -- Sí --> H[Modo read e intent permitido]
-```
-
-1. **El administrador prepara el servidor.** Elige una revisión MCP compatible,
-   almacenamiento, modelos, embeddings y credenciales del servicio. Un embedding
-   es una representación numérica usada para buscar semejanzas. El plugin no
-   instala ni configura los modelos del servidor. El contrato y las limitaciones
-   comprobadas están en [Graphiti](../knowledge-services-graphiti.md).
-2. **Se reserva un grupo exclusivo.** `group_id`, por ejemplo `portal-solicitudes`,
-   separa lógicamente las publicaciones del proyecto. Debe comprobarse el aislamiento
-   real del servidor: la existencia de un campo grupo en una API no lo demuestra.
-   El endpoint de ejemplo es local; no se abre el servicio a la red por defecto.
-3. **Se configura `shadow`.** Significa que puede publicar y comprobar, pero no servir
-   consultas externas. `off` no conecta ni publica. Se habilita el backend y solo
-   las categorías elegidas. `provider.llm: none` omite instrucciones del proveedor
-   desde el cliente; **no desactiva el modelo del servidor ni garantiza coste cero**.
-4. **Se revisa y publica.** El adaptador muestra la propuesta y, tras autorización,
-   envía los episodios. El servidor asigna UUID: identificadores únicos remotos.
-   «Encolado» no es «guardado». Se vuelve a leer nombre, grupo, contenido y UUID
-   antes de guardar la confirmación en el manifiesto.
-5. **Se comprueba el historial.** Una regla revisada conserva su versión anterior y
-   un marcador de sustitución; una retirada conserva su identidad invalidada.
-   Por defecto las relaciones de control son documentales (`episode`). La opción
-   de aristas directas (`triplet`) exige comprobar aislamiento de escritura y no
-   debe habilitarse como atajo. No se pasan IDs de episodios como si fueran entidades.
-6. **Solo después se considera `read`.** Requiere modo de lectura, backend habilitado,
-   intent autorizado, salud y verificación completa sin desfase. La consulta conserva
-   IDs, versiones y fuentes vinculadas. Un rechazo vuelve a local con su motivo.
-7. **Se ensaya recuperación.** Si se pierde la respuesta, el adaptador conserva el
-   recibo y busca el episodio existente antes de enviar de nuevo. Si algo queda
-   pendiente, no promete una publicación íntegra ni autoriza lectura por omisión.
-
-Fragmento de configuración del backend; se integra en la taxonomía completa y no
-es un archivo de configuración independiente. Mantiene el servicio apagado hasta
-que el administrador lo revise:
-
-```json
-{
-  "type": "graphiti",
-  "enabled": false,
-  "config": {
-    "mode": "shadow",
-    "endpoint": "http://127.0.0.1:8001/mcp",
-    "group_id": "portal-solicitudes",
-    "allow_remote": false,
-    "provider": {"llm": "none"},
-    "entity_map": {},
-    "relations": [],
-    "transition_relations": "episode",
-    "router": {"intents": {"relacional": false}},
-    "telemetria": false,
-    "timeout_ms": 3000,
-    "concurrency": 1
-  }
-}
-```
-
-Después de habilitar el backend y routing acordados, los comandos son:
-
-```powershell
-python $Sync --root $ProjectRoot --backend graphiti --dry-run
-# Tras revisar y autorizar:
-python $Sync --root $ProjectRoot --backend graphiti
-python $Sync --root $ProjectRoot --backend graphiti --check
-python $Sync --root $ProjectRoot --backend graphiti --outbox-status
-# Solo cuando mode=read e intent relacional estén autorizados y verificados:
-python (Join-Path $SharedKit "knowledge-find.py") --root $ProjectRoot --intent relacional --json "qué regla sustituye a la anterior"
-```
-
-### Cómo interpretar resultados y límites
-
-Los hechos y resúmenes extraídos son **contenido derivado sin autoridad**. La fuente
-local puede estar aprobada, pero eso no aprueba cada frase extraída por el modelo.
-Una entidad con un nombre parecido no acredita procedencia: se requieren vínculos
-verificados a episodios publicados. Una ventana incompleta no se convierte en éxito.
-
-El adaptador incluye reconstrucción por una generación nueva que se verifica antes
-de cambiar el manifiesto. Conserva el grupo anterior; no vacía grafos. No se ejecuta
-como arreglo rutinario de un permiso o un timeout. Los envíos inciertos y relaciones
-pendientes se resuelven con sus recibos; no se borran a ciegas para volver a empezar.
-
-La evidencia existente acredita fixtures acotadas en un servidor compatible temporal.
-**Despliegue en vuestro servicio, workflows de clientes nativos, utilidad comparativa
-y aceptación global siguen necesitando pruebas.** La revisión instalada 0.30.1 tenía
-un problema de lectura entre grupos; la prueba temporal compatible no actualizó el
-servicio existente. No presentes salud verde o tests sintéticos como aceptación total.
-
 ## Aportar conocimiento con el formato del equipo
 
 Los [workflows W-28 a W-30](knowledge-categories.md) explican cómo crear categorías
@@ -425,8 +280,8 @@ originales; proponer candidatos, aprobarlos y publicarlos son pasos separados.
 
 ## Elegir y retirar integraciones sin perder la memoria
 
-Empieza por el problema: continuidad local, consulta documental, relaciones temporales
-o navegación de código. Habilita solo lo necesario y prueba preguntas representativas
+Empieza por el problema: continuidad local, consulta en un servicio propio o navegación
+de código. Habilita solo lo necesario y prueba preguntas representativas
 con fuentes esperadas. Compara utilidad y límites, no el número de herramientas.
 
 Para dejar de usar un servicio, se deshabilita su integración y su backend conforme

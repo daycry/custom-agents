@@ -387,7 +387,7 @@ flowchart TD
     C -->|Aprobado| D[Corpus aprobado con identidad y versión]
     C -->|Rechazado o pendiente| E[No tratar como doctrina]
     D --> F[Recuperación local selectiva]
-    D --> G[Publicación opcional en Kwipu o Graphiti]
+    D --> G[Publicación opcional en un servicio externo]
     G --> H[Comprobar proyección e indexación según backend]
     F --> I[Aplicar si sigue vigente]
     H --> I
@@ -407,11 +407,11 @@ Si las personas dejan actas en una carpeta, el proceso de comprobación debe loc
 
 Consulta la [guía de categorías](knowledge-categories.md) para los campos, comandos y ejemplos exactos de la versión instalada. Utiliza `knowledge-category-check` mediante la forma de comando de tu cliente para comprobar las entradas configuradas; revisar no equivale a aprobar automáticamente.
 
-### Kwipu y Graphiti
+### Servicios externos de memoria
 
-Configura las conexiones y el routing por proyecto con `setup` y `knowledge-services`, conservando preferencias no relacionadas. Publica únicamente conocimiento aprobado y permitido para ese backend. Después verifica el contenido publicado, sus metadatos y el estado de sincronización; la indexación o extracción externa puede ser otra operación.
+Declara el backend propio del proyecto y su routing con `setup` y `knowledge-services` (el plugin no incluye adaptadores), conservando preferencias no relacionadas. Publica únicamente conocimiento aprobado y permitido para ese backend. Después verifica el contenido publicado, sus metadatos y el estado de sincronización; la indexación o extracción externa puede ser otra operación.
 
-Una entrada visible por nombre no demuestra que todas las relaciones se hayan extraído correctamente. Si Graphiti devuelve una salida incompleta o una operación expira, conserva el error y el recibo, distingue qué llegó al servicio y evita reenvíos ciegos. Consulta la [guía de memoria](memory.md) y la [operación de Graphiti](../knowledge-services-graphiti.md).
+Una entrada visible por nombre no demuestra que todas las relaciones se hayan extraído correctamente. Si el servicio devuelve una salida incompleta o una operación expira, conserva el error y el recibo, distingue qué llegó al servicio y evita reenvíos ciegos. Consulta la [guía de memoria](memory.md).
 
 ## 12. Personalizar con criterio
 

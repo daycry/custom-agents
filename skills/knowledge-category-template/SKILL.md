@@ -85,7 +85,7 @@ Aplica `agent-kits/shared/rationalization-table.md` al comprobar el resultado.
 | Excusa que el modelo se da | Por qué no vale | Qué hacer en su lugar |
 |---|---|---|
 | «Yo guardaré la plantilla en la caché» | Una actualización la sustituiría. | Usar una ruta del proyecto. |
-| «Yo activaré Kwipu al crear la categoría» | Crear formato no autoriza publicación. | Conservar destinos y routing. |
+| «Yo activaré el servicio externo al crear la categoría» | Crear formato no autoriza publicación. | Conservar destinos y routing. |
 | «Yo reemplazaré la plantilla que ya existe» | Puede contener trabajo del equipo. | Proponer un archivo de revisión nuevo. |
 | «Yo rellenaré los datos que falten» | Un formato completo no acredita hechos. | Mostrar los huecos y pedir las fuentes necesarias. |
 | «Yo etiquetaré como humano lo que revisaron» | Revisión y origen son distintos. | Conservar la procedencia original. |
@@ -96,4 +96,4 @@ Aplica `agent-kits/shared/rationalization-table.md` al comprobar el resultado.
 Indica categoría, plantilla, carpeta de entrada, productores permitidos, reglas
 de formato, destinos elegidos y resultado real. Distingue vista previa,
 configuración aplicada, candidatos pendientes y aprobación. No declares que los
-documentos ya están indexados en Kwipu o aceptados por Graphiti.
+documentos ya están indexados o aceptados por un servicio externo.

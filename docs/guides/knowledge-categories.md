@@ -81,7 +81,7 @@ meetings y dime qué falta». Consulta [INTEROP](../INTEROP.md) para la invocaci
 
 El informe distingue documentos válidos, errores de formato, conflictos de
 origen e inventarios incompletos. Conserva originales y muestra los campos o
-secciones que necesitan atención. No activa Kwipu, Graphiti ni un proceso de ingesta.
+secciones que necesitan atención. No activa ningún servicio externo ni un proceso de ingesta.
 
 Si pides proponer las entradas válidas, el comando utiliza `--propose` junto al
 hash de la revisión. Los candidatos quedan en `docs/knowledge/candidates/pending/`,
@@ -97,7 +97,7 @@ flowchart TD
     F -- Sí y se pide proponer --> P[Candidato pendiente con fuente y SHA]
     P --> C[Revisión de knowledge-curator]
     C -- Aprobación --> K[Conocimiento aprobado local]
-    K -. Publicación autorizada aparte .-> S[Kwipu o Graphiti]
+    K -. Publicación autorizada aparte .-> S[Servicio externo del proyecto]
 ```
 
 Repetir la misma propuesta reconoce el candidato pendiente idéntico. Una colisión
@@ -136,7 +136,7 @@ hasta elegir destinos existentes; el backend también necesita estar habilitado.
 Configurar, proponer, aprobar, exportar e indexar son estados separados.
 
 El comando no ejecuta esos pasos externos. La primera versión de esta capacidad
-no amplía los metadatos enviados a Graphiti ni modifica sus recibos de publicación.
+no amplía los metadatos enviados a un servicio externo ni modifica sus recibos de publicación.
 
 ## Resolver una configuración parcial
 

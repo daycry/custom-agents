@@ -106,11 +106,11 @@ Ver `agent-kits/knowledge-curator/README.md` para el detalle del contrato y
   Gold y repetición son evidencia. Retro posterior al Gate entrega handoff o deja ruta/ID pendientes.
 - **`/dev-cycle` Fase 4-bis "Knowledge Gate" (T-06)** invoca al Curator sobre los candidatos de una
   iniciativa **después** de QA verde y `documenter`, con **omisión honesta** si no hay candidatos.
-- **No exporta a backends.** `knowledge-sync.py` y los adaptadores (Kwipu de T-07..T-09,
-  Graphiti de `graphiti-memory` T-04..T-06) son quienes escriben en el backend; el Curator solo
-  deja `approved/` correcto y reconstruible. **Ningún agente normal escribe en Graphiti**
-  (`graphiti-memory` T-03, `docs/agents/CONTRACTS.md` E18): la única vía es `knowledge-sync.py`
-  disparado tras la aprobación del Curator, filtrando por `routing.graphiti` en `taxonomy.json`.
+- **No exporta a backends.** `knowledge-sync.py` y los adaptadores que el proyecto enchufe son
+  quienes escriben en el backend; el Curator solo deja `approved/` correcto y reconstruible.
+  **Ningún agente normal escribe en un backend externo** (`docs/agents/CONTRACTS.md` E18): la única
+  vía es `knowledge-sync.py` disparado tras la aprobación del Curator, filtrando por
+  `routing.<id>` en `taxonomy.json`.
 
 ## 5. Guardrails
 

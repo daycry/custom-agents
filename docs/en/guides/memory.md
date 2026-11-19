@@ -11,18 +11,18 @@ become reusable knowledge requires evidence and judgment, not automatic copying.
 ## What belongs to core and what is optional
 
 Core retains local memory, its proposal/approval process, the Curator and local
-querying. **You do not need Kwipu, Graphify or Graphiti to work.** External services
+querying. **You do not need any external service or Graphify to work.** External services
 are selected per project, like Jira, Confluence or Redmine. The optional
-`memory-integrations` module distributes `knowledge-services` for publication and
-service queries; installation alone activates neither.
+`memory-integrations` module distributes the `knowledge-services` framework (adapter
+loader, closed routing and recovery queue) **with no bundled adapters**: the project adds
+its own. Installation alone activates nothing.
 
 | Component | Useful purpose | What it does not prove |
 |---|---|---|
 | Local journal | Resume what happened and what remains in a session | That every observation is an approved rule |
 | Knowledge candidates | Propose a decision or lesson with evidence | That the proposal has been accepted |
 | Approved memory | Query knowledge accepted for this project | That a model-generated answer is itself approved |
-| Optional Kwipu | Project approved documents and retrieve authorized current sources | That writing local export files updated the external index |
-| Optional Graphiti | Project episodes and relationships with provenance controls | That a graph extracted the source faithfully or queried the right group |
+| Project-owned external service | Project approved documents to a service through the project's adapter and, if authorized, query it | That publishing updated the service's index or that a generated answer is correct |
 | Optional Graphify | Extract selected code into a navigable relationship artifact | That code context is approved knowledge or still current |
 
 A graph organizes related information. A decision linked to a process and a
@@ -36,7 +36,7 @@ flowchart TD
     C --> D[Approved local memory]
     D --> E[Local query]
     D --> F[Selected publication]
-    F --> G[Kwipu or Graphiti]
+    F --> G[Project external service]
     H[Declared code inputs] --> I[Chosen extraction]
     I --> J[Graphify context]
     J --> K[Compare with current code]
@@ -120,7 +120,7 @@ Routing is closed by default: a category is not published to a destination unles
 it explicitly permits that destination.
 
 The complete [taxonomy example](../../examples/memory/taxonomy.json) uses the fictional
-`portal` prefix, includes Kwipu and Graphiti, and leaves both services and category
+`portal` prefix, declares one disabled example backend and leaves all category
 routes disabled. Review and merge relevant settings instead of overwriting an
 existing project configuration. Each service needs its own verified setup.
 
@@ -134,99 +134,69 @@ Explicit administration retains its CLI. The common binding selects workflow
 participation; taxonomy retains category and query controls. Do not duplicate the
 Curator, query router or recovery queue for each provider brand.
 
-## W-20. Integrate Kwipu and verify publication and querying
+## W-20. Connect a service of your own
 
 ### When it fits
 
-Choose this when your team already operates a compatible Kwipu stack and needs
-approved document retrieval. **The plugin does not install Kwipu.** It exports
-approved Markdown and verifies the selected projection. Indexing is a separate
-operation owned by the external stack’s administrator.
+Choose this when your team already operates a memory service (for example, an MCP
+server) and needs approved knowledge published there or queried from there. The plugin
+ships the framework and **no adapters**: the two it bundled up to 3.x were removed in
+4.0.0 (see the CHANGELOG) and local memory is unchanged. It installs and starts nothing.
 
 ```text
-We want to publish the portal’s approved decisions to Kwipu.
-Show categories, files and destination first. Do not send questions
-or modify the service stack until we select and verify those operations.
+We want to publish the portal's approved decisions to our memory service.
+Explain what must be written and declared, preview the permitted entries and keep
+external querying off until publication and sources are verified.
 ```
 
 ```mermaid
 flowchart TD
-    A[Choose categories and destination] --> B[Validate configuration]
-    B --> C[Preview the export]
-    C --> D[Publish authorized Markdown]
-    D --> E[Administrator updates the Kwipu index]
-    E --> F[Verify correspondence]
-    F --> G[Authorize querying if needed]
+    A[Write the adapter] --> B[Declare the backend, disabled]
+    B --> C[Allow categories]
+    C --> D[Preview with --dry-run]
+    D --> E[Publish and verify with --check]
+    E --> F[Authorize external querying if needed]
 ```
 
-1. **Prepare the external service.** The administrator checks a compatible bridge,
-   model settings, authentication and index operation. The adapter does not prescribe
-   a universal Docker command for every Kwipu installation. A healthy endpoint does
-   not prove correct indexing or retrieval for this project.
-2. **Prepare the project.** Select `memory-integrations` where physical module
-   selection is supported. Configure the `kwipu` backend, safe export location and
-   health/query endpoints under the actual schema. Example `127.0.0.1:8765` URLs do
-   not start a service or prove one is present.
-3. **Allow categories deliberately.** For an eligible category, routing might enable
-   `kwipu` while keeping `graphiti` disabled. Every unspecified route stays off.
-   Approved knowledge must still meet its evidence policy.
-4. **Preview.** `--dry-run` shows which approved IDs, versions, categories and files
-   would change without applying them. Review the destination and operation. The
-   authorized execution writes only its owned files and `manifest.json`.
-5. **Register the project in Kwipu if required.** `/setup` can help through
-   `kwipu-project-add.py`. It previews the block and fingerprint for the selected
-   `projects.yaml`; applying requires that exact current fingerprint. It appends
-   only its marked block and retains a backup. Unsupported formats require manual
-   administrator handling, not overwriting existing entries.
-6. **Update the external index.** The project-add helper prints stack-specific
-   `build_view`/restart guidance but does not execute it. The administrator reviews
-   and runs the appropriate commands in the chosen stack. An export file on disk
-   does not prove that Kwipu can retrieve it.
-7. **Verify.** `--check` compares health and correspondence. An incomplete window is
-   not success. Drift identifies the remedy without silently reindexing. Open a
-   pilot source and compare identity, version and content with local authority.
-8. **Enable querying only when chosen.** In addition to an enabled backend, document
-   reads need `config.read.enabled: true` and the selected allowed intent in
-   `config.router.intents`, such as `evidencia`. Current canonical/export/manifest
-   bindings and retrieved chunks are checked before and after the external query.
+1. **The administrator prepares the service.** Account, endpoint and credentials are theirs;
+   the plugin neither stores nor discovers them.
+2. **The technical team writes the adapter.** One file with the six functions of the
+   [contract](../../../skills/knowledge-services/backends/README.md) (`health`, `plan`,
+   `apply`, `verify`, `rebuild`, `revoke`), loaded by `type` from `backends/<type>.py` or from
+   your own folder through `--backends-dir`. A reference test adapter lives in
+   `skills/knowledge-services/scripts/fixtures/`.
+3. **Declare the backend, disabled.** In the taxonomy, `backends.<id>` with `type`,
+   `enabled: false` and its `config`. A `type` without an adapter exits with a clear
+   message, not a traceback.
+4. **Allow categories.** For example, `DECISION` with `routing: {"<id>": true}`. Every other
+   category stays off. Validate the file before operating.
+5. **Preview and publish.** `--dry-run` shows which approved entries would change. After
+   authorization, the run publishes and the recovery queue keeps whatever fails. `--check`
+   compares health and correspondence; “incomplete” is not a green result.
+6. **Reading is separate.** An adapter that implements `puede_leer` and `consultar` can serve
+   `knowledge-find.py --intent`, with the backend enabled and the intent authorized; a failure
+   falls back to local search with its reason.
 
-`$MemorySkill` and `$Sync` below name the installed optional skill and its publisher;
-`$SharedKit` is defined by the local example above.
+Commands for the administrator, run from the right project:
 
 ```powershell
 $MemorySkill = Join-Path $PluginRoot "skills/knowledge-services"
 $Sync = Join-Path $MemorySkill "scripts/knowledge-sync.py"
 python (Join-Path $SharedKit "knowledge-schema.py") (Join-Path $ProjectRoot ".claude/knowledge-services/taxonomy.json")
-python $Sync --root $ProjectRoot --backend kwipu --dry-run
-# After reviewing and authorizing publication:
-python $Sync --root $ProjectRoot --backend kwipu
-python $Sync --root $ProjectRoot --backend kwipu --check
-# Only after enabling and authorizing document retrieval:
-python (Join-Path $SharedKit "knowledge-find.py") --root $ProjectRoot --intent evidencia --json "regla sobre rechazo"
-```
-
-For optional registration, `$StackRoot` is the selected directory containing
-`kwipu/config/`. Replace the fingerprint placeholder with the actual preview value:
-
-```powershell
-$AddProject = Join-Path $MemorySkill "scripts/kwipu-project-add.py"
-python $AddProject --root $ProjectRoot --stack $StackRoot --backend kwipu --json
-# After reviewing the block, use the exact current preview fingerprint:
-python $AddProject --root $ProjectRoot --stack $StackRoot --backend kwipu --apply --esperado "<preview-sha256>"
+python $Sync --root $ProjectRoot --backend my-service --backends-dir $AdapterFolder --dry-run
+# After review and authorization:
+python $Sync --root $ProjectRoot --backend my-service --backends-dir $AdapterFolder
+python $Sync --root $ProjectRoot --backend my-service --backends-dir $AdapterFolder --check
 ```
 
 ### Results and recovery
 
-The query separates canonical sources from `respuesta_generada`. Generated text is
-**unverified and has no authority**. Its `source_nodes` link retrieved sources but
-do not verify every sentence or provide a per-claim citation guarantee. Open the
-source entry before a consequential decision.
-
-Service failure falls back locally with a reason. Changed bindings, current source
-drift or pending projection can reject an external answer. An interrupted publication
-may already have changed some owned files; inspect `--outbox-status` and reconcile
-receipts rather than deleting the manifest. An authorized retry recovers owned work.
-`--rebuild` reconstructs the adapter’s projection; it does not reindex the Kwipu stack.
+A generated answer from the service is **unverified text without authority**: open the
+concrete entry before an important decision. If the service fails, the query falls back
+to local memory and says why. If a publication is cut off, some files may already be
+updated: the pending journal is kept and `--outbox-status` shows the queue; do not delete
+the inventory to start blind. `--rebuild` rebuilds the adapter's projection; the service's
+index remains its administrator's responsibility.
 
 ## W-21. Integrate Graphify to inspect code relationships
 
@@ -289,116 +259,6 @@ diagnostic and use a new destination. A legacy graph without a producer receipt
 has no verified freshness. Hooks and opening the dashboard do not launch extraction.
 See [the code-context contract and pilot](../CODE_CONTEXT.md).
 
-## W-22. Integrate Graphiti with controlled publication and querying
-
-### When to choose it
-
-Graphiti projects approved sources into episodes and knowledge relationships. An
-episode is a published source document with identity and provenance. Querying can
-retrieve temporal or relational context when the compatible service and project
-policy permit it. This is not Graphify.
-
-```text
-We want a pilot of relationships between approved portal decisions.
-First verify a compatible Graphiti service and an isolated project group.
-Do not enable external reads until publication and verification are complete.
-```
-
-```mermaid
-flowchart TD
-    A[Compatible service and isolated group] --> B[Shadow mode and selected categories]
-    B --> C[Preview and publish]
-    C --> D[Confirm UUID and content]
-    D --> E[Verify versions and history]
-    E --> F{External reads authorized?}
-    F -->|No| G[Continue with local querying]
-    F -->|Yes| H[Allow selected read intents]
-```
-
-1. **Prepare the external service.** Its administrator maintains MCP, storage,
-   extraction and embeddings. The plugin does not download or serve a model.
-   A provider declaration guides the client request; it does not configure the
-   service’s model. `provider.llm: none` omits those instructions and **does not
-   disable server extraction or guarantee zero cost**.
-2. **Reserve an exclusive group.** A value such as `portal-solicitudes` logically
-   separates this project’s publications. Verify what the real server does with
-   that group. A group declaration is not OS sandboxing or an authorization model.
-   Remote access remains off unless explicitly approved under the guardrail.
-3. **Choose shadow first.** `mode: shadow` permits configured publication without
-   external querying. `off` disables that backend; `read` is a later, separately
-   authorized step. Category routing remains an independent control.
-4. **Preview, publish and read back.** The adapter shows its plan, submits the
-   authorized episode and confirms the returned UUID/content. Identity alone is
-   not permission to call indexing complete. Keep links between local ID, version,
-   group, episode UUID and manifest.
-5. **Check history.** A replacement must preserve supersession; revocation must
-   retain identity. Default transition relations use control episodes. Direct
-   `triplet` handling requires a server with verified isolation/provenance. Do not
-   replace a failed episode relation with a globally ambiguous triple.
-6. **Consider read mode only after complete verification.** Enable the selected
-   intents in `config.router.intents` as well as the backend and `mode: read`.
-   Healthy state, current sources, verified bindings and complete windows are
-   required. Group-scoping, provenance or pagination uncertainty remains a typed
-   failure and falls back locally.
-7. **Recover explicitly.** A lost send is uncertain; reconcile receipts before
-   retrying. Revoking a published version does not automatically prove that every
-   derived relation has been removed. Check the actual service’s capabilities.
-
-This backend fragment belongs inside the complete taxonomy. It remains disabled
-until reviewed; `127.0.0.1:8001` is an example, not a running service:
-
-```json
-{
-  "type": "graphiti",
-  "enabled": false,
-  "config": {
-    "mode": "shadow",
-    "endpoint": "http://127.0.0.1:8001/mcp",
-    "group_id": "portal-solicitudes",
-    "allow_remote": false,
-    "provider": {"llm": "none"},
-    "entity_map": {},
-    "relations": [],
-    "transition_relations": "episode",
-    "router": {"intents": {"relacional": false}},
-    "telemetria": false,
-    "timeout_ms": 3000,
-    "concurrency": 1
-  }
-}
-```
-
-After enabling the reviewed backend and category routing, use the administration
-commands below. External query permission is still a separate decision:
-
-```powershell
-python $Sync --root $ProjectRoot --backend graphiti --dry-run
-# After reviewing and authorizing:
-python $Sync --root $ProjectRoot --backend graphiti
-python $Sync --root $ProjectRoot --backend graphiti --check
-python $Sync --root $ProjectRoot --backend graphiti --outbox-status
-# Only when mode=read and the relacional intent are authorized and verified:
-python (Join-Path $SharedKit "knowledge-find.py") --root $ProjectRoot --intent relacional --json "qué regla sustituye a la anterior"
-```
-
-### Interpreting results and limits
-
-Extracted facts and summaries are **derived content without authority**. Approval
-of the local source does not approve every model-extracted assertion. Similar names
-are insufficient provenance; query results need verified links to published episodes.
-An incomplete window cannot be relabeled successful.
-
-Rebuild creates and verifies a new generation before switching the manifest; it
-preserves the old group instead of emptying graphs. It is not a routine repair for
-a permission error or timeout. Resolve uncertain sends and pending relations using
-their receipts rather than deleting evidence.
-
-Existing evidence covers bounded fixtures on a temporary compatible server.
-**Deployment to your service, native-client workflows, comparative usefulness and
-global acceptance still require testing.** The installed 0.30.1 revision had a
-cross-group reading problem; the temporary compatible fixture did not update that
-service. Green health or synthetic tests do not establish complete acceptance.
-
 ## Capture knowledge in the team's format
 
 [Workflows W-28 to W-30](knowledge-categories.md) cover project categories and
@@ -408,7 +268,7 @@ them remain separate steps.
 
 ## Choose and retire integrations without losing memory
 
-Start from the need: local continuity, document retrieval, temporal relationships
+Start from the need: local continuity, retrieval from a service of your own
 or code navigation. Enable only useful capabilities and test representative questions
 with sources. An administrator can withdraw external reads without deleting approved
 local knowledge. Keep receipts, mappings and the evidence needed to resume later.

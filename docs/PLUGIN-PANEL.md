@@ -183,10 +183,9 @@ fuente no trae se muestra «sin datos»; nunca se pinta como 0 ni se infiere de 
   (`pending`, `needs_changes`, `rejected`) y lo aprobado en `docs/knowledge/approved/`. Sin botones,
   formularios ni enlaces: aprobar y rechazar es solo de `knowledge-curator` (ADR-018).
 - **Publicado por backend** (sin red): por cada backend de `.claude/knowledge-services/taxonomy.json`,
-  entradas publicadas (`entries` del `manifest.json` del export de Kwipu; `entradas` de
-  `graphiti-manifest.json`) y fecha de la última publicación, que sale solo de `completado_en` de la
-  outbox. Si la fuente no la trae, «sin datos». Un `.pending.json` se dice «publicación interrumpida»;
-  un backend ausente, «no configurado», sin enlace; sin `ui_url` declarado, «interfaz: no declarada».
+  la fecha de la última publicación, que sale solo de `completado_en` de la outbox del backend.
+  Si la fuente no la trae, «sin datos» (el panel no lee manifiestos de ningún adaptador, así que no
+  cuenta entradas); un backend declarado se lista tal cual y sin `ui_url` declarado, «interfaz: no declarada».
   Nunca llama a `health` ni abre una conexión.
 - **Journal**: como mucho 2 sesiones (la selección pública `journal.select_entries`) con `objetivo`,
   `punto_actual`, `siguientes_pasos`, `bloqueos` y `descartados`, redactadas y etiquetadas «citas, no

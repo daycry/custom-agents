@@ -37,7 +37,7 @@ flowchart LR
 | Preparar y ejecutar trabajo | [2. Recorrido del trabajo](guides/core-workflows.md) | Desde explicar una idea hasta aceptar la entrega y retomarla después |
 | Trabajar con Jira y Confluence | [3. Atlassian explicado](guides/atlassian.md) | Crear tarjetas, elegir tareas o fases, comentar, cambiar estados y publicar documentos |
 | Usar Redmine u otra wiki | [4. Redmine y otras herramientas](guides/redmine.md) | Qué se configura y cómo se mantiene el mismo método con otro proveedor |
-| Entender y conectar memoria | [7. Memoria e integraciones opcionales](guides/memory.md) | Memoria local, curación, Kwipu, Graphify y Graphiti, con ejemplos y recuperación |
+| Entender y conectar memoria | [7. Memoria e integraciones opcionales](guides/memory.md) | Memoria local, curación, servicios externos propios y Graphify, con ejemplos y recuperación |
 | Adaptarlo a tu equipo | [5. Personas, agentes, skills y herramientas](guides/customization.md) | Qué puedes personalizar y a quién corresponde hacerlo |
 | Ponerlo en marcha y resolver problemas | [6. Uso diario y adopción](guides/operations.md) | Un piloto de equipo, ejemplos de incidencias y un glosario para consultar |
 | Trabajar desde una sola consola | [8. Dashboard común](guides/dashboard.md) | Proyectos independientes, sesiones/chat, planes y kanban, notas, actividad y recuperación |

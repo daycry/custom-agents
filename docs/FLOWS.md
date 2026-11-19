@@ -95,7 +95,7 @@ flowchart LR
 ## Memoria local, lectura documental y contexto AST
 
 `knowledge-find.py` recupera memoria local sin Docker. Un `--intent` explícito
-puede solicitar lectura documental autorizada de `markdown-export`.
+puede solicitar una lectura autorizada de un backend enchufado por el proyecto.
 El router exige backend, `read.enabled`, intent, canon completo, routing y filtros
 de todo el conjunto publicado antes de importar el adaptador o transmitir la pregunta.
 
@@ -116,7 +116,7 @@ flowchart LR
 El binding exige ID, versión, hash, proyecto y scope del chunk contra canon,
 proyección y manifiesto propios. `source_nodes` son fuentes recuperadas, sin citas
 por afirmación. La estabilidad observada no garantiza atomicidad ni detecta ABA.
-Detalle y opt-in: [adaptador Kwipu](../skills/knowledge-services/references/kwipu-adapter.md#cómo-habilitar-la-lectura-documental).
+Detalle y opt-in: [contrato de adaptador](../skills/knowledge-services/backends/README.md).
 
 ```mermaid
 flowchart LR
@@ -157,12 +157,10 @@ flowchart LR
   Pending -.-> Replay
 ```
 
-Markdown publica por archivo con un manifiesto pendiente; un fallo puede dejar
+Un adaptador que publica por archivo lleva un manifiesto pendiente; un fallo puede dejar
 archivos actualizados o revocados y no revierte el lote. El CLI muestra esa
-posibilidad y `--outbox-status`. Al finalizar el manifiesto, sólo Windows reintenta
-errores 5/32/33 hasta cuatro veces, comprobando identidades observadas de origen
-y destino. Un cambio o rechazo persistente conserva el pendiente; no proporciona
-CAS frente a escritores externos. [Contrato del adaptador](../skills/knowledge-services/references/kwipu-adapter.md).
+posibilidad y `--outbox-status`. No hay compare-and-swap frente a escritores externos.
+[Contrato del adaptador](../skills/knowledge-services/backends/README.md).
 
 ## Retoma dirigida sobre registros existentes
 
@@ -699,7 +697,6 @@ flowchart LR
     A --> G[".claude/dev.json<br/>tdd · worktree · subagentes · statusline<br/>revision.lenteSeguridad/lenteRendimiento ·<br/>tests.coberturaMinima<br/>(+ decisión constitución)"]
     A -.->|"opt-in 5-bis"| SL[".claude/settings.json<br/>statusLine → roadmap-statusline.sh<br/>(ruta absoluta)"]
     A --> H["docs/CONSTITUTION.md<br/>principios permanentes (opt-in)<br/>los leen TODOS los agentes;<br/>la lente A los hace cumplir"]
-    A -.->|"opt-in 5-sexies"| KP["stack/kwipu/config/projects.yaml<br/>solo AÑADE un bloque marcado<br/>vista previa · confirmación · copia .bak<br/>(no ejecuta build_view)"]
     C -.->|estado| E[".claude/confluence-state.json"]
     D -.->|estado| F[".claude/jira-state.json<br/>mapeo · imputado/día · banco"]
 ```
@@ -858,7 +855,7 @@ flowchart LR
   Check -->|propuesta explícita| Pending[Candidato pendiente]
   Pending --> Curator[knowledge-curator]
   Curator --> Approved[Conocimiento aprobado]
-  Approved -->|publicación autorizada| Backend[Kwipu o Graphiti]
+  Approved -->|publicación autorizada| Backend[Servicio externo del proyecto]
 ```
 
 El origen declarado se conserva durante la revisión; no autentica a la persona

@@ -26,7 +26,7 @@ de dominio (métricas, simulación, herramientas) es del proyecto consumidor.
 ## Cuándo NO usarla
 
 - Para curar o aprobar conocimiento (`docs/knowledge/candidates/`): `knowledge-curator` (esta skill,
-  como mucho, **propone** un caso Gold, `bridge_to_curator`); para publicarlo (Kwipu): `knowledge-services`.
+  como mucho, **propone** un caso Gold, `bridge_to_curator`); para publicarlo a un servicio externo: `knowledge-services`.
 - Para calcular una métrica, simular o evaluar semánticamente un resultado: código del proyecto.
 - Para lanzar un fine-tuning, servir un modelo o correr un benchmark: siempre fuera del plugin.
 - Sin `training.json` (o con `enabled: false`) no hay nada que hacer: la capacidad está apagada y

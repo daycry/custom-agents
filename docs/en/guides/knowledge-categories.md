@@ -71,7 +71,7 @@ flowchart TD
     F -- Yes and proposal requested --> P[Pending candidate with provenance]
     P --> C[knowledge-curator]
     C -- Approved --> K[Local approved knowledge]
-    K -. Separately authorized publication .-> S[Kwipu or Graphiti]
+    K -. Separately authorized publication .-> S[Project external service]
 ```
 
 The command neither approves nor publishes documents. Curation retains its existing
@@ -98,7 +98,7 @@ authorship. These labels are not authenticated identities or filesystem ACLs.
 New categories default to empty routing. Existing backend declarations and
 preferences remain intact. Complete, excluded and summary routing remain separate
 from backend enablement, approval, export and external indexing. This capability
-does not migrate Graphiti episode identities or receipts.
+does not migrate identities or receipts of any external service.
 
 If the template was created but taxonomy publication failed, `partial` is explicit.
 Keep the created file, obtain a fresh preview and resume. Configuration backups

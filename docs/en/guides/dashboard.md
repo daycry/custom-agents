@@ -292,6 +292,6 @@ flowchart TD
    Preserve evidence rather than deleting it to remove the notice. A copied project
    may need its own registration and new native connections.
 
-[Memory workflows](memory.md) explain Kwipu, Graphify and Graphiti recovery.
+[Memory workflows](memory.md) explain Graphify and external-service recovery.
 The [console startup contract](../../../skills/plugin-panel/references/control-center.md)
 provides the registry JSON, direct startup, resource budgets and protocol limits.

@@ -11,7 +11,7 @@
 
 ## Alcance y activación
 
-Diagnóstico de la instalación del plugin en este proyecto — herramientas (python3, git, jq, node, Playwright), plugin y hooks registrados, statusline, configs de .claude (rates, dev, jira, confluence) y estado del trabajo (marcadores de medición huérfanos, iniciativas en progreso, memoria técnica —curadas, índice, FTS5, journal, calibración—, evals), con veredicto ✅/⚠️/❌ y el arreglo concreto de cada línea. Solo lee; no toca nada. Sin red salvo la comprobación en vivo de capacidades opcionales activadas en `taxonomy.json`, acotada a hosts locales/privados y a un tope total de tiempo (p. ej. `kwipu` o la memoria de grafo `graphiti`). Úsalo cuando el usuario diga "¿está bien instalado?", "diagnostica el plugin", "por qué no funciona el hook", "comprueba mi configuración", "doctor".
+Diagnóstico de la instalación del plugin en este proyecto — herramientas (python3, git, jq, node, Playwright), plugin y hooks registrados, statusline, configs de .claude (rates, dev, jira, confluence) y estado del trabajo (marcadores de medición huérfanos, iniciativas en progreso, memoria técnica —curadas, índice, FTS5, journal, calibración—, evals), con veredicto ✅/⚠️/❌ y el arreglo concreto de cada línea. Solo lee; no toca nada. Sin red salvo la comprobación en vivo de capacidades opcionales activadas en `taxonomy.json`, acotada a hosts locales/privados y a un tope total de tiempo (p. ej. un backend de `knowledge-services` que el proyecto enchufe o la captura de casos `training`). Úsalo cuando el usuario diga "¿está bien instalado?", "diagnostica el plugin", "por qué no funciona el hook", "comprueba mi configuración", "doctor".
 
 
 `--panel-json` solicita una proyección portable para plugin-panel; es excluyente
@@ -67,6 +67,6 @@ nada**: cada línea lleva su veredicto y, si algo falla, **qué comando lo arreg
 
 ## Notas
 - **Qué es cada símbolo**: ✅ correcto · ⚠️ funciona pero a medias · ❌ roto · ℹ️ informativo (las ℹ️ **no** hay que arreglarlas).
-- **Detalle de lectura** (modo plugin frente a copia, estado efectivo, los tres runtimes, cómo se teclea el comando, los ocho bloques, automatizaciones, versión sin red, memoria de grafo `graphiti`): `$R/agent-kits/shared/doctor-reference.md` (la raíz `R` del paso 1); léelo solo si el usuario pregunta por una fila concreta.
+- **Detalle de lectura** (modo plugin frente a copia, estado efectivo, los tres runtimes, cómo se teclea el comando, los ocho bloques, automatizaciones, versión sin red, backends enchufados): `$R/agent-kits/shared/doctor-reference.md` (la raíz `R` del paso 1); léelo solo si el usuario pregunta por una fila concreta.
 - **Límite de los topes**: el tope de tiempo de las comprobaciones vale para sistemas de ficheros locales (una llamada del SO bloqueada en SMB u OneDrive no la acota).
 - **No confundir con `/setup`**: `/doctor` diagnostica lo que ya hay (solo lectura); `/setup` configura y escribe (`rates.json`, `dev.json`, opt-ins de Jira/Confluence, statusline).

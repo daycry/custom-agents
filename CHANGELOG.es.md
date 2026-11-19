@@ -11,6 +11,14 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Removed — CAMBIO ROMPEDOR, versión mayor (4.0.0): se retiran los backends Kwipu y Graphiti (`plugin-audit-2`, 2026-11-19)
+
+- **Cambio rompedor.** El plugin ya no incluye los adaptadores Kwipu (`markdown-export`) y Graphiti, `kwipu-project-add.py`, sus guías y ejemplos, ni las capacidades `kwipu`/`graphiti` de `/setup` y `/doctor`. Una `taxonomy.json` que aún los declare no es un error al cargar: `knowledge-sync.py --backend <id>` sale con código 2 y un mensaje «retirado», y `/doctor` no pinta fila para ellos. La plantilla de taxonomía por defecto ya no declara backends ni `routing`.
+- **Lo que no cambia.** La memoria local (`docs/knowledge/`: ADR, gotchas, lecciones, `approved/`, curación, journal y `knowledge-find.py`) funciona igual que antes, sin ningún servicio. El marco `knowledge-services` se conserva — cargador de adaptadores por `type` con el contrato de seis funciones, `routing` cerrado, `knowledge-sync.py`, la outbox de recuperación y el registro de capacidades — **sin adaptadores incluidos**: un proyecto puede enchufar un backend propio.
+- **Cómo migrar.** Si no usabas ninguno de los dos servicios, no hay nada que hacer. Si los usabas: sigue con la memoria local sola (quita los backends `kwipu`/`graphiti` y sus claves `routing.<id>` de `.claude/knowledge-services/taxonomy.json`, o déjalos: ya no publican nada), o escribe un adaptador para el servicio de memoria que prefieras y cárgalo desde `backends/<type>.py` o con `--backends-dir` (hay un adaptador de prueba en `skills/knowledge-services/scripts/fixtures/`). `kairos install` es una opción entre otras, nunca un requisito. Los datos ya publicados (la carpeta `kwipu-export/`, el grafo de Graphiti) no se tocan.
+- **Recuperar el código.** Los dos adaptadores están en el historial de git: etiqueta `v3.3.0` (commit `fb3bb37`) y commit `21ad63f` de la rama `plugin-audit-2` (justo antes de la retirada). El cliente MCP de Graphiti es `ClienteMCP` en `skills/knowledge-services/backends/graphiti.py` de ese commit; no envía cabecera `Authorization: Bearer`.
+- La suite de regresión «ningún hook hace red» pasa a ser `tests/test_hook_network_egress.py` (se quitaron las comprobaciones específicas de Graphiti); el panel del plugin ya no lee manifiestos de adaptador y lista los backends declarados con la fecha de su outbox.
+
 ## [3.3.0] - 2026-11-10
 
 ### Fixed — iniciativa `plugin-audit-remediation`, fase 1: seguridad y pérdida de datos (2026-11-09)
