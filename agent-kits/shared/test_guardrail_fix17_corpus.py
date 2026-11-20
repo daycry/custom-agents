@@ -69,7 +69,7 @@ PERMITIDAS_RAMA17 = [
     "git rebase main", "git rebase -i HEAD~3", "git rebase --onto main HEAD~2", "git rebase --continue", "git rebase --abort", "git rebase feature/x",
     "git rebase -s ours main", "git rebase --root", "git rebase --root --onto main",
     "git bisect log",
-    "git update-ref refs/tags/v1 HEAD", "git update-ref refs/stash HEAD", "git status", "git log --oneline",
+    "git status", "git log --oneline",
     "git submodule foreach 'git status'", "git submodule foreach --recursive git pull", "git rebase -x 'make test' HEAD~2", "git rebase --exec 'npm test' main",
     "git submodule update --init",
 ]

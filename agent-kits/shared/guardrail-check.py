@@ -2394,11 +2394,10 @@ def _razon_cambio_rama(sub, rest, branch):
         if p == branch or (sub == "checkout" and p == "HEAD"):
             continue
         # fix18 (gap 1): una ref gana a una ruta homonima (git `checkout main` con un directorio `main` CAMBIA de rama) y delante de `--` sigue siendo una ref.
-        ref = _ref_existe(p)
-        if sub == "checkout" and ref is not True and _ruta_existente(p) and not (ref is None and _es_rama_principal(p)):
-            continue
-        return (f"`git {sub} {p}` bloqueado: {donde} y `{p}` no es la rama actual ni una ruta que exista sin ser una ref; el guardarraíl no puede saber si suelta HEAD o cambia de rama "
-                f"(otra rama, un tag, `FETCH_HEAD`, un SHA, una remota…; una ref gana a una ruta con su nombre: usa `git checkout -- {p}` para la ruta) — {cierre}")
+        # fix24 (lista blanca): fuera de la rama actual y de HEAD, una ruta solo vale detras de `--` (se devolvio None mas arriba); sin `--` el nombre puede ser una rama, un tag, `-`, un SHA o una
+        # remota que git crea (DWIM) aunque haya un fichero o directorio con ese nombre, y el guardarrail no lo resuelve.
+        return (f"`git {sub} {p}` bloqueado: {donde} y `{p}` no es la rama actual; solo se permite cambiar a la rama actual, `HEAD` o restaurar rutas DETRAS de `--` (`git checkout -- {p}`): sin `--` el "
+                f"nombre puede ser una rama, un tag, `-`, un SHA o una remota (git la crea) aunque exista una ruta con ese nombre — {cierre}")
     return None
 
 
@@ -2473,16 +2472,36 @@ def _razon_cabeza(toks):
 _MOVEDORES_DE_HISTORIA = frozenset(("merge", "pull", "rebase", "cherry-pick", "revert", "am", "commit", "reset"))
 
 
+_C_IRRESOLUBLE = "<-C irresoluble>"      # fix24 (gap 5): hay un `-C` cuyo destino no se puede conocer sin ejecutar la shell
+
+
+def _expande_C(v):
+    """fix24 (gap 5): el destino de un `-C` con las formas que el guard SI puede resolver: `$PWD`/`${PWD}` (el `cwd` del payload), `~`/`~/...` y `$HOME`/`${HOME}` (el HOME del entorno), la ruta
+    de Git Bash `/c/...` (Windows) y las rutas cortas 8.3 (las expande `realpath`). None si queda algo que solo la shell sabe resolver (`$VAR`, `$(...)`, backticks, globs, `~usuario`)."""
+    inicio = os.path.expanduser("~")
+    if v == "~" or v.startswith(("~/", "~\\")):
+        v = inicio + v[1:]
+    v = re.sub(r"\$\{?PWD\}?(?![A-Za-z0-9_])", lambda m: _cwd().replace("\\", "/"), v)
+    v = re.sub(r"\$\{?HOME\}?(?![A-Za-z0-9_])", lambda m: inicio.replace("\\", "/"), v)
+    if re.search(r"[$`*?\[]", v) or v.startswith("~"):
+        return None
+    if os.name == "nt":
+        m = re.match(r"^/(?:cygdrive/)?([A-Za-z])(?:/(.*))?$", v)
+        if m:
+            v = m.group(1).upper() + ":/" + (m.group(2) or "")
+    return v
+
+
 def _directorios_C(toks):
-    """Directorio al que apuntan los `-C <ruta>` de la invocacion git `toks` (cada `-C` es relativo al anterior), o None si no hay o no es literal."""
+    """Directorio al que apuntan los `-C <ruta>` de la invocacion git `toks` (cada `-C` es relativo al anterior): None si no hay `-C`; `_C_IRRESOLUBLE` si alguno no se puede resolver."""
     ruta = None
     i = 1
     while i < len(toks) and toks[i].startswith("-"):
         o = toks[i]
         if o == "-C" and i + 1 < len(toks):
-            v = toks[i + 1]
-            if re.search(r"[$`*?\[~]", v):
-                return None
+            v = _expande_C(toks[i + 1])
+            if v is None:
+                return _C_IRRESOLUBLE
             ruta = v if ruta is None else os.path.join(ruta, v)
         if o in _GIT_GLOBAL_VALUES:
             i += 2
@@ -2490,7 +2509,11 @@ def _directorios_C(toks):
             i += 1
     if ruta is None:
         return None
-    return os.path.normpath(ruta if os.path.isabs(ruta) else os.path.join(_cwd(), ruta))
+    ruta = os.path.normpath(ruta if os.path.isabs(ruta) else os.path.join(_cwd(), ruta))
+    try:
+        return os.path.realpath(ruta) if os.path.exists(ruta) else ruta
+    except (OSError, ValueError):
+        return ruta
 
 
 def _refspec_mueve_rama(destino):
@@ -2580,7 +2603,11 @@ def _razon_git(toks, branch, base_cambiada):
         # fix18 (gap 6): `-C <dir>`: el HEAD que cuenta es el del directorio. Con HEAD en la rama principal, lo que mueve su historia es integrar; con otra rama de trabajo, el resto de reglas
         # se aplican con ESA rama (un worktree de otra tarea).
         destino_C = _directorios_C(toks)
-        if destino_C is not None and os.path.isdir(destino_C):
+        if destino_C == _C_IRRESOLUBLE and toks[i] not in _SUB_LECTURA:
+            return (f"`git -C <ruta que depende de la shell> {toks[i]}` bloqueado: el destino de `-C` no se puede resolver aquí (`$VAR`, `$(…)`, globs, `~usuario`) y `{toks[i]}` escribe; "
+                    "si fuera un worktree con HEAD en la rama principal sería integrar — usa una ruta literal, `$PWD/…` o `~/…` (con `-C` sin resolver solo valen los subcomandos de lectura: "
+                    + ", ".join(sorted(_SUB_LECTURA)[:8]) + "…).")
+        if destino_C not in (None, _C_IRRESOLUBLE) and os.path.isdir(destino_C):
             rama_C = rama_barata(destino_C)
             if rama_C in MAIN_BRANCHES and toks[i] in _MOVEDORES_DE_HISTORIA:
                 return (f"`git -C {toks[i - 1] if i else ''} {toks[i]}` bloqueado: ese directorio tiene HEAD en la rama principal «{rama_C}» y `{toks[i]}` mueve su historia (integrar) — "
@@ -2662,6 +2689,97 @@ def _razon_git(toks, branch, base_cambiada):
     razon = _razon_rebase_bisect(toks)
     if razon:
         return razon
+    return _lista_blanca(toks, branch)
+
+
+# ---- fix24: LISTA BLANCA de git del implementer (decision del usuario 2026-11-20; politica unica, ADR-023). Es la ULTIMA capa de `_razon_git`: lo que las reglas anteriores dejan pasar solo es
+# valido si el subcomando (y sus opciones globales) esta aqui; todo lo demas se deniega con un mensaje que dice que se permite. Cierra por CLASE lo que las lentes del intento 19 encontraron forma a forma
+# (DWIM de remota, `checkout -`/SHA, `@:main`, `gc --prune=<fecha>`, `branch -m`, `fast-import`, `send-email --*-cmd`, la reversa de una biseccion...). Los envoltorios encadenados siguen siendo limite conocido.
+_SUB_LECTURA = frozenset((
+    "status", "diff", "log", "show", "rev-parse", "ls-files", "blame", "grep", "merge-base", "describe", "cat-file", "shortlog", "ls-tree", "rev-list", "diff-tree", "diff-files",
+    "diff-index", "show-ref", "for-each-ref", "name-rev", "whatchanged", "show-branch", "count-objects", "check-ignore", "check-attr", "var", "version", "help", "annotate", "cherry", "range-diff"))
+_SUB_ESCRIBE = frozenset((
+    "add", "commit", "mv", "rm", "revert", "cherry-pick", "merge", "rebase", "reset", "switch", "checkout", "restore", "stash", "branch", "push", "fetch", "pull", "worktree", "apply",
+    "format-patch", "clean", "notes", "tag", "bisect", "remote", "config", "reflog", "submodule"))
+_GLOBALES_OK = frozenset(("-C", "-c", "--no-pager", "-P", "-p", "--paginate", "--no-optional-locks", "--no-advice", "--literal-pathspecs", "--glob-pathspecs", "--noglob-pathspecs",
+                          "--icase-pathspecs", "--no-replace-objects", "--no-lazy-fetch"))
+_PUSH_OPCIONES = frozenset(("-u", "--set-upstream", "-q", "--quiet", "-v", "--verbose", "-n", "--dry-run", "--follow-tags", "--tags", "--progress", "--no-progress"))
+_TAG_CON_VALOR = ("--contains", "--no-contains", "--points-at", "--merged", "--no-merged", "--sort", "--format", "--column")
+_TAG_ESCRIBE = ("--delete", "--force", "--annotate", "--sign", "--local-user", "--message", "--file", "--edit")
+
+
+def _lista_blanca(toks, branch):
+    """Razon de deny o None para la invocacion git `toks` segun la lista blanca de subcomandos y opciones globales (ver arriba)."""
+    i, _hooks = _git_invocation(toks)
+    if i < 0:
+        return None
+    permitido = ("permitido: lectura (" + ", ".join(sorted(_SUB_LECTURA)[:12]) + "…) y, sobre tu rama de trabajo: add, commit, mv, rm (sin -f), revert, cherry-pick, merge, rebase, reset (sin --hard), "
+                 "switch/checkout a la rama actual o `-b`, `checkout|restore -- <ruta>`, restore --staged, stash push|list|show|pop|apply, branch (listar o crear), push de la rama actual, fetch, "
+                 "pull, worktree list|add -b|remove|prune, tag (listar), apply, format-patch, clean -n, config (claves inocuas), submodule status|update")
+    k = 1
+    while k < i:
+        o = toks[k]
+        base = o if o in _GLOBALES_OK else ("-C" if o.startswith("-C") and not o.startswith("--") else ("-c" if o.startswith("-c") and not o.startswith("--") else o))
+        if base not in _GLOBALES_OK:
+            return (f"opción global `{o.split('=', 1)[0]}` de git bloqueada: solo se permiten -C, -c (claves inocuas), --no-pager, -p/-P, --no-optional-locks y las --*-pathspecs "
+                    "(`--git-dir`, `--work-tree`, `--exec-path`, `--bare`, `--namespace`, `--config-env`… cambian qué repositorio o qué programas usa git).")
+        k += 2 if o in _GIT_GLOBAL_VALUES else 1
+    sub, args = toks[i], toks[i + 1:]
+    if sub not in _SUB_LECTURA and sub not in _SUB_ESCRIBE:
+        return f"`git {sub}` bloqueado por la lista blanca de git del implementer ({permitido}). Lo demás lo hace el usuario o el ritual de cierre de /dev-cycle (Fase 6)."
+    opciones = [t for t in args if t.startswith("-") and t != "--"]
+    posicionales = [t for t in args if not t.startswith("-")]
+    if sub in ("merge", "cherry-pick", "pull", "rebase", "revert") and branch in MAIN_BRANCHES:
+        return f"`git {sub}` bloqueado: con HEAD en la rama principal «{branch}» integraría en ella — trabaja y integra solo HACIA tu rama de trabajo (la integración la dirige /dev-cycle, Fase 6)."
+    if sub == "tag":
+        escribe = any(_prefijo(t, *_TAG_ESCRIBE) or _cluster(t, "d") or _cluster(t, "f") or _cluster(t, "a") or _cluster(t, "s") or _cluster(t, "u") or _cluster(t, "m") or _cluster(t, "F") for t in opciones)
+        lista = any(_prefijo(t, "--list", "--contains", "--no-contains", "--points-at", "--merged", "--no-merged") or _cluster(t, "l") for t in opciones)
+        if escribe or (posicionales and not lista):
+            return "`git tag` bloqueado: solo se permite listar (`git tag`, `-l`, `--contains`, `--points-at`…); crear, mover o borrar tags lo decide el usuario o el ritual de cierre."
+    elif sub == "notes":
+        if posicionales and posicionales[0] not in ("list", "show"):
+            return "`git notes` bloqueado: solo se permite leer (`git notes`, `list`, `show`)."
+    elif sub == "remote":
+        if posicionales and posicionales[0] not in ("show", "get-url"):
+            return "`git remote` bloqueado: solo se permite `git remote [-v]`, `show` y `get-url` (cambiar remotos redirige los push)."
+    elif sub == "stash":
+        if posicionales and posicionales[0] not in ("push", "list", "show", "pop", "apply", "save"):
+            return "`git stash` bloqueado: se permiten push, list, show, pop, apply (no drop, clear, branch, create ni store)."
+    elif sub == "worktree":
+        if not posicionales or posicionales[0] not in ("list", "add", "remove", "prune"):
+            return "`git worktree` bloqueado: se permiten list, add (con `-b <rama>`), remove (sin --force) y prune."
+        if posicionales[0] == "add" and any(_cluster(t, "f") or _prefijo(t, "--force") for t in opciones):
+            return "`git worktree add --force` bloqueado: crea el árbol aunque la rama ya esté en uso en otro — usa `git worktree add <dir> -b <rama>`."
+    elif sub == "submodule":
+        sub2 = posicionales[0] if posicionales else "status"
+        if sub2 not in ("status", "update", "init", "sync", "summary", "foreach"):
+            return "`git submodule` bloqueado: se permiten status, update, init, sync, summary y foreach (el código de foreach se analiza)."
+    elif sub == "branch":
+        if any(_cluster(t, "m") or _cluster(t, "M") or _cluster(t, "c") or _cluster(t, "C") or _prefijo(t, "--move", "--copy") for t in opciones):
+            return "`git branch -m|-M|-c|-C` bloqueado: renombrar o copiar ramas mueve `refs/heads/*` (también la principal) — para listar usa `git branch`, para crear `git branch <rama>` o `git switch -c <rama>`."
+    elif sub == "clean":
+        if not any(_cluster(t, "n") or _prefijo(t, "--dry-run") for t in opciones):
+            return "`git clean` bloqueado: solo `clean -n|--dry-run` (simulación); borrar ficheros sin seguimiento puede llevarse cambios que no son tuyos."
+    elif sub == "reflog":
+        if posicionales and posicionales[0] not in ("show", "list", "exists"):
+            return "`git reflog` bloqueado: solo se permite leerlo (`git reflog`, `show`)."
+    elif sub == "push":
+        malas = [t for t in opciones if t.split("=", 1)[0] not in _PUSH_OPCIONES]
+        if malas:
+            return f"`git push {malas[0]}` bloqueado: con la lista blanca solo se permiten {', '.join(sorted(_PUSH_OPCIONES))} (sin --force, --delete, --mirror, --no-verify, --prune…)."
+        if len(posicionales) > 2 or (posicionales and (":" in posicionales[0] or posicionales[0] == ".")):
+            return "`git push` bloqueado: solo se empuja la rama actual a su remoto (`git push [-u] [<remoto> [<rama>|HEAD|HEAD:<rama>]]`); sin refspec a otra rama y sin `.` como remoto."
+        if len(posicionales) == 2:
+            ref = posicionales[1]
+            origen, dos, destino = ref.partition(":")
+            destino = (destino if dos else origen).removeprefix("refs/heads/")
+            validos = {"HEAD", "@"} | ({branch} if branch and branch != "HEAD" else set())
+            if (dos and origen not in validos) or (not dos and origen not in validos) or (destino not in validos - {"@"}):
+                return (f"`git push … {ref}` bloqueado: solo se empuja la rama actual (`{branch}`) o `HEAD` a una rama del mismo nombre; un refspec a otra rama (`@:main`, `HEAD@{{0}}:main`, `x:main`…) "
+                        "mueve ramas ajenas.")
+    elif sub in ("fetch", "pull"):
+        if len(posicionales) > 2 or any(":" in t or t == "." for t in posicionales):
+            return f"`git {sub}` bloqueado: sin refspec (`:`) ni `.` como remoto — `git {sub} [<remoto> [<rama>]]`."
     return None
 
 

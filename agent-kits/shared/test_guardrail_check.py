@@ -152,7 +152,7 @@ def test_git_deny_operaciones_destructivas_auditoria(cmd):
 @pytest.mark.parametrize("cmd", [
     "git reset", "git reset --soft HEAD~1", "git reset HEAD src/a.py", "git reset --mixed",
     "git clean -n", "git clean -nd", "git clean --dry-run -f",
-    "git push origin feature/x", "git push origin feature/x:feature/x", "git push -u origin x",
+    "git push origin feature/x", "git push origin feature/x:feature/x", "git push -u origin feature/x",
     "git stash", "git stash push -m wip", "git stash pop", "git stash list", "git stash apply",
     'git commit -m "git reset --hard en el mensaje"',
 ])
@@ -163,7 +163,7 @@ def test_git_operaciones_no_destructivas_siguen_permitidas(cmd):
 def test_fix1_evasiones_git_refspec_mas_shell_c_y_rm_punto():
     # (2a) refspec con `+` = force
     assert decide(bash("git push origin +main"))
-    assert decide(bash("git push origin main")) is None
+    assert decide(bash("git push origin main")), "fix24 (lista blanca): solo se empuja la rama actual; `origin main` empuja la rama local `main`"
     assert decide(bash("echo '+ok' | git push")) is None            # `+` no es un refspec de push
     # (2b) cadenas entrecomilladas que son comandos: sh -c / bash -c / eval
     for cmd in ('sh -c "git push --force"', "bash -c 'git push -f origin x'",
@@ -568,14 +568,13 @@ def test_fix2_guardarrail_cerrado_por_diseno_deniega(cmd):
 @pytest.mark.parametrize("cmd", [
     "git reset --soft HEAD~1", "git reset --mixed",
     "git reset HEAD src/a.py", "git push origin feature/x", "git push -u origin feature/x",
-    "git push --set-upstream origin feature/x", "git push --porcelain origin x",
-    "git push --no-prune origin x", "git push --push-option=ci.skip origin x",
+    "git push --set-upstream origin feature/x",
     "git clean -n", "git clean --dry-run", "git clean --dry", "git clean -n -f", "git clean -f -n",
     "git clean -f --dry-run", "git stash list", "git branch -d x", "git branch --delete x",
     "git -c core.quotepath=false status",   # intento 3: requireForce ya no está en la lista blanca
     "git config --get alias.x", "git config --list", "git config -l", "git config get alias.x",
     "git config --get-regexp alias", "git config list", "git config user.name x",
-    "git --no-pager log --oneline", "git -P status", "git --git-dir=.git status",
+    "git --no-pager log --oneline", "git -P status",
     "git --literal-pathspecs status", "git --exec-path",
 ])
 def test_fix2_formas_legitimas_siguen_permitidas(cmd):
@@ -619,7 +618,7 @@ def test_fix3_guardarrail_lista_blanca_y_analisis_real_deniega(cmd):
     # lista blanca
     "git -c user.name=x commit -m y", "git -c user.email=x@example.org commit -m y",
     "git -c core.quotepath=false status", "git -c color.ui=never log", "git -c advice.detachedHead=false status",
-    "git -c init.defaultBranch=main init", "git -c commit.gpgsign=true commit -m x",   # fix3b: solo verdadero
+    "git -c commit.gpgsign=true commit -m x",   # fix3b: solo verdadero
     # git config: lecturas y escrituras de la lista blanca
     "git config --get core.editor", "git config --list", "git config -l", "git config get alias.x",
     "git config list", "git config --get-regexp alias", "git config user.name", "git config user.name x",
@@ -631,10 +630,10 @@ def test_fix3_guardarrail_lista_blanca_y_analisis_real_deniega(cmd):
     "git clean -fn", "git clean -fdn", "git clean -nf", "git clean -n", "git clean --dry-run -f",
     "git clean -f --no-dry-run --dry-run", "git clean -e build -n -f", "git clean -fdn -e x",
     # ramas legítimas
-    "git branch feature/y", "git branch -d x", "git branch --list", "git branch -m viejo nuevo",
+    "git branch feature/y", "git branch -d x", "git branch --list",
     # opciones globales legítimas (gap 7)
     "git -C /r status", "git -P log", "git --no-pager log", "git --no-optional-locks status",
-    "git --paginate log", "git --literal-pathspecs status", "git --bare status", "git -C /r -c user.name=x commit -m y",
+    "git --paginate log", "git --literal-pathspecs status", "git -C /r -c user.name=x commit -m y",
 ])
 def test_fix3_formas_legitimas_permitidas(cmd):
     assert decide(bash(cmd)) is None, cmd
@@ -1123,7 +1122,7 @@ def test_fix6_gap11_subcomandos_que_descartan_trabajo_o_salen_de_la_rama(cmd):
 
 
 @pytest.mark.parametrize("cmd", ["git rm --cached a.txt", "git worktree add ../wt", "git worktree list",
-                                 "git read-tree HEAD", "git checkout -b main2",
-                                 "git reset --soft HEAD~1", "git checkout-index a.txt"])
+                                 "git checkout -b main2",
+                                 "git reset --soft HEAD~1"])
 def test_fix6_gap11_lo_legitimo_cercano_sigue_permitido(cmd):
     assert decide(bash(cmd), branch="feature/x") is None, cmd

@@ -29,7 +29,7 @@ DENEGADAS24 = [
     # `-C` con destino que solo la shell resuelve y subcomando de escritura
     'git -C "$X" merge feat', "git -C $WT commit -am x", 'git -C "$(pwd)/x" reset --soft HEAD~1', "git -C ~otro/x merge feat", "git -C ../w* pull", "git -C $X add .", "git -C $X checkout -- a.txt",
     # opciones globales que cambian el repositorio o ejecutan programas
-    "git --git-dir=.git status", "git --work-tree=.. status", "git --exec-path=/x status", "git --bare log", "git --namespace=x log", "git --super-prefix=x status", "git --config-env=a=B log",
+    "git --git-dir=.git status", "git --git-dir .git status", "git --work-tree .. status", "git --work-tree=.. status", "git --exec-path=/x status", "git --bare log", "git --namespace=x log", "git --super-prefix=x status", "git --config-env=a=B log",
     "git -c core.pager=x log", "git -c alias.x=!y status", "git --unknown-option status",
     # push solo de la rama actual
     "git push . @:main", "git push . HEAD@{0}:main", "git push origin @:main", "git push origin HEAD:main", "git push origin feature/y:feature/y", "git push origin main", "git push . HEAD:x",

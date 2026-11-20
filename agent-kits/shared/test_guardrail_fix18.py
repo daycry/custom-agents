@@ -48,8 +48,8 @@ def test_git_real_cambia_de_rama_con_un_directorio_homonimo(repo18):
     assert _git(repo18, "symbolic-ref", "--short", "HEAD").stdout.strip() == "main", "git real SI cambia a la rama, no a la ruta"
 
 
-@pytest.mark.parametrize("orden", ["git checkout -- main", "git checkout HEAD", "git checkout main -- a.txt", "git checkout src", "git checkout src/k.txt", "git checkout a.txt",
-                                    "git checkout feature/x", "git checkout HEAD -- a.txt", "git checkout restore-me.txt"])
+@pytest.mark.parametrize("orden", ["git checkout -- main", "git checkout HEAD", "git checkout main -- a.txt", "git checkout -- src", "git checkout -- src/k.txt", "git checkout -- a.txt",
+                                    "git checkout feature/x", "git checkout HEAD -- a.txt", "git checkout -- restore-me.txt"])
 def test_una_ruta_que_no_es_ref_o_va_tras_guiones_se_permite(repo18, orden):
     (repo18 / "restore-me.txt").write_text("x")
     assert gc.check_git(orden, "feature/x") is None, orden
@@ -58,12 +58,12 @@ def test_una_ruta_que_no_es_ref_o_va_tras_guiones_se_permite(repo18, orden):
 def test_las_rutas_se_resuelven_contra_el_cwd_del_payload_y_las_refs_del_repositorio_del_payload(repo18, tmp_path_factory, monkeypatch):
     otro = tmp_path_factory.mktemp("otro-cwd")
     monkeypatch.chdir(otro)
-    payload = {"tool_name": "Bash", "cwd": str(repo18), "tool_input": {"command": "git checkout src"}}
+    payload = {"tool_name": "Bash", "cwd": str(repo18), "tool_input": {"command": "git checkout -- src"}}
     assert gc.decide(payload, str(repo18), branch="feature/x") is None, "`src` existe en el cwd del payload y no es una ref"
     payload["tool_input"]["command"] = "git checkout main"
     assert gc.decide(payload, str(repo18), branch="feature/x"), "`main` es una rama del repositorio del payload"
-    payload["tool_input"]["command"] = "git checkout a.txt"
-    assert gc.decide(payload, str(repo18), branch="feature/x") is None, "`a.txt` existe en el cwd del payload, no en el del proceso"
+    payload["tool_input"]["command"] = "git checkout -- a.txt"
+    assert gc.decide(payload, str(repo18), branch="feature/x") is None, "`a.txt` tras `--` es una ruta"
 
 
 def test_una_ref_empaquetada_cuenta_como_ref(repo18):
@@ -79,7 +79,8 @@ def test_con_la_ref_ilegible_una_rama_principal_se_deniega_igual(tmp_path, monke
     (tmp_path / "main").mkdir()
     (tmp_path / "src").mkdir()
     assert gc.check_git("git checkout main", "feature/x"), "sin repositorio legible no se puede descartar que `main` sea una rama"
-    assert gc.check_git("git checkout src", "feature/x") is None, "una ruta que existe y no parece una rama principal se permite"
+    assert gc.check_git("git checkout src", "feature/x"), "fix24 (lista blanca): sin `--` una ruta no se distingue de una ref"
+    assert gc.check_git("git checkout -- src", "feature/x") is None
 
 
 # --------------------------------------------------------------------------- gaps 2, 7 y 9: destruyen o ejecutan shell ----
@@ -187,12 +188,12 @@ def test_la_lista_blanca_de_rama_no_lanza_git(repo18, monkeypatch):
         raise AssertionError("la resolucion de refs no debe lanzar procesos")
     monkeypatch.setattr(gc.subprocess, "run", prohibido)
     assert gc.check_git("git checkout main", "feature/x")
-    assert gc.check_git("git checkout src", "feature/x") is None
+    assert gc.check_git("git checkout -- src", "feature/x") is None
 
 
 def test_el_corpus_18_no_esta_vacio_y_sin_duplicados():
     for lista in (DESTRUYEN18, CODIGO18, MUEVEN_RAMAS18, RAMA_COMO_RUTA18, PERMITIDAS18, EN_OTRO_DIRECTORIO18):
-        assert len(lista) == len(set(lista)) and len(lista) > 8, len(lista)
+        assert len(lista) == len(set(lista)) and len(lista) >= 8, len(lista)   # fix24: `am` sale del corpus de `-C` (la lista blanca lo deniega)
     assert all(o.isascii() for lista in (DESTRUYEN18, CODIGO18, MUEVEN_RAMAS18, PERMITIDAS18) for o in lista)
 
 

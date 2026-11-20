@@ -87,7 +87,8 @@ def test_lo_que_no_sale_de_la_rama_sigue_permitido(orden):
 def test_checkout_de_una_ruta_existente_se_permite(tmp_path, monkeypatch):
     (tmp_path / "main.py").write_text("x")
     monkeypatch.chdir(tmp_path)
-    assert gc.check_git("git checkout main.py", "feature/x") is None
+    assert gc.check_git("git checkout main.py", "feature/x"), "fix24 (lista blanca): una ruta solo vale detras de `--`"
+    assert gc.check_git("git checkout -- main.py", "feature/x") is None
     assert gc.check_git("git checkout nada-de-esto.py", "feature/x"), "una ref que no es la rama actual ni una ruta existente se deniega"
     assert gc.check_git("git switch main.py", "feature/x"), "`switch` no restaura ficheros"
 

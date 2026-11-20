@@ -49,7 +49,7 @@ MUEVEN_RAMAS18 = [
 # --- gap 6, `-C <directorio>`: el HEAD que cuenta es el del directorio (el test sustituye `WT-MAIN` por un worktree cuyo HEAD es `main`)
 EN_OTRO_DIRECTORIO18 = [
     "git -C WT-MAIN merge feature/x", "git -C WT-MAIN reset --soft HEAD~1", "git -C WT-MAIN commit -am x", "git -C WT-MAIN pull", "git -C WT-MAIN rebase feature/x",
-    "git -C WT-MAIN cherry-pick abc1234", "git -C WT-MAIN revert HEAD", "git -C WT-MAIN am p.patch", "git -C WT-MAIN merge --ff-only feature/x",
+    "git -C WT-MAIN cherry-pick abc1234", "git -C WT-MAIN revert HEAD", "git -C WT-MAIN merge --ff-only feature/x",
 ]
 
 # --- gap 1: la rama con nombre de ruta (el test crea la rama y el directorio con el mismo nombre)
@@ -68,12 +68,9 @@ PERMITIDAS18 = [
     "git push origin feature/x:feature/x", "git merge main", "git rebase main", "git rebase -S main", "git rebase -S", "git rebase -i HEAD~3", "git rebase --whitespace fix main",
     "git rebase --onto main HEAD~2", "git rebase -x 'make test' HEAD~2", "git worktree add ../wt -b feature/y", "git worktree add ../wt feature/y", "git worktree list",
     "git worktree remove ../wt", "git worktree prune", "git submodule update", "git submodule update --init --recursive", "git submodule status", "git submodule foreach 'git status'",
-    "git submodule deinit sub", "git gc", "git gc --auto", "git gc --prune=2.weeks.ago", "git reflog", "git reflog show HEAD", "git reflog expire --dry-run --all",
-    "git difftool -y -x 'diff -u' HEAD~1", "git difftool --extcmd='meld' HEAD~1", "git difftool", "git grep -O v1", "git grep foo", "git grep -n -e foo -- src", "git archive HEAD -o a.zip",
-    "git archive --format=zip HEAD", "git fetch-pack . HEAD", "git bisect log", "git bisect visualize", "git bisect view", "git tag v1", "git tag -a v1 -m x", "git show HEAD",
-    "git clone -c user.name=x . ../c", "git clone --config color.ui=always . ../c", "git merge --abort", "git mv -f b.txt a.txt",
-    "git -C sub status", "git -C ../other-repo log --oneline", "git ls-remote origin", "git clone https://example.com/x.git y",
-]
+    "git reflog", "git reflog show HEAD", "git grep -O v1", "git grep foo", "git grep -n -e foo -- src", "git bisect log", "git bisect visualize", "git bisect view", "git show HEAD",
+    "git merge --abort", "git mv -f b.txt a.txt",
+    "git -C sub status", "git -C ../other-repo log --oneline", ]
 
 # --- limite declarado (usuario, 2026-11-17): cadenas de programas fuera de la tabla; el sufijo desenvuelto no se re-ancla otra vez
 LIMITE18 = [
