@@ -187,6 +187,7 @@ def _policy_child(policy, key, line, child):
 
 
 _INDENT = ' ' + chr(9)
+_FRONTMATTER_LINE = re.compile(r'^(?:[A-Za-z_][\w.-]*[ ]*:|- |-$)')
 _METADATA_KEY = re.compile(r'^(name|description|model|tools|permission):\s*(.*)$')
 
 
@@ -231,6 +232,10 @@ def _metadata(raw, *, ignore_name=False):
             result[key].append(_scalar(line.strip()[2:]))
         elif key in ('tools', 'permission') and line.startswith((' ', '\t')):
             child = _policy_child(_object(result[key]), key, line, child)
+        elif line[0] not in _INDENT and not _FRONTMATTER_LINE.match(line):
+            # A top-level line that opens no key (`name: ...`) nor continues a list: it would be silently
+            # dropped and truncate the previous value (e.g. an unindented `description: >-` continuation).
+            raise ValueError('unassignable frontmatter line')
         else:
             key = None
     if description_parts:

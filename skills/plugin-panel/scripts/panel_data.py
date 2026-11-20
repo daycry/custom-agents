@@ -929,29 +929,44 @@ def _ultima_publicacion(reader, project, backend):
     return mejor, (not listado['complete']) or len(todos) > MEM_OUTBOX_LEIDOS
 
 
-def _tipos_retirados():
+def _tipos_retirados(issue=None):
     """`RETIRADOS` del cargador de `knowledge-services` (los `type` que el plugin incluyo hasta 3.x), leido
-    como DATO con `ast`: el panel no ejecuta codigo del marco ni nombra ningun backend. Vacio si no esta."""
+    como DATO con `ast`: el panel no ejecuta codigo del marco ni nombra ningun backend. Acepta un literal
+    set/frozenset/tuple/list de textos (tambien `frozenset((...))`); cualquier otra forma, o un fichero ilegible,
+    da vacio y UN aviso (`issue('retirados_ilegibles')`) en vez de tumbar la pagina. Sin el cargador: vacio, sin aviso."""
     import ast
     ruta = HERE.parent.parent / 'knowledge-services' / 'backends' / '__init__.py'
     try:
-        arbol = ast.parse(ruta.read_text(encoding='utf-8'))
-        for nodo in arbol.body:
+        texto = ruta.read_text(encoding='utf-8')
+    except OSError:
+        return frozenset()
+    valor = None
+    try:
+        for nodo in ast.parse(texto).body:
             if isinstance(nodo, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'RETIRADOS' for t in nodo.targets):
-                valor = ast.literal_eval(nodo.value)
-                return frozenset(v for v in valor if isinstance(v, str))
-    except (OSError, SyntaxError, ValueError):
+                valor = nodo.value
+                if (isinstance(valor, ast.Call) and isinstance(valor.func, ast.Name)
+                        and valor.func.id in ('frozenset', 'set', 'tuple', 'list') and len(valor.args) == 1 and not valor.keywords):
+                    valor = valor.args[0]
+                if isinstance(valor, (ast.Set, ast.Tuple, ast.List)):
+                    elementos = [ast.literal_eval(e) for e in valor.elts]
+                    if all(isinstance(e, str) for e in elementos):
+                        return frozenset(elementos)
+                break
+    except (SyntaxError, ValueError, TypeError, RecursionError):
         pass
+    if issue:
+        issue('retirados_ilegibles')
     return frozenset()
 
 
-def _fila_backend(project, reader, ident, cfg):
+def _fila_backend(project, reader, ident, cfg, retirados=frozenset()):
     tipo = cfg.get('type') if isinstance(cfg.get('type'), str) else ''
     conf = cfg.get('config') if isinstance(cfg.get('config'), dict) else {}
     situacion = 'configurado'
     if cfg.get('enabled') is False:
         situacion = 'deshabilitado'
-    elif tipo in _tipos_retirados():
+    elif tipo in retirados:
         situacion = 'retirado'           # activo, pero el plugin ya no lleva su adaptador: no es «configurado»
     fila = {'backend': ident, 'tipo': tipo[:40], 'situacion': situacion,
             'entradas': None, 'ultima': None, 'ultima_parcial': False, 'interrumpida': False, 'ui_url': None,
@@ -980,7 +995,8 @@ def _backends(project, reader, issue):
             issue('taxonomia_invalida')
     elif leida['status'] != 'not_found':
         issue('taxonomia_' + leida['status'])
-    filas = [_fila_backend(project, reader, ident, cfg) for ident, cfg in list(configurados.items())[:MEM_MAX_BACKENDS]
+    retirados = _tipos_retirados(issue)   # una vez por llamada, no por fila
+    filas = [_fila_backend(project, reader, ident, cfg, retirados) for ident, cfg in list(configurados.items())[:MEM_MAX_BACKENDS]
              if isinstance(ident, str) and _BACKEND_RE.fullmatch(ident) and isinstance(cfg, dict)]
     return sorted(filas, key=lambda f: f['backend'])
 

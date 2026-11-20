@@ -59,6 +59,8 @@ Reglas que no se negocian:
 - **Rutas contenidas** (CWE-22/73): ninguna lectura, escritura ni borrado fuera de la carpeta que el backend declara.
   Resuelve `dir` contra `_root` y exige que quede dentro (`realpath` + `commonpath`); toda ruta que leas de un
   manifiesto o de un `id` es un dato no confiable: si sale de esa carpeta, ignórala con aviso, nunca la sigas.
+  No sigas enlaces al escribir: crea cada temporal con nombre aleatorio y creación exclusiva (`tempfile.mkstemp`, nunca
+  `<destino>.tmp`), y rechaza un destino que sea enlace simbólico o tenga varios nombres duros antes del `os.replace`.
 - **Sin credenciales en `taxonomy.json`** (guarda el *nombre* de la variable de entorno, no el valor).
 - **Sanea** lo que devuelva el servidor antes de escribirlo en un `detalle`, y trata una respuesta de «encolado» como
   no confirmada.

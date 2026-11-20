@@ -70,7 +70,7 @@
 El plugin no incluye adaptadores (marco `knowledge-services`, ver `skills/knowledge-services/backends/README.md`) y no
 registra una capacidad por backend: `/doctor` no lleva ni una línea de código propia para ellos
 (CA-14 de knowledge-services — ningún nombre de backend aparece en `agent-kits/shared/doctor.py`). Si el proyecto declara un
-backend en `taxonomy.json` con `enabled: true` y su adaptador carga (`backends/<type>.py` o `--backends-dir`), el bloque
+backend en `taxonomy.json` con `enabled: true` y su adaptador carga (`backends/<type>.py` **del plugin**: /doctor no carga código de carpetas del proyecto; un adaptador de `--backends-dir` se comprueba con `knowledge-sync.py --backends-dir … --check`), el bloque
 «Capacidades opcionales» pinta la comprobación de red **en vivo** que hace ese adaptador (`health()` + `verify()`), con el
 mismo tope de tiempo que cualquier otra capacidad y siempre contra el endpoint **local** declarado. Hay una fila
 por backend declarado con `enabled: true` (la capacidad `knowledge-gate` los lista por el contrato genérico

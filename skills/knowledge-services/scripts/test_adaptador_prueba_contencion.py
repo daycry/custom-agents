@@ -150,7 +150,7 @@ def test_un_destino_con_varios_enlaces_se_rechaza_sin_tocar_el_otro_nombre(tmp_p
 @pytest.mark.skipif(sys.platform != "win32", reason="el prefijo extendido solo existe en Windows")
 def test_una_raiz_con_prefijo_extendido_de_windows_funciona(tmp_path):
     adapter = load()
-    cfg = {"dir": "out", "_root": "\\?\\" + str(tmp_path)}
+    cfg = {"dir": "out", "_root": chr(92) * 2 + "?" + chr(92) + str(tmp_path)}
     entry = {"id": "owned.rule", "version": 1, "cuerpo": "ok"}
     adapter.apply(adapter.plan([entry], cfg), cfg)
     assert adapter.verify(cfg)["ok"] is True

@@ -62,7 +62,7 @@ usuario y ofrece la alternativa, no inventes una carpeta.
 - Nombre en kebab-case, único entre las piezas del proyecto; el `name:` coincide con el fichero o la
   carpeta. Por **función** (`revisor-sql`), no genérico (`helper`, `utils`).
 - La `description` es la promesa de activación: qué hace, el **criterio** que aporta y los
-  disparadores: termina con «Úsalo cuando el usuario diga "…", "…"». Las plantillas YAML aceptan comillas dobles dentro; en TOML o JSON no las pongas (o escápalas).
+  disparadores: termina con «Úsalo cuando el usuario diga "…", "…"». Escríbela en **una sola línea**; si usas varias, sangra cada una bajo `>-` (una línea sin sangrar rompe el frontmatter). Las plantillas YAML aceptan comillas dobles dentro; en TOML o JSON no las pongas (o escápalas).
 
 ## Paso 2 — Escribir desde la plantilla
 

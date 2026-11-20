@@ -104,12 +104,32 @@ def _variable_en_codigo(linea, en_codigo):
     return False
 
 
+_CADENA_RE = re.compile(r"&&|\|\||;|\|")
+_COMENTARIO_RE = re.compile(r"\s+#.*$")
+_BACKEND_IGUAL_RE = re.compile(r"--backend=")
+
+
 def _invocacion_de_escritura(linea, en_codigo=False):
-    """Motivo por el que la linea (logica) es una ESCRITURA en el grafo, o `None`. Reconoce la
+    """Motivo de escritura de la linea (logica), o `None`. Fase 2 fix2 (gap 3 del intento 2): en codigo
+    se ignora el comentario final y se analiza CADA orden de una cadena (`&&`, `||`, `;`, `|`) por
+    separado, asi que un `--check` en una orden no exime a la siguiente; `--backend=x` vale como
+    `--backend x`."""
+    if en_codigo or (_tokens(linea)[:1] and _tokens(linea)[0].lower() in _INTERPRETES):
+        linea = _COMENTARIO_RE.sub("", linea)
+        for orden in _CADENA_RE.split(linea):
+            motivo = _motivo_de_orden(orden, en_codigo)
+            if motivo:
+                return motivo
+        return None
+    return _motivo_de_orden(linea, en_codigo)
+
+
+def _motivo_de_orden(linea, en_codigo=False):
+    """Motivo por el que UNA orden es una ESCRITURA en el grafo, o `None`. Reconoce la
     invocacion con la ruta entrecomillada o en variable (`"$KSSKILL"`, en codigo) y los flags en
     cualquier orden; el `--check` solo exime si en la MISMA unidad no hay
     `apply`/`revoke`/`--rebuild`."""
-    tokens = _tokens(linea)
+    tokens = _tokens(_BACKEND_IGUAL_RE.sub("--backend ", linea))
     if "--backend" not in tokens:
         return None
     cita_script = any(t.endswith("knowledge-sync.py") for t in tokens)

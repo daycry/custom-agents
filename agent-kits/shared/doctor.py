@@ -1995,9 +1995,15 @@ def _linea_capacidad_backend_sonda(cap_id, tipo, cfg_adaptador, backends_mod, ba
     try:
         adaptador = backends_mod.cargar_adaptador(tipo, [backends_dir])
     except backends_mod.AdaptadorNoDisponible as e:
-        return linea(AVISO, f"{cap_id} (backend)", f"adaptador `{tipo}` no disponible: {e}",
+        # intento 2 (gap 4): el `type` y el mensaje del cargador llevan texto de `taxonomy.json` (del
+        # proyecto): se sanean como el resto de /doctor (controles C0/C1, ESC/OSC, bidi). Gap 5: /doctor
+        # solo carga `backends/` del plugin; un adaptador de carpeta propia se comprueba con el sincronizador.
+        return linea(AVISO, f"{cap_id} (backend)",
+                     f"adaptador `{_sanear_detalle(tipo)}` no disponible: {_sanear_detalle(e)}",
                      "revisa el campo `type` en `taxonomy.json`, o añade el adaptador del backend "
-                     "(guía: `skills/knowledge-services/references/add-backend.md`)")
+                     "(guía: `skills/knowledge-services/references/add-backend.md`); /doctor solo mira "
+                     "`backends/` del plugin: si tu adaptador está fuera, compruébalo con "
+                     "`knowledge-sync.py --backends-dir … --check`")
     try:
         salud = adaptador.health(cfg_adaptador) or {}
     except Exception as e:           # noqa: BLE001 — una capacidad opcional rota no tumba /doctor

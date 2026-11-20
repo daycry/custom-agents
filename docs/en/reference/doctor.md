@@ -19,7 +19,7 @@
 The plugin bundles no adapters (`knowledge-services` framework, see `skills/knowledge-services/backends/README.md`) and
 registers no capability per backend: `/doctor` carries no code of its own for them (CA-14 of knowledge-services; no
 backend name appears in `agent-kits/shared/doctor.py`). If the project declares a backend in `taxonomy.json` with
-`enabled: true` and its adapter loads (`backends/<type>.py` or `--backends-dir`), the «Optional capabilities» block shows
+`enabled: true` and its adapter loads (`backends/<type>.py` **of the plugin**: /doctor does not load code from project folders; an adapter in `--backends-dir` is checked with `knowledge-sync.py --backends-dir … --check`), the «Optional capabilities» block shows
 the **live** network check that adapter does (`health()` + `verify()`), under the same time cap as any other capability
 and always against the declared **local** endpoint. There is one
 row per backend declared with `enabled: true` (the `knowledge-gate` capability lists them through the generic

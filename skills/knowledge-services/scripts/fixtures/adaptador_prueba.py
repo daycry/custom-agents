@@ -15,10 +15,45 @@ ni borra (CWE-22/73). Un adaptador propio debe copiar esta contencion.
 import hashlib
 import json
 import os
+import sys
+import tempfile
 
 MANIFEST = "manifest.json"
 PENDING = "manifest.pending.json"
 REMEDIO = "volver a ejecutar knowledge-sync (publicacion de prueba)"
+
+
+_BS = chr(92)                              # barra invertida
+_EXT = _BS * 2 + "?" + _BS                   # prefijo extendido de Windows
+
+
+def _real(ruta):
+    """`realpath` sin el prefijo extendido de Windows (barra doble, `?`, barra), que rompe `commonpath`."""
+    r = os.path.realpath(ruta)
+    if r.startswith(_EXT) and not r.upper().startswith(_EXT + "UNC" + _BS):
+        r = r[4:]
+    return r
+
+
+def _aviso(texto):
+    sys.stderr.write("adaptador-prueba: %s\n" % texto)
+
+
+def _escribir_texto(destino, texto):
+    """Escribe `destino` sin seguir enlaces: temporal con nombre ALEATORIO y creacion exclusiva
+    (`mkstemp`; un `<destino>.tmp` preexistente, aunque sea un enlace, nunca se usa), y rechaza un
+    destino que sea enlace simbolico o tenga varios nombres duros (CWE-59/73)."""
+    if os.path.islink(destino) or (os.path.isfile(destino) and os.stat(destino).st_nlink > 1):
+        raise ValueError("destino con enlaces, no se sobrescribe: %s" % os.path.basename(destino))
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(destino), prefix=".tmp-")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(texto)
+        os.replace(tmp, destino)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        raise
 
 
 def _dentro(raiz, ruta):
@@ -33,8 +68,8 @@ def _dir(cfg):
     base = cfg.get("dir")
     if not isinstance(base, str) or not base.strip():
         raise ValueError("`dir` obligatorio en la config del adaptador de prueba")
-    raiz = os.path.realpath(cfg.get("_root") or ".")
-    carpeta = os.path.realpath(os.path.join(raiz, base))     # una ruta absoluta sustituye a `raiz`
+    raiz = _real(cfg.get("_root") or ".")
+    carpeta = _real(os.path.join(raiz, base))     # una ruta absoluta sustituye a `raiz`
     if not _dentro(raiz, carpeta):
         raise ValueError("`dir` debe quedar dentro de la raiz del proyecto")
     return carpeta
@@ -44,7 +79,7 @@ def _ruta_en(d, relativa):
     """Ruta resuelta de `relativa` dentro de `d`, o `None` si se sale (o no es texto)."""
     if not isinstance(relativa, str) or not relativa:
         return None
-    ruta = os.path.realpath(os.path.join(d, relativa))
+    ruta = _real(os.path.join(d, relativa))
     return ruta if ruta != d and _dentro(d, ruta) else None
 
 
@@ -53,6 +88,15 @@ def _ruta_de_id(d, kid):
     if ruta is None or os.path.dirname(ruta) != d:
         raise ValueError("id no admitido como nombre de fichero: %r" % (kid,))
     return ruta
+
+
+def _entrada_valida(d, kid, meta):
+    """`True` si la entrada del manifiesto (dato del disco) apunta a un fichero DENTRO de `d`."""
+    try:
+        _ruta_de_id(d, kid)
+    except ValueError:
+        return False
+    return _ruta_en(d, meta.get("ruta") if isinstance(meta, dict) else None) is not None
 
 
 def _leer(ruta):
@@ -78,10 +122,7 @@ def _hash(e):
 
 
 def _escribir_json(ruta, datos):
-    tmp = ruta + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(datos, f, sort_keys=True)
-    os.replace(tmp, ruta)
+    _escribir_texto(ruta, json.dumps(datos, sort_keys=True))
 
 
 def health(cfg):
@@ -104,8 +145,18 @@ def plan(entries, cfg):
     """Compara contra el CONTENIDO en disco (no contra el manifiesto): un diario pendiente que
     lista el hash nuevo no hace pasar por publicado un fichero que sigue con el contenido viejo."""
     d = _dir(cfg)
-    previos = set((_leer(os.path.join(d, MANIFEST)) or {"entries": {}})["entries"])
-    previos |= set((_leer(os.path.join(d, PENDING)) or {"entries": {}})["entries"])
+    previos = set()
+    for nombre in (MANIFEST, PENDING):
+        for kid, meta in (_leer(os.path.join(d, nombre)) or {"entries": {}})["entries"].items():
+            ruta = _ruta_en(d, meta.get("ruta") if isinstance(meta, dict) else None)
+            try:
+                _ruta_de_id(d, kid)
+            except ValueError:
+                ruta = None
+            if ruta is None:
+                _aviso("entrada %r del manifiesto fuera de la carpeta de publicacion: ignorada" % (kid,))
+            else:
+                previos.add(kid)
     ops, vistos = [], set()
     for e in sorted(entries, key=lambda x: x["id"]):
         vistos.add(e["id"])
@@ -122,7 +173,8 @@ def plan(entries, cfg):
 def apply(ops, cfg):
     d = _dir(cfg)
     os.makedirs(d, exist_ok=True)
-    objetivo = {"entries": dict(_manifest(d)["entries"])}
+    objetivo = {"entries": {k: m for k, m in _manifest(d)["entries"].items()
+                            if _entrada_valida(d, k, m)}}   # las hostiles no se arrastran
     for op in ops:
         _ruta_de_id(d, op["id"])             # rechaza TODO el lote antes de escribir nada
     for op in ops:
@@ -134,10 +186,7 @@ def apply(ops, cfg):
     for op in ops:
         destino = _ruta_de_id(d, op["id"])
         if op["accion"] == "upsert":
-            tmp = destino + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as f:
-                f.write(_contenido(op))
-            os.replace(tmp, destino)
+            _escribir_texto(destino, _contenido(op))
         elif os.path.isfile(destino):
             os.remove(destino)
     os.replace(os.path.join(d, PENDING), os.path.join(d, MANIFEST))
