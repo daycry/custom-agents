@@ -40,11 +40,11 @@ changelog: Changed
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Defectos | 7 | 8 | 87.5% | 0 / 16h | 0 / 5.0h | 0 / 1.25h | 0 / 1090k |
 | Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev) | 4 | 4 | 100% | 0 / 32h | 0 / 7.9h | 0 / 1.98h | 0 / 2100k |
-| Fase 3 — Tokens | 2 | 11 | 18.2% | 0 / 30h | 0.66 / 8.2h | 0 / 2.05h | 0 / 2260k |
+| Fase 3 — Tokens | 5 | 11 | 45.5% | 0 / 30h | 1.1 / 8.2h | 0 / 2.05h | 0 / 2260k |
 | Fase 4 — Simplificación del código | 0 | 8 | 0.0% | 0 / 34.5h | 0 / 8.5h | 0 / 2.12h | 0 / 2470k |
 | Fase 5 — Alcance y entrenamiento | 0 | 5 | 0% | 0 / 26h | 0 / 6.5h | 0 / 1.62h | 0 / 1800k |
 | Fase 6 — Higiene del roadmap | 0 | 3 | 0% | 0 / 10h | 0 / 2.5h | 0 / 0.62h | 0 / 750k |
-| **TOTAL** | **13** | **39** | **33.3%** | **0 / 148.5h** | **0 / 38.6h** | **0 / 9.65h** | **0 / 10470k** |
+| **TOTAL** | **16** | **39** | **41.0%** | **0 / 148.5h** | **0 / 38.6h** | **0 / 9.65h** | **0 / 10470k** |
 
 Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +20 % está en el plan); tokens al precio de `.claude/rates.json`.
 
@@ -566,22 +566,35 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: `ledger-lint.py` avisa a 183.500 bytes (`UMBRAL_TAMANO_BYTES`), cuando una lectura ya cuesta ≈45 K tokens. Umbral a 40-60 KB, archivado por fase con `ledger-archive.py` (ya existe) y Lente A solo sobre la fase revisada. Ahorro [E] ≈30 K tokens por lectura.
 - **Changelog**: Los ledgers avisan antes de crecer, se archivan por fase y la revisión lee solo la fase en curso.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-11-20
 - **Tiempo humano**: est. 5h · real —
-- **Tiempo IA (ejec.)**: est. 1.5h · real —
-- **Archivos**: `agent-kits/shared/ledger-lint.py`, `tests/test_ledger_lint.py`, `agent-kits/shared/ledger-archive.py`, `agent-kits/shared/test_ledger_archive.py`, `commands/dev-cycle.md`, `skills/adversarial-review/SKILL.md`, `agent-kits/shared/task-brief.py`, `docs/{,en/}CONVENTIONS.md`, `docs/{,en/}TOKEN-EFFICIENCY.md`, `interop/**` (regenerado)
+- **Tiempo IA (ejec.)**: est. 1.5h · real 0.31h (medido, `plugin-audit-2/T-14`; el GREEN de T-21 y parte de T-20 se escribieron en esta misma ventana mientras corrían las suites)
+- **Archivos**: `agent-kits/shared/ledger-lint.py`, `tests/test_ledger_lint.py`, `agent-kits/shared/ledger-archive.py`, `agent-kits/shared/test_ledger_archive.py`, `commands/dev-cycle.md`, `skills/adversarial-review/SKILL.md`, `agent-kits/shared/task-brief.py`, `docs/{,en/}CONVENTIONS.md`, `docs/{,en/}TOKEN-EFFICIENCY.md`, `interop/**` (regenerado), `agent-kits/shared/test_task_brief.py` (nota: tests del modo `--fase`), `agent-kits/shared/README.md` (nota: su fila de `ledger-lint.py` decía «70 % del tope»), `tests/fixtures/dev-cycle-modular-replacements.json` (nota: el párrafo «Ledger grande» de `dev-cycle.md` cambia y su fila de sustitución pasa al hash nuevo). `ledger-archive.py` y su test no cambian: el archivado ya conservaba bytes y SHA.
+- RED: tests/test_ledger_lint.py::test_umbral_tokens_un_ledger_de_70_kb_avisa_y_nombra_ledger_archive falló con AssertionError: «ledger-lint: 0 incoherencias · 0 avisos» (un ledger de 70 KB no avisaba); ::test_umbral_tokens_por_defecto_a_60_kb_como_mucho_y_configurable falló con assert 183500 <= 60000 (commit `b69d54d`) · 2026-11-20
+- RED: agent-kits/shared/test_task_brief.py::test_fase_lente_a_recibe_solo_la_fase_revisada_de_un_ledger_grande (y los 2 de `fase_lente_a`) falló con SystemExit 2: «unrecognized arguments: --fase» (commit `b69d54d`) · 2026-11-20
+- RED fix1: agent-kits/shared/test_task_brief.py::test_fase_lente_a_sin_ledger_lint_entrega_el_ledger_entero falló con AssertionError (sin ledger-lint.py la vista recortaba con una copia del umbral) sobre el `task-brief.py` del commit `e8cceba` puesto en su sitio y restaurado con `cmp` (commit `2f70905`) · 2026-11-20
+- **Evidencia** (GREEN `04ab577`, fix1 `9839d05`; tamaños en bytes; estimación, no consumo facturado):
+  - `ledger-lint.py`: `UMBRAL_TAMANO_BYTES` 183.500 → **60.000**, configurable con `--umbral-bytes N` (y `lint(..., umbral_bytes=)`); el aviso dice «ledger de N KB (aviso a 60 KB por tokens; tope de lectura 256 KiB): archiva la historia cerrada con `python3 agent-kits/shared/ledger-archive.py <carpeta> --apply`». Un ledger de 20 KB no avisa. Este ledger (≈190 KB) pasa a avisar: esperado, no se archiva aquí.
+  - `task-brief.py <carpeta> --fase <N>`: por encima del umbral, la cabecera del ledger (lo anterior a la primera `## `) + la sección `## Fase N` íntegra (todas sus tareas, criterios y verificaciones); por debajo, el ledger entero como hoy; fase inexistente → exit 1; sin `ledger-lint.py`, el ledger entero (fix1: `lint_plugin.py` daba `❌ constante de respaldo _LEDGER_FALLBACK SIN fila en copias.json (ADR-016)` por la copia del umbral; se quita la copia).
+  - Medido: Lente A para el ledger de prueba de 4 fases (100.414 bytes) → 25.253 (**−75 %**); sobre una copia del ledger real (189.819): fase 1 57.123, fase 2 52.268, fase 3 21.232 (−70 % a −89 %).
+  - `/dev-cycle` (cierre de fase, «Ledger grande»): OFRECE archivar — plan en seco de `ledger-archive.py` y, con OK del usuario, `--apply`; `adversarial-review` §2 manda pasar a la Lente A la vista `--fase N`; `CONVENTIONS` ES/EN y la fila de `README.md` del kit al día.
+  - `pytest -q -n 3` de `tests/test_ledger_lint.py`, `test_ledger_archive.py`, `test_ledger_view.py`, `test_progress_report.py`, `tests/test_ledger_post.py`, `test_ledger_single_parser.py`, `test_ledger_write.py`, `test_audit_ledger.py`, `test_audit_briefs.py`, `test_task_brief.py`, `test_dev_cycle_split.py`, `test_skill_size.py`, `test_rationalization_tables.py`, `test_f4fix2_misc.py`, `test_token_efficiency_distribution.py`, `test_context_footprint.py`, `test_source_snapshot.py` → `417 passed, 5 skipped`; tras fix1, `-k fase_lente_a` → `4 passed` y `lint_plugin.py` → `0 errores · 16 avisos`.
+  - Puertas de tokens: vía rápida 6.012 → **6.023**; `agents/evaluator.md` 15.465 bytes LF; diet-check `adversarial-review` → 0 párrafos perdidos.
+  - Interpretaciones: **k5** «configurable» = `--umbral-bytes N` en la CLI y en `lint()`, no una clave de `dev.json` (`doctor.py` valida las claves de `dev.json` y no está en `Archivos`). **k6** «archivado por fase» se cumple con la oferta de `ledger-archive.py` al cerrar cada fase; no se añade un modo nuevo de archivado por fase (la Lente A ya recibe solo la fase con `--fase`). **k7** la Verificación pedía `-k umbral_tokens` con «un ledger de 70 KB no avisa» como rojo: así fue.
 - **Runtimes**: Sin diferencia: script y prosa de `dev-cycle`; la Lente A es la misma.
 - **Verificación**:
   - `pytest -q tests/test_ledger_lint.py -k umbral_tokens` → `passed` (rojo antes: un ledger de 70 KB no avisa)
   - `pytest -q agent-kits/shared/test_ledger_archive.py agent-kits/shared/test_task_brief.py` → verde (archivar conserva bytes y SHA)
   - puertas de runtimes (cabecera) → verde
+- **Verificación ejecutada** (2026-11-20): `-k umbral_tokens` → `3 passed`; `test_ledger_archive.py` y `test_task_brief.py` dentro de los `417 passed, 5 skipped`; `export-interop.py --check` → `88 ficheros al día`; pytest de runtimes de la cabecera → `pytest -q -n 3 agent-kits/shared/test_skill_index.py tests/test_session_context.py tests/test_hooks_config.py tests/test_native_role_context.py tests/test_export_interop.py tests/test_plugin_root_resolution.py tests/test_native_guardrail_dispatch.py tests/test_native_prefilter_parity.py tests/test_kit_path_injection.py` → `204 passed` (tras el GREEN de T-20); `node --test` de la cabecera → `263 tests: 254 pass, 3 fail, 6 skipped` con la máquina cargada; los 3 rojos, aislados: `claude: session context runs without Bash` exigía la caché del índice (corregido en `e93c90c`, `9 passed` con los de guardia) y los otros dos eran plazos agotados con carga (`copied implementer … (precedence)` 16,5 s sobre 15 s; `tool activity is dispatched …` 129 s): solos, `pass`. Consola: `node --test tests/console-inventory.test.mjs tests/console-live.test.mjs` → `10 pass`; `pytest -q -n 2 tests/test_console_{snapshots,service,state,encoding}.py tests/test_audit_console.py` → `744 passed, 4 failed` con node en paralelo, y los 4 (`--lf`) → `4 passed` solos.
 
 **Criterios de aceptación**
-- [ ] El aviso salta en el umbral nuevo (configurable) y su texto nombra `ledger-archive.py`.
-- [ ] El cierre de fase del `/dev-cycle` ofrece archivar; el archivado conserva bytes y SHA.
-- [ ] La Lente A recibe la fase revisada, no el ledger entero, sin perder los criterios de esa fase.
-- [ ] Un ledger pequeño se lee igual que hoy.
-- [ ] Medido: el aviso del ledger salta a ≤ 60.000 bytes (hoy 183.500) y la entrada de la Lente A para 100 KB baja ≥ 50 %.
+- [x] El aviso salta en el umbral nuevo (configurable) y su texto nombra `ledger-archive.py`.
+- [x] El cierre de fase del `/dev-cycle` ofrece archivar; el archivado conserva bytes y SHA.
+- [x] La Lente A recibe la fase revisada, no el ledger entero, sin perder los criterios de esa fase.
+- [x] Un ledger pequeño se lee igual que hoy.
+- [x] Medido: el aviso del ledger salta a ≤ 60.000 bytes (hoy 183.500) y la entrada de la Lente A para 100 KB baja ≥ 50 %.
 
 ### T-15 — Borrar «Alcance y activación» duplicado (2.9)
 
@@ -692,40 +705,56 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: En Claude Code el índice de `SessionStart` duplica el listado nativo de skills (truncado, 18 de 34) y cuesta 844 tokens por arranque y compactación. En runtime `claude` se emite solo la cabecera; Codex y OpenCode conservan el índice. Se contrasta con los evals de activación antes de cerrar.
 - **Changelog**: El arranque de Claude Code ya no repite el listado de skills; Codex y OpenCode lo conservan.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-11-20
 - **Tiempo humano**: est. 2h · real —
-- **Tiempo IA (ejec.)**: est. 0.5h · real —
-- **Archivos**: `hooks/session-context.py`, `agent-kits/shared/skill-index.py`, `tests/test_session_context.py`, `agent-kits/shared/test_skill_index.py`, `docs/{,en/}observability.md`, `interop/**` (regenerado)
+- **Tiempo IA (ejec.)**: est. 0.5h · real 0.09h (medido, `plugin-audit-2/T-20`; buena parte del código se escribió en las ventanas de T-14 y T-21, ver la nota de T-14)
+- **Archivos**: `hooks/session-context.py`, `agent-kits/shared/skill-index.py`, `tests/test_session_context.py`, `agent-kits/shared/test_skill_index.py`, `docs/{,en/}observability.md`, `interop/**` (regenerado), `hooks/session-context.sh` (nota: es el oráculo de paridad de `test_native_output_matches_shell_bytes`; pasa `--solo-cabecera` igual que el nativo), `tests/test_native_role_context.py` (nota: puerta de runtimes que exigía `custom-agents:planner` en el bloque de Claude; ahora exige la línea de delegación de Claude y ningún ID del runtime reclamado), `docs/{,en/}TOKEN-EFFICIENCY.md` (nota: regla de CLAUDE.md), `tests/hook-runtime.test.mjs` (nota: puerta `node --test` de la cabecera; exigía `.claude/.skill-index.cache` también en Claude, que ya no construye el listado: en Claude exige que no haya `Skills:`; commit `e93c90c`)
+- RED: tests/test_session_context.py::test_t20_runtime_claude_solo_trae_la_cabecera_del_indice falló con AssertionError: «Comandos:» en el bloque de Claude (índice completo) (commit `ec3eeee`) · 2026-11-20
+- **Evidencia** (GREEN `650b2c3`; caracteres; estimación, no consumo facturado):
+  - `skill-index.py --solo-cabecera` imprime `cabecera_sola(runtime)`: 3 líneas (la primera remite al listado nativo; las otras dos, las de `CABECERAS_RUNTIME`), sin listado; respeta `sesion.indice: false` (sin salida). `session-context.py` (y el oráculo `.sh`) lo pasan solo con `--runtime claude`.
+  - Medido: índice del bloque de Claude 3.378 → 331 caracteres (**−3.047**, ≈ 762 tokens; 3.578 → 335 bytes). Codex 3.349 y OpenCode 3.499: sin cambio (`test_t20_runtime_codex_y_runtime_opencode_conservan_el_indice_completo`, que compara con `skill-index.generar(...)`).
+  - Suites: `pytest -q -n 3 agent-kits/shared/test_skill_index.py tests/test_session_context.py tests/test_hooks_config.py tests/test_native_role_context.py tests/test_export_interop.py tests/test_plugin_root_resolution.py tests/test_native_guardrail_dispatch.py tests/test_native_prefilter_parity.py tests/test_kit_path_injection.py` → `204 passed` (tras el GREEN de T-20).
+  - Interpretaciones: **k9** el ahorro medido es −3,0 KB, no ≈ 3,4 KB: la cifra del plan era el índice entero y se queda una cabecera de 331. **k10** la primera línea de la cabecera sola no es la del índice («comprueba si aplica una de estas piezas» apuntaba a un listado que ya no va): dice que las piezas están en el listado nativo. **k11** «se contrasta con los evals de activación»: `evals/check.py` (estático) → `0 errores`; los evals reales (`evals/run.py`, `claude -p`) y el paso manual M-C quedan para el usuario.
 - **Runtimes**: Solo Claude cambia; Codex y OpenCode conservan el índice completo (lo fija un test).
 - **Verificación**:
   - `pytest -q tests/test_session_context.py -k runtime_claude` → `passed` (rojo antes: el bloque trae el índice completo)
   - `pytest -q agent-kits/shared/test_skill_index.py tests/test_hooks_config.py` → verde
   - lectura (manual, sesión real; M-C) → en Codex y OpenCode reales el arranque muestra el índice completo y en Claude solo la cabecera
   - puertas de runtimes (cabecera) → verde
+- **Verificación ejecutada** (2026-11-20): `-k runtime_claude` → `1 passed`; `-k "runtime_codex or runtime_opencode"` → `2 passed`; `test_skill_index.py`, `test_hooks_config.py` y puertas pytest de runtimes → `pytest -q -n 3 agent-kits/shared/test_skill_index.py tests/test_session_context.py tests/test_hooks_config.py tests/test_native_role_context.py tests/test_export_interop.py tests/test_plugin_root_resolution.py tests/test_native_guardrail_dispatch.py tests/test_native_prefilter_parity.py tests/test_kit_path_injection.py` → `204 passed` (tras el GREEN de T-20); `export-interop.py --check` → `88 ficheros al día`; `node --test` de la cabecera → `263 tests: 254 pass, 3 fail, 6 skipped` con la máquina cargada; los 3 rojos, aislados: `claude: session context runs without Bash` exigía la caché del índice (corregido en `e93c90c`, `9 passed` con los de guardia) y los otros dos eran plazos agotados con carga (`copied implementer … (precedence)` 16,5 s sobre 15 s; `tool activity is dispatched …` 129 s): solos, `pass`. Consola: `node --test tests/console-inventory.test.mjs tests/console-live.test.mjs` → `10 pass`; `pytest -q -n 2 tests/test_console_{snapshots,service,state,encoding}.py tests/test_audit_console.py` → `744 passed, 4 failed` con node en paralelo, y los 4 (`--lf`) → `4 passed` solos; **M-C pendiente del usuario** (sesión real de Codex, OpenCode y Claude).
 
 **Criterios de aceptación**
-- [ ] Runtime `claude`: solo cabecera; `codex` y `opencode`: índice completo como hoy, fijado por test.
-- [ ] `dev.json` `sesion.indice` sigue mandando y la medida del bloque (≈4,6 KB → menos) queda anotada.
-- [ ] Medido: en `claude` el bloque de `SessionStart` baja ≈ 3,4 KB (844 tokens); en `codex` y `opencode` no cambia (`-k "runtime_codex or runtime_opencode"`).
+- [x] Runtime `claude`: solo cabecera; `codex` y `opencode`: índice completo como hoy, fijado por test.
+- [x] `dev.json` `sesion.indice` sigue mandando y la medida del bloque (≈4,6 KB → menos) queda anotada.
+- [x] Medido: en `claude` el bloque de `SessionStart` baja ≈ 3,4 KB (844 tokens); en `codex` y `opencode` no cambia (`-k "runtime_codex or runtime_opencode"`).
 
 ### T-21 — Cabecera «ORQUESTA agentes» solo donde despacha (2.14)
 
 - **Descripción**: `export-interop.py` antepone «Este comando ORQUESTA agentes…» (línea 107) a los 16 comandos exportados aunque 12 no despachan (≈600 caracteres por invocación en Codex/OpenCode). Se emite solo si el cuerpo nombra un rol.
 - **Changelog**: Los comandos de Codex y OpenCode que no despachan agentes ya no llevan la cabecera de orquestación.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-11-20
 - **Tiempo humano**: est. 1.5h · real —
-- **Tiempo IA (ejec.)**: est. 0.4h · real —
-- **Archivos**: `scripts/export-interop.py`, `tests/test_export_interop.py`, `docs/INTEROP.md`, `interop/**` (regenerado)
+- **Tiempo IA (ejec.)**: est. 0.4h · real 0.04h (medido, `plugin-audit-2/T-21`; el código se escribió en la ventana de T-14 mientras corrían sus suites, así que la medida se queda corta)
+- **Archivos**: `scripts/export-interop.py`, `tests/test_export_interop.py`, `docs/INTEROP.md`, `interop/**` (regenerado), `docs/en/INTEROP.md` (nota: espejo EN, regla bilingüe), `docs/{,en/}TOKEN-EFFICIENCY.md` (nota: regla de CLAUDE.md)
+- RED: tests/test_export_interop.py::test_cabecera_orquesta_solo_en_los_comandos_que_despachan_un_agente falló con AssertionError (15 de 15 comandos por runtime con la cabecera); ::test_cabecera_orquesta_conserva_la_misma_lista_de_roles falló (el mapa de roles en comandos que no despachan) y ::test_cabecera_orquesta_detecta_el_despacho_en_el_cuerpo con AttributeError: sin `despacha_agentes` (commit `7dbbff9`) · 2026-11-20
+- **Evidencia** (GREEN `e8cceba`; caracteres; estimación, no consumo facturado):
+  - `despacha_agentes(cuerpo)`: «agente `X`» o un verbo de despacho (despachar, lanzar, invocar, delegar, entregar) seguido del rol en la misma cláusula (sin `.,;:` entre medias), o `subagent_type`; nombrar un rol al describir («`planner` estima», «`lite` despacha cada tarea, sin paralelismo, al `implementer`») no cuenta. Conservan la cabecera y el mapa completo de roles: `dev-cycle`, `pm-cycle`, `retro`, `knowledge-category-check`. Los 11 restantes llevan solo «Adaptación a …» + cómo se invocan las skills.
+  - Medido: 11 de 15 comandos por runtime pierden 696 (Codex, `references/command.md`) y 658 (OpenCode) caracteres: **−7.656** y **−7.238**. Los agentes exportados no cambian (`export-interop.py` regenera 88 ficheros; solo cambian los 22 de comandos).
+  - `pytest -q -n 3 tests/test_export_interop.py tests/test_plugin_root_resolution.py tests/test_native_role_context.py tests/test_native_guardrail_dispatch.py tests/test_native_prefilter_parity.py tests/test_codex_command_transport.py tests/test_dev_cycle_split.py` → `137 passed, 1 skipped` (+1 fallo de T-20 en `test_native_role_context.py[claude]`, corregido en T-20); `evals/check.py` → `0 errores`.
+  - Interpretación **k8**: hoy hay 15 comandos (no 16: `confluence-pull` salió en T-03), así que «12 de 16» pasa a 11 de 15; `retro` y `knowledge-category-check` conservan la cabecera porque entregan a `knowledge-curator`.
 - **Runtimes**: Solo Codex y OpenCode (es el exportador); Claude sin cambio.
 - **Verificación**:
   - `pytest -q tests/test_export_interop.py -k cabecera_orquesta` → `passed` (rojo antes: 16 de 16 la llevan)
   - `python scripts/export-interop.py` y luego `python scripts/export-interop.py --check` → exit 0
   - puertas de runtimes (cabecera) → verde
+- **Verificación ejecutada** (2026-11-20): `-k cabecera_orquesta` → `3 passed`; `export-interop.py` → `88 ficheros escritos` y `--check` → `88 ficheros al día`; pytest de runtimes de la cabecera → `pytest -q -n 3 agent-kits/shared/test_skill_index.py tests/test_session_context.py tests/test_hooks_config.py tests/test_native_role_context.py tests/test_export_interop.py tests/test_plugin_root_resolution.py tests/test_native_guardrail_dispatch.py tests/test_native_prefilter_parity.py tests/test_kit_path_injection.py` → `204 passed` (tras el GREEN de T-20); `node --test` de la cabecera → `263 tests: 254 pass, 3 fail, 6 skipped` con la máquina cargada; los 3 rojos, aislados: `claude: session context runs without Bash` exigía la caché del índice (corregido en `e93c90c`, `9 passed` con los de guardia) y los otros dos eran plazos agotados con carga (`copied implementer … (precedence)` 16,5 s sobre 15 s; `tool activity is dispatched …` 129 s): solos, `pass`. Consola: `node --test tests/console-inventory.test.mjs tests/console-live.test.mjs` → `10 pass`; `pytest -q -n 2 tests/test_console_{snapshots,service,state,encoding}.py tests/test_audit_console.py` → `744 passed, 4 failed` con node en paralelo, y los 4 (`--lf`) → `4 passed` solos.
 
 **Criterios de aceptación**
-- [ ] La cabecera aparece solo en comandos cuyo cuerpo nombra un agente despachable.
-- [ ] Los agentes y comandos exportados conservan su conducta (misma lista de roles).
-- [ ] Medido: 12 de los 16 comandos exportados pierden ≈ 600 caracteres (≈ 7,2 KB).
+- [x] La cabecera aparece solo en comandos cuyo cuerpo nombra un agente despachable.
+- [x] Los agentes y comandos exportados conservan su conducta (misma lista de roles).
+- [x] Medido: 12 de los 16 comandos exportados pierden ≈ 600 caracteres (≈ 7,2 KB).
 
 ### T-22 — Reglas de este repo fuera de los agentes genéricos y qa condicional (2.8, 2.13)
 
