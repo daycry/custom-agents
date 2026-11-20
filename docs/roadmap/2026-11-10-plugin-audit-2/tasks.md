@@ -40,11 +40,11 @@ changelog: Changed
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Defectos | 7 | 8 | 87.5% | 0 / 16h | 0 / 5.0h | 0 / 1.25h | 0 / 1090k |
 | Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev) | 4 | 4 | 100% | 0 / 32h | 0 / 7.9h | 0 / 1.98h | 0 / 2100k |
-| Fase 3 — Tokens | 0 | 11 | 0% | 0 / 30h | 0 / 8.2h | 0 / 2.05h | 0 / 2260k |
+| Fase 3 — Tokens | 2 | 11 | 18.2% | 0 / 30h | 0.66 / 8.2h | 0 / 2.05h | 0 / 2260k |
 | Fase 4 — Simplificación del código | 0 | 8 | 0.0% | 0 / 34.5h | 0 / 8.5h | 0 / 2.12h | 0 / 2470k |
 | Fase 5 — Alcance y entrenamiento | 0 | 5 | 0% | 0 / 26h | 0 / 6.5h | 0 / 1.62h | 0 / 1800k |
 | Fase 6 — Higiene del roadmap | 0 | 3 | 0% | 0 / 10h | 0 / 2.5h | 0 / 0.62h | 0 / 750k |
-| **TOTAL** | **11** | **39** | **28.2%** | **0 / 148.5h** | **0 / 38.6h** | **0 / 9.65h** | **0 / 10470k** |
+| **TOTAL** | **13** | **39** | **33.3%** | **0 / 148.5h** | **0 / 38.6h** | **0 / 9.65h** | **0 / 10470k** |
 
 Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +20 % está en el plan); tokens al precio de `.claude/rates.json`.
 
@@ -506,45 +506,61 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 ## Fase 3 — Tokens
 
-**Estado**: borrador · **Est.**: 30h humanas · **Real**: — · 1500 € · 2260k tokens
+**Estado**: en-progreso · **Est.**: 30h humanas · **Real**: — · 1500 € · 2260k tokens
 
 ### T-12 — TDD en el brief, skill bajo demanda (2.4)
 
 - **Descripción**: Con `tdd: true` cada subagente carga la skill `tdd` entera (≈10 KB) aunque el brief de `task-brief.py` ya trae la sección TDD. Se mueve al brief la ley dura y el formato `RED:` y se manda abrir la skill solo ante una duda (stack concreto, `TDD n/a`). Ahorro estimado ≈ 25 K tokens por ciclo con subagentes.
 - **Changelog**: El brief de cada tarea trae la regla TDD esencial y el subagente ya no carga la skill completa.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-11-20
 - **Tiempo humano**: est. 2h · real —
-- **Tiempo IA (ejec.)**: est. 0.5h · real —
-- **Archivos**: `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/dev-cycle/references/phase3-subagents.md`, `agents/implementer.md`, `skills/tdd/SKILL.md`, `docs/{,en/}TOKEN-EFFICIENCY.md`, `interop/**` (regenerado)
+- **Tiempo IA (ejec.)**: est. 0.5h · real 0.58h (medido, `plugin-audit-2/T-12`)
+- **Archivos**: `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/dev-cycle/references/phase3-subagents.md`, `agents/implementer.md`, `skills/tdd/SKILL.md`, `docs/{,en/}TOKEN-EFFICIENCY.md`, `interop/**` (regenerado), `tests/fixtures/dev-cycle-modular-replacements.json` (nota: el paréntesis TDD de `phase3-subagents.md` cambia y su fila de sustitución pasa al hash nuevo, o `test_dev_cycle_split.py::test_no_original_paragraph_is_lost` falla)
+- RED: agent-kits/shared/test_task_brief.py::test_tdd_resumido_trae_lo_esencial_y_la_skill_queda_bajo_demanda falló con AssertionError: 'Ley dura' no estaba en la sección TDD del brief (commit `e2b7cc0`) · 2026-11-20
+- **Evidencia** (GREEN `a701e11`; tamaños = caracteres UTF-8 con LF de `context-footprint.py`, estimación caracteres/4, no consumo facturado):
+  - Brief (`TDD_BRIEF`): sin la orden «invócala con la herramienta Skill»; trae la ley dura literal, el formato `RED: <fichero::test> falló con <error> · <AAAA-MM-DD>`, rojo por la razón correcta, qué NO es TDD y `TDD n/a: <motivo>`; cita `skills/tdd/SKILL.md` como fuente única, a abrir «solo ante una duda» (stack, `TDD n/a`). La sección pasa de 680 a 807 bytes (≤ 2 KB).
+  - Medida (brief de T-12 sobre una copia del ledger, `--tdd`): implementer 29.280 + brief 7.271 + skill 10.111 = 46.662 → implementer 29.268 + brief 7.398 = 36.666: **−9.996** (≥ 8 KB). La skill (10.304, +1 párrafo que dice que el brief lleva lo esencial) ya no se carga siempre. Sin `tdd` el brief no cambia: `cmp` byte a byte de los briefs de T-12 y T-15 con `tdd: false` antes/después → idénticos.
+  - `pytest -q -n 3 agent-kits/shared/test_task_brief.py` → `95 passed`; `tests/test_dev_cycle_split.py` → `11 passed`; diet-check `tdd` → 0 párrafos perdidos; puertas de tokens: vía rápida 6.012, `agents/evaluator.md` 15.465 bytes LF.
+  - Interpretaciones: **k1** el brief ya traía un resumen de la ley dura y `RED:`; el rojo exigible era la orden de cargar la skill entera y lo que faltaba (razón correcta, qué no es TDD), no «sin ley dura ni `RED:`» como decía la Verificación. **k2** `test_brief_budget_auxiliares_comparten_margen_sin_recortar_criterios` no era hermético: leía el `.claude/dev.json` del checkout (`tdd: true`) y con la sección TDD +127 pasaba del tope; se hace hermético con `chdir` (en CI no hay `dev.json` y el escenario mide sin TDD). **k3** la fila «Cuándo aplica» de la skill no se reescribe (el diet-check la daría por perdida): se añade un párrafo.
 - **Runtimes**: El brief es texto de `task-brief.py` que recibe el subagente en cualquier runtime.
 - **Verificación**:
   - `pytest -q agent-kits/shared/test_task_brief.py -k tdd_resumido` → `passed` (rojo antes: el brief no incluye el formato `RED:` ni la ley dura)
   - `context-footprint.py --project . --file agents/implementer.md` antes/después → menos bytes (`testing/tokens.md`) · tamaño del brief generado (`task-brief.py` sobre una tarea de prueba) medido antes y después
   - puertas de runtimes (cabecera) → verde
+- **Verificación ejecutada** (2026-11-20): `-k tdd_resumido` → `1 passed`; implementer 29.280 → 29.268 caracteres y brief de T-12 7.271 → 7.398 (en la Evidencia); `export-interop.py --check` → `88 ficheros al día`; `pytest -q -n 3 tests/test_export_interop.py tests/test_plugin_root_resolution.py tests/test_native_role_context.py tests/test_native_guardrail_dispatch.py tests/test_native_prefilter_parity.py` → `102 passed`; `node --test` de la cabecera, en la pasada común del cierre de la tanda (ver T-20).
 
 **Criterios de aceptación**
-- [ ] El brief con `tdd: true` incluye la ley dura y el formato `RED:`; sin `tdd` no cambia.
-- [ ] Ninguna puerta de la skill `tdd` desaparece: sigue siendo la fuente única y el brief la cita.
-- [ ] Medida antes/después registrada (estimada, no consumo facturado).
-- [ ] Medido: agente + brief con `tdd: true` baja ≥ 8 KB (la skill ≈ 10 KB deja de cargarse; el brief gana ≤ 2 KB).
+- [x] El brief con `tdd: true` incluye la ley dura y el formato `RED:`; sin `tdd` no cambia.
+- [x] Ninguna puerta de la skill `tdd` desaparece: sigue siendo la fuente única y el brief la cita.
+- [x] Medida antes/después registrada (estimada, no consumo facturado).
+- [x] Medido: agente + brief con `tdd: true` baja ≥ 8 KB (la skill ≈ 10 KB deja de cargarse; el brief gana ≤ 2 KB).
 
 ### T-13 — Tabla de lentes fuera de adversarial-review/SKILL.md (2.5)
 
 - **Descripción**: El revisor abre `skills/adversarial-review/SKILL.md` (18,6 KB) para leer una tabla de ≈4 KB. La tabla pasa a `references/` o al prompt de la lente y el SKILL conserva el mapa. Ahorro estimado hasta ≈21 K tokens por ciclo.
 - **Changelog**: El revisor lee solo la tabla de lentes que necesita, no toda la skill de revisión adversarial.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-11-20
 - **Tiempo humano**: est. 1.5h · real —
-- **Tiempo IA (ejec.)**: est. 0.4h · real —
-- **Archivos**: `skills/adversarial-review/SKILL.md`, `skills/adversarial-review/references/lentes.md` (nuevo), `agents/reviewer.md`, `docs/agents/reviewer.md`, `interop/**` (regenerado)
+- **Tiempo IA (ejec.)**: est. 0.4h · real 0.08h (medido, `plugin-audit-2/T-13`; su ventana se solapa con el cierre de T-12)
+- **Archivos**: `skills/adversarial-review/SKILL.md`, `skills/adversarial-review/references/lentes.md` (nuevo), `agents/reviewer.md`, `docs/agents/reviewer.md`, `interop/**` (regenerado), `docs/{,en/}TOKEN-EFFICIENCY.md` (nota: regla de CLAUDE.md al cambiar la disciplina de contexto), `tests/test_rationalization_tables.py` (nota: fijaba la tabla del revisor dentro de `SKILL.md`; ahora la busca en `lentes.md` y afirma que el SKILL y el reviewer remiten a ella), `agent-kits/shared/rationalization-table.md` (nota: «Quién la lleva hoy» citaba el SKILL)
+- TDD n/a: prosa (traslado de texto entre `SKILL.md` y una referencia; lo fijan el diet-check y `test_rationalization_tables.py`)
+- **Evidencia** (commit `f8009e5`; caracteres UTF-8 con LF de `context-footprint.py`, estimación caracteres/4, no consumo facturado):
+  - Lo que lee el revisor: `skills/adversarial-review/SKILL.md` 18.104 → `references/lentes.md` 3.012 (**−15.092** por lectura, ≤ 5 KB). El `SKILL.md` queda en 16.471 (tras T-14, 16.878) y `agents/reviewer.md` en 8.833 (+184: dice que lee solo `lentes.md`, nunca el SKILL entero; C/D abren su heurística solo si un motivo sorprende).
+  - `lentes.md` lleva la graduación (Critical/Important/Minor, copia de la definición de §3, que se queda en el SKILL para la fusión) y la tabla «Racionalizaciones del REVISOR» movida tal cual; el SKILL conserva el encabezado con un puntero y la cita en «Scripts propios».
+  - `python tests/test_skill_size.py --diet-check adversarial-review a701e11` → `0 párrafos perdidos`; `pytest -q tests/test_rationalization_tables.py tests/test_integration_decoupling.py tests/test_review_cycle_owner.py agent-kits/shared/test_scope_check.py` → `58 passed`; `lint_plugin.py` → `0 errores · 16 avisos` (los mismos 16 de antes); `evals/check.py` → `0 errores`.
+  - Interpretación **k4**: el ledger llamaba `lentes.md` al fichero y ya existía `references/lens-prompts.md` (10.689 bytes, los prompts que la skill entrega en el despacho): meter la tabla ahí dejaba al revisor por encima de 5 KB, así que va en el `lentes.md` nuevo. «Solo la referencia de la lente» se lee como: `lentes.md` + el prompt de su lente (que le llega en el despacho) + la heurística C/D solo si hace falta.
 - **Runtimes**: La referencia vive en `skills/`, que viaja sin traducir (`docs/INTEROP.md:31`); el revisor la halla con la receta de seis raíces.
 - **Verificación**:
   - `context-footprint.py --project . --file skills/adversarial-review/SKILL.md` antes/después → menos bytes (`testing/tokens.md`); fichero nuevo medido aparte
   - puertas de runtimes (cabecera) → verde
+- **Verificación ejecutada** (2026-11-20): `SKILL.md` 18.104 → 16.471 caracteres y `lentes.md` 3.012 medido aparte; `export-interop.py --check` → `88 ficheros al día`; las pytest de runtimes de la cabecera y `node --test`, en la pasada común del cierre de la tanda (ver T-20).
 
 **Criterios de aceptación**
-- [ ] El reviewer lee solo la referencia de la lente.
-- [ ] La skill conserva todos los criterios y severidades (`--diet-check`: 0 párrafos perdidos).
-- [ ] Medido: lo que lee el revisor baja de 18,6 KB a ≤ 5 KB (≥ 13 KB menos por lectura).
+- [x] El reviewer lee solo la referencia de la lente.
+- [x] La skill conserva todos los criterios y severidades (`--diet-check`: 0 párrafos perdidos).
+- [x] Medido: lo que lee el revisor baja de 18,6 KB a ≤ 5 KB (≥ 13 KB menos por lectura).
 
 ### T-14 — Freno de tokens del ledger (2.1)
 
