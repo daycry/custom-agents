@@ -129,7 +129,7 @@ Later change (initiative [plugin-audit-2](../roadmap/2026-11-10-plugin-audit-2/t
 `skills/<x>/SKILL.md` path of every skill it orders to invoke, T-02) and the quick-path
 saving 6,012 (−39: `dev-cycle` names a single implementer, T-04).
 With the bundled backends retired (T-09/T-10), `commands/doctor.md` becomes 5,807 (+107: it cites the
-add-a-backend guide) and `doctor-reference.md` 11,577 (−552: without the retired backend table, with the row per declared backend).
+add-a-backend guide) and `doctor-reference.md` 11,719 (−410: without the retired backend table, with the row per declared backend).
 
 ## Tool results and handoffs
 

@@ -136,7 +136,7 @@ tamaño): `agents/implementer.md` pasa a 29.280 caracteres (+330: da la ruta
 `skills/<x>/SKILL.md` de cada skill que ordena invocar, T-02). El ahorro de la vía
 rápida pasa a 6.012 (−39: `dev-cycle` nombra un solo implementador, T-04).
 Con la retirada de los backends incluidos (T-09/T-10), `commands/doctor.md` pasa a 5.807 (+107: cita la guía
-para añadir un backend) y `doctor-reference.md` a 11.577 (−552: sin la tabla del backend retirado, con la fila por backend declarado).
+para añadir un backend) y `doctor-reference.md` a 11.719 (−410: sin la tabla del backend retirado, con la fila por backend declarado).
 
 ## Evitar contexto de poco valor durante la ejecución
 
