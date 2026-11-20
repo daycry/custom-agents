@@ -1931,3 +1931,50 @@ def test_h38_un_ledger_invalido_se_sigue_rechazando_en_proceso(inic, capsys):
     rc, _ = _run([str(inic), "T-01", "--constitucion", str(inic / "no.md")])
     err = capsys.readouterr().err
     assert rc == 2 and "ledger inválido" in err and "ledger-lint exit 1" in err and "incoherencias" in err
+
+
+# --- plugin-audit-2 T-14: la Lente A recibe la fase revisada, no el ledger entero ---
+def _ledger_por_fases(fases=4, kb_por_tarea=12):
+    partes = ["# Checklist de Tareas — grande", "",
+              "> **Puertas comunes.** `pytest -q` → verde en toda tarea.", "",
+              "## Resumen de progreso", "", "| Fase | Completadas | Total | Progreso |",
+              "|------|------------|-------|----------|"]
+    partes += [f"| Fase {f} — Bloque {f} | 2 | 2 | 100% |" for f in range(1, fases + 1)]
+    for f in range(1, fases + 1):
+        partes += ["", f"## Fase {f} — Bloque {f}", "", "**Estado**: completado"]
+        for k in (1, 2):
+            tid = f"T-{f}{k}"
+            partes += ["", f"### {tid} — tarea {f}.{k}", "", f"- **Descripción**: hacer {f}.{k}.",
+                       "- **Estado**: completado", "- **Verificación**: `pytest -q` → verde",
+                       "- **Evidencia**: " + "relleno de evidencia " * (kb_por_tarea * 1024 // 21), "",
+                       "**Criterios de aceptación**", f"- [x] criterio único {f}-{k}"]
+    return "\n".join(partes) + "\n"
+
+
+def test_fase_lente_a_recibe_solo_la_fase_revisada_de_un_ledger_grande(tmp_path):
+    d = tmp_path / "2026-01-03-grande"
+    d.mkdir()
+    texto = _ledger_por_fases()
+    (d / "tasks.md").write_text(texto, encoding="utf-8")
+    assert len(texto.encode("utf-8")) > 90_000
+    rc, out = _run([str(d), "--fase", "2", "--sin-lint"])
+    assert rc == 0
+    assert "## Fase 2 — Bloque 2" in out and "criterio único 2-1" in out and "criterio único 2-2" in out
+    assert "Puertas comunes" in out, "la cabecera del ledger viaja con la fase"
+    for otra in ("criterio único 1-1", "criterio único 3-2", "## Fase 4 — Bloque 4"):
+        assert otra not in out, otra
+    assert len(out.encode("utf-8")) <= len(texto.encode("utf-8")) * 0.5, "la entrada de la Lente A baja ≥ 50 %"
+
+
+def test_fase_lente_a_un_ledger_pequeno_se_lee_entero_como_hoy(inic):
+    rc, out = _run([str(inic), "--fase", "1", "--sin-lint"])
+    assert rc == 0
+    assert TASKS in out, "por debajo del umbral la Lente A recibe el ledger entero"
+
+
+def test_fase_lente_a_fase_inexistente_falla_con_mensaje(tmp_path):
+    d = tmp_path / "2026-01-04-grande"
+    d.mkdir()
+    (d / "tasks.md").write_text(_ledger_por_fases(), encoding="utf-8")
+    rc, _ = _run([str(d), "--fase", "9", "--sin-lint"])
+    assert rc == 1

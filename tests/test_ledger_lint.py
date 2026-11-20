@@ -533,3 +533,45 @@ def test_suite_legada_main():
     """T-23 fix1 (gap 1): los casos de `main()` solo colgaban de `__main__`; la CI ya no ejecuta scripts,
     así que pytest los recoge por aquí (`test_ningun_caso_de_la_ci_queda_solo_en_main`)."""
     main()
+
+
+# --- plugin-audit-2 T-14: freno de tokens del ledger (umbral 40-60 KB, configurable) ---
+def _run_args(text, *extra):
+    with tempfile.TemporaryDirectory() as tmp:
+        p = os.path.join(tmp, "tasks.md")
+        open(p, "w", encoding="utf-8").write(text)
+        r = subprocess.run([sys.executable, SCRIPT, p, *extra], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace")
+        return r.returncode, r.stdout
+
+
+def _ledger_de(kb):
+    linea = "Texto de relleno del ledger para medir el tamaño.\n"
+    texto = doc() + "\n## Notas\n\n"
+    return texto + linea * ((kb * 1024 - len(texto.encode("utf-8"))) // len(linea.encode("utf-8")))
+
+
+def test_umbral_tokens_un_ledger_de_70_kb_avisa_y_nombra_ledger_archive():
+    texto = _ledger_de(70)
+    assert 65_000 < len(texto.encode("utf-8")) < 75_000
+    code, out = _run_args(texto)
+    assert code == 0, out
+    assert "ledger-archive.py" in out and "--apply" in out, out
+
+
+def test_umbral_tokens_por_defecto_a_60_kb_como_mucho_y_configurable():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("ll_t14", SCRIPT)
+    ll = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ll)
+    assert 40_000 <= ll.UMBRAL_TAMANO_BYTES <= 60_000
+    texto = _ledger_de(70)
+    code, out = _run_args(texto, "--umbral-bytes", "100000")
+    assert code == 0 and "ledger-archive.py" not in out, out
+    code, out = _run_args(_ledger_de(30), "--umbral-bytes", "20000")
+    assert code == 0 and "ledger-archive.py" in out, out
+
+
+def test_umbral_tokens_un_ledger_pequeno_no_avisa():
+    code, out = _run_args(_ledger_de(20))
+    assert code == 0 and "ledger-archive.py" not in out, out
