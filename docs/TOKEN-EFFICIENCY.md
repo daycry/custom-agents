@@ -151,6 +151,7 @@ cuando hace falta.
 | Lo que lee el `reviewer`: la tabla del revisor y la graduación pasan a `adversarial-review/references/lentes.md` (T-13) | `SKILL.md` 18.104 | `lentes.md` 3.012 (−15.092 por lectura); el `SKILL.md` queda en 16.471 y `agents/reviewer.md` gana 184 (8.833) |
 | Freno del ledger: `ledger-lint` avisa a 60.000 bytes (`--umbral-bytes N`) y nombra `ledger-archive.py`; la Lente A recibe `task-brief.py <carpeta> --fase <N>` (T-14) | aviso a 183.500 bytes; Lente A con el ledger entero: 100.414 (prueba de 4 fases) · 189.819 (ledger de plugin-audit-2) | aviso a 60.000; Lente A 25.253 (−75 %) · 21.232 para la fase 3 (−89 %); por debajo del umbral, el ledger entero |
 | Cabecera «ORQUESTA agentes» y mapa de roles solo en los comandos exportados que despachan un rol (T-21) | 15 comandos por runtime con cabecera | 4 la conservan; 11 pierden 696 (Codex) y 658 (OpenCode) caracteres: −7.656 y −7.238 |
+| Bloque de `SessionStart` en Claude Code: solo la cabecera del índice, porque Claude ya enseña su listado nativo de skills (T-20) | índice de 3.378 | cabecera de 331 (−3.047 por arranque y compactación); Codex (3.349) y OpenCode (3.499) sin cambio |
 
 Tras T-14, `skills/adversarial-review/SKILL.md` queda en 16.878 (+407 sobre T-13: la regla de la
 Lente A por fase) y `commands/dev-cycle.md` en 29.131 (−42); el ahorro de la vía rápida pasa a 6.023 (+11).

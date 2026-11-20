@@ -26,8 +26,12 @@ script) → `find` sobre `$PWD/.claude` y `$HOME/.claude` (regla 5 de CONVENTION
 
 Desactivable por el consumidor: `.claude/dev.json` → `{"sesion": {"indice": false}}` → sin salida.
 
+`--solo-cabecera` (plugin-audit-2 T-20): solo las tres líneas de cabecera del runtime, sin el listado.
+Lo usa el bloque de SessionStart en Claude Code, que ya enseña su propio listado nativo de skills;
+Codex y OpenCode reciben el índice completo. `sesion.indice: false` sigue mandando (sin salida).
+
 Uso:
-  skill-index.py [--root DIR] [--no-cache] [--cache FICHERO] [--json]
+  skill-index.py [--root DIR] [--no-cache] [--cache FICHERO] [--json] [--runtime R] [--solo-cabecera]
 Exit 0 SIEMPRE (la información nunca bloquea): sin piezas / desactivado / error → sin salida.
 """
 import argparse
@@ -62,6 +66,9 @@ CABECERAS_RUNTIME = {
     "opencode": [CABECERA[0], "Invoca las skills con `skill` cuando apliquen a la tarea.",
                  "Comandos por `/`; delega con subagent y agent igual al ID nativo disponible."],
 }
+# Claude Code ya lista sus skills de forma nativa: su bloque de sesión lleva solo esta cabecera.
+CABECERA_SOLA_PRIMERA = ("Plugin custom-agents — sus comandos, skills y agentes ya están en el listado nativo; "
+                         "antes de cualquier tarea comprueba si aplica una de esas piezas.")
 GRUPOS = (("command", "Comandos:"), ("skill", "Skills:"), ("agent", "Agentes:"))
 ENTRADA_CENTRAL = {"command": "dev-cycle", "skill": "quick-implement", "agent": "implementer"}
 # H-21: dentro de cada grupo, primero las piezas del ciclo (en este orden) y después el resto en orden
@@ -303,6 +310,12 @@ def _lineas(ps, ancho, runtime=None, mapping=None):
     return lineas
 
 
+def cabecera_sola(runtime=None):
+    """Cabecera del índice sin el listado (T-20): la primera línea remite al listado nativo."""
+    lineas = list(CABECERAS_RUNTIME.get(runtime, CABECERA))
+    return "\n".join([CABECERA_SOLA_PRIMERA, *lineas[1:]])
+
+
 def construir(ps, runtime=None, mapping=None):
     """Índice dentro de los topes: si con LIMITE_LINEA por línea el total excede LIMITE_CHARS, el
     ancho por línea baja de 5 en 5 (determinista) hasta caber. Devuelve None sin piezas."""
@@ -415,6 +428,8 @@ def main(argv=None):
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--runtime", choices=tuple(CABECERAS_RUNTIME), help="IDs y delegación del runtime; sin él, índice canónico")
     ap.add_argument("--no-cache", action="store_true", help="ignora y no escribe la caché")
+    ap.add_argument("--solo-cabecera", action="store_true",
+                    help="solo la cabecera del runtime, sin el listado (bloque de sesión de Claude Code)")
     ap.add_argument("--cache", metavar="FICHERO", help=f"ruta de la caché (default: <proyecto>/.claude/{CACHE_NOMBRE})")
     args = ap.parse_args(argv)
 
@@ -424,6 +439,9 @@ def main(argv=None):
             return 0
         root = os.path.abspath(args.root) if args.root else localizar_root()
         if not root or not es_plugin(root):
+            return 0
+        if args.solo_cabecera:
+            print(cabecera_sola(args.runtime))
             return 0
         cache = args.cache or (os.path.join(proj, ".claude", CACHE_NOMBRE) if proj else None)
         idx = generar(root, cache=cache, usar_cache=not args.no_cache, runtime=args.runtime)

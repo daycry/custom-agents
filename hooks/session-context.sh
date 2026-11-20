@@ -191,7 +191,9 @@ fi
 
 # (1) Índice de piezas (el script decide caché, dev.json y localización del plugin; exit 0 siempre).
 if [ -f "$SHARED/skill-index.py" ]; then
-  idx="$(CLAUDE_PROJECT_DIR="$ROOT" python3 "$SHARED/skill-index.py" --runtime "$RUNTIME" 2>/dev/null || true)"
+  # T-20: en Claude Code solo la cabecera del índice (el listado nativo ya enseña las skills).
+  SOLO=""; [ "$RUNTIME" = "claude" ] && SOLO="--solo-cabecera"
+  idx="$(CLAUDE_PROJECT_DIR="$ROOT" python3 "$SHARED/skill-index.py" --runtime "$RUNTIME" $SOLO 2>/dev/null || true)"
   [ -n "$idx" ] && partes="${partes:+$partes
 
 }$idx"

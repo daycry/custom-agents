@@ -241,7 +241,8 @@ def compose(payload, *, runtime='claude', root=None):
             notice = _replay_notice(replay, clamp)
             if notice:
                 parts.append(notice)
-        text = _call(index, '--runtime', runtime)
+        # T-20: Claude Code ya enseña su listado nativo de skills; aquí solo la cabecera del índice.
+        text = _call(index, '--runtime', runtime, *(('--solo-cabecera',) if runtime == 'claude' else ()))
         if text:
             parts.append(text)
         if os.path.isdir(os.path.join(root, 'docs', 'roadmap')):

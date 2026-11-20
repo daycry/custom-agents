@@ -403,3 +403,25 @@ def test_fix2_a_m4_docstrings_sin_cesion_proporcional_del_ciclo():
     cupos = fuente[fuente.index("def _cupos"):][:900]
     assert "cede proporcionalmente" not in cupos
     assert "agentes" in fuente[:1200] and "PRIORIDAD" in fuente[:1500]
+
+
+# --- plugin-audit-2 T-20: cabecera sola para el bloque de sesión de Claude Code ---
+@pytest.mark.parametrize('runtime', ['claude', 'codex', 'opencode'])
+def test_t20_cabecera_sola_son_las_tres_lineas_de_cabecera_sin_listado(runtime):
+    texto = si.cabecera_sola(runtime)
+    lineas = texto.splitlines()
+    assert len(lineas) == 3 and lineas[0].startswith('Plugin custom-agents')
+    assert lineas[1:] == si.CABECERAS_RUNTIME[runtime][1:]
+    assert 'Skills:' not in texto and 'Comandos:' not in texto
+
+
+def test_t20_solo_cabecera_respeta_sesion_indice_false(tmp_path):
+    proj = tmp_path / 'proj'
+    (proj / '.claude').mkdir(parents=True)
+    (proj / '.claude' / 'dev.json').write_text('{"sesion": {"indice": false}}', encoding='utf-8')
+    env = {'CLAUDE_PROJECT_DIR': str(proj)}
+    rc, out, _err = run(['--root', str(REPO), '--runtime', 'claude', '--solo-cabecera'], env_extra=env)
+    assert rc == 0 and out.strip() == ''
+    (proj / '.claude' / 'dev.json').write_text('{}', encoding='utf-8')
+    rc, out, _err = run(['--root', str(REPO), '--runtime', 'claude', '--solo-cabecera'], env_extra=env)
+    assert rc == 0 and out.strip() == si.cabecera_sola('claude')
