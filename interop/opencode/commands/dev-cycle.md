@@ -175,7 +175,7 @@ Lee `agent-kits/shared/project-integrations.md` antes de proyectar un evento. Im
 
 Al salir debes tener: código implementado, revisión pasada, `qa-gate` en verde y `tasks.md` al día (validado con `ledger-lint.py`).
 
-**Ledger grande (al cerrar cada fase).** Si `ledger-lint.py` avisa del tamaño del ledger (70 % del tope de lectura de 256 KiB) o de una `Verificación` larga, ejecuta TÚ `python3 "$SHAREDKIT/ledger-archive.py" docs/roadmap/<fecha>-<slug> --apply` (sin `--apply` enseña el plan): traslada la historia cerrada a `execution-history.md` con su SHA sin cambiar lo que deciden los adaptadores ni `task-brief`. El `implementer` no puede: su guardia solo le deja escribir `tasks.md` en `docs/roadmap/`.
+**Ledger grande (al cerrar cada fase).** Si `ledger-lint.py` avisa del tamaño (60.000 bytes, `--umbral-bytes N`) o de una `Verificación` larga, OFRECE archivar: plan en seco de `python3 "$SHAREDKIT/ledger-archive.py" docs/roadmap/<fecha>-<slug>` y, con OK del usuario, TÚ con `--apply`: traslada la historia cerrada a `execution-history.md` con su SHA sin cambiar lo que deciden los adaptadores ni `task-brief`. El `implementer` no puede (su guardia).
 
 ## Fase 4 — Documentar (siempre, agente `documenter`)
 Con las pruebas en verde, invoca **`documenter`** para generar/actualizar la documentación del proyecto (una vez al final, no por tarea).

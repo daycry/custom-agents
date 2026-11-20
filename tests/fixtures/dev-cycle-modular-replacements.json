@@ -19,9 +19,9 @@
     {
       "before_sha256": "91bd3371105209d7719c83213ab4afca86369a83ce0ec743c93d1b68d6469658",
       "before_file": "commands/dev-cycle.md",
-      "after_sha256": "1be066f56cdfd70db4077d4a928adbe051f266876a7623245adfaf28e0e47791",
+      "after_sha256": "99136ccb6d2666aac700797273a71d2bb7a0e03524f71279883decd64720c84b",
       "after_file": "commands/dev-cycle.md",
-      "reason": "Archive still preserves SHA and canonical semantics; names adapters instead of a provider script."
+      "reason": "Archive still preserves SHA and canonical semantics; names adapters instead of a provider script. plugin-audit-2 T-14: the warning fires at 60,000 bytes (token brake, --umbral-bytes) and phase close OFFERS archiving (dry-run plan, then --apply with the user's OK); the implementer still cannot run it."
     },
     {
       "before_sha256": "b30f4ec711db248b9d44bd90fce87c24f281089c1cb40bc9e1269065a517d368",

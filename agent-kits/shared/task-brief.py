@@ -63,8 +63,14 @@ detiene el brief con aviso (exit 2) — no se despacha trabajo sobre un ledger r
 Uso:
   task-brief.py <carpeta-iniciativa> <T-XX> [--constitucion RUTA] [--sin-lint]
                 [--personas-dir DIR] [--tdd] [--dev-json RUTA] [--knowledge-find RUTA]
+  task-brief.py <carpeta-iniciativa> --fase <N>
 Salida: el brief en Markdown por stdout. Exit: 0 ok · 1 tarea/ficheros no encontrados ·
 2 ledger inválido.
+
+Modo `--fase N` (plugin-audit-2 T-14): lo que recibe la Lente A de `adversarial-review` en vez del
+ledger entero. Por encima del umbral de `ledger-lint.py` (`UMBRAL_TAMANO_BYTES`), la cabecera del
+ledger (lo anterior a la primera sección `## `) + la sección `## Fase N` íntegra, con todas sus
+tareas, criterios y verificaciones; por debajo, el ledger entero como siempre. Fase inexistente → 1.
 """
 import argparse
 import fnmatch
@@ -996,7 +1002,10 @@ def _seccion_plan(plan_text, titulo_re):
 def _parse_args(argv):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("carpeta", help="carpeta de la iniciativa (docs/roadmap/<fecha>-<slug>)")
-    ap.add_argument("tarea", help="ID de la tarea (T-XX)")
+    ap.add_argument("tarea", nargs="?", help="ID de la tarea (T-XX); se omite con --fase")
+    ap.add_argument("--fase", default=None,
+                    help="vista de la Lente A: cabecera + la sección `## Fase N` si el ledger pasa del "
+                         "umbral de ledger-lint; el ledger entero si no")
     ap.add_argument("--constitucion", default=None,
                     help="ruta de la constitución (default: se busca en <raíz del repo>/docs/"
                          "CONSTITUTION.md derivada de la carpeta, y luego docs/CONSTITUTION.md del cwd)")
@@ -1546,8 +1555,46 @@ def _execution_profile(args):
                 "warnings": ["execution profile unavailable; ordinary fallback only without a declared profile"]}
 
 
+UMBRAL_LEDGER_FALLBACK = 60_000   # si ledger-lint.py no carga; el valor vigente es su UMBRAL_TAMANO_BYTES
+
+
+def _vista_fase(args):
+    """Lo que recibe la Lente A (T-14): fase revisada de un ledger grande; ledger entero si es pequeño."""
+    tasks_p = os.path.join(args.carpeta, "tasks.md")
+    if not os.path.isfile(tasks_p):
+        print(f"❌ no existe {tasks_p}", file=sys.stderr)
+        return 1
+    texto = open(tasks_p, encoding="utf-8", errors="replace").read()
+    n = str(args.fase).strip()
+    lineas = texto.splitlines(keepends=True)
+    cab_re = re.compile(r"^##\s+Fase\s+" + re.escape(n) + r"(?![\w.])")
+    ini = next((i for i, l in enumerate(lineas) if cab_re.match(l)), None)
+    if ini is None:
+        print(f"❌ no hay sección `## Fase {n}` en {tasks_p}", file=sys.stderr)
+        return 1
+    mod = _ledger_lint_mod()
+    umbral = getattr(mod, "UMBRAL_TAMANO_BYTES", UMBRAL_LEDGER_FALLBACK)
+    tam = len(texto.encode("utf-8"))
+    if tam <= umbral:
+        sys.stdout.write(f"<!-- Lente A · Fase {n}: ledger entero ({tam} bytes ≤ {umbral}) -->\n" + texto)
+        return 0
+    fin = next((i for i in range(ini + 1, len(lineas)) if re.match(r"^##\s", lineas[i])), len(lineas))
+    primera = next((i for i, l in enumerate(lineas) if re.match(r"^##\s", l)), ini)
+    cabecera = "".join(lineas[:primera]).rstrip("\n") + "\n\n"
+    seccion = "".join(lineas[ini:fin])
+    sys.stdout.write(f"<!-- Lente A · Fase {n}: cabecera + la fase revisada ({tam} bytes > {umbral}); "
+                     f"el resto (otras fases, revisiones anteriores) sigue en tasks.md -->\n"
+                     + cabecera + seccion)
+    return 0
+
+
 def main(argv=None):
     args = _parse_args(argv)
+    if args.fase is not None:
+        return _vista_fase(args)
+    if not args.tarea:
+        print("❌ falta el ID de la tarea (T-XX) o --fase N", file=sys.stderr)
+        return 1
     profile = _execution_profile(args)
     for warning in profile.get("warnings", []):
         print(warning, file=sys.stderr)

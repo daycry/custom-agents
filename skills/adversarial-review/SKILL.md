@@ -76,6 +76,11 @@ Consume `reviewers` de `execution-profile.py`: `fresh_sequential` (siempre en li
 Cada lente recibe SOLO: el diff (o cómo obtenerlo), las rutas de los artefactos contra los que
 revisa, y si N > 1 la tabla del intento anterior (ver §5). Despacho:
 
+**Lente A con ledger: solo la fase revisada.** Pásale la salida de `python3 "$SHAREDKIT/task-brief.py"
+<carpeta> --fase <N>` en lugar de `tasks.md` entero: cabecera del ledger + la sección `## Fase N` íntegra
+(todas sus tareas, criterios y verificaciones). Por debajo del umbral de `ledger-lint.py` es el ledger
+entero, como siempre. Fase inexistente → exit 1: pásale el ledger entero y dilo en la salida.
+
 1. **Tier del revisor:** `python3 "$SHAREDKIT/model-tier.py" reviewer --json` → pasa `model` al Agent
    tool si `fuente.model` es `dev.json` (el `effort` de dev.json es informativo; sin script → frontmatter).
 2. **Agente por nombre:** una llamada al Agent tool por lente con `subagent_type: reviewer`

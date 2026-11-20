@@ -38,15 +38,17 @@ AVISOS (no rompen; formato/legacy):
     dos casos `changelog-sync` degrada el bullet al título, así que el campo no está escrito. Un
     `{{…}}` CITADO (entre acentos graves, o dentro de una frase que dice algo más) sí está escrito
     y se publica: el criterio es «el campo ES el placeholder», no «lo menciona».
-  - Ledger de más del 70 % del tope de lectura acotada (`local-read.py` `MAX_BYTES` = 256 KiB, que
-    usan la retoma y `plan-review.py`): el aviso da el comando `ledger-archive.py <carpeta> --apply`,
-    que traslada la historia cerrada a `execution-history.md` conservando los bytes con su SHA.
+  - Ledger de más de `UMBRAL_TAMANO_BYTES` (60.000 bytes por defecto, `--umbral-bytes N` lo cambia;
+    plugin-audit-2 T-14: freno de TOKENS, muy por debajo del tope de lectura acotada de 256 KiB de
+    `local-read.py`): el aviso da el comando `ledger-archive.py <carpeta> --apply`, que traslada la
+    historia cerrada a `execution-history.md` conservando los bytes con su SHA.
   - `Verificación` de más de `VERIFICACION_MAX` caracteres: narrativa acumulada, no un
     `comando → resultado` vigente (`ledger-archive.py` la recorta con el mismo umbral).
 
 Uso:
-  python3 ledger-lint.py <ruta/a/tasks.md> [--warn-only]
+  python3 ledger-lint.py <ruta/a/tasks.md> [--warn-only] [--umbral-bytes N]
   --warn-only: imprime todo como aviso y SIEMPRE exit 0 (modo hook).
+  --umbral-bytes N: tamaño a partir del cual avisa de archivar (por defecto UMBRAL_TAMANO_BYTES).
 
 Como módulo: `parse_ledger(text)` expone el parser estructural (fases, tareas, estados,
 horas IA) sin efectos secundarios — lo reutiliza `progress-report.py` (live-visibility).
@@ -66,10 +68,11 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 ESTADOS = {"borrador", "en-progreso", "en-revision", "completado", "cancelado"}
 
 # Tamaño del ledger: el tope de lectura acotada es `MAX_BYTES` de `local-read.py` (256 KiB; lo usan
-# la retoma `progress-report.py resume` y `plan-review.py`). Al 70 % se avisa con el comando que
-# archiva la historia cerrada; `ledger-archive.py` reutiliza estas constantes.
+# la retoma `progress-report.py resume` y `plan-review.py`). El aviso salta mucho antes, por TOKENS
+# (plugin-audit-2 T-14): a 60.000 bytes una lectura ya cuesta ≈15 K tokens; antes avisaba a 183.500
+# (≈45 K). El aviso da el comando que archiva la historia cerrada.
 TOPE_LECTURA_BYTES = 256 * 1024
-UMBRAL_TAMANO_BYTES = 183_500          # 70 % de 256 KiB
+UMBRAL_TAMANO_BYTES = 60_000           # freno de tokens; configurable con --umbral-bytes
 VERIFICACION_MAX = 2000                # caracteres de `Verificación` antes de avisar / recortar
 # quita emojis/decoración al comparar estados: "completado ✅" → "completado"
 def norm_estado(s):
@@ -812,7 +815,7 @@ def _tdd_activo(path):
     return False
 
 
-def lint(path, *, text=None, parsed=None):
+def lint(path, *, text=None, parsed=None, umbral_bytes=None):
     """Validate a ledger; a composing caller may supply matching text and its shared parse."""
     errors, warnings = [], []
     if text is None:
@@ -908,9 +911,11 @@ def lint(path, *, text=None, parsed=None):
         tam = os.path.getsize(path)
     except OSError:
         tam = 0
-    if tam > UMBRAL_TAMANO_BYTES:
+    umbral = UMBRAL_TAMANO_BYTES if umbral_bytes is None else umbral_bytes
+    if tam > umbral:
         carpeta = os.path.dirname(path) or "."
-        warnings.append(f"ledger de {tam // 1024} KB (tope de lectura 256 KiB): "
+        warnings.append(f"ledger de {tam // 1024} KB (aviso a {umbral // 1000} KB por tokens; tope de "
+                        f"lectura 256 KiB): archiva la historia cerrada con "
                         f"`python3 agent-kits/shared/ledger-archive.py {carpeta} --apply`")
 
     # ---- Changelog por tarea (changelog-brief): AVISO, nunca incoherencia ----
@@ -1015,13 +1020,15 @@ def main():
     ap.add_argument("tasks", help="ruta a tasks.md")
     ap.add_argument("--warn-only", action="store_true",
                     help="modo hook: todo como aviso, siempre exit 0")
+    ap.add_argument("--umbral-bytes", type=int, default=None,
+                    help=f"avisa de archivar por encima de N bytes (por defecto {UMBRAL_TAMANO_BYTES})")
     args = ap.parse_args()
 
     if not os.path.isfile(args.tasks):
         print(f"⚠️  ledger-lint: no existe {args.tasks}")
         sys.exit(0 if args.warn_only else 1)
 
-    errors, warnings = lint(args.tasks)
+    errors, warnings = lint(args.tasks, umbral_bytes=args.umbral_bytes)
     for w in warnings:
         print(f"⚠️  {w}")
     prefix = "⚠️ " if args.warn_only else "❌"
