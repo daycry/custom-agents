@@ -410,7 +410,7 @@ GREEN: `python scripts/build-handbook.py --edition 2026-11-12` regeneró las tre
 - Gap 5 (Minor) CORREGIDO (generalizado, no retirado): `estado_grupo`/`--avisos-grupo` es una función OPCIONAL documentada del contrato que usa `/setup`; solo se reescribió el texto de ayuda sin «episodios»/`group_id`. `max_episodes` que `/doctor` añade a la `cfg` queda documentado en `add-backend.md` (ventana de lectura de `verify()`; un adaptador que no la usa la ignora).
 - Archivos añadidos en fix1: `tests/test_sync_write_gate.py` (nuevo), `agent-kits/shared/{knowledge-schema.py,knowledge-taxonomy-local.py,schemas/taxonomy.schema.json,test_knowledge_routing.py}`, `skills/knowledge-services/scripts/knowledge-sync.py` (texto de ayuda), `docs/agents/CONTRACTS.md`, `agent-kits/shared/README.md`; borrados `agent-kits/shared/{knowledge-read-context.py,test_knowledge_read_context.py}`.
 - RED `b899557` (tests solos) · GREEN `4778e53`
-**fix2 (intento 2, gaps 3, 5 y 6; 2026-11-20; usage-meter `plugin-audit-2/T-10-fix2`, 0.24 h IA medidas para todo el fix2).** Verificado contra el código; ninguno erróneo. RED `2ad7a6e` (tests solos) · GREEN `de7efe1`.
+**fix2 (intento 2, gaps 3, 5 y 6; 2026-11-20; usage-meter `plugin-audit-2/T-10-fix2`, 0.24 h IA medidas para todo el fix2).** Verificado contra el código; ninguno erróneo. RED `2ad7a6e` (tests solos) · GREEN `de7efe1`. `RED: 2ad7a6e falló en los tests del adaptador (temporales y prefijo), la puerta CA-05 (= y cadenas), el type hostil de /doctor, RETIRADOS del panel, el aviso de línea sin clave y la descripción en una línea · 2026-11-20` (añadida por el orquestador).
 - Gap 3 (Minor) CORREGIDO: `tests/test_sync_write_gate.py` normaliza `--backend=x`, analiza cada orden de una cadena (`&&`, `||`, `;`, `|`) por separado e ignora el comentario final (solo en código). Mutantes (cadena sin trocear; `=` sin normalizar) → 1 falla cada uno, revertidos.
 - Gap 5 (Minor) CORREGIDO: `/doctor` sin `no disponible` engañoso: `doctor-reference.md` (+ `docs/en/reference/doctor.md`) y la fila dicen que solo mira `backends/` del plugin y remiten a `knowledge-sync.py --backends-dir … --check`; no se amplía la carga de código del proyecto.
 - Gap 6 (Minor) CORREGIDO: `_tipos_retirados(issue)` del panel acepta set/frozenset/tuple/list literales; cualquier otra forma o fichero ilegible → vacío + aviso `retirados_ilegibles` sin tumbar `memoria()`; se calcula una vez por llamada.
@@ -1266,3 +1266,13 @@ Lentes B+C dirigidas sobre `36eb2f3..e0e7afb`. Cada gap verificado; ninguno reba
 | 5 | Minor | Alcance de `/doctor` mal documentado | T-08 | doc ES/EN + fila | test de fila |
 | 6 | Minor | `_tipos_retirados` degrada sin aviso | T-08 | formas literales + aviso | 9 tests |
 | 7 | Minor | Adaptador rechaza `\\?\` y clave hostil bloquea | T-10 | normaliza y ignora con aviso | 2 tests |
+
+## Revisión de dos lentes — intento 3: Fase 2 (T-08, T-10, T-11) — verificación final del fix2: 0 Critical, 0 Important, 1 Minor (deuda aceptada); Fase 2 cerrada
+
+Lente C (+B sobre los dos Important) dirigida sobre `df2c60e..bef4844`, con el criterio de cierre del usuario (2026-11-20). Important 1 (temporales del adaptador): cerrado; sondas en Windows con hardlinks y junctions (destino, `manifest.json`, `manifest.pending.json`, `dir` y subdirectorio enlazados, `revoke`/`rebuild`): ninguna escritura ni borrado fuera de `dir`; symlink real no verificable en esta máquina (WinError 1314), cubierto por `realpath`/`islink` en lectura. Important 2 (descripción multilínea): cerrado; las 5 plantillas YAML con `:`, `#`, comillas, tabulador, línea vacía, `>-` irregular, CRLF y BOM salen completas y sin aviso; la continuación sin sangrar da `partial` con 5 avisos; 0 falsos positivos sobre 59 piezas reales del repo y 40 proyectos generados. 16 tests dirigidos verdes.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Minor | El aviso de línea sin clave no salta si la continuación sin sangrar empieza por `Palabra:` o `- ` (`_FRONTMATTER_LINE` la toma por clave o lista): verde truncado | T-11 | deuda aceptada por el usuario (2026-11-20, criterio de cierre): brecha residual del detector; la defensa principal es la regla de una sola línea de la skill | agent-kits/shared/project-pieces.py:190, :235 |
+
+**Fase 2 cerrada (2026-11-20)** según el criterio del usuario: 0 Critical y 0 Important tras los intentos 1 (fix1), 2 (fix2) y 3; deuda aceptada: el gap 1 de este intento. Pendiente del usuario: M-B (T-11).
