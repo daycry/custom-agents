@@ -278,7 +278,11 @@ def test_fix18d_un_opt_out_entre_la_validacion_y_el_cerrojo_impide_la_escritura(
 def test_fix20_la_espera_del_cerrojo_cuenta_desde_que_acaba_la_preparacion_sin_cerrojo(api, project, monkeypatch):
     """T-06 fix20 (D2): la validacion previa de fix18d corre ANTES del cerrojo y bajo carga cuesta 0,2-0,6 s por proceso; `TOOL_LOCK_WAIT` (1 s) es la espera DEL cerrojo y debe medirse desde que se
     empieza a esperarlo, no desde el arranque del hook (si no, 8 hooks en rafaga perdian eventos con `state_busy` sin haber esperado el segundo entero). Reloj falso: la preparacion consume 0,9 s y el
-    cerrojo esta ocupado 0,5 s despues; con la espera desde el arranque solo quedaban 0,1 s y el evento se perdia."""
+    cerrojo esta ocupado 0,5 s despues; con la espera desde el arranque solo quedaban 0,1 s y el evento se perdia.
+
+    Alcance (fix24, gap 20): este test solo discrimina con la escala x20 de la fixture (preparacion 0,9 s x 20 frente a un plazo de 26 s). Con los plazos REALES el mismo escenario (0,9 + 0,5 = 1,4 s
+    > 1,3 s de `TOOL_DEADLINE`) pierde el evento con o sin el arreglo: la ganancia real de fix20 es, como mucho, los ~0,3 s que la espera ya no descuenta de la preparacion. Lo que garantiza el
+    comportamiento con plazos reales es `test_d2_rafaga_...` (8 de 8, 12/12 en reposo y con 4 quemadores), no este."""
     boot(api, project)
     clock = [1000.0]
     fake = type('Clock', (), {'monotonic': staticmethod(lambda: clock[0]), 'time': staticmethod(time.time),
@@ -341,6 +345,44 @@ def test_d2_rafaga_sobre_el_anillo_lleno_con_la_espera_REAL_no_pierde_ninguno(ap
         assert perdidos == [], perdidos
     visto = tools(api.history(project))
     assert sum(1 for t in visto if t.startswith('T') and t[1:].isdigit()) == count - len(perdidos)
+
+
+@pytest.mark.serie
+def test_fix24_d2_rafaga_con_la_cola_cerca_del_umbral_el_pliegue_cae_dentro_de_la_rafaga(api, project, monkeypatch):
+    """T-23 fix24 (gap 16, D2 de la lente D): `test_d2_rafaga_...` arranca con la cola VACIA, asi que el pliegue (cola -> anillo, p50 180 ms / max 265 ms con el anillo lleno) nunca ocurre dentro de la
+    rafaga, y en produccion ~40 % de las rafagas lo pagan. Aqui la cola empieza a ~1,5 KB de `TAIL_FOLD_BYTES`: la rafaga de 8 (~3,4 KB) cruza el umbral y UNO de los hijos pliega con el cerrojo
+    cogido. Plazos reales (sin escala) y 8 de 8 sin perdidos; la preparacion en este proceso lleva plazo amplio inyectado, como en el D2 original."""
+    monkeypatch.setattr(api, 'LIFECYCLE_DEADLINE', 600.0)
+    boot(api, project)
+    now = time.time()
+    heavy = [{'schema_version': 1, 'runtime': 'claude', 'run_key': 'a' * 64, 'role': None, 'tool': 'Bash', 'resumen': ('git status %d ' % i).ljust(160, 'y'),
+        'tarea': None, 'duracion_ms': None, 'resultado': None, 'observed_at': now - 5, 'revision': i} for i in range(1, 501)]
+    value = json.loads((state(project) / 'events.json').read_bytes())
+    value.update(revision=500, events=heavy)
+    (state(project) / 'events.json').write_bytes(json.dumps(value, sort_keys=True, separators=(',', ':')).encode())
+    tail = state(project) / 'events.tail'
+    previos = 0
+    while not tail.exists() or tail.stat().st_size < api.TAIL_FOLD_BYTES - 1500:
+        assert api.record(project, entry(tool='P%d' % previos))['status'] == 'ok'
+        previos += 1
+        assert previos < 100
+    assert tail.stat().st_size < api.TAIL_FOLD_BYTES, 'la cola aun no plego: el pliegue debe caer dentro de la rafaga'
+    anillo_antes = ring(project)['revision']
+    env = {k: v for k, v in os.environ.items() if k not in ('PYTEST_CURRENT_TEST', 'CUSTOM_AGENTS_ACTIVITY_DEADLINE_SCALE')}
+    start = time.time() + 4
+    children = [subprocess.Popen([sys.executable, '-I', '-X', 'utf8', '-B', '-c', _BURST, str(SHARED / 'agent-activity-store.py'), str(project),
+        json.dumps(entry()), str(i), repr(start)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=project, env=env) for i in range(8)]
+    resultados = []
+    for p in children:
+        out, err = p.communicate(timeout=90)
+        assert p.returncode == 0, err
+        resultados.append(json.loads(out))
+    perdidos = [r for r in resultados if r['status'] != 'ok']
+    print('D2 fix24 sonda: previos=%d perdidos=%d motivos=%s' % (previos, len(perdidos), sorted({r['reason'] for r in perdidos})))
+    assert perdidos == [], perdidos
+    assert ring(project)['revision'] > anillo_antes, 'el pliegue ocurrio DENTRO de la rafaga (el anillo avanzo)'
+    visto = tools(api.history(project))
+    assert sum(1 for t in visto if t.startswith('T') and t[1:].isdigit()) == 8 and sum(1 for t in visto if t.startswith('P')) == previos
 
 
 def test_la_cola_no_guarda_la_sesion_ni_el_agente_en_claro(api, project):

@@ -144,6 +144,12 @@ class StateIO:
             self.need(stat.S_ISREG(opened.st_mode) and opened.st_nlink == 1, 'unsafe_state')
             seen = self.file(path)
             self.need((seen[0], seen[1]) == (opened.st_dev, opened.st_ino) and (before is None or (before[0], before[1]) == (seen[0], seen[1])), 'unsafe_state')
+            if opened.st_size > 0:
+                # fix24 (gap 1): a crash can leave a torn last line; appending right behind it would glue two records into one corrupt line forever. The owner holds the lock: read ONE byte.
+                with open(path, 'rb') as probe:
+                    probe.seek(-1, os.SEEK_END)
+                    if probe.read(1) != b'\n':
+                        raw = b'\n' + raw
             view = memoryview(raw)
             while view:
                 view = view[os.write(fd, view):]

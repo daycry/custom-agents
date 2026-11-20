@@ -1468,22 +1468,27 @@ export function instalarCodexNativo({dir,scope,version,marketplaceRoot,home=code
 }
 
 /** fix19: copia la entrada instalada en el home aislado junto a su destino (mismo volumen) y la intercambia por rename. */
-function promoverEntradaCodex(desde,hasta) {
+export function promoverEntradaCodex(desde,hasta,ops={}) {
+  const cp=ops.cpSync||cpSync,rn=ops.renameSync||renameSync
   mkdirP(dirname(hasta))
   hasta=join(realpathSync(dirname(hasta)),basename(hasta))   // crear directorios a traves de un ancestro enlazado falla en Windows+KB5135385
   const marca=`${process.pid}-${Math.random().toString(36).slice(2,8)}`
   const nueva=`${hasta}.new-${marca}`, vieja=`${hasta}.old-${marca}`
-  let movida=false
+  let movida=false,sinRestaurar=false
   try {
-    cpSync(desde,nueva,{recursive:true,errorOnExist:true,force:false})
-    if(existsSync(hasta)) {renameSync(hasta,vieja);movida=true}
-    renameSync(nueva,hasta)
+    // fix24 (gap 17): con staging y cache en el mismo volumen se MUEVE (rename: instantaneo); la copia de la entrada entera (62 MB, ~10 s) es solo el respaldo entre volumenes.
+    try {rn(desde,nueva)} catch {cp(desde,nueva,{recursive:true,errorOnExist:true,force:false})}
+    if(existsSync(hasta)) {rn(hasta,vieja);movida=true}
+    rn(nueva,hasta)
   } catch(error) {
-    if(movida && !existsSync(hasta)) {try {renameSync(vieja,hasta)} catch {/* mejor esfuerzo */}}
+    if(movida && !existsSync(hasta)) {
+      try {rn(vieja,hasta)} catch {sinRestaurar=true}   // fix24 (gap 14): si tampoco se puede restaurar, `vieja` es la UNICA copia de la entrada anterior: se conserva
+    }
+    if(sinRestaurar) error.message+=` (la entrada anterior se conserva en ${vieja}; renombrala a ${hasta} o reinstala)`
     throw error
   } finally {
     rmSync(nueva,{recursive:true,force:true})
-    rmSync(vieja,{recursive:true,force:true})
+    if(!sinRestaurar) rmSync(vieja,{recursive:true,force:true})
   }
 }
 

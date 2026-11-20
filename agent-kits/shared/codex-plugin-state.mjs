@@ -64,6 +64,8 @@ export function terminateProcessTree(pid,budgetMs=TREE_KILL_TOTAL_MS,maxMs=TREE_
       const r=launchSync(join(system,'taskkill.exe'),['/T','/F','/PID',String(pid)],{stdio:'ignore',windowsHide:true,timeout:Math.max(500,deadline-Date.now())})
       if(r && r.status===0) return
     } catch {/* taskkill no pudo: queda el barrido */}
+    // fix24 (gap 15): taskkill falló o expiró. Si la raíz ya no está viva, su pid puede reutilizarse antes de la foto CIM (1-4 s): se barre sin tratarla como raíz y con tope de fecha = ahora.
+    if(!isAlive(pid)) {rootAlive=false;until=until || Date.now()}
   }
   // 2) respaldo (la raiz ya estaba muerta o taskkill fallo): barrido por identidad, FUERA del job del worker (sobrevive a su salida) y sin esperarlo.
   try {

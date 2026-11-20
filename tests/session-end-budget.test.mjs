@@ -115,8 +115,13 @@ test('SessionEnd closes through the launcher never lose a capture it did not cut
       if (/timed out/.test(r.stderr)) cortados.push(i);
     }
     const sobres = envelopes(dir).length;
-    console.log(`SessionEnd capture ms (informational, default ${SESSION_END_BUDGET_MS} ms budget): ${tiempos.map(t => t.toFixed(0)).join(', ')} · `
+    const orden = [...tiempos].sort((a, b) => a - b);
+    const mediana = orden[Math.floor(RUNS / 2)];
+    console.log(`SessionEnd capture ms (default ${SESSION_END_BUDGET_MS} ms budget): ${tiempos.map(t => t.toFixed(0)).join(', ')} · median ${mediana.toFixed(0)} · `
       + `cut by launcher: ${cortados.length}/${RUNS} · envelopes ${sobres}/${RUNS}`);
+    // fix24 (gap 21): la puerta de pared se restaura en POSIX (Linux/macOS, donde `node` arranca en <0,3 s y la mediana de 450-715 ms mide el producto). En Windows con la maquina cargada
+    // arrancar `node` cuesta 1,4-2,3 s sin regresion (por eso el trabajo se cuenta en llamadas, test anterior): ahi solo se informa.
+    if (process.platform !== 'win32') assert.ok(mediana < SESSION_END_BUDGET_MS, `median ${mediana.toFixed(0)} ms >= ${SESSION_END_BUDGET_MS} ms`);
     // Un cierre cortado por el presupuesto lo cubre `recover` (test siguiente); uno NO cortado sin envelope seria perdida silenciosa.
     assert.ok(sobres >= RUNS - cortados.length, `${sobres} envelopes for ${RUNS - cortados.length} uncut closes`);
   } finally { rmSync(dir, { recursive: true, force: true }); }

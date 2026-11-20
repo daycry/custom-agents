@@ -189,12 +189,16 @@ Una instalación habilitada no acredita confianza del hash de hooks ni su
 ejecución; eso requiere revisar una sesión del runtime.
 
 En scope project, `plugin add` trabaja con un `CODEX_HOME` temporal: copia
-regular de la configuración de usuario y un enlace limitado al namespace de
-caché `daycry`. Su setter cambia esa copia, y la activación se escribe en el
-proyecto al completar la instalación. Dos proyectos conservan sus propios
-orígenes y no cambian el marketplace ni la preferencia global del usuario.
-La caché de versión continúa compartida y una actualización puede cambiar
-el contenido usado por otros proyectos. Los conflictos de origen requieren
+regular de la configuración de usuario y un namespace de caché `daycry` que es
+un directorio real (sin enlace ni junction: en Windows el `codex` nativo no puede
+crear directorios a través de uno). Su setter cambia esa copia, y la activación se
+escribe en el proyecto al completar la instalación. Dos proyectos conservan sus
+propios orígenes y no cambian el marketplace ni la preferencia global del usuario.
+Si el `add` tiene éxito, la entrada instalada se promueve a la caché real por
+`rename` (copia solo como respaldo entre volúmenes) y, si el intercambio falla, la
+entrada anterior se restaura o se conserva en disco. En este ámbito no se podan
+las versiones viejas. La caché de versión continúa compartida y una actualización
+puede cambiar el contenido usado por otros proyectos. Los conflictos de origen requieren
 `--force-marketplace`; una configuración con rutas relativas que no puede
 preservarse en la copia se rechaza, sin reintentar contra el home real.
 No se usa `plugin remove` como rollback ni se fuerza `chmod` en el caché.

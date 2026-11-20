@@ -1383,8 +1383,10 @@ def test_d2_burst_of_eight_parallel_tool_events_on_a_full_ring_loses_none(api, p
     heavy = [dict(old_event(i, now - 5), resumen=('git status %d ' % i).ljust(160, 'y')) for i in range(1, 501)]
     seed(api, project, revision=500, events=heavy)
     start = time.time() + 4  # every child is loaded before the common instant: they hit the lock together
+    # fix24 (gap 25): the children run with the REAL deadlines (1.3 s tool deadline, 1 s lock wait), like test_agent_activity_tail.py: no inherited scale and no test mark
+    env = {k: v for k, v in os.environ.items() if k not in ('PYTEST_CURRENT_TEST', 'CUSTOM_AGENTS_ACTIVITY_DEADLINE_SCALE')}
     children = [subprocess.Popen([sys.executable, '-I', '-X', 'utf8', '-B', '-c', _BURST, str(SHARED / 'agent-activity-store.py'),
-        str(project), json.dumps(entry()), str(index), repr(start)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=project)
+        str(project), json.dumps(entry()), str(index), repr(start)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=project, env=env)
         for index in range(8)]
     results = []
     for p in children:

@@ -30,6 +30,7 @@ EVENTS = 'events.json'
 TAIL = 'events.tail'
 TAIL_FOLD_BYTES = 8192
 TAIL_MAX_BYTES = 65536
+_TAIL_HEAD = b'{"id":"'
 PREPARE_ATTEMPTS = 6  # unlocked validation of a tool event: bounded retries against a concurrent writer (T-06 fix18d)
 MAX_PLEGADO = 512
 MAX_CLEAN = 8  # P-EI-1: own old temporaries removed per write
@@ -363,12 +364,16 @@ def _signature(path, io):
         return None
 
 
-def _tail_line(marker, entry, now):
+def _stamp(config_signature):
+    return hashlib.sha256(repr(config_signature).encode('utf-8')).hexdigest()
+
+
+def _tail_line(marker, entry, now, stamp):
     """One tail record: a random id (the key that recognizes a line already folded), the entry WITHOUT the raw session/agent (only their keyed pseudonyms, as the ring stores them) and no `nowait`."""
     run_key, parent_key, session_key = _run_keys(marker, entry['runtime'], entry['scope'], entry['session'], entry['agent'])
     row = {k: entry[k] for k in ('runtime', 'scope', 'role', 'tool', 'resumen', 'duracion_ms', 'resultado')}
     row.update(run_key=run_key, parent_key=parent_key, session_key=session_key, window=list(entry['window']) if entry['window'] else None)
-    return _json({'id': secrets.token_hex(8), 'at': now, 'e': row}) + b'\n'
+    return _json({'id': secrets.token_hex(8), 'at': now, 'c': stamp, 'e': row}) + b'\n'
 
 
 def _read_tail(state, io):
@@ -389,8 +394,16 @@ def _read_tail(state, io):
     rows = []
     for line in lines:
         try:
-            row = _strict(line)
-            _need(type(row) is dict and set(row) == {'id', 'at', 'e'} and type(row['id']) is str and _TAIL_ID.fullmatch(row['id'])
+            try:
+                row = _strict(line)
+            except ValueError:
+                # fix24 (gap 1): a torn append (crash mid-write) followed by a later append is an intermediate line that is a strict prefix of a record. That one shape, and only that
+                # (it never parses as JSON), is skipped; any other malformed line, and any JSON of the wrong schema, still fails closed.
+                if _TAIL_HEAD.startswith(line) or line.startswith(_TAIL_HEAD):
+                    continue
+                raise
+            _need(type(row) is dict and set(row) in ({'id', 'at', 'e'}, {'id', 'at', 'c', 'e'}) and ('c' not in row or (type(row['c']) is str and _hex(row['c'])))
+                and type(row['id']) is str and _TAIL_ID.fullmatch(row['id'])
                 and type(row['at']) in (int, float) and math.isfinite(row['at']) and 0 <= row['at'] <= MAX_REVISION and type(row['e']) is dict, 'invalid_state')
             e = row['e']
             _need(set(e) == {'runtime', 'scope', 'role', 'tool', 'resumen', 'duracion_ms', 'resultado', 'run_key', 'parent_key', 'session_key', 'window'}
@@ -402,7 +415,7 @@ def _read_tail(state, io):
             w = e['window']
             _need(w is None or (type(w) is list and len(w) == 2 and w[0] in ('start', 'close') and _projection.normalize_tarea(w[1]) == w[1]), 'invalid_state')
             e = dict(e, window=tuple(w) if w else None)
-            rows.append({'id': row['id'], 'at': row['at'], 'entry': e})
+            rows.append({'id': row['id'], 'at': row['at'], 'stamp': row.get('c'), 'entry': e})
         except _Failure:
             raise _Failure('invalid_state')
         except (ValueError, TypeError, KeyError, RecursionError):
@@ -417,9 +430,24 @@ def _plegar(doc, marker, rows):
     hechos = set(doc.get('plegado', ()))
     for row in rows:
         if row['id'] not in hechos:
+            if row['stamp'] is not None and row['stamp'] != doc['config_sig']:
+                # fix24 (gap 2, design 2.5 e): the stamp travels with each tail line, so an edit of dev.json expires the open windows exactly where it happened, also for a `start` still in the tail.
+                doc['ventanas'] = _projection.expire_open(doc['ventanas'], row['at'])
+                doc['config_sig'] = row['stamp']
             e = row['entry']
             _apply_tool(doc, e, e['run_key'], e['parent_key'], e['session_key'], row['at'])
     doc['plegado'] = [row['id'] for row in rows][-MAX_PLEGADO:]
+
+
+def _view(doc, marker, rows, now):
+    """The ring with the tail applied, retained and capped exactly as the fold would publish it (nothing is written): a reader never sees more than the ring's own ceilings."""
+    if not rows:
+        return
+    _plegar(doc, marker, rows)
+    _prune(doc, now)
+    overhead = len(_json(dict(doc, events=[])))
+    doc['events'], trimmed = _projection.trim_events(doc['events'], now=now, overhead=overhead)
+    doc['recortado'] = min(MAX_REVISION, doc['recortado'] + trimmed)
 
 
 def events_document(project):
@@ -430,10 +458,9 @@ def events_document(project):
     state = root / '.claude' / 'agent-activity'
     _need(state.exists(), 'state_missing')
     marker, _o, _i = _base(root, state, io)
+    rows = _read_tail(state, io)  # fix24 (gap 12): the tail BEFORE the ring (the fold publishes the ring before it empties the tail; `plegado` recognizes what both hold)
     doc, _ = _load_events(root, state, io, marker)
-    rows = _read_tail(state, io)
-    if rows:
-        _plegar(doc, marker, rows)
+    _view(doc, marker, rows, time.time())
     return doc
 
 
@@ -447,11 +474,11 @@ def _update_events(root, state, io, config_signature, deadline, mutate, nowait=F
     else:
         doc, signature = _load_events(root, state, io, marker)
     rows = _read_tail(state, io)
-    stamp = hashlib.sha256(repr(config_signature).encode('utf-8')).hexdigest()
-    if doc['config_sig'] != stamp:  # any edit of dev.json invalidates the open attribution windows (2.5 e)
+    _plegar(doc, marker, rows)
+    stamp = _stamp(config_signature)
+    if doc['config_sig'] != stamp:  # any edit of dev.json invalidates the open attribution windows (2.5 e); the tail lines carry their own stamp (applied in `_plegar`, in order)
         doc['ventanas'] = _projection.expire_open(doc['ventanas'], now)
         doc['config_sig'] = stamp
-    _plegar(doc, marker, rows)
     mutate(doc, marker, now)
     _publish_events(root, state, io, doc, signature, ignore_signature, deadline, now, nowait)
     if rows:  # the ring is published (CAS) BEFORE the tail is emptied; a failure here leaves lines whose ids `plegado` recognizes
@@ -494,7 +521,7 @@ def _append_tool_event(root, state, io, config_signature, deadline, entry, prepa
         _need(_ignore(state, io) == ignore_signature, 'unsafe_state')
     now = time.time()
     _need(type(now) in (int, float) and math.isfinite(now) and 0 <= now <= MAX_REVISION, 'invalid_clock')
-    line = _tail_line(marker, entry, now)
+    line = _tail_line(marker, entry, now, _stamp(config_signature))
 
     def tail_size():
         try:
@@ -992,13 +1019,12 @@ def history(project):
         state = root / '.claude' / 'agent-activity'
         _need(state.exists(), 'state_missing')
         marker, owner_signature, ignore_signature = _base(root, state, io)
+        rows = _read_tail(state, io)  # fix24 (gap 12): tail first, then the ring (see `events_document`)
         doc, _ = _load_events(root, state, io, marker)
-        rows = _read_tail(state, io)
-        if rows:  # fix18: the history is the ring PLUS the tail (nothing is written here)
-            _plegar(doc, marker, rows)
         _need(io.file(state / 'owner.json') == owner_signature and _ignore(state, io) == ignore_signature, 'unsafe_state')
         _enabled(root, io)
         now = time.time()
+        _view(doc, marker, rows, now)  # fix18: the history is the ring PLUS the tail (nothing is written here); fix24 (gap 3): trimmed like the fold would
         return {'status': 'ok', 'reason': None, 'runs': doc['runs'], 'ventanas': doc['ventanas'],
             'events': _projection.project_events(doc['events'], now=now), 'recortado': doc['recortado'],
             'descartados_por_tamano': doc['descartados_por_tamano'], 'collection_complete': False}

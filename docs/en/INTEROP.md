@@ -188,11 +188,15 @@ response leaves native state unknown. An enabled installation establishes
 neither hook-hash trust nor execution; inspect a native session for evidence.
 
 For project scope, `plugin add` uses a temporary `CODEX_HOME` with a regular
-copy of user configuration and a link limited to the `daycry` cache namespace.
-Its setter changes that copy; project activation follows installation success.
-Two projects retain their own sources without changing the user's marketplace
-or global enabled preference. Version cache remains shared; updating it can
-change content used by other projects. Source conflicts require
+copy of user configuration and a `daycry` cache namespace that is a real
+directory (no link or junction: on Windows the native `codex` cannot create
+directories through one). Its setter changes that copy; project activation
+follows installation success. Two projects retain their own sources without
+changing the user's marketplace or global enabled preference. When the `add`
+succeeds, the installed entry is promoted into the real cache by `rename` (copy
+only as a cross-volume fallback); if the swap fails, the previous entry is
+restored or kept on disk. Old versions are not pruned in this scope. Version
+cache remains shared; updating it can change content used by other projects. Source conflicts require
 `--force-marketplace`. Relative paths that cannot be preserved in the snapshot
 are rejected, with no retry against the real home. Neither `plugin remove`
 rollback nor forced cache `chmod` is used.
