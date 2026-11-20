@@ -81,3 +81,94 @@ def test_un_id_con_separadores_no_escribe_fuera_de_dir(tmp_path):
     with pytest.raises(ValueError):
         adapter.apply(ops, cfg)
     assert not (tmp_path / "ESCAPE.md").exists()
+
+
+# --------------------------------------------- fix2 (gaps 1 y 7 del intento 2): temporales y prefijo
+
+import os
+import sys
+
+
+def _enlazar(origen, destino):
+    """Hardlink (sin privilegios en Windows) o symlink; skip si el sistema no deja ninguno."""
+    try:
+        os.link(str(origen), str(destino))
+        return
+    except (OSError, NotImplementedError, AttributeError):
+        pass
+    try:
+        os.symlink(str(origen), str(destino))
+    except (OSError, NotImplementedError):
+        pytest.skip("sin permiso para crear enlaces")
+
+
+def test_un_temporal_preexistente_enlazado_no_sobrescribe_un_fichero_ajeno(tmp_path):
+    """Gap 1: `pub/ADR-001.md.tmp` enlazado a un fichero externo no debe ser escrito."""
+    adapter = load()
+    proj = tmp_path / "proj"
+    (proj / "pub").mkdir(parents=True)
+    victima = tmp_path / "victim.txt"
+    victima.write_text("no tocar", encoding="utf-8")
+    _enlazar(victima, proj / "pub" / "ADR-001.md.tmp")
+    cfg = {"dir": "pub", "_root": str(proj)}
+    entry = {"id": "ADR-001", "version": 1, "cuerpo": "publicado"}
+    adapter.apply(adapter.plan([entry], cfg), cfg)
+    assert victima.read_text(encoding="utf-8") == "no tocar"
+    assert "publicado" in (proj / "pub" / "ADR-001.md").read_text(encoding="utf-8")
+
+
+def test_un_diario_enlazado_no_sobrescribe_un_fichero_ajeno(tmp_path):
+    adapter = load()
+    proj = tmp_path / "proj"
+    (proj / "pub").mkdir(parents=True)
+    victima = tmp_path / "victim.txt"
+    victima.write_text("no tocar", encoding="utf-8")
+    _enlazar(victima, proj / "pub" / "manifest.pending.json.tmp")
+    cfg = {"dir": "pub", "_root": str(proj)}
+    entry = {"id": "ADR-001", "version": 1, "cuerpo": "x"}
+    adapter.apply(adapter.plan([entry], cfg), cfg)
+    assert victima.read_text(encoding="utf-8") == "no tocar"
+
+
+def test_un_destino_con_varios_enlaces_se_rechaza_sin_tocar_el_otro_nombre(tmp_path):
+    """El destino mismo es un enlace (hardlink): se rechaza el lote; el otro nombre no cambia."""
+    adapter = load()
+    proj = tmp_path / "proj"
+    (proj / "pub").mkdir(parents=True)
+    victima = tmp_path / "victim.txt"
+    victima.write_text("no tocar", encoding="utf-8")
+    _enlazar(victima, proj / "pub" / "ADR-001.md")
+    cfg = {"dir": "pub", "_root": str(proj)}
+    ops = [{"accion": "upsert", "id": "ADR-001", "version": 1, "cuerpo": "x", "hash": "h"}]
+    try:
+        adapter.apply(ops, cfg)
+    except ValueError:
+        pass
+    assert victima.read_text(encoding="utf-8") == "no tocar"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="el prefijo extendido solo existe en Windows")
+def test_una_raiz_con_prefijo_extendido_de_windows_funciona(tmp_path):
+    adapter = load()
+    cfg = {"dir": "out", "_root": "\\?\\" + str(tmp_path)}
+    entry = {"id": "owned.rule", "version": 1, "cuerpo": "ok"}
+    adapter.apply(adapter.plan([entry], cfg), cfg)
+    assert adapter.verify(cfg)["ok"] is True
+    assert adapter.health(cfg)["estado"] == "sano"
+
+
+def test_una_clave_hostil_del_manifiesto_no_genera_revoke_y_no_bloquea_el_lote(tmp_path, capsys):
+    """Gap 7: `../evil` en el manifiesto se ignora con aviso en `plan`; el lote se aplica."""
+    adapter = load()
+    proj = tmp_path / "proj"
+    out = proj / "out"
+    out.mkdir(parents=True)
+    (out / "manifest.json").write_text(
+        json.dumps({"entries": {"../evil": {"hash": "0", "ruta": "../evil.md"}}}), encoding="utf-8")
+    cfg = {"dir": "out", "_root": str(proj)}
+    entry = {"id": "owned.rule", "version": 1, "cuerpo": "ok"}
+    ops = adapter.plan([entry], cfg)
+    assert [o["accion"] for o in ops] == ["upsert"], ops
+    assert "evil" in capsys.readouterr().err
+    adapter.apply(ops, cfg)
+    assert adapter.verify(cfg)["ok"] is True

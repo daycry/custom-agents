@@ -3314,3 +3314,25 @@ def test_t21_con_node_y_sin_npm_solo_informa_de_to_pdf(monkeypatch):
 
 def test_t21_con_node_y_npm_sigue_ok(monkeypatch):
     assert _herramienta(monkeypatch, {"node", "npm"})["node/npm"]["estado"] == doctor.OK
+
+
+def test_fix2_un_type_hostil_no_lleva_controles_a_la_fila_del_backend(tmp_path):
+    """Gap 4 (intento 2): ESC/OSC/BEL/bidi del `type` de la taxonomia no llegan a la terminal."""
+    proj = proyecto(tmp_path)
+    _taxonomia_3x(proj, {"mio": {"type": "bad\u001b]0;pwn\u0007type\u202e", "enabled": True, "config": {}}})
+    b = doctor.bloque_capacidades(None, str(proj))
+    filas = [l for l in b["lineas"] if "(backend)" in l["que"]]
+    assert filas, b["lineas"]
+    for fila in filas:
+        for campo in ("que", "detalle", "arreglo"):
+            texto = fila[campo]
+            assert not any(c in texto for c in ("\u001b", "\u0007", "\u202e")), (campo, texto)
+
+
+def test_fix2_la_fila_de_un_adaptador_no_disponible_dice_que_solo_mira_backends_del_plugin(tmp_path):
+    """Gap 5: /doctor solo carga `backends/` del plugin; lo dice y remite a `--backends-dir`."""
+    proj = proyecto(tmp_path)
+    _taxonomia_3x(proj, {"mio": {"type": "no-existe", "enabled": True, "config": {}}})
+    b = doctor.bloque_capacidades(None, str(proj))
+    fila = next(l for l in b["lineas"] if "(backend)" in l["que"])
+    assert "--backends-dir" in (fila["detalle"] + fila["arreglo"]), fila

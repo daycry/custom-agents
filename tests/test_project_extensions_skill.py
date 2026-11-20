@@ -246,3 +246,10 @@ def test_gap11_el_paso_3_dice_como_verificar_un_hook_que_el_inventario_no_lista(
     paso3 = skill[skill.index("## Paso 3"):skill.index("## Referencias")]
     assert re.search(r"hook", paso3, re.I) and "no lista" in paso3, paso3
     assert re.search(r"hook", _leer(os.path.join(SKILL, "references", "verify-inventory.md")), re.I)
+
+
+def test_fix2_la_skill_exige_la_descripcion_en_una_linea():
+    """Gap 2 (intento 2): `>-` con varias lineas sin sangrar rompe el frontmatter; la skill lo prohibe."""
+    texto = _leer(os.path.join(SKILL, "SKILL.md"))
+    paso1 = texto.split("## Paso 1", 1)[1].split("## Paso 2", 1)[0]
+    assert "una sola línea" in paso1 and "sangr" in paso1, paso1

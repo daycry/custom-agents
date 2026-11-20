@@ -1012,3 +1012,21 @@ def test_opencode_invalid_v1_timeout_override_is_not_silently_ignored(reader, lo
     put(project, 'opencode.json', json.dumps({'mcp': {'timeout': {'enabled': enabled}}}))
     result = reader.discover(project, home=home, runtime='opencode', include_user=False)
     assert result['partial'] and not result['pieces']
+
+
+def test_fix2_una_linea_del_frontmatter_sin_clave_avisa_en_vez_de_truncar(reader, locations):
+    """Gap 2 (intento 2): una descripcion `>-` cuya continuacion no esta sangrada dejaba la
+    `description` truncada y `warnings=[]`; ahora la pieza sale con aviso, no como verde falso."""
+    project, home = locations
+    put(project, '.claude/skills/x/SKILL.md',
+        '---\nname: x\ndescription: >-\n  Revisa SQL.\nUsalo cuando el usuario diga "revisa".\n---\nbody\n')
+    result = reader.discover(project, home=home)
+    assert result['warnings'] and result['partial'], result
+
+
+def test_fix2_claves_desconocidas_y_listas_sin_sangrar_no_avisan(reader, locations):
+    project, home = locations
+    put(project, '.claude/skills/y/SKILL.md',
+        '---\nname: y\ndescription: Util\nargument-hint: <x>\nallowed-tools:\n- Bash\n---\nbody\n')
+    result = reader.discover(project, home=home)
+    assert result['warnings'] == [] and not result['partial'], result

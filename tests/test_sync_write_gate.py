@@ -336,3 +336,34 @@ def test_aviso_de_grupo_del_sincronizador_es_solo_lectura_para_la_puerta(tmp_pat
     root = _repo_de_piezas(tmp_path, {"commands/setup.md": "# setup\n\n"
         "python3 skills/knowledge-services/scripts/knowledge-sync.py --backend miservicio --avisos-grupo\n"})
     assert _ofensores_de_sincronizador(root) == []
+
+
+# ------------------------------------------------ fix2 de la Fase 2 (gap 3 del intento 2)
+
+def test_fase2fix2_forma_con_igual_y_cadenas_de_ordenes_no_evaden_la_puerta(tmp_path):
+    """`--backend=x`, `--check && ... --backend x --root .` y `# luego --check` son escritura."""
+    formas = (
+        'python3 "$KS/knowledge-sync.py" --backend=miservicio\n',
+        'python3 "$KS/knowledge-sync.py" --backend miservicio --check && '
+        'python3 "$KS/knowledge-sync.py" --backend miservicio --root .\n',
+        'python3 "$KS/knowledge-sync.py" --backend miservicio --check ; '
+        'python3 "$KS/knowledge-sync.py" --backend miservicio apply\n',
+        'python3 "$KS/knowledge-sync.py" --backend miservicio --root .  # luego --check\n',
+        '```bash\npython3 "$KS/knowledge-sync.py" --check --backend miservicio\n'
+        'python3 "$KS/knowledge-sync.py" --backend=miservicio --rebuild\n```\n',
+    )
+    for i, texto in enumerate(formas):
+        root = _repo_de_piezas(tmp_path / ("f%d" % i), {"commands/dev-cycle.md": texto})
+        assert _ofensores_de_sincronizador(root), ("el mutante sobrevive", texto)
+
+
+def test_fase2fix2_controles_negativos_de_la_cadena(tmp_path):
+    """La solo lectura con `=`, encadenada o comentada sigue siendo legitima."""
+    formas = (
+        'python3 "$KS/knowledge-sync.py" --backend=miservicio --check\n',
+        'python3 "$KS/knowledge-sync.py" --backend miservicio --check && echo ok\n',
+        'python3 "$KS/knowledge-sync.py" --backend miservicio --check  # no usar apply\n',
+    )
+    for i, texto in enumerate(formas):
+        root = _repo_de_piezas(tmp_path / ("n%d" % i), {"commands/doctor.md": texto})
+        assert _ofensores_de_sincronizador(root) == [], (texto, _ofensores_de_sincronizador(root))

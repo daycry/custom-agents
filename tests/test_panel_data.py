@@ -341,3 +341,27 @@ def test_backend_retirado_y_activo_no_sale_configurado(tmp_path):
     filas = {b['backend']: b for b in _cargar().memoria(proyecto)['backends']}
     assert filas['memoria-a']['situacion'] == 'retirado'
     assert filas['memoria-b']['situacion'] == 'configurado'
+
+
+@pytest.mark.parametrize('valor', ['frozenset({"a", "b"})', '("a", "b")', '["a", "b"]', '{"a", "b"}'])
+def test_fix2_tipos_retirados_acepta_las_formas_literales(tmp_path, monkeypatch, valor):
+    """Gap 6 (intento 2): RETIRADOS como set/frozenset/tuple/list literal."""
+    modulo = _cargar()
+    ruta = tmp_path / 'skills' / 'plugin-panel' / 'scripts'
+    destino = tmp_path / 'skills' / 'knowledge-services' / 'backends'
+    destino.mkdir(parents=True)
+    (destino / '__init__.py').write_text('RETIRADOS = %s\n' % valor, encoding='utf8')
+    monkeypatch.setattr(modulo, 'HERE', ruta)
+    assert modulo._tipos_retirados() == frozenset({'a', 'b'})
+
+
+@pytest.mark.parametrize('valor', ['5', 'tuple(x for x in "ab")', 'OTRA', '{"a": 1}', '"abc"'])
+def test_fix2_tipos_retirados_degrada_con_aviso_sin_tumbar(tmp_path, monkeypatch, valor):
+    modulo = _cargar()
+    destino = tmp_path / 'skills' / 'knowledge-services' / 'backends'
+    destino.mkdir(parents=True)
+    (destino / '__init__.py').write_text('RETIRADOS = %s' % valor + chr(10), encoding='utf8')
+    monkeypatch.setattr(modulo, 'HERE', tmp_path / 'skills' / 'plugin-panel' / 'scripts')
+    avisos = []
+    assert modulo._tipos_retirados(avisos.append) == frozenset()
+    assert avisos == ['retirados_ilegibles'], avisos
