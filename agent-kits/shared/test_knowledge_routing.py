@@ -63,30 +63,3 @@ def test_taxonomy_routing_rejects_numeric_boolean_aliases(numeric):
     config['categories'][0]['routing'] = {'docs': numeric}
     errors = taxonomy.validar(config)
     assert any(error['campo'] == 'categories[0].routing.docs' for error in errors)
-
-
-def test_documental_read_defaults_disabled_and_accepts_explicit_bounded_policy():
-    assert callable(getattr(taxonomy, 'documental_read_options', None)), 'read policy validation is absent'
-    options, errors = taxonomy.documental_read_options({})
-    assert errors == [] and options['enabled'] is False
-    options, errors = taxonomy.documental_read_options({
-        'read': {'enabled': True, 'timeout_ms': 900},
-        'router': {'intents': {'documental': True}, 'default': 'local'}})
-    assert errors == [] and options['timeout_ms'] == 900 and options['enabled'] is True
-
-
-@pytest.mark.parametrize('read', [True, {'enabled': 1}, {'enabled': 'true'},
-    {'timeout_ms': True}, {'timeout_ms': 30001}, {'timeout_ms': 1.5},
-    {'max_request_bytes': 65537}, {'max_snapshot_bytes': 2097153}, {'unrecognized': 1}])
-def test_documental_read_rejects_invalid_or_unbounded_options(read):
-    assert callable(getattr(taxonomy, 'documental_read_options', None)), 'read policy validation is absent'
-    options, errors = taxonomy.documental_read_options({'read': read})
-    assert options is None and errors
-
-
-@pytest.mark.parametrize('router', [True, {'intents': {'documental': 1}},
-    {'intents': {'bad intent': True}}, {'intents': []}, {'default': 1}, {'fallback': 'remote'}])
-def test_documental_read_router_is_strict(router):
-    assert callable(getattr(taxonomy, 'documental_read_options', None)), 'read policy validation is absent'
-    options, errors = taxonomy.documental_read_options({'router': router})
-    assert options is None and errors

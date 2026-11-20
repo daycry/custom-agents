@@ -2224,6 +2224,65 @@ def test_linea_capacidad_activa_con_backend_en_vivo_via_taxonomy_json(tmp_path):
     assert l["estado"] == doctor.OK
 
 
+def _taxonomia_3x(proj, backends):
+    d = proj / ".claude" / "knowledge-services"
+    d.mkdir(parents=True, exist_ok=True)
+    cfg = {"version": 1, "id_prefix": "ca",
+           "categories": [{"key": "DECISION", "folder": "adr", "min_evidence": "human_confirmed_rule"}],
+           "backends": backends}
+    (d / "taxonomy.json").write_text(json.dumps(cfg), encoding="utf-8")
+
+
+def _plugin_con_adaptador_de_prueba(tmp_path):
+    """`--plugin-root` temporal: el cargador del marco + el adaptador de referencia copiado como
+    `backends/mi_servicio.py` (`type: mi-servicio`), como lo haria un proyecto."""
+    raiz = tmp_path / "plugin"
+    destino = raiz / "skills" / "knowledge-services" / "backends"
+    destino.mkdir(parents=True)
+    origen = os.path.join(ROOT, "skills", "knowledge-services")
+    shutil.copy(os.path.join(origen, "backends", "__init__.py"), destino / "__init__.py")
+    shutil.copy(os.path.join(origen, "scripts", "fixtures", "adaptador_prueba.py"), destino / "mi_servicio.py")
+    return raiz
+
+
+def test_gap3_un_backend_retirado_y_activo_sale_en_doctor_con_la_guia(tmp_path):
+    """fix1 Fase 2 (gap 3): plantilla 3.x con kwipu/graphiti `enabled: true` -> una fila por backend
+    con el motivo de la retirada y la guia; sin ningun nombre de backend en `doctor.py` (CA-14)."""
+    proj = proyecto(tmp_path)
+    _taxonomia_3x(proj, {"kwipu": {"type": "markdown-export", "enabled": True, "config": {}},
+                         "graphiti": {"type": "graphiti", "enabled": True, "config": {}},
+                         "apagado": {"type": "otro", "enabled": False, "config": {}}})
+    b = doctor.bloque_capacidades(None, str(proj))
+    filas = [l for l in b["lineas"] if "(backend)" in l["que"]]
+    assert len(filas) == 2, b["lineas"]
+    for fila in filas:
+        assert fila["estado"] in (doctor.AVISO, doctor.ERROR), fila
+        assert "retirado" in fila["detalle"] and "4.0.0" in fila["detalle"], fila
+        assert "add-backend.md" in (fila["detalle"] + fila["arreglo"]), fila
+    assert not any("apagado" in l["que"] for l in b["lineas"])
+
+
+def test_gap3_un_type_sin_adaptador_avisa_y_remite_a_la_guia(tmp_path):
+    proj = proyecto(tmp_path)
+    _taxonomia_3x(proj, {"mio": {"type": "no-existe", "enabled": True, "config": {}}})
+    b = doctor.bloque_capacidades(None, str(proj))
+    fila = next(l for l in b["lineas"] if "(backend)" in l["que"])
+    assert fila["estado"] == doctor.AVISO and "no-existe" in fila["detalle"]
+    assert "add-backend.md" in (fila["detalle"] + fila["arreglo"]), fila
+
+
+def test_gap3_un_adaptador_propio_en_backends_se_comprueba_en_vivo(tmp_path):
+    proj = proyecto(tmp_path)
+    plugin = _plugin_con_adaptador_de_prueba(tmp_path)
+    _taxonomia_3x(proj, {"mi-servicio": {"type": "mi-servicio", "enabled": True,
+                                         "config": {"dir": "salida"}}})
+    b = doctor.bloque_capacidades(str(plugin), str(proj))
+    fila = next(l for l in b["lineas"] if "(backend)" in l["que"])
+    assert fila["estado"] in (doctor.OK, doctor.AVISO, doctor.INFO), fila
+    assert "no disponible" not in fila["detalle"] and "retirado" not in fila["detalle"], fila
+    assert not (proj / "salida").exists()                       # el diagnostico no escribe
+
+
 def test_doctor_py_no_menciona_ningun_backend_literalmente():
     """T-09: todo lo que sabe este fichero sobre una capacidad concreta llega por el contrato
     `{id, config_path, enabled, health, doctor, setup_step}` de `capabilities.py` -- nunca un

@@ -15,9 +15,9 @@ def test_replayed_publication_is_replanned_from_current_approved(tmp_path,capsys
     backend=load(HERE/'fixtures/adaptador_prueba.py','replay_order_backend')
     outbox=load(HERE.parents[2]/'agent-kits/shared/outbox.py','replay_order_outbox')
     root=tmp_path/'project';cfgdir=root/'.claude/knowledge-services';cfgdir.mkdir(parents=True)
-    projection=tmp_path/'projection';cfg={'dir':str(projection),'_root':str(root)}
+    projection=root/'projection';cfg={'dir':str(projection),'_root':str(root)}
     taxonomy={'version':1,'id_prefix':'ks','categories':[{'key':'GOTCHA','folder':'gotchas','min_evidence':'validated_case','routing':{'docs':True}}],
-              'backends':{'docs':{'type':'adaptador-prueba','enabled':True,'config':{'dir':str(projection)}}}}
+              'backends':{'docs':{'type':'adaptador-prueba','enabled':True,'config':{'dir':'projection'}}}}
     (cfgdir/'taxonomy.json').write_text(json.dumps(taxonomy),encoding='utf8')
     approved=root/'docs/knowledge/approved/gotchas/queued.md';approved.parent.mkdir(parents=True)
     original='---\nid: ks.gotcha.queued\nversion: 1\nestado: aprobado\ncategory: GOTCHA\nevidencia: validated_case\nfuentes: [docs/evidence.md]\ntags: [area:testing]\n---\n\n# Canonical version\nOriginal approved body.\n'
@@ -55,9 +55,9 @@ def test_partial_publication_reports_pending_recovery_and_can_resume(tmp_path,ca
     backend=load(HERE/'fixtures/adaptador_prueba.py','partial_publication_backend')
     outbox=load(HERE.parents[2]/'agent-kits/shared/outbox.py','partial_publication_outbox')
     root=tmp_path/'project';cfgdir=root/'.claude/knowledge-services';cfgdir.mkdir(parents=True)
-    projection=tmp_path/'projection'
+    projection=root/'projection'
     taxonomy={'version':1,'id_prefix':'ks','categories':[{'key':'GOTCHA','folder':'gotchas','min_evidence':'validated_case','routing':{'docs':True}}],
-              'backends':{'docs':{'type':'adaptador-prueba','enabled':True,'config':{'dir':str(projection)}}}}
+              'backends':{'docs':{'type':'adaptador-prueba','enabled':True,'config':{'dir':'projection'}}}}
     (cfgdir/'taxonomy.json').write_text(json.dumps(taxonomy),encoding='utf8')
     approved=root/'docs/knowledge/approved/gotchas';approved.mkdir(parents=True)
     sources={}

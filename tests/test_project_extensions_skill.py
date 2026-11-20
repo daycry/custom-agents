@@ -183,3 +183,66 @@ def test_contributing_y_claude_md_apuntan_a_la_referencia_del_repo():
 
 if __name__ == "__main__":
     sys.exit(pytest.main([os.path.abspath(__file__), "-q"]))
+
+
+# ------------------------------------------------------------------ 5. fix1 de la Fase 2 (gaps 9-13)
+
+_YAML = [("agent.claude.template.md", ".claude/agents/{n}.md", "claude-code"),
+         ("skill.template.md", ".claude/skills/{n}/SKILL.md", "claude-code"),
+         ("command.claude.template.md", ".claude/commands/{n}.md", "claude-code"),
+         ("agent.opencode.template.md", ".opencode/agents/{n}.md", "opencode"),
+         ("command.opencode.template.md", ".opencode/commands/{n}.md", "opencode")]
+
+
+@pytest.mark.parametrize("plantilla,ruta,runtime", _YAML)
+def test_gap9_una_descripcion_con_comillas_dobles_no_invalida_el_frontmatter(tmp_path, plantilla, ruta, runtime):
+    """La skill pide terminar la description con «Úsalo cuando el usuario diga "…", "…"»: la plantilla YAML
+    tiene que aceptar esas comillas (y un `:`), o la pieza desaparece del inventario."""
+    proyecto = str(tmp_path / "p")
+    os.makedirs(proyecto)
+    descripcion = 'Revisa SQL: criterio propio. Úsalo cuando el usuario diga "revisa la consulta", "optimiza el SQL".'
+    _escribir(proyecto, ruta.format(n="revisor-sql"), _plantilla(plantilla, nombre="revisor-sql", descripcion=descripcion))
+    inv = _inventario(proyecto)
+    assert inv["warnings"] == [] and inv["partial"] is False, inv["warnings"]
+    assert [p for p in inv["pieces"] if p["runtime"] == runtime], inv["pieces"]
+
+
+def _correr_hook(stdin_texto):
+    ruta = os.path.join(TEMPLATES, "hook-informativo.template.py")
+    codigo = _leer(ruta).replace("{{nombre}}", "mi-hook")
+    return subprocess.run([sys.executable, "-c", codigo], input=stdin_texto, capture_output=True,
+                          text=True, encoding="utf-8", timeout=30)
+
+
+@pytest.mark.parametrize("entrada", ['{"tool_input": "x"}', '{"tool_input": ["a"]}', '{"tool_input": 3}',
+                                     '["x"]', "no es json", ""])
+def test_gap10_el_hook_de_plantilla_calla_con_una_entrada_que_no_es_el_contrato(entrada):
+    r = _correr_hook(entrada)
+    assert r.returncode == 0 and "Traceback" not in r.stderr and r.stdout.strip() == "", (r.returncode, r.stderr)
+
+
+def test_gap13_el_hook_de_plantilla_sanea_la_ruta_antes_del_mensaje():
+    sucia = "a.py\x1b[31m\u202e\nSIMULADO: ok\u2028fin"
+    r = _correr_hook(json.dumps({"tool_input": {"file_path": sucia}}))
+    assert r.returncode == 0, r.stderr
+    mensaje = json.loads(r.stdout)["systemMessage"]
+    for malo in ("\x1b", "\u202e", "\n", "\u2028", "\r"):
+        assert malo not in mensaje, repr(malo)
+    assert "a.py" in mensaje
+
+
+def test_gap12_las_plantillas_mcp_fijan_la_version_y_opencode_no_nace_activo():
+    for archivo in ("mcp.claude.template.json", "mcp.codex.template.toml", "mcp.opencode.template.jsonc"):
+        texto = _leer(os.path.join(TEMPLATES, archivo))
+        assert "<paquete-del-servidor>@<versión>" in texto, archivo
+        assert "<paquete-del-servidor>\"" not in texto, archivo          # nada de `npx -y <paquete>` sin versión
+    assert '"enabled": false' in _leer(os.path.join(TEMPLATES, "mcp.opencode.template.jsonc"))
+    skill = _leer(SKILL_MD)
+    assert re.search(r"versi[oó]n fijada|fija la versi[oó]n", skill), "la skill debe exigir fijar la versión del servidor MCP"
+
+
+def test_gap11_el_paso_3_dice_como_verificar_un_hook_que_el_inventario_no_lista():
+    skill = _leer(SKILL_MD)
+    paso3 = skill[skill.index("## Paso 3"):skill.index("## Referencias")]
+    assert re.search(r"hook", paso3, re.I) and "no lista" in paso3, paso3
+    assert re.search(r"hook", _leer(os.path.join(SKILL, "references", "verify-inventory.md")), re.I)

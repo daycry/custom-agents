@@ -326,3 +326,18 @@ def test_backend_deshabilitado_se_dice_como_tal(tmp_path):
     (ks / 'taxonomy.json').write_text(json.dumps(config), encoding='utf8')
     fila = next(b for b in _cargar().memoria(proyecto)['backends'] if b['backend'] == 'memoria-a')
     assert fila['situacion'] == 'deshabilitado' and fila['entradas'] is None
+
+
+def test_backend_retirado_y_activo_no_sale_configurado(tmp_path):
+    """fix1 Fase 2 (gap 3): un `type` que el plugin retiro en 4.0.0, declarado y `enabled: true`, no puede
+    verse como `configurado` sin senal: sale `retirado` (el motivo vive en el cargador del marco)."""
+    from memoria_fixture import crear_proyecto
+    proyecto = crear_proyecto(tmp_path)
+    ks = proyecto / '.claude/knowledge-services'
+    config = json.loads((ks / 'taxonomy.json').read_text(encoding='utf8'))
+    config['backends']['memoria-a']['type'] = 'graphiti'
+    config['backends']['memoria-a']['enabled'] = True
+    (ks / 'taxonomy.json').write_text(json.dumps(config), encoding='utf8')
+    filas = {b['backend']: b for b in _cargar().memoria(proyecto)['backends']}
+    assert filas['memoria-a']['situacion'] == 'retirado'
+    assert filas['memoria-b']['situacion'] == 'configurado'

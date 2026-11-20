@@ -1,4 +1,5 @@
-"""Explicit documentary routing and generated output, with owned local fixtures only."""
+"""Router de lectura: salida generada GENERICA de un adaptador propio (fixtures locales) y retirada
+de la rama documental de `markdown-export` (plugin-audit-2 T-08 fix1, gap 2)."""
 import copy
 import hashlib
 import importlib.util
@@ -24,7 +25,7 @@ def project(tmp_path):
                "read": {"enabled": True, "timeout_ms": 3000},
                "router": {"intents": {"documental": True}}}
     config = {"version": 1, "id_prefix": "synthetic",
-              "backends": {"docs": {"type": "markdown-export", "enabled": True, "config": backend}},
+              "backends": {"docs": {"type": "legacy-stub", "enabled": True, "config": backend}},
               "categories": [{"key": "DECISION", "folder": "adr", "min_evidence": "observation",
                               "routing": {"docs": True}}]}
     policy = tmp_path / ".claude/knowledge-services/taxonomy.json"
@@ -76,8 +77,7 @@ def spy_backend(router, monkeypatch, entries, output=None):
             return {"puede": True}
         def consultar(self, cfg, query):
             calls.append(("query", cfg, query))
-            return copy.deepcopy(output if output is not None else response(
-                cfg.get("_read_context", {}).get("entries", entries)))
+            return copy.deepcopy(output if output is not None else response(entries))
     def load_adapter(*args, **kwargs):
         calls.append(("adapter",))
         return Adapter()
@@ -85,115 +85,13 @@ def spy_backend(router, monkeypatch, entries, output=None):
         if Path(path).name == "__init__.py":
             calls.append(("contract",))
             return SimpleNamespace(cargar_adaptador=load_adapter)
-        if Path(path).name == "knowledge-read-context.py":
-            calls.append(("prepare_module",))
         return real_load(path, name)
     monkeypatch.setattr(router, "_cargar_modulo", load)
     return calls
 
 
-def test_documentary_routing_has_canonical_context_before_adapter(router, project, monkeypatch):
-    root, config, policy, entries = project
-    calls = spy_backend(router, monkeypatch, entries)
-    hits, info = router.consultar_intent(root, "documental", texto="owned question", limit=1)
-    assert info["origen"] == "backend", info
-    assert len(hits) == 1 and hits[0]["id"] == entries[0]["id"]
-    assert hits[0]["tipo"] == "adr" and hits[0]["area"] == "billing"
-    assert len(info["respuesta_generada"]["source_nodes"]) == 2
-    names = [call[0] for call in calls]
-    assert names.index("prepare_module") < names.index("adapter")
-    cfg = next(call[1] for call in calls if call[0] == "permission")
-    assert cfg["_read_context"]["backend_enabled"] is True
-    assert cfg["_backend_id"] == "docs" and cfg["_root"] == str(root.resolve())
-    assert cfg["_read_context"]["refresh"]()["deadline"] == cfg["_read_context"]["deadline"]
-    assert "group_id" not in cfg
-
-
-@pytest.mark.parametrize("phase", ["envelope", "hit_filter", "hit_redaction"])
-def test_documentary_deadline_includes_final_normalization(router, project, monkeypatch, phase):
-    root, config, policy, entries = project
-    clock = [100.0]
-    monkeypatch.setattr(router.time, "monotonic", lambda: clock[0])
-    calls = spy_backend(router, monkeypatch, entries)
-    attribute = {"envelope": "_normalizar_respuesta_generada", "hit_filter": "_aciertos_del_backend",
-                 "hit_redaction": "_generado_seguro"}[phase]
-    original = getattr(router, attribute)
-    def crosses_deadline(*args, **kwargs):
-        result = original(*args, **kwargs)
-        clock[0] = 103.001
-        return result
-    monkeypatch.setattr(router, attribute, crosses_deadline)
-    hits, info = router.consultar_intent(root, "documental", texto="owned question")
-    assert len([item for item in calls if item[0] == "query"]) == 1
-    assert hits is None and info["origen"] == "local", info
-    assert "respuesta_generada" not in info
-    assert "deadline" in info["motivo"]
-
-
-def test_documentary_adapter_score_is_preserved_in_canonical_hits(router, project, monkeypatch):
-    root, config, policy, entries = project
-    output = response(entries)
-    for hit in output["aciertos"]:
-        hit.pop("puntuacion")
-        hit["score"] = 0.7
-    spy_backend(router, monkeypatch, entries, output)
-    hits, info = router.consultar_intent(root, "documental", texto="owned question")
-    assert info["origen"] == "backend", info
-    assert [hit["puntuacion"] for hit in hits] == [0.7, 0.7]
-    assert [node["score"] for node in info["respuesta_generada"]["source_nodes"]] == [0.7, 0.7]
-
-
-@pytest.mark.parametrize("defect", ["disabled", "old_config", "truthy_read", "unknown_read", "partial",
-                                    "routing", "version", "private", "nested_private", "stale_policy"])
-def test_documentary_policy_fails_before_loading_adapter(router, project, monkeypatch, defect):
-    root, config, policy, entries = project
-    raw = config["backends"]["docs"]["config"]
-    if defect == "disabled": raw["read"]["enabled"] = False
-    elif defect == "old_config": raw.pop("read")
-    elif defect == "truthy_read": raw["read"]["enabled"] = 1
-    elif defect == "unknown_read": raw["read"]["unsafe"] = True
-    elif defect == "partial":
-        file = root / "docs/knowledge/approved/adr/unreadable.md"
-        file.write_bytes(b"\xff\xff")
-    elif defect == "routing": config["categories"][0]["routing"]["docs"] = False
-    elif defect == "version":
-        file = root / entries[0]["canonical_path"]
-        file.write_bytes(file.read_bytes().replace(b"version: 7", b"version: 0"))
-    elif defect == "private": raw["_read_context"] = {"entries": ["forged"]}
-    elif defect == "nested_private": raw["health"]["_root"] = "forged"
-    elif defect == "stale_policy":
-        policy.write_text(json.dumps(config), encoding="utf-8")
-        config = copy.deepcopy(config)
-        config["backends"]["docs"]["config"]["export_dir"] = "changed"
-    if defect != "stale_policy": policy.write_text(json.dumps(config), encoding="utf-8")
-    calls = spy_backend(router, monkeypatch, entries)
-    hits, info = router.consultar_intent(root, "documental", texto="owned", config=config)
-    assert hits is None and info["origen"] == "local"
-    assert not [call for call in calls if call[0] in ("adapter", "permission", "query")]
-
-
-@pytest.mark.parametrize("filters", [{"area": "operations"}, {"tipo": "gotcha"},
-                                     {"iniciativa": "other"}, {"claves": ["operations"]}])
-def test_filters_require_entire_canonical_corpus_before_import(router, project, monkeypatch, filters):
-    root, config, policy, entries = project
-    calls = spy_backend(router, monkeypatch, entries)
-    hits, info = router.consultar_intent(root, "documental", texto="owned", **filters)
-    assert hits is None and info["origen"] == "local"
-    assert not [call for call in calls if call[0] in ("adapter", "permission", "query")]
-
-
-def test_matching_filters_use_existing_canonical_semantics(router, project, monkeypatch):
-    root, config, policy, entries = project
-    calls = spy_backend(router, monkeypatch, entries)
-    hits, info = router.consultar_intent(root, "documental", texto="owned", tipo="adr", area="billing",
-                                       iniciativa="demo", claves=["billing"])
-    assert info["origen"] == "backend" and len(hits) == 2
-    ctx = next(call[1]["_read_context"] for call in calls if call[0] == "permission")
-    assert ctx["filters_authorized"] is True and ctx["filters"]["claves"] == ["billing"]
-
-
 @pytest.mark.parametrize("defect", ["authority", "verified", "claims", "atomic", "missing_sources", "duplicate",
-                                    "hash", "path", "id", "version", "score", "huge_answer", "extra_key"])
+                                    "path", "id", "version", "score", "huge_answer", "extra_key"])
 def test_bad_generated_envelope_suppresses_whole_response(router, project, monkeypatch, defect):
     root, config, policy, entries = project
     output = response(entries);generated = output["respuesta_generada"]
@@ -203,7 +101,6 @@ def test_bad_generated_envelope_suppresses_whole_response(router, project, monke
     elif defect == "atomic": generated["generation_consistency"] = "atomic"
     elif defect == "missing_sources": generated["source_nodes"] = []
     elif defect == "duplicate": generated["source_nodes"].append(copy.deepcopy(generated["source_nodes"][0]))
-    elif defect == "hash": generated["source_nodes"][0]["canonical_sha256"] = "bad"
     elif defect == "path": generated["source_nodes"][0]["canonical_path"] = "docs/knowledge/approved/adr/foreign.md"
     elif defect == "id": generated["source_nodes"][0]["canonical_id"] = "foreign"
     elif defect == "version": generated["source_nodes"][0]["knowledge_version"] = True
@@ -217,8 +114,6 @@ def test_bad_generated_envelope_suppresses_whole_response(router, project, monke
 
 def test_generic_envelope_is_redacted_with_lossless_identities(router, project, monkeypatch):
     root, config, policy, entries = project
-    config["backends"]["docs"]["type"] = "legacy-stub"
-    config["backends"]["docs"]["config"]["group_id"] = "owned"
     id_ = "synthetic.DECISION." + "a" * 240
     path = "docs/knowledge/approved/adr/" + "b" * 240 + ".md"
     entries = [dict(entries[0], id=id_, canonical_path=path, ruta=path)]
@@ -234,28 +129,9 @@ def test_generic_envelope_is_redacted_with_lossless_identities(router, project, 
     assert "\u202e" not in generated["texto"]
 
 
-@pytest.mark.parametrize("defect", ["project", "filename", "projection_filename", "hit_score", "hit_category"])
-def test_documentary_sources_match_canonical_project_and_projection_name(router, project, monkeypatch, defect):
-    root, config, policy, entries = project
-    output = response(entries)
-    source = output["respuesta_generada"]["source_nodes"][0]
-    if defect == "project": source["project"] = "foreign"
-    elif defect == "filename": source["file_name"] = "foreign.md"
-    elif defect == "projection_filename":
-        source["file_name"] = None
-        source["projection_filename"] = "foreign.md"
-    elif defect == "hit_score": output["aciertos"][0]["puntuacion"] = "Sensitive12345"
-    else: output["aciertos"][0]["category"] = "OTHER"
-    spy_backend(router, monkeypatch, entries, output)
-    hits, info = router.consultar_intent(root, "documental", texto="owned")
-    assert hits is None and info["origen"] == "local" and "respuesta_generada" not in info
-
-
 @pytest.mark.parametrize("defect", ["filename", "hit_score", "hit_category"])
 def test_generic_generated_bindings_reject_internal_contradictions(router, project, monkeypatch, defect):
     root, config, policy, entries = project
-    config["backends"]["docs"]["type"] = "legacy-stub"
-    config["backends"]["docs"]["config"]["group_id"] = "owned"
     output = response(entries)
     if defect == "filename":
         extra = copy.deepcopy(output["respuesta_generada"]["source_nodes"][0])
@@ -323,3 +199,23 @@ def test_taxonomy_symlink_is_not_read(router, project):
     assert loaded is None and reason
 
 
+
+
+@pytest.mark.parametrize("tipo", ["markdown-export", "graphiti"])
+def test_un_type_retirado_da_el_mismo_motivo_retirado_en_el_router(router, project, tipo):
+    """Gap 2: la rama documental de `markdown-export` ya no existe; el router no la evalua antes de
+    cargar el adaptador y el motivo es el de la retirada (igual que `graphiti`), nunca
+    `autorizacion_documental_no_disponible` ni `read_disabled`."""
+    root, config, policy, entries = project
+    config["backends"]["docs"]["type"] = tipo
+    hits, info = router.consultar_intent(root, "documental", texto="owned", config=config)
+    assert hits is None and info["origen"] == "local", info
+    assert "retirado" in info["motivo"] and "4.0.0" in info["motivo"], info["motivo"]
+    assert "autorizacion_documental" not in info["motivo"] and "read_disabled" not in info["motivo"]
+
+
+def test_el_nucleo_ya_no_trae_la_autorizacion_documental():
+    base = Path(__file__).parents[1] / "agent-kits/shared"
+    assert not (base / "knowledge-read-context.py").exists()
+    assert "_documental_prepare" not in (base / "knowledge-find.py").read_text(encoding="utf-8")
+    assert "documentalConfig" not in (base / "schemas/taxonomy.schema.json").read_text(encoding="utf-8")

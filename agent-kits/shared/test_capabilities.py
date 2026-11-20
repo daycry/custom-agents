@@ -84,6 +84,23 @@ def test_taxonomia_heredada_con_backends_retirados_no_rompe_el_registro(tmp_path
     assert {c["id"] for c in resultado} == {"knowledge-gate", "training"}
     kg = next(c for c in resultado if c["id"] == "knowledge-gate")
     assert kg["health"]["estado"] == "ok"
+    # gap 3 (fix1 Fase 2): los backends declarados y activos llegan a `/doctor` por el contrato
+    # generico `health.backends` (sin codigo por backend); los desactivados no.
+    assert kg["health"]["backends"] == ["kwipu", "graphiti"]
+
+
+def test_knowledge_gate_solo_lista_los_backends_activos(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, backends={"a": {"type": "x", "enabled": True, "config": {}},
+                              "b": {"type": "y", "enabled": False, "config": {}},
+                              "c": {"type": "z", "config": {}}})
+    kg = next(c for c in cap_mod.enumerar(root) if c["id"] == "knowledge-gate")
+    assert kg["health"]["backends"] == ["a"]
+
+
+def test_knowledge_gate_sin_backends_no_declara_la_clave_o_la_deja_vacia(tmp_path):
+    kg = next(c for c in cap_mod.enumerar(str(tmp_path)) if c["id"] == "knowledge-gate")
+    assert not kg["health"].get("backends")
 
 
 def test_knowledge_gate_reporta_error_con_taxonomy_invalida(tmp_path):

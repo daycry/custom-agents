@@ -24,10 +24,10 @@ def load(path, name):
 @pytest.fixture
 def publicado(tmp_path):
     adapter = load(FIXTURES / 'adaptador_prueba.py', 'verify_adaptador_prueba')
-    cfg = {'dir': str(tmp_path / 'proyeccion')}
+    cfg = {'dir': 'proyeccion', '_root': str(tmp_path / 'proyecto')}
     entry = {'id': 'owned.rule', 'version': 1, 'cuerpo': 'Approved.'}
     adapter.apply(adapter.plan([entry], cfg), cfg)
-    return adapter, cfg, tmp_path / 'proyeccion'
+    return adapter, cfg, tmp_path / 'proyecto' / 'proyeccion'
 
 
 def test_publicacion_intacta_es_ok(publicado):
@@ -54,7 +54,7 @@ def test_un_fichero_ausente_es_desfase(publicado):
 
 def test_sin_publicacion_es_incompleto_no_verde(tmp_path):
     adapter = load(FIXTURES / 'adaptador_prueba.py', 'verify_vacio')
-    resultado = adapter.verify({'dir': str(tmp_path / 'nunca')})
+    resultado = adapter.verify({'dir': 'nunca', '_root': str(tmp_path)})
     assert resultado['ok'] is False and resultado['estado'] == 'incompleto'
     assert resultado['aviso']
     assert not (tmp_path / 'nunca').exists()  # verificar no crea nada
@@ -74,7 +74,7 @@ def _taxonomia(root, carpeta):
            'categories': [{'key': 'GOTCHA', 'folder': 'gotchas', 'min_evidence': 'validated_case',
                            'routing': {'docs': True}}],
            'backends': {'docs': {'type': 'adaptador-prueba', 'enabled': True,
-                                 'config': {'dir': str(carpeta)}}}}
+                                 'config': {'dir': str(carpeta.relative_to(root))}}}}
     (d / 'taxonomy.json').write_text(json.dumps(cfg), encoding='utf-8')
 
 
@@ -96,7 +96,7 @@ def test_flujo_completo_plan_apply_verify_por_directorios(tmp_path, capsys):
     `--dry-run`, publicacion y `--check` en verde, con el nucleo intacto."""
     sync = load(HERE / 'knowledge-sync.py', 'flujo_sync')
     root = tmp_path / 'proyecto'
-    carpeta = tmp_path / 'salida'
+    carpeta = root / 'salida'
     _taxonomia(root, carpeta)
     aprobada = root / 'docs/knowledge/approved/gotchas'
     aprobada.mkdir(parents=True)
