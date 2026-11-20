@@ -108,6 +108,31 @@ PRE_COMANDO = """> **Adaptación a {runtime}** (fichero generado; la fuente es `
 > {delegaciones}
 > Las skills se invocan {skills}. Todo lo demás (puertas, artefactos, ledger) no cambia.
 """
+# plugin-audit-2 T-21: un comando que no despacha ningún rol no carga la cabecera de orquestación
+# ni el mapa de roles (≈600 caracteres por invocación en Codex y OpenCode).
+PRE_COMANDO_SIN_AGENTES = """> **Adaptación a {runtime}** (fichero generado; la fuente es `commands/{nombre}.md`).
+> Las skills se invocan {skills}. Todo lo demás (puertas, artefactos, ledger) no cambia.
+"""
+# Despacho = el cuerpo pone un rol propio en manos de alguien: «agente `X`», o un verbo de despacho
+# (despachar, lanzar, invocar, delegar, entregar) seguido del rol en la misma cláusula (sin coma ni
+# punto entre medias). Nombrar un rol al describir algo («`planner` estima») no es despachar.
+_VERBO_DESPACHO = r"(?:despach|lanz|invoc|deleg|entreg)\w*"
+
+
+def despacha_agentes(cuerpo, mapping=None):
+    roles = sorted((mapping or native_roles(ROOT_DEFAULT))["runtimes"]["codex"], key=len, reverse=True)
+    rol = r"\*{0,2}`(?:%s)`" % "|".join(re.escape(r) for r in roles)
+    patron = re.compile(r"(?i)\b(?:sub)?agente\s+%s|\b%s\b[^.,;:\n`]{0,60}?%s|subagent_type"
+                        % (rol, _VERBO_DESPACHO, rol))
+    return bool(patron.search(cuerpo))
+
+
+def pre_comando(runtime, nombre, cuerpo, mapping=None):
+    if not despacha_agentes(cuerpo, mapping):
+        return PRE_COMANDO_SIN_AGENTES.format(runtime=runtime, nombre=nombre, skills=SKILLS_EN[runtime])
+    return PRE_COMANDO.format(runtime=runtime, nombre=nombre, delegar=DELEGAR[runtime],
+                              skills=SKILLS_EN[runtime],
+                              delegaciones=delegaciones(runtime.lower(), mapping))
 
 # El control declarado depende de carga/confianza y herramientas soportadas.
 GUARDRAIL_CON_HOOK = {
@@ -524,9 +549,7 @@ def codex_command_skill(nombre, bloque, cuerpo, mapping=None):
     description = campo(bloque, "description")
     if not description.strip() or not cuerpo.strip():
         raise ValueError("command %s requires description and body" % nombre)
-    pre = PRE_COMANDO.format(runtime="Codex", nombre=nombre,
-                             delegar=DELEGAR["Codex"], skills=SKILLS_EN["Codex"],
-                             delegaciones=delegaciones("codex", mapping))
+    pre = pre_comando("Codex", nombre, cuerpo, mapping)
     hint = campo(bloque, "argument-hint")
     header = cabecera("html", "commands/%s.md" % nombre)
     label = "Núcleo y mapa de fases" if nombre == "dev-cycle" else "Comando completo"
@@ -611,9 +634,7 @@ def opencode_agente(nombre, bloque, cuerpo, mapping=None, model_override=None):
 
 def opencode_comando(nombre, bloque, cuerpo, mapping=None):
     cuerpo = raices_de_runtime(cuerpo, "opencode")
-    pre = PRE_COMANDO.format(runtime="OpenCode", nombre=nombre,
-                             delegar=DELEGAR["OpenCode"], skills=SKILLS_EN["OpenCode"],
-                             delegaciones=delegaciones("opencode", mapping))
+    pre = pre_comando("OpenCode", nombre, cuerpo, mapping)
     if nombre == "dev-cycle":
         pre += ("\nEste comando contiene el núcleo y mapa de fases. Lee los detalles sólo\n"
                 "cuando lo indique; `agent-kits/dev-cycle/references/` pertenece al mismo\n"

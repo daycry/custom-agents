@@ -262,6 +262,12 @@ El manifiesto declara dos raíces: `./skills/` para las capacidades canónicas y
 actuar; el cuerpo canónico y sus recetas shell permanecen literales. Los argumentos
 son texto del mensaje invocante, sin sustitución del compositor de prompts.
 
+En Codex y OpenCode, la cabecera «Este comando ORQUESTA agentes» y el mapa de roles
+propios solo los lleva un comando cuyo cuerpo despacha un rol: «agente `X`», o
+despachar, lanzar, invocar, delegar o entregar seguido del rol en la misma cláusula
+(`despacha_agentes` de `export-interop.py`). Hoy son `dev-cycle`, `pm-cycle`, `retro`
+y `knowledge-category-check`; el resto conserva solo la adaptación de skills.
+
 La metadata declara `allow_implicit_invocation: false`. La prueba aislada con
 Codex0.161.0 acredita discovery de ambas raíces; la inyección de cuerpo se ensayó
 con una fixture distinta. Ninguna acredita por sí sola lectura de la referencia,

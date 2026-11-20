@@ -142,6 +142,7 @@ disappears: the moved text stays in its single source and is opened when needed.
 | TDD in the subagent brief: hard law, `RED:` format and what is not TDD; the `tdd` skill only when in doubt (T-12) | implementer 29,280 + brief 7,271 + skill 10,111 = 46,662 | 29,268 + 7,398 = 36,666 (−9,996; the «TDD» section gains 127); the skill (10,304) is opened only when in doubt |
 | What the `reviewer` reads: the reviewer table and the grading move to `adversarial-review/references/lentes.md` (T-13) | `SKILL.md` 18,104 | `lentes.md` 3,012 (−15,092 per read); `SKILL.md` stays at 16,471 and `agents/reviewer.md` gains 184 (8,833) |
 | Ledger brake: `ledger-lint` warns at 60,000 bytes (`--umbral-bytes N`) and names `ledger-archive.py`; Lens A receives `task-brief.py <folder> --fase <N>` (T-14) | warning at 183,500 bytes; Lens A with the whole ledger: 100,414 (4-phase test) · 189,819 (plugin-audit-2 ledger) | warning at 60,000; Lens A 25,253 (−75 %) · 21,232 for phase 3 (−89 %); below the threshold, the whole ledger |
+| «ORQUESTA agentes» header and role map only in exported commands that dispatch a role (T-21) | 15 commands per runtime with the header | 4 keep it; 11 lose 696 (Codex) and 658 (OpenCode) characters: −7,656 and −7,238 |
 
 After T-14, `skills/adversarial-review/SKILL.md` is 16,878 (+407 over T-13: the per-phase Lens A
 rule) and `commands/dev-cycle.md` 29,131 (−42); the quick-path saving becomes 6,023 (+11).
