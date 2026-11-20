@@ -265,7 +265,7 @@ CERRADOS16_BAD6 = ["bash <(echo {D})", "find . -maxdepth 0 -exec git reset --har
 BAD6 += CERRADOS16_BAD6
 LIMITE = [
     "echo '{D}' | bash", "echo \"{D}\" | sh", "bash <<< '{D}'", "bash <<< \"{D}\"",
-    "source <(echo '{D}')", "g=git; $g restore .", "g=git; $g reset --hard", "x=reset; git ${x} --hard",
+    "source <(echo '{D}')", "g=git; $g restore .", "g=git; $g reset --hard",
     "h=--hard; git reset $h",
     "X='{D}'; bash -c \"$X\"", "X='{D}'; $X", "X='{D}'; eval \"$X\"", "echo '{D}' | $SHELL",
     "printf '{D}' | sh", "X='{D}'; bash <<EOF\n$X\nEOF",

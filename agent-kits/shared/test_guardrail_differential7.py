@@ -178,7 +178,7 @@ LEGIT8 = [
     'git restore --source=HEAD src',
     'watch -n1 git status',
     'source .venv/bin/activate && git restore src/a.py',
-    '. .venv/bin/activate; git checkout src/a.py',
+    '. .venv/bin/activate; git checkout -- src/a.py',
     'eval "$(ssh-agent -s)"; git push origin feat/x',
     'f() { echo; }; git restore src/a.py',
     'env FOO=1 git restore src/a.py',

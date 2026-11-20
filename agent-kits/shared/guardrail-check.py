@@ -2475,14 +2475,31 @@ _MOVEDORES_DE_HISTORIA = frozenset(("merge", "pull", "rebase", "cherry-pick", "r
 _C_IRRESOLUBLE = "<-C irresoluble>"      # fix24 (gap 5): hay un `-C` cuyo destino no se puede conocer sin ejecutar la shell
 
 
+_ORDEN_RAW = ""     # fix25: texto de la orden que se esta analizando (lo fija `_check_git` justo antes de `_razon_git`)
+
+
+def _fijar_orden_raw(texto):
+    global _ORDEN_RAW
+    _ORDEN_RAW = texto
+
+
+def _comilla_de(v):
+    """fix25 (gap 4): la comilla (`'` o `"`) que rodea la palabra `v` en la orden analizada, o "" si va sin comillas. El tokenizado las quita; la shell, no: `'~/m'` y `'$PWD'` no se expanden."""
+    m = re.search(r"(['\"])" + re.escape(v) + r"\1", _ORDEN_RAW)
+    return m.group(1) if m else ""
+
+
 def _expande_C(v):
     """fix24 (gap 5): el destino de un `-C` con las formas que el guard SI puede resolver: `$PWD`/`${PWD}` (el `cwd` del payload), `~`/`~/...` y `$HOME`/`${HOME}` (el HOME del entorno), la ruta
-    de Git Bash `/c/...` (Windows) y las rutas cortas 8.3 (las expande `realpath`). None si queda algo que solo la shell sabe resolver (`$VAR`, `$(...)`, backticks, globs, `~usuario`)."""
+    de Git Bash `/c/...` (Windows) y las rutas cortas 8.3 (las expande `realpath`). None si queda algo que solo la shell sabe resolver (`$VAR`, `$(...)`, backticks, globs, `~usuario`).
+    fix25 (gap 4): como la shell, no expande dentro de comillas simples y entre dobles solo `$PWD`/`$HOME` (nunca `~`)."""
+    comilla = _comilla_de(v)
     inicio = os.path.expanduser("~")
-    if v == "~" or v.startswith(("~/", "~\\")):
+    if not comilla and (v == "~" or v.startswith(("~/", "~\\"))):
         v = inicio + v[1:]
-    v = re.sub(r"\$\{?PWD\}?(?![A-Za-z0-9_])", lambda m: _cwd().replace("\\", "/"), v)
-    v = re.sub(r"\$\{?HOME\}?(?![A-Za-z0-9_])", lambda m: inicio.replace("\\", "/"), v)
+    if comilla != "'":
+        v = re.sub(r"\$\{?PWD\}?(?![A-Za-z0-9_])", lambda m: _cwd().replace("\\", "/"), v)
+        v = re.sub(r"\$\{?HOME\}?(?![A-Za-z0-9_])", lambda m: inicio.replace("\\", "/"), v)
     if re.search(r"[$`*?\[]", v) or v.startswith("~"):
         return None
     if os.name == "nt":
@@ -2609,9 +2626,9 @@ def _razon_git(toks, branch, base_cambiada):
                     + ", ".join(sorted(_SUB_LECTURA)[:8]) + "…).")
         if destino_C not in (None, _C_IRRESOLUBLE) and os.path.isdir(destino_C):
             rama_C = rama_barata(destino_C)
-            if rama_C in MAIN_BRANCHES and toks[i] in _MOVEDORES_DE_HISTORIA:
-                return (f"`git -C {toks[i - 1] if i else ''} {toks[i]}` bloqueado: ese directorio tiene HEAD en la rama principal «{rama_C}» y `{toks[i]}` mueve su historia (integrar) — "
-                        "la integración la dirige /dev-cycle (Fase 6).")
+            if rama_C in MAIN_BRANCHES and toks[i] not in _SUB_LECTURA:
+                return (f"`git -C {toks[i - 1] if i else ''} {toks[i]}` bloqueado: ese directorio tiene HEAD en la rama principal «{rama_C}» y `{toks[i]}` escribe en él (mueve su historia, sus ramas o su remoto) — "
+                        "con `-C` hacia la rama principal solo valen los subcomandos de lectura; la integración la dirige /dev-cycle (Fase 6).")
             if rama_C is not None:
                 branch = rama_C
         razon = _razon_refs(toks, i) or _razon_destruye(toks, i)
@@ -2708,6 +2725,128 @@ _TAG_CON_VALOR = ("--contains", "--no-contains", "--points-at", "--merged", "--n
 _TAG_ESCRIBE = ("--delete", "--force", "--annotate", "--sign", "--local-user", "--message", "--file", "--edit")
 
 
+# ---- fix25 (intento 20): LISTA BLANCA de OPCIONES por subcomando que escribe. La de fix24 filtraba subcomandos pero no sus opciones (`rebase --update-refs`, `fetch --refmap`, `fetch -u`,
+# `merge|pull|rebase --no-verify`...). Cada subcomando acepta SOLO las opciones conocidas e inocuas de aqui (`--x=v` y `--x v`, cortas agrupadas como `-am`); cualquier otra se deniega
+# diciendo cuales se aceptan, lo que cierra por clase tambien las opciones que git anada en el futuro. Los subcomandos de lectura, `tag`, `notes`, `remote`, `reflog`, `bisect`, `config`,
+# `clean`, `submodule`, `format-patch` y `push` conservan sus reglas semanticas propias (ninguna de sus opciones mueve una rama).
+def _spec(sin="", con="", pegado="", largas="", valor=""):
+    """(cortas sin valor, cortas con valor en la palabra siguiente o pegado, cortas con valor solo pegado, largas sin valor, largas con valor)."""
+    return (sin, con, pegado, frozenset(largas.split()), frozenset(valor.split()))
+
+
+_FETCH_LARGAS = ("quiet verbose all append prune prune-tags tags no-tags dry-run unshallow progress no-progress multiple atomic no-show-forced-updates show-forced-updates write-fetch-head "
+                 "no-write-fetch-head recurse-submodules no-recurse-submodules ipv4 ipv6 auto-gc no-auto-gc porcelain")
+_FETCH_VALOR = "depth deepen jobs shallow-since shallow-exclude"
+_MERGE_LARGAS = ("no-edit edit ff no-ff ff-only squash no-squash commit no-commit abort continue quit quiet verbose stat no-stat log no-log signoff no-signoff allow-unrelated-histories "
+                 "verify-signatures no-verify-signatures no-gpg-sign gpg-sign autostash no-autostash progress no-progress rerere-autoupdate no-rerere-autoupdate overwrite-ignore "
+                 "no-overwrite-ignore summary no-summary")
+_OPCIONES = {
+    "add": _spec("AuvnNiepf", "", "", "all update verbose dry-run intent-to-add ignore-errors refresh patch interactive edit renormalize sparse ignore-removal no-ignore-removal "
+                 "no-warn-embedded-repo ignore-missing force pathspec-file-nul", "chmod pathspec-from-file"),
+    "commit": _spec("asqveoi", "mFCct", "Su", "all amend no-edit edit signoff no-signoff quiet verbose allow-empty allow-empty-message only include dry-run short branch porcelain long null status "
+                    "no-status reset-author no-gpg-sign gpg-sign no-post-rewrite interactive patch untracked-files pathspec-file-nul",
+                    "message file author date cleanup fixup squash trailer reuse-message reedit-message template pathspec-from-file"),
+    "merge": _spec("eqv", "mXF", "S", _MERGE_LARGAS, "message file strategy-option cleanup"),
+    "rebase": _spec("imqvfr", "xX", "SC", "continue abort skip quit interactive autosquash no-autosquash autostash no-autostash quiet verbose stat no-stat gpg-sign no-gpg-sign keep-empty "
+                    "no-keep-empty root merge rebase-merges fork-point no-fork-point reapply-cherry-picks no-reapply-cherry-picks force-rebase committer-date-is-author-date ignore-date "
+                    "reset-author-date signoff edit-todo show-current-patch no-ff keep-base no-update-refs apply rerere-autoupdate no-rerere-autoupdate",
+                    "onto strategy-option exec whitespace empty trailer"),
+    "fetch": _spec("qvapntP", "j", "", _FETCH_LARGAS, _FETCH_VALOR),
+    "pull": _spec("qvapntPer", "jX", "S", _FETCH_LARGAS + " rebase no-rebase " + _MERGE_LARGAS, _FETCH_VALOR + " strategy-option"),
+    "branch": _spec("arvlqtid", "u", "", "all remotes verbose list quiet show-current delete track no-track color no-color column no-column ignore-case omit-empty unset-upstream",
+                    "contains no-contains merged no-merged points-at sort format abbrev set-upstream-to"),
+    "stash": _spec("ukaqpS", "m", "", "include-untracked all keep-index no-keep-index quiet patch staged index stat oneline name-only name-status no-color color patch-with-stat raw shortstat "
+                   "numstat summary only-untracked", "message pathspec-from-file"),
+    "reset": _spec("qpN", "", "", "soft mixed quiet patch refresh no-refresh intent-to-add pathspec-file-nul", "pathspec-from-file"),
+    "cherry-pick": _spec("nexs", "mX", "S", "no-commit edit no-edit signoff continue abort skip quit ff allow-empty allow-empty-message keep-redundant-commits no-gpg-sign gpg-sign "
+                         "rerere-autoupdate no-rerere-autoupdate", "mainline strategy-option empty"),
+    "revert": _spec("nes", "mX", "S", "no-commit edit no-edit signoff continue abort skip quit no-gpg-sign gpg-sign rerere-autoupdate no-rerere-autoupdate", "mainline strategy-option"),
+    "switch": _spec("qtm", "cC", "", "quiet track no-track guess no-guess progress no-progress merge recurse-submodules", "create force-create orphan"),
+    "checkout": _spec("qtmp", "bB", "", "quiet track no-track guess no-guess progress no-progress merge ours theirs patch recurse-submodules no-recurse-submodules overlay no-overlay "
+                      "pathspec-file-nul", "conflict pathspec-from-file force-create orphan"),
+    "restore": _spec("SWqpm", "s", "", "staged worktree quiet patch ours theirs merge ignore-unmerged overlay no-overlay progress no-progress recurse-submodules no-recurse-submodules "
+                     "pathspec-file-nul", "source conflict pathspec-from-file"),
+    "rm": _spec("rnq", "", "", "cached dry-run quiet ignore-unmatch sparse pathspec-file-nul", "pathspec-from-file"),
+    "mv": _spec("knv", "", "", "dry-run verbose sparse"),
+    "apply": _spec("vqR3z", "", "pC", "check stat numstat summary verbose quiet index cached 3way reverse ignore-whitespace ignore-space-change reject unidiff-zero apply allow-empty no-add "
+                   "recount binary inaccurate-eof intent-to-add", "whitespace exclude include"),
+}
+_OPCIONES_WORKTREE = {
+    "add": _spec("q", "b", "", "quiet no-checkout track no-track guess-remote no-guess-remote"),
+    "list": _spec("vz", "", "", "verbose porcelain"),
+    "prune": _spec("nv", "", "", "dry-run verbose", "expire"),
+    "remove": _spec(),
+}
+_SUB_NUMERICAS = frozenset(("stash",))
+
+
+def _razon_opciones(sub, args, spec, nombre=None):
+    """Razon de deny si `args` lleva una opcion fuera de `spec` (ver `_spec`); None si todas estan en la lista blanca. Se corta en `--`."""
+    sin, con, pegado, largas, valor = spec
+    nombre = nombre or sub
+    k = 0
+    while k < len(args):
+        t = args[k]
+        k += 1
+        if t == "--":
+            break
+        if t.startswith("--"):
+            base, igual, _v = t[2:].partition("=")
+            if base in valor:
+                k += 0 if igual else 1
+                continue
+            if base in largas or base == "help":
+                continue
+        elif t.startswith("-") and len(t) > 1:
+            if sub in _SUB_NUMERICAS and re.fullmatch(r"-\d+", t):
+                continue
+            malo = False
+            for m, c in enumerate(t[1:]):
+                if c in sin:
+                    continue
+                if c in con:
+                    k += 1 if m == len(t) - 2 else 0
+                    break
+                if c in pegado:
+                    break
+                malo = True
+                break
+            if not malo:
+                continue
+        else:
+            continue
+        aceptadas = ", ".join(sorted("--" + x for x in (largas | valor))[:60]) + (f" y las cortas -{''.join(sorted(sin + con + pegado))}" if sin + con + pegado else "")
+        return (f"`git {nombre} {t}` bloqueado: opción fuera de la lista blanca de `{nombre}` — el implementer solo usa las conocidas e inocuas, y lo que mueve ramas ajenas, salta hooks o "
+                f"cambia la estrategia (`--update-refs`, `--refmap`, `-u`, `--no-verify`, `-s`…) lo hace el usuario o el ritual de cierre de /dev-cycle (Fase 6). Se aceptan: {aceptadas}.")
+    return None
+
+
+def _valor_de(args, cortas, largas):
+    """Valor de la primera opcion de `args` entre las cortas `cortas` (`-b x`, `-bx`) o las largas `largas` (`--create x`, `--create=x`); None si no aparece."""
+    for k, t in enumerate(args):
+        if t == "--":
+            return None
+        if t in ("-" + c for c in cortas) or t in largas:
+            return args[k + 1] if k + 1 < len(args) else ""
+        if t.startswith("--"):
+            base, igual, v = t.partition("=")
+            if igual and base in largas:
+                return v
+        elif len(t) > 2 and t[1] in cortas and t.startswith("-") and not t.startswith("--"):
+            return t[2:]
+    return None
+
+
+def _rama_actual_por_sustitucion():
+    """fix25 (gap 6): ¿la orden analizada lleva UNA sola sustitucion `$(...)` y es exactamente `git branch --show-current` o `git rev-parse --abbrev-ref HEAD`? (la rama actual por construccion)."""
+    return _ORDEN_RAW.count("$(") == 1 and len(re.findall(r"\$\(\s*git\s+(?:branch\s+--show-current|rev-parse\s+--abbrev-ref\s+HEAD)\s*\)", _ORDEN_RAW)) == 1
+
+
+def _principal_o_actual(nombre, branch):
+    n = nombre.removeprefix("refs/heads/")
+    return _es_rama_principal(n) or (bool(branch) and n == branch)
+
+
 def _lista_blanca(toks, branch):
     """Razon de deny o None para la invocacion git `toks` segun la lista blanca de subcomandos y opciones globales (ver arriba)."""
     i, _hooks = _git_invocation(toks)
@@ -2731,6 +2870,14 @@ def _lista_blanca(toks, branch):
     posicionales = [t for t in args if not t.startswith("-")]
     if sub in ("merge", "cherry-pick", "pull", "rebase", "revert") and branch in MAIN_BRANCHES:
         return f"`git {sub}` bloqueado: con HEAD en la rama principal «{branch}» integraría en ella — trabaja y integra solo HACIA tu rama de trabajo (la integración la dirige /dev-cycle, Fase 6)."
+    if sub in _OPCIONES:
+        razon = _razon_opciones(sub, args, _OPCIONES[sub])
+        if razon:
+            return razon
+    if sub in ("switch", "checkout"):
+        creada = _valor_de(args, "bB" if sub == "checkout" else "cC", ("--create", "--force-create") if sub == "switch" else ("--force-create",))
+        if creada is not None and _es_rama_principal(creada.removeprefix("refs/heads/")):
+            return f"`git {sub}` bloqueado: crear una rama con el nombre de la principal («{creada}») la mueve (equivale a `branch -f`) — usa un nombre de rama de trabajo."
     if sub == "tag":
         escribe = any(_prefijo(t, *_TAG_ESCRIBE) or _cluster(t, "d") or _cluster(t, "f") or _cluster(t, "a") or _cluster(t, "s") or _cluster(t, "u") or _cluster(t, "m") or _cluster(t, "F") for t in opciones)
         lista = any(_prefijo(t, "--list", "--contains", "--no-contains", "--points-at", "--merged", "--no-merged") or _cluster(t, "l") for t in opciones)
@@ -2747,7 +2894,18 @@ def _lista_blanca(toks, branch):
             return "`git stash` bloqueado: se permiten push, list, show, pop, apply (no drop, clear, branch, create ni store)."
     elif sub == "worktree":
         if not posicionales or posicionales[0] not in ("list", "add", "remove", "prune"):
-            return "`git worktree` bloqueado: se permiten list, add (con `-b <rama>`), remove (sin --force) y prune."
+            return "`git worktree` bloqueado: se permiten list, add (con `-b <rama nueva>`), remove (sin --force) y prune."
+        accion = posicionales[0]
+        k = args.index(accion)
+        razon = _razon_opciones("worktree", args[k + 1:], _OPCIONES_WORKTREE[accion], f"worktree {accion}")
+        if razon:
+            return razon
+        if accion == "add":
+            nueva = _valor_de(args[k + 1:], "b", ())
+            if not nueva:
+                return "`git worktree add` bloqueado: sin `-b <rama nueva>` saca una rama EXISTENTE (la principal incluida) en otro árbol — usa `git worktree add <dir> -b <rama>`."
+            if _principal_o_actual(nueva, branch):
+                return f"`git worktree add -b {nueva}` bloqueado: ya es la rama principal o la actual — usa un nombre nuevo."
         if posicionales[0] == "add" and any(_cluster(t, "f") or _prefijo(t, "--force") for t in opciones):
             return "`git worktree add --force` bloqueado: crea el árbol aunque la rama ya esté en uso en otro — usa `git worktree add <dir> -b <rama>`."
     elif sub == "submodule":
@@ -2757,6 +2915,15 @@ def _lista_blanca(toks, branch):
     elif sub == "branch":
         if any(_cluster(t, "m") or _cluster(t, "M") or _cluster(t, "c") or _cluster(t, "C") or _prefijo(t, "--move", "--copy") for t in opciones):
             return "`git branch -m|-M|-c|-C` bloqueado: renombrar o copiar ramas mueve `refs/heads/*` (también la principal) — para listar usa `git branch`, para crear `git branch <rama>` o `git switch -c <rama>`."
+        borra = any(_cluster(t, "d") or _prefijo(t, "--delete") for t in opciones)
+        if borra:
+            for n in posicionales:
+                if _principal_o_actual(n, branch):
+                    return (f"`git branch -d {n}` bloqueado: borrar la rama principal o la de trabajo actual y recrearla con `git branch`/`switch -c` la mueve (= `branch -f`) y deja la tarea sin su rama — "
+                            "la limpieza de ramas la dirige el ritual de cierre de /dev-cycle (Fase 6).")
+        elif posicionales and not any(_cluster(t, "l") or _cluster(t, "a") or _cluster(t, "r") or _prefijo(t, "--list", "--all", "--remotes", "--contains", "--no-contains", "--merged",
+                                                                                                      "--no-merged", "--points-at", "--show-current") for t in opciones)                 and _es_rama_principal(posicionales[0].removeprefix("refs/heads/")):
+            return f"`git branch {posicionales[0]}` bloqueado: crear una rama con el nombre de la principal la mueve (equivale a `branch -f`) — usa un nombre de rama de trabajo."
     elif sub == "clean":
         if not any(_cluster(t, "n") or _prefijo(t, "--dry-run") for t in opciones):
             return "`git clean` bloqueado: solo `clean -n|--dry-run` (simulación); borrar ficheros sin seguimiento puede llevarse cambios que no son tuyos."
@@ -2772,8 +2939,11 @@ def _lista_blanca(toks, branch):
         if len(posicionales) == 2:
             ref = posicionales[1]
             origen, dos, destino = ref.partition(":")
+            origen = origen.removeprefix("refs/heads/")
             destino = (destino if dos else origen).removeprefix("refs/heads/")
             validos = {"HEAD", "@"} | ({branch} if branch and branch != "HEAD" else set())
+            if "$()" in (origen, destino) and _rama_actual_por_sustitucion():
+                validos.add("$()")      # fix25 (gap 6): `$(git branch --show-current)` / `$(git rev-parse --abbrev-ref HEAD)` son la rama actual por construccion
             if (dos and origen not in validos) or (not dos and origen not in validos) or (destino not in validos - {"@"}):
                 return (f"`git push … {ref}` bloqueado: solo se empuja la rama actual (`{branch}`) o `HEAD` a una rama del mismo nombre; un refspec a otra rama (`@:main`, `HEAD@{{0}}:main`, `x:main`…) "
                         "mueve ramas ajenas.")
@@ -2842,6 +3012,7 @@ def _check_git(command, branch, _depth=0, _env=None, _base=False, _xargs=False, 
                 "un mensaje de commit, usa `git commit -m \"$(cat <<'EOF' … EOF\\n)\"` o `git commit -F - <<'EOF'`; "
                 "para cualquier otro texto, escríbelo con la herramienta de edición y usa `git commit -F <fichero>`.")
     for toks in segmentos:
+        _fijar_orden_raw(command)       # fix25: el texto de ESTA orden (con comillas y `$(...)`) para las reglas que el tokenizado pierde; un `bash -c` anidado lo pisa, asi que se repone
         razon = _analiza_segmento(toks, branch, _depth, _env, _xargs, base_cambiada, incompleta, exportados)
         if razon:
             return razon

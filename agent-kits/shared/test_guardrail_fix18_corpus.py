@@ -66,10 +66,10 @@ PERMITIDAS18 = [
     "git restore --staged .", "git branch", "git branch --show-current", "git branch -d feature/old", "git fetch", "git fetch origin", "git fetch --all --prune", "git pull",
     "git pull --ff-only", "git pull origin feature/x", "git push", "git push -u origin feature/x", "git push origin feature/x", "git push origin HEAD", "git push origin HEAD:feature/x",
     "git push origin feature/x:feature/x", "git merge main", "git rebase main", "git rebase -S main", "git rebase -S", "git rebase -i HEAD~3", "git rebase --whitespace fix main",
-    "git rebase --onto main HEAD~2", "git rebase -x 'make test' HEAD~2", "git worktree add ../wt -b feature/y", "git worktree add ../wt feature/y", "git worktree list",
+    "git rebase --onto main HEAD~2", "git rebase -x 'make test' HEAD~2", "git worktree add ../wt -b feature/y", "git worktree list",
     "git worktree remove ../wt", "git worktree prune", "git submodule update", "git submodule update --init --recursive", "git submodule status", "git submodule foreach 'git status'",
     "git reflog", "git reflog show HEAD", "git grep -O v1", "git grep foo", "git grep -n -e foo -- src", "git bisect log", "git bisect visualize", "git bisect view", "git show HEAD",
-    "git merge --abort", "git mv -f b.txt a.txt",
+    "git merge --abort",
     "git -C sub status", "git -C ../other-repo log --oneline", ]
 
 # --- limite declarado (usuario, 2026-11-17): cadenas de programas fuera de la tabla; el sufijo desenvuelto no se re-ancla otra vez

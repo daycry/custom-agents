@@ -130,7 +130,7 @@ def test_git_checkout_main_solo_desde_feature():
 def test_git_deny_branch_D_y_rm_rf_peligroso():
     assert decide(bash("git branch -D feature/x"))
     assert decide(bash("git branch --delete --force old"))
-    assert decide(bash("git branch -d feature/x")) is None
+    assert decide(bash("git branch -d old-topic")) is None   # fix25: la rama actual y la principal no se borran
     for cmd in ("rm -rf /", "rm -rf ~", "rm -rf .git", "rm -fr $HOME", "rm -rf /tmp/x/.git"):
         assert decide(bash(cmd)), cmd
 
@@ -1121,7 +1121,7 @@ def test_fix6_gap11_subcomandos_que_descartan_trabajo_o_salen_de_la_rama(cmd):
     assert decide(bash(cmd), branch="feature/x"), cmd
 
 
-@pytest.mark.parametrize("cmd", ["git rm --cached a.txt", "git worktree add ../wt", "git worktree list",
+@pytest.mark.parametrize("cmd", ["git rm --cached a.txt", "git worktree add ../wt -b feature/y", "git worktree list",
                                  "git checkout -b main2",
                                  "git reset --soft HEAD~1"])
 def test_fix6_gap11_lo_legitimo_cercano_sigue_permitido(cmd):

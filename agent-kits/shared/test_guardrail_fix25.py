@@ -89,9 +89,9 @@ def test_el_mensaje_de_opcion_dice_que_se_acepta(repo18):
 
 def test_C_hacia_un_worktree_con_head_en_la_principal_solo_lee(con_worktrees):
     prin, wt = con_worktrees
-    for o in ("git -C P push origin main", "git -C P push", "git -C P add a.txt", "git -C P commit -m x", "git -C P stash push", "git -C P fetch"):
+    for o in ("git -C P push origin main", "git -C P push", "git -C P add a.txt", "git -C P commit -m x", "git -C P stash push", "git -C P fetch", "git -C P branch -d x", "git -C P branch"):   # `branch` escribe: no es de lectura aunque liste
         assert gc.check_git(o.replace("P", prin, 1), "feature/x"), o
-    for o in ("git -C P status", "git -C P log --oneline", "git -C P diff", "git -C P rev-parse HEAD", "git -C P branch"):
+    for o in ("git -C P status", "git -C P log --oneline", "git -C P diff", "git -C P rev-parse HEAD", "git -C P show HEAD"):
         assert gc.check_git(o.replace("P", prin, 1), "feature/x") is None, o
     for o in ("git -C P status", "git -C P commit -m x", "git -C P push origin feature/x", "git -C P add a.txt"):
         assert gc.check_git(o.replace("P", wt, 1), "feature/x") is None, o

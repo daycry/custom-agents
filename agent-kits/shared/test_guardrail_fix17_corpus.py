@@ -67,7 +67,7 @@ PERMITIDAS_RAMA17 = [
     "git checkout -b feature/y", "git switch -c feature/y", "git switch -c feature/y main", "git checkout -b feature/y origin/main", "git checkout --orphan tmp",
     "git switch -c feature/y --track origin/feature/y", "git checkout -b feature/y --track origin/feature/y",
     "git rebase main", "git rebase -i HEAD~3", "git rebase --onto main HEAD~2", "git rebase --continue", "git rebase --abort", "git rebase feature/x",
-    "git rebase -s ours main", "git rebase --root", "git rebase --root --onto main",
+    "git rebase --root", "git rebase --root --onto main",   # fix25: `rebase -s ours main` pasa a deny (la estrategia ejecuta git-merge-<s>)
     "git bisect log",
     "git status", "git log --oneline",
     "git submodule foreach 'git status'", "git submodule foreach --recursive git pull", "git rebase -x 'make test' HEAD~2", "git rebase --exec 'npm test' main",
