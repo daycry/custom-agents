@@ -131,6 +131,16 @@ saving 6,012 (−39: `dev-cycle` names a single implementer, T-04).
 With the bundled backends retired (T-09/T-10), `commands/doctor.md` becomes 5,807 (+107: it cites the
 add-a-backend guide) and `doctor-reference.md` 11,719 (−410: without the retired backend table, with the row per declared backend).
 
+## Reads that become on demand (plugin-audit-2, phase 3)
+
+Same size method: UTF-8 characters with LF measured with `context-footprint.py`
+(tokens = characters/4, no tokenizer); not observed or billed usage. No gate
+disappears: the moved text stays in its single source and is opened when needed.
+
+| What changes | Before | After |
+|---|---|---|
+| TDD in the subagent brief: hard law, `RED:` format and what is not TDD; the `tdd` skill only when in doubt (T-12) | implementer 29,280 + brief 7,271 + skill 10,111 = 46,662 | 29,268 + 7,398 = 36,666 (−9,996; the «TDD» section gains 127); the skill (10,304) is opened only when in doubt |
+
 ## Tool results and handoffs
 
 Keep full logs and exit codes while showing concise summaries and relevant

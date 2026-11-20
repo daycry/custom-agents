@@ -63,6 +63,9 @@ R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$PWD/$M" ] 
 En **modo subagentes** (`subagentes: true`), el subagente devuelve la evidencia del rojo en su
 informe y **el orquestador** la copia al ledger al validar el `DONE` (el subagente no toca el ledger).
 
+El brief de `task-brief.py` ya trae lo esencial (ley dura, formato `RED:`, qué NO es TDD, `TDD n/a`):
+el subagente abre esta skill solo ante una duda; sigue siendo la fuente única del método.
+
 ## Qué NO es TDD (aunque lo parezca)
 
 - **Tests después**: implementar y luego «cubrirlo». No hay rojo; el test puede pasar por casualidad.

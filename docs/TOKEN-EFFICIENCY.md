@@ -138,6 +138,17 @@ rápida pasa a 6.012 (−39: `dev-cycle` nombra un solo implementador, T-04).
 Con la retirada de los backends incluidos (T-09/T-10), `commands/doctor.md` pasa a 5.807 (+107: cita la guía
 para añadir un backend) y `doctor-reference.md` a 11.719 (−410: sin la tabla del backend retirado, con la fila por backend declarado).
 
+## Lecturas que pasan a ser bajo demanda (plugin-audit-2, fase 3)
+
+Mismo método de tamaño: caracteres UTF-8 con LF medidos con `context-footprint.py`
+(tokens = caracteres/4, sin tokenizer); no es consumo observado ni facturado.
+Ninguna puerta desaparece: el texto movido sigue en su fuente única y se abre
+cuando hace falta.
+
+| Qué cambia | Antes | Después |
+|---|---|---|
+| TDD en el brief del subagente: ley dura, formato `RED:` y qué no es TDD; la skill `tdd` solo ante una duda (T-12) | implementer 29.280 + brief 7.271 + skill 10.111 = 46.662 | 29.268 + 7.398 = 36.666 (−9.996; la sección «TDD» gana 127); la skill (10.304) solo se abre ante una duda |
+
 ## Evitar contexto de poco valor durante la ejecución
 
 Conserve logs completos y códigos de salida, pero envíe al modelo primero el

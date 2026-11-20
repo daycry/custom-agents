@@ -97,12 +97,16 @@ Al terminar, tu última línea debe ser exactamente uno de estos estados:
 
 TDD_BRIEF = """## TDD (activo en `.claude/dev.json`: sigue la skill `tdd`)
 
-Esta tarea se implementa con RED-GREEN-REFACTOR según la skill **`tdd`** (invócala con la herramienta
-Skill; es la fuente única del método — no lo reinterpretes). Resumen del contrato: por cada criterio de
-aceptación, escribe primero el test, córrelo SOLO y míralo fallar por la razón correcta; implementa el
-mínimo; refactoriza en verde. El código escrito antes de su test se borra y se reescribe tras el rojo.
-Devuelve `RED: <fichero::test> falló con <error> · <fecha>` por criterio; el orquestador lo registra
-con `ledger-write.py` según `ledger-write.md`. Sin código testeable: `TDD n/a: <motivo>`.
+RED-GREEN-REFACTOR según la skill **`tdd`**, fuente única del método. Lo esencial va aquí; abre
+`skills/tdd/SKILL.md` solo ante una duda (cómo correr UN test en este stack, si cabe `TDD n/a`).
+
+> **Ley dura.** El código escrito antes de su test se borra y se reescribe tras el rojo.
+
+Por criterio: test primero, córrelo SOLO y míralo fallar por la razón correcta (no un `ImportError`);
+el mínimo para el verde; refactoriza en verde. NO es TDD: tests después, `assert True`, assert trivial,
+un test que ya pasaba. Devuelve `RED: <fichero::test> falló con <error> · <AAAA-MM-DD>` por criterio;
+el orquestador lo registra con `ledger-write.py` según `ledger-write.md`. Sin código testeable:
+`TDD n/a: <motivo>`, nunca un test vacío.
 """
 
 

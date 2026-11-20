@@ -1259,7 +1259,10 @@ otra salida histórica
     assert "Historial" in task and "tasks.md" in task
 
 
-def test_brief_budget_auxiliares_comparten_margen_sin_recortar_criterios(inic, monkeypatch):
+def test_brief_budget_auxiliares_comparten_margen_sin_recortar_criterios(inic, monkeypatch, tmp_path):
+    # cwd hermetico (plugin-audit-2 T-12): sin chdir, `_tdd_activo` cae al `.claude/dev.json` del checkout
+    # y un `tdd: true` local suma la seccion TDD a un escenario que este test mide SIN ella.
+    monkeypatch.chdir(tmp_path)
     # 2050 (was 2300; f4fix1 gaps 1, 7 and 12 added ~70 characters: quoting, «única línea válida», «sin integraciones»): the brief now opens with the kit line of H-45 (~100 characters with a real
     # path) that the auxiliary budget cannot trim; this scenario is at the edge of the 10000 cap.
     criterion = "contrato " * 400 + "criterio final."
