@@ -125,18 +125,8 @@ ni lo aprobado ni lo rebatido salvo evidencia nueva".
 
 ### Racionalizaciones del REVISOR que NO valen
 
-Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Aplican a cada lente y a la fusión.
-
-| Excusa que el modelo se da | Por qué no vale | Qué hacer en su lugar |
-|---|---|---|
-| «Parece correcto; el implementador sabe lo que hace» | Confianza no es evidencia; la revisión existe para lo que él no puede ver desde dentro. | Lee el diff completo y verifica cada criterio con `fichero:línea`. |
-| «La suite está en verde, así que apruebo» | Los críticos de `LES-010` pasaban suites: el verde no cubre requisitos ni huecos de diseño. | Reproduce el escenario de cada criterio; ✓ solo con evidencia. |
-| «Este nombre/estructura no me gusta; lo reporto como gap» | Estilo, preferencias y refactors están excluidos por la regla dura. | Descártalo sin discusión; solo requisitos, corrección o seguridad introducida. |
-| «El diff es largo; reviso los ficheros importantes y extrapolo» | Los gaps aparecen donde nadie mira (BOM, rutas Windows, fixtures, evasiones). | Recorre TODO el diff; si no cabe, divídelo por ficheros y dilo en la salida. |
-| «Aquel gap rebatido en el intento anterior sigue pareciéndome gap» | Reabrir sin evidencia nueva rompe el traspaso y el bucle acotado a 3. | Re-evalúa SOLO lo corregido; reabre únicamente con evidencia nueva citada. |
-| «Es Critical, pero lo bajo a Minor para no bloquear el cierre» | La graduación sigue la definición, no el calendario; suavizarlo es deuda oculta. | Gradúa por definición; que el usuario decida si lo acepta como deuda. |
-| «Lo señalo sin línea ni escenario; ya lo encontrará el implementador» | Sin `fichero:línea` + escenario no es verificable ni rebatible. | Cada gap con `fichero:línea` y escenario concreto de fallo. |
-| «Encontré algo, con eso ya justifico la revisión» | Un revisor «siempre encuentra algo»; el objetivo es cobertura por criterio, no volumen. | Entrega la tabla ✓/✗ completa; «sin defectos» es una salida válida. |
+La tabla vive en `references/lentes.md` (junto con la graduación que aplica cada lente): es lo único
+de la skill que lee el agente `reviewer`. Aplica también a la fusión.
 
 ### 6. Salida y traza
 
@@ -169,6 +159,7 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Aplican a cada lente 
   `model-tier.py` (tier del `reviewer`) y `docs-style.md` (Lente A en prosa).
 - Referencias propias (bajo demanda): `references/lens-prompts.md` (prompts literales + criterio
   docs-style) · `references/lens-c-heuristics.md` · `references/lens-d-heuristics.md`.
+- `references/lentes.md` — lo único que lee el agente `reviewer`: graduación y tabla del revisor.
 
 ## Qué NO hace
 

@@ -140,6 +140,7 @@ disappears: the moved text stays in its single source and is opened when needed.
 | What changes | Before | After |
 |---|---|---|
 | TDD in the subagent brief: hard law, `RED:` format and what is not TDD; the `tdd` skill only when in doubt (T-12) | implementer 29,280 + brief 7,271 + skill 10,111 = 46,662 | 29,268 + 7,398 = 36,666 (−9,996; the «TDD» section gains 127); the skill (10,304) is opened only when in doubt |
+| What the `reviewer` reads: the reviewer table and the grading move to `adversarial-review/references/lentes.md` (T-13) | `SKILL.md` 18,104 | `lentes.md` 3,012 (−15,092 per read); `SKILL.md` stays at 16,471 and `agents/reviewer.md` gains 184 (8,833) |
 
 ## Tool results and handoffs
 

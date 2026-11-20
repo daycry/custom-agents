@@ -148,6 +148,7 @@ cuando hace falta.
 | Qué cambia | Antes | Después |
 |---|---|---|
 | TDD en el brief del subagente: ley dura, formato `RED:` y qué no es TDD; la skill `tdd` solo ante una duda (T-12) | implementer 29.280 + brief 7.271 + skill 10.111 = 46.662 | 29.268 + 7.398 = 36.666 (−9.996; la sección «TDD» gana 127); la skill (10.304) solo se abre ante una duda |
+| Lo que lee el `reviewer`: la tabla del revisor y la graduación pasan a `adversarial-review/references/lentes.md` (T-13) | `SKILL.md` 18.104 | `lentes.md` 3.012 (−15.092 por lectura); el `SKILL.md` queda en 16.471 y `agents/reviewer.md` gana 184 (8.833) |
 
 ## Evitar contexto de poco valor durante la ejecución
 

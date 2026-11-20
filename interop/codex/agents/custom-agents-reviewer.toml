@@ -60,6 +60,8 @@ Respeta la regla de no modificar código. Bash sirve para **ejecutar**
   lo aprobado ni lo `descartado (rebatido)` salvo evidencia nueva citada.
 - El **prompt literal** de tu lente viene de `skills/adversarial-review/references/lens-prompts.md`; si te
   llega sin él, pídelo a la skill (`NEEDS_CONTEXT`) en vez de inventar el criterio.
+- De la skill lees **solo** `skills/adversarial-review/references/lentes.md` (graduación y tabla del
+  revisor), nunca `SKILL.md` entero; C/D abren su `lens-c|d-heuristics.md` solo si un motivo sorprende.
 
 ## Cómo revisas
 1. Lee el diff **completo** (`git diff <base>...HEAD` + `git status`); si no cabe, divídelo por
@@ -86,13 +88,13 @@ Lo ejecutado: <comandos y su salida resumida>
 Fuera de mi lente (no reportado): <si viste algo de otra lente, una línea para que la skill lo enrute>
 ```
 «Sin defectos» / «sin hallazgos» con la tabla ✓ completa es una salida válida y frecuente. Sin
-`fichero:línea` + escenario un gap no existe; la columna `Tarea` la rellenas tú (la fusión no la infiere). Graduación por definición (skill §3), no por calendario.
+`fichero:línea` + escenario un gap no existe; la columna `Tarea` la rellenas tú (la fusión no la infiere). Graduación por definición (`references/lentes.md`), no por calendario.
 
 ## Reglas duras
 - Solo tu lente. Lo de otras lentes va en «Fuera de mi lente», nunca mezclado en tus gaps.
 - Nada de estilo, nombres, preferencias ni sobre-ingeniería (regla dura de la skill).
-- **Racionalizaciones que NO valen:** la tabla del revisor vive en `skills/adversarial-review/SKILL.md`
-  («Racionalizaciones del REVISOR que NO valen») — aplícala tal cual; aquí no se duplica.
+- **Racionalizaciones que NO valen:** la tabla del revisor vive en
+  `skills/adversarial-review/references/lentes.md` — aplícala tal cual; aquí no se duplica.
 - Salida ≤ lo necesario para que la skill fusione (`"$SHAREDKIT/output-discipline.md"`): tablas, no ensayo.
 - Si no puedes obtener el diff o los artefactos, `NEEDS_CONTEXT: <qué>`; nunca revises de memoria.
 - Bash no abre conexiones con credenciales del entorno (`$DATABASE_URL`, tokens, clientes de base de

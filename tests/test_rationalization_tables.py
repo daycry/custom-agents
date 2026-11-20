@@ -2,7 +2,8 @@
 """Tablas de racionalización (activation-reliability T-03, patrón «iron law»).
 
 Afirma, sobre los puntos críticos del plugin (`agents/implementer.md`, `skills/adversarial-review/SKILL.md`,
-`agents/qa.md`, `agents/architect.md`, `skills/tdd/SKILL.md`), que la tabla existe con la cabecera EXACTA del fragmento compartido, tiene entre 6 y 8
+`agents/qa.md`, `agents/architect.md`, `skills/tdd/SKILL.md`; la del revisor, en
+`skills/adversarial-review/references/lentes.md` desde plugin-audit-2 T-13), que la tabla existe con la cabecera EXACTA del fragmento compartido, tiene entre 6 y 8
 filas en primera persona (entrecomilladas), cada fila con acción concreta, aparece ANTES del bloque
 DoD/veredicto de la pieza y no excede las 25 líneas (token-diet); y que el fragmento
 `agent-kits/shared/rationalization-table.md` existe y está inventariado en `agent-kits/shared/README.md`.
@@ -33,7 +34,8 @@ PIEZAS = {
     "knowledge-category-template": ("skills/knowledge-category-template/SKILL.md", "## Salida y evidencia"),
     "knowledge-category-check": ("commands/knowledge-category-check.md", "## Resultado"),
     "implementer": ("agents/implementer.md", "## ANTES DE CERRAR (DoD)"),
-    "adversarial-review": ("skills/adversarial-review/SKILL.md", "### 6. Salida y traza"),
+    # plugin-audit-2 T-13: la tabla del revisor vive en la referencia que lee el agente `reviewer`
+    "adversarial-review": ("skills/adversarial-review/references/lentes.md", "## Salida"),
     "qa": ("agents/qa.md", "## ANTES DE CERRAR (DoD)"),
     "architect": ("agents/architect.md", "## ANTES DE CERRAR (DoD)"),
     "tdd": ("skills/tdd/SKILL.md", "## Salida y traza"),
@@ -100,6 +102,11 @@ def test_adversarial_review_tiene_tabla_del_revisor_antes_del_veredicto():
     blob = " ".join(filas).lower()
     for clave in ("parece correcto", "estilo", "diff", "rebatido", "critical"):
         assert clave in blob, f"adversarial-review: la tabla no cubre «{clave}»"
+    # plugin-audit-2 T-13: el SKILL ya no la carga; remite a la referencia y el reviewer lee solo esa
+    skill = leer("skills/adversarial-review/SKILL.md")
+    assert CABECERA not in skill and "references/lentes.md" in skill
+    reviewer = leer("agents/reviewer.md")
+    assert "references/lentes.md" in reviewer and "nunca `SKILL.md` entero" in reviewer
 
 
 def test_qa_tiene_tabla_antes_del_dod():

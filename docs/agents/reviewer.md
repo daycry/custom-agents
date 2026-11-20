@@ -32,7 +32,7 @@ tier propio (`opus` · `effort: high`, override en `dev.json` `modelos.reviewer`
 
 ## Qué NO hace
 - No corrige, no propone refactors, no comenta estilo, no decide qué pasa al 3.º intento (skill/orquestador).
-- No duplica la tabla de racionalización del revisor: la aplica desde `skills/adversarial-review/SKILL.md`.
+- No duplica la tabla de racionalización del revisor: la aplica desde `skills/adversarial-review/references/lentes.md`, lo único de la skill que lee (no el `SKILL.md` entero).
 - No audita seguridad completa (`nemesis`) ni da el verde de pruebas (`qa`).
 
 ## Dependencias
