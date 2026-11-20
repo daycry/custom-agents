@@ -1006,6 +1006,25 @@ def test_tdd_true_en_dev_json_inyecta_la_skill(tmp_path):
     assert "ledger-write.py" in out, "the orchestrator must use the shared ledger writer"
 
 
+def test_tdd_resumido_trae_lo_esencial_y_la_skill_queda_bajo_demanda(tmp_path):
+    # plugin-audit-2 T-12: el subagente no carga la skill entera (≈10 KB); el brief trae la ley dura,
+    # el formato `RED:`, qué NO cuenta como rojo y `TDD n/a`, y cita la skill como fuente única que
+    # se abre solo ante una duda (stack concreto, `TDD n/a`).
+    d = _dev_json(tmp_path, '{"tdd": true}')
+    rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(d / "no.md")])
+    assert rc == 0
+    sec = out.split("## TDD", 1)[1].split("\n## ", 1)[0]
+    assert "Ley dura" in sec and "se borra y se reescribe tras el rojo" in sec
+    assert "RED: <fichero::test> falló con <error> · <AAAA-MM-DD>" in sec
+    assert "razón correcta" in sec, "rojo por la razón correcta, no un ImportError"
+    assert "assert True" in sec and "ya pasaba" in sec, "qué NO es TDD, en una línea"
+    assert "TDD n/a: <motivo>" in sec
+    assert "fuente única" in sec and "skills/tdd/SKILL.md" in sec
+    assert "solo ante una duda" in sec, "la skill se abre bajo demanda, no siempre"
+    assert "invócala con la herramienta" not in sec, "el brief ya no manda cargar la skill entera"
+    assert len(tb.TDD_BRIEF.encode("utf-8")) <= 2048, "el brief gana ≤ 2 KB"
+
+
 def test_tdd_false_o_ausente_no_inyecta(tmp_path, inic, monkeypatch):
     # cwd hermetico: `_tdd_activo` cae a `.claude/dev.json` del cwd y un checkout con dev.json local (tdd: true)
     # convertiria «sin dev.json» en «con dev.json» (paso en CI del PR #9 por un dev.json comiteado por error).
