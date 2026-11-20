@@ -687,3 +687,48 @@ if __name__ == "__main__":
             print("FAIL %s\n     %s" % (nombre, e))
     print("\ntest_export_interop: %d casos · %d fallo(s)" % (len(_tests()), fallos))
     sys.exit(1 if fallos else 0)
+
+
+# --- plugin-audit-2 T-21: la cabecera «ORQUESTA agentes» solo en comandos que despachan un rol ---
+DESPACHAN = {"dev-cycle", "pm-cycle", "retro", "knowledge-category-check"}
+
+
+def _comandos_exportados():
+    gen = MOD.generar(ROOT)
+    nombres = sorted(n for n, _, _ in MOD.piezas(ROOT, "commands"))
+    return gen, nombres, {
+        "opencode": {n: gen["interop/opencode/commands/%s.md" % n] for n in nombres},
+        "codex": {n: gen["interop/codex/command-skills/custom-agents-%s/references/command.md" % n]
+                  for n in nombres},
+    }
+
+
+def test_cabecera_orquesta_solo_en_los_comandos_que_despachan_un_agente():
+    _, nombres, por_runtime = _comandos_exportados()
+    assert DESPACHAN <= set(nombres)
+    for runtime, textos in por_runtime.items():
+        con = {n for n, t in textos.items() if "ORQUESTA agentes" in t}
+        assert con == DESPACHAN, (runtime, sorted(con))
+        assert len(nombres) - len(con) >= 11, (runtime, len(con))
+        for n, t in textos.items():
+            assert "Adaptación a" in t and "Las skills se invocan" in t, (runtime, n)
+
+
+def test_cabecera_orquesta_conserva_la_misma_lista_de_roles():
+    _, _, por_runtime = _comandos_exportados()
+    for runtime, textos in por_runtime.items():
+        mapa = MOD.delegaciones(runtime)
+        for n in DESPACHAN:
+            assert mapa in textos[n], (runtime, n)
+        for n, t in textos.items():
+            if n not in DESPACHAN:
+                assert "los roles propios se resuelven con este mapa" not in t, (runtime, n)
+
+
+def test_cabecera_orquesta_detecta_el_despacho_en_el_cuerpo():
+    assert MOD.despacha_agentes("Invoca al `planner` con el objetivo.\n")
+    assert MOD.despacha_agentes("Usa el agente `reviewer` por lente.\n")
+    assert MOD.despacha_agentes("Entrega candidatos y SHA a `knowledge-curator` mediante el proceso.\n")
+    assert not MOD.despacha_agentes("Mientras `/pm-cycle` y `planner` estiman, esto mide.\n")
+    assert not MOD.despacha_agentes("`lite` despacha cada tarea en secuencia, sin paralelismo, al `implementer` nativo.\n")
+    assert not MOD.despacha_agentes("Sin roles: solo lee el roadmap.\n")
