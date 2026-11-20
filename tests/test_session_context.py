@@ -388,3 +388,45 @@ def test_h28_compose_lee_el_corpus_de_la_memoria_una_sola_vez(tmp_path):
     context = json.loads(data['out'])['hookSpecificOutput']['additionalContext']
     assert 'Memoria técnica' in context and 'consultadas' not in context
     assert data['opens'] == {'adr/ADR-001-lentes-en-paralelo.md': 1}, data['opens']
+
+
+# --- plugin-audit-2 T-20: en Claude solo la cabecera del índice; Codex y OpenCode, el índice completo ---
+def _t20_contexto(tmp_path, monkeypatch, runtime, dev_json=None):
+    module = native_module()
+    project, _ = legacy.proyecto(tmp_path)
+    if dev_json is not None:
+        (project / '.claude/dev.json').write_text(dev_json, encoding='utf-8')
+    monkeypatch.setenv('CLAUDE_PLUGIN_ROOT', str(ROOT))
+    out = module.compose({'source': 'startup', 'session_id': 't20-' + runtime}, runtime=runtime, root=str(project))
+    return json.loads(out)['hookSpecificOutput']['additionalContext'] if out else ''
+
+
+def _t20_indice(runtime):
+    spec = importlib.util.spec_from_file_location('t20_skill_index', ROOT / 'agent-kits/shared/skill-index.py')
+    si = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(si)
+    return si, si.generar(str(ROOT), usar_cache=False, runtime=runtime)['texto']
+
+
+def test_t20_runtime_claude_solo_trae_la_cabecera_del_indice(tmp_path, monkeypatch):
+    context = _t20_contexto(tmp_path, monkeypatch, 'claude')
+    si, completo = _t20_indice('claude')
+    assert 'Plugin custom-agents' in context
+    for grupo in ('Comandos:', 'Skills:', 'Agentes:'):
+        assert grupo not in context, grupo
+    cabecera = si.cabecera_sola('claude')
+    assert cabecera in context and len(cabecera.splitlines()) == 3
+    assert len(completo) - len(cabecera) >= 3000, 'el bloque de Claude baja ≈ 3,4 KB'
+
+
+@pytest.mark.parametrize('runtime', ['codex', 'opencode'])
+def test_t20_runtime_codex_y_runtime_opencode_conservan_el_indice_completo(tmp_path, monkeypatch, runtime):
+    context = _t20_contexto(tmp_path, monkeypatch, runtime)
+    _si, completo = _t20_indice(runtime)
+    assert completo in context and 'Skills:' in context
+
+
+@pytest.mark.parametrize('runtime', ['claude', 'codex', 'opencode'])
+def test_t20_runtime_sesion_indice_false_sigue_mandando(tmp_path, monkeypatch, runtime):
+    context = _t20_contexto(tmp_path, monkeypatch, runtime, dev_json='{"sesion":{"indice":false}}')
+    assert 'Plugin custom-agents' not in context
