@@ -69,8 +69,7 @@ def __getattr__(name):
     """Forward compatibility attributes to the sole local owner, without copied bindings/data."""
     if name in {"_TAXONOMY_FALLBACK", "_folder_seguro", "_slug_kebab",
                 "_con_id_prefix_por_defecto", "backend_ids_declarados",
-                "categorias_por_backend", "categorias_por_backend_con_valor", "entradas_enrutadas",
-                "documental_read_options", "DOCUMENTAL_READ_LIMITS"}:
+                "categorias_por_backend", "categorias_por_backend_con_valor", "entradas_enrutadas"}:
         if _LOCAL is None:
             raise KnowledgeLocalNoDisponible(_LOCAL_ERROR)
         return getattr(_LOCAL, name)

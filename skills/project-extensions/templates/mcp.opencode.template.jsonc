@@ -4,8 +4,8 @@
   "mcp": {
     "{{servidor}}": {
       "type": "local",
-      "command": ["{{comando_mcp}}", "-y", "<paquete-del-servidor>"],
-      "enabled": true
+      "command": ["{{comando_mcp}}", "-y", "<paquete-del-servidor>@<versión>"],
+      "enabled": false   // actívalo (true) solo tras revisar el servidor y fijar su versión
     }
   }
 }

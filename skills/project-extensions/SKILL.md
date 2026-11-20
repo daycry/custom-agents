@@ -62,8 +62,7 @@ usuario y ofrece la alternativa, no inventes una carpeta.
 - Nombre en kebab-case, único entre las piezas del proyecto; el `name:` coincide con el fichero o la
   carpeta. Por **función** (`revisor-sql`), no genérico (`helper`, `utils`).
 - La `description` es la promesa de activación: qué hace, el **criterio** que aporta y los
-  disparadores: termina con «Úsalo cuando el usuario diga "…", "…"». Sin comillas dobles dentro si el
-  formato es TOML o JSON.
+  disparadores: termina con «Úsalo cuando el usuario diga "…", "…"». Las plantillas YAML aceptan comillas dobles dentro; en TOML o JSON no las pongas (o escápalas).
 
 ## Paso 2 — Escribir desde la plantilla
 
@@ -76,7 +75,9 @@ usuario y ofrece la alternativa, no inventes una carpeta.
 4. **Hooks:** informan, no deciden — salida por `systemMessage`/`additionalContext`, exit 0 siempre y
    silencio si falta una dependencia. Impedir una acción (deny) es otra pieza, con pruebas propias.
 5. **MCP y tools:** sin credenciales en el fichero (nombre de la variable de entorno, nunca el valor);
-   si el servidor es de terceros, trátalo como código que ejecutas. Contratos de salida y errores:
+   si el servidor es de terceros, trátalo como código que ejecutas y **fija la versión** del paquete
+   (`<paquete>@<versión>`, nunca `latest` ni sin versión). La plantilla de OpenCode nace `"enabled": false`:
+   actívalo tras revisarlo. Contratos de salida y errores:
    `references/tool-observation-contracts.md`.
 6. **Scripts deterministas:** los cálculos y veredictos van en un script con su prueba y exit codes;
    la prosa decide cuándo llamarlo. Lee y escribe UTF-8 explícito; degrada con aviso, no bloquees.
@@ -85,7 +86,9 @@ usuario y ofrece la alternativa, no inventes una carpeta.
 ## Paso 3 — Verificar con el inventario del proyecto
 
 Ejecuta `project-pieces.py --project . --project-only --json` y comprueba que la pieza nueva aparece
-para cada runtime elegido, con su nombre, y que `warnings` está vacío. Resolución de la ruta del script
+para cada runtime elegido, con su nombre, y que `warnings` está vacío. El inventario no lista hooks: para un hook,
+verifica que el JSON de `settings.json` parsea y prueba el script a mano con un evento de
+ejemplo por stdin (exit 0 y, ante una entrada rara, silencio). Resolución de la ruta del script
 y salida esperada: `references/verify-inventory.md`. El inventario **no ejecuta** nada ni prueba que la
 sesión haya cargado la pieza: dilo, y pide reiniciar la sesión del runtime. Un aviso (frontmatter
 inválido, campo desconocido, enlace inseguro) se corrige antes de dar la pieza por hecha.

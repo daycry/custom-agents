@@ -381,61 +381,10 @@ def categorias_por_backend_con_valor(config, backend_id):
     return out
 
 
-DOCUMENTAL_READ_LIMITS = {
-    "timeout_ms": (5000, 30000),
-    "max_request_bytes": (8192, 65536),
-    "max_answer_chars": (4096, 65536),
-    "max_source_nodes": (64, 1024),
-    "max_response_bytes": (262144, 2097152),
-    "max_snapshot_bytes": (2097152, 2097152),
-}
-
-
-def documental_read_options(config, fichero="taxonomy.json", campo="config"):
-    """Validate opt-in documental limits and router without loading service code."""
-    errors = []
-    def error(path):
-        errors.append(_error("opción de lectura documental inválida", fichero, campo + "." + path))
-    if not isinstance(config, dict):
-        error("read")
-        return None, errors
-    read = config.get("read", {})
-    if not isinstance(read, dict):
-        error("read")
-        return None, errors
-    for key in read:
-        if key not in DOCUMENTAL_READ_LIMITS and key != "enabled":
-            error("read")
-    enabled = read.get("enabled", False)
-    if type(enabled) is not bool:
-        error("read.enabled")
-    options = {"enabled": enabled}
-    for key, (default, cap) in DOCUMENTAL_READ_LIMITS.items():
-        value = read.get(key, default)
-        if type(value) is not int or not 1 <= value <= cap:
-            error("read." + key)
-        options[key] = value
-    router = config.get("router", {})
-    if not isinstance(router, dict):
-        error("router")
-    else:
-        if any(key not in ("intents", "default") for key in router):
-            error("router")
-        if "default" in router and not isinstance(router["default"], str):
-            error("router.default")
-        intents = router.get("intents", {})
-        if not isinstance(intents, dict):
-            error("router.intents")
-        elif any(not isinstance(key, str) or re.fullmatch(r"[a-z][a-z0-9_-]*", key) is None
-                 or type(value) is not bool for key, value in intents.items()):
-            error("router.intents")
-    return (None if errors else options), errors
-
-
 def entradas_enrutadas(config, backend_id, indice):
     """Select already-validated approved records without files, adapters or effects.
 
-    Publication and explicit retrieval use the same routing and summary modes.
+    Publication uses the routing and summary modes declared per category.
     Returns entries, errors and IDs excluded by routing, in deterministic order.
     """
     errores = []

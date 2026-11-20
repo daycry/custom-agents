@@ -1,5 +1,6 @@
 ---
-description: "{{descripcion}}"
+description: >-
+  {{descripcion}}
 argument-hint: "<obligatorio> [opcional]"
 ---
 

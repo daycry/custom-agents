@@ -1,6 +1,7 @@
 ---
 name: "{{nombre}}"
-description: "{{descripcion}}"
+description: >-
+  {{descripcion}}
 tools: Read, Grep, Glob
 model: sonnet
 ---

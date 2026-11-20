@@ -1996,7 +1996,8 @@ def _linea_capacidad_backend_sonda(cap_id, tipo, cfg_adaptador, backends_mod, ba
         adaptador = backends_mod.cargar_adaptador(tipo, [backends_dir])
     except backends_mod.AdaptadorNoDisponible as e:
         return linea(AVISO, f"{cap_id} (backend)", f"adaptador `{tipo}` no disponible: {e}",
-                     "revisa el campo `type` en `taxonomy.json`, o instala/añade el adaptador correspondiente")
+                     "revisa el campo `type` en `taxonomy.json`, o añade el adaptador del backend "
+                     "(guía: `skills/knowledge-services/references/add-backend.md`)")
     try:
         salud = adaptador.health(cfg_adaptador) or {}
     except Exception as e:           # noqa: BLE001 — una capacidad opcional rota no tumba /doctor

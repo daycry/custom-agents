@@ -65,7 +65,7 @@ módulo, declarar el binding y verificar una operación son estados diferentes.
 | `agent-kits/shared/knowledge-index.py` | Índice de `approved/`. |
 | `agent-kits/shared/knowledge-local.py` + `knowledge-taxonomy-local.py` | Lectores compartidos sin red: corpus aprobado y reglas locales de taxonomía. |
 | `agent-kits/shared/knowledge-view.py` | Snapshot acotado y consulta local compartidos por CLI/panel; validación aprobada pura sobre textos ya leídos, sin caché o backends. |
-| `agent-kits/shared/knowledge-read-context.py` + `agent-kits/shared/local-read.py` | Autorización canónica y lectura estable acotada para el opt-in documental; dependencias del bundle portable. |
+| `agent-kits/shared/local-read.py` | Lectura estable acotada de ficheros locales que comparten `knowledge-view.py` y `knowledge-local.py`; dependencia del bundle portable. |
 | `agent-kits/shared/outbox.py` | Staging/dead-letter reutilizado (CA-15), nunca reimplementado aquí. |
 | `agent-kits/shared/capabilities.py` | Registro de capacidades opcionales (`/setup`, `/doctor`, T-09). |
 

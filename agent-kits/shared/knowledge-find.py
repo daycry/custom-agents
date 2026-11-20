@@ -1580,7 +1580,7 @@ def _version_generada(value):
     raise _GeneratedInvalid()
 
 
-def _normalizar_respuesta_generada(respuesta, cfg, context=None):
+def _normalizar_respuesta_generada(respuesta, cfg):
     """Generic bounded output, with exact identities and no normative authority."""
     value = respuesta.get("respuesta_generada")
     expected = {"texto", "verificacion", "autoridad", "citas_por_afirmacion", "source_nodes", "generation_consistency"}
@@ -1621,7 +1621,6 @@ def _normalizar_respuesta_generada(respuesta, cfg, context=None):
                 "canonical_sha256", "projection_hash", "project", "scope", "category"}
     optional = {"projection_filename", "estado", "evidencia", "modo"}
     node_ids, documents, filenames, sources = set(), {}, {}, []
-    local = {entry["id"]: entry for entry in context["entries"]} if context else None
     for source in raw_sources:
         if not isinstance(source, dict) or not required.issubset(source) or set(source) - (required | optional):
             raise _GeneratedInvalid()
@@ -1665,15 +1664,6 @@ def _normalizar_respuesta_generada(respuesta, cfg, context=None):
                           "projection_hash", "project", "scope", "category"))
         if id_ in documents and documents[id_] != identity: raise _GeneratedInvalid()
         documents[id_] = identity
-        if local is not None:
-            entry = local.get(id_)
-            if (entry is None or entry["canonical_path"] != path or entry["version"] != version or
-                    entry["canonical_sha256"] != source["canonical_sha256"] or
-                    entry["category"] != source["category"] or
-                    source["project"] != id_.split(".", 1)[0] or
-                    (name is not None and name != id_ + ".md") or
-                    ("projection_filename" in source and source["projection_filename"] != id_ + ".md")):
-                raise _GeneratedInvalid()
         sources.append(clean)
     if set(documents) != set(hit_map): raise _GeneratedInvalid()
     result = {"texto": text, "verificacion": "no_verificada", "autoridad": "ninguna",
@@ -1684,23 +1674,6 @@ def _normalizar_respuesta_generada(respuesta, cfg, context=None):
     return result
 
 
-def _documental_prepare(root, bid, intent, cfg, filters, deadline):
-    canonical = {}
-    def accept(meta, requested):
-        entry = _entrada_approved(meta["ruta_rel"], meta)
-        if not filtrar_remotos([entry], tipo=requested.get("tipo", ""), area=requested.get("area", "")):
-            return False
-        if ((requested.get("claves") or requested.get("iniciativa")) and
-                puntuacion_enrutado(entry, requested.get("claves") or [], requested.get("iniciativa") or "") <= 0):
-            return False
-        canonical[entry["id"]] = entry
-        return True
-    module = _cargar_modulo(os.path.join(HERE, "knowledge-read-context.py"), "kf_read_context")
-    result = module.prepare(root, bid, intent, expected_config=cfg, filters=filters,
-                            accept_entry=accept, deadline=deadline)
-    return result, dict(canonical)
-
-
 def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo="",
                      directorios=None, config=None, claves=None, iniciativa=""):
     """Aplica el router a `intent`. Devuelve `(aciertos, info)`:
@@ -1708,8 +1681,6 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
       - `aciertos` es `None` si hay que caer al camino local de siempre (el router no resuelve la
         consulta local: la deja íntegra a `buscar()`/`buscar_enrutado()`).
     `info` = `{"intent", "origen": "local"|"backend", "backend": id|None, "motivo"[, "descartados"]}`."""
-    started = time.monotonic()
-    read_deadline = None
     info = {"intent": intent, "origen": "local", "backend": None, "motivo": ""}
     if not isinstance(intent, str) or not re.fullmatch(r"[a-z][a-z0-9_-]*", intent):
         info["motivo"] = "intent_no_explicito"
@@ -1737,42 +1708,8 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
         if _config_privada(cfg_backend):
             motivos.append(f"`{bid}`: configuracion_privada_no_admitida")
             continue
-        context, canonical = None, {}
-        if tipo_backend == "markdown-export":
-            read = cfg_backend.get("read")
-            if not isinstance(read, dict) or read.get("enabled") is not True:
-                motivos.append(f"`{bid}`: read_disabled")
-                continue
-            timeout = read.get("timeout_ms", 5000)
-            if type(timeout) is not int or not 0 < timeout <= 30000:
-                motivos.append(f"`{bid}`: read_config_invalida")
-                continue
-            if read_deadline is None:
-                read_deadline = started + timeout / 1000.0
-            try:
-                prepared, canonical = _documental_prepare(root, bid, intent, cfg_backend,
-                    {"tipo": tipo or "", "area": area or "", "iniciativa": iniciativa or "", "claves": list(claves or [])},
-                    read_deadline)
-                context = prepared.get("context")
-                if prepared.get("status") != "ok" or not isinstance(context, dict):
-                    motivos.append(f"`{bid}`: autorizacion_documental_no_disponible")
-                    continue
-                if (context.get("backend_id") != bid or context.get("backend_enabled") is not True or
-                        context.get("intent") != intent or not callable(context.get("refresh")) or
-                        context.get("root") != os.path.realpath(root or ".") or
-                        set(canonical) != {entry["id"] for entry in context["entries"]}):
-                    motivos.append(f"`{bid}`: contexto_documental_invalido")
-                    continue
-            except Exception:  # noqa: BLE001 — fail closed before importing the adapter
-                motivos.append(f"`{bid}`: autorizacion_documental_no_disponible")
-                continue
-            cfg = dict(cfg_backend)
-            cfg["_read_context"] = context
-            cfg["_backend_id"] = bid
-            cfg["_root"] = context["root"]
-        else:
-            cfg = dict(cfg_backend)
-            cfg["_root"] = os.path.abspath(root or ".")
+        cfg = dict(cfg_backend)
+        cfg["_root"] = os.path.abspath(root or ".")
         try:
             adaptador = binit.cargar_adaptador(tipo_backend, directorios=dirs)
         except Exception as e:  # noqa: BLE001 — incluye `AdaptadorNoDisponible`
@@ -1798,9 +1735,6 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
             razon = permiso.get("razon") if isinstance(permiso, dict) else permiso
             motivos.append(f"`{bid}` no autoriza la lectura: {_sanear_detalle(razon)}")
             continue
-        if context is not None and time.monotonic() >= read_deadline:
-            motivos.append(f"`{bid}`: read_deadline")
-            continue
         try:
             respuesta = consultar(cfg, {"intent": intent, "texto": texto, "limit": limit,
                                         "area": area, "tipo": tipo, "claves": list(claves or []),
@@ -1808,37 +1742,15 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
         except Exception as e:  # noqa: BLE001 — un adaptador que lanza no tumba la consulta
             motivos.append(f"`{bid}`: `consultar` falló: {type(e).__name__}: {e}")
             continue
-        if context is not None and time.monotonic() >= read_deadline:
-            motivos.append(f"`{bid}`: read_deadline")
-            continue
         generated = None
-        if context is not None and isinstance(respuesta, dict) and respuesta.get("aciertos"):
-            try:
-                brutos = respuesta["aciertos"]
-                if not isinstance(brutos, list) or len(brutos) > 2048: raise _GeneratedInvalid()
-                local_hits = []
-                for raw in brutos:
-                    if not isinstance(raw, dict) or raw.get("id") not in canonical: raise _GeneratedInvalid()
-                    local = canonical[raw["id"]]
-                    if (raw.get("ruta") != local["ruta"] or raw.get("estado") != "aprobado" or
-                            _version_generada(raw.get("version")) != local["version"] or
-                            ("category" in raw and raw["category"] != local["category"])):
-                        raise _GeneratedInvalid()
-                    score = raw.get("puntuacion", raw.get("score", 0))
-                    if type(score) not in (int, float) or not math.isfinite(score): raise _GeneratedInvalid()
-                    local_hits.append(dict(local, puntuacion=score))
-                respuesta = dict(respuesta, aciertos=local_hits)
-            except Exception:  # noqa: BLE001 — never promote remote metadata to local authority
-                motivos.append(f"`{bid}`: enlace_canonico_invalido")
-                continue
         if isinstance(respuesta, dict) and "respuesta_generada" in respuesta:
             try:
-                generated = _normalizar_respuesta_generada(respuesta, cfg, context)
+                generated = _normalizar_respuesta_generada(respuesta, cfg)
             except Exception:  # noqa: BLE001 — suppress whole response on any invalid envelope
                 motivos.append(f"`{bid}`: respuesta_generada_invalida")
                 continue
         aciertos, descartados, filtrados = _aciertos_del_backend(respuesta, bid, limit,
-            tipo=tipo, area=area, identidad_completa=generated is not None or context is not None)
+            tipo=tipo, area=area, identidad_completa=generated is not None)
         if generated is not None and (descartados or filtrados):
             motivos.append(f"`{bid}`: fuentes_generadas_fuera_de_filtro")
             continue
@@ -1870,9 +1782,6 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
         # id/estado/evidencia/ruta) y `filtrados` (lo que se llevo el post-filtro `--tipo`/`--area`
         # del usuario, que SI traia las cuatro claves) se fusionaban en un solo contador que el
         # mensaje atribuia entero al adaptador. Se publica el total (compatibilidad) y el desglose.
-        if context is not None and time.monotonic() >= read_deadline:
-            motivos.append(f"`{bid}`: read_deadline")
-            continue
         info.update({"origen": "backend", "backend": bid,
                      "descartados": descartados + filtrados, "sin_terna": descartados,
                      "filtrados": filtrados, "motivo": motivo_backend})

@@ -61,28 +61,7 @@
             "type": "object",
             "description": "Configuracion propia del adaptador; el plugin no la valida (la valida el adaptador que se enchufe)."
           }
-        },
-        "allOf": [
-          {
-            "if": {
-              "properties": {
-                "type": {
-                  "const": "markdown-export"
-                }
-              },
-              "required": [
-                "type"
-              ]
-            },
-            "then": {
-              "properties": {
-                "config": {
-                  "$ref": "#/definitions/documentalConfig"
-                }
-              }
-            }
-          }
-        ]
+        }
       }
     },
     "categories": {
@@ -125,21 +104,34 @@
             "minItems": 1,
             "maxItems": 2,
             "uniqueItems": true,
-            "items": {"enum": ["human", "agent"]},
+            "items": {
+              "enum": [
+                "human",
+                "agent"
+              ]
+            },
             "description": "Allowed declared content origins. Not authentication or filesystem access control. Approval is a separate decision."
           },
           "required_metadata": {
             "type": "array",
             "maxItems": 64,
             "uniqueItems": true,
-            "items": {"type": "string", "maxLength": 160, "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+            },
             "description": "Frontmatter keys required to have nonempty scalar or string-list values before approval."
           },
           "required_sections": {
             "type": "array",
             "maxItems": 64,
             "uniqueItems": true,
-            "items": {"type": "string", "minLength": 1, "maxLength": 160},
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
             "description": "Markdown ATX section titles without #, compared case-insensitively. Each needs content; headings inside code/comments do not count."
           },
           "routing": {
@@ -154,79 +146,6 @@
                   "const": "summary"
                 }
               ]
-            }
-          }
-        }
-      }
-    }
-  },
-  "definitions": {
-    "documentalConfig": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Publicación existente compatible. Lectura opcional: backend enabled true, read.enabled true e intent explícito autorizado. El contexto interno procede del canon local, nunca de JSON del consumidor. router.default se valida pero no enruta.",
-      "properties": {
-        "read": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "enabled": {
-              "type": "boolean",
-              "default": false
-            },
-            "timeout_ms": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 30000,
-              "default": 5000
-            },
-            "max_request_bytes": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 65536,
-              "default": 8192
-            },
-            "max_answer_chars": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 65536,
-              "default": 4096
-            },
-            "max_source_nodes": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 1024,
-              "default": 64
-            },
-            "max_response_bytes": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 2097152,
-              "default": 262144
-            },
-            "max_snapshot_bytes": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 2097152,
-              "default": 2097152
-            }
-          }
-        },
-        "router": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "default": {
-              "type": "string"
-            },
-            "intents": {
-              "type": "object",
-              "additionalProperties": false,
-              "patternProperties": {
-                "^[a-z][a-z0-9_-]*$": {
-                  "type": "boolean"
-                }
-              }
             }
           }
         }

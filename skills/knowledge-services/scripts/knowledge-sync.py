@@ -251,11 +251,11 @@ def _construir_parser():
                           "(función OPCIONAL `proponer_config` del contrato) y sale, sin aplicar "
                           "nada ni tocar la red (gap #36, CA-13)")
     ap.add_argument("--avisos-grupo", action="store_true", dest="avisos_grupo",
-                     help="avisa si el `group_id` del backend ya trae episodios de otro origen "
-                          "(funcion OPCIONAL `estado_grupo`; primero estado local, sin bloquear; "
-                          "exit 0)")
+                     help="avisa si el destino del backend (su «grupo») ya trae contenido de otro "
+                          "origen (funcion OPCIONAL `estado_grupo` del adaptador; primero estado "
+                          "local, sin bloquear; exit 0)")
     ap.add_argument("--consultar-servidor", action="store_true", dest="consultar_servidor",
-                     help="con --avisos-grupo: ademas pregunta al servidor (opt-in, solo loopback; "
+                     help="con --avisos-grupo: ademas pregunta al servicio del backend (opt-in; "
                           "si no responde, «no verificado»)")
     ap.add_argument("--backends-dir", action="append", default=[], dest="backends_dir",
                      help="carpeta extra donde buscar el adaptador `type` (repetible; CA-12)")

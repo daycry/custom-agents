@@ -1,5 +1,6 @@
 # .codex/config.toml — servidor MCP del proyecto. Las credenciales NO van aquí: declara el nombre
 # de la variable de entorno que las contiene, nunca su valor.
 [mcp_servers.{{servidor}}]
+# Fija la VERSIÓN del paquete (sin `latest` ni rango): un servidor MCP es código que ejecutas.
 command = "{{comando_mcp}}"
-args = ["-y", "<paquete-del-servidor>"]
+args = ["-y", "<paquete-del-servidor>@<versión>"]

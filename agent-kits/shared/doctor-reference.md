@@ -72,8 +72,11 @@ registra una capacidad por backend: `/doctor` no lleva ni una línea de código 
 (CA-14 de knowledge-services — ningún nombre de backend aparece en `agent-kits/shared/doctor.py`). Si el proyecto declara un
 backend en `taxonomy.json` con `enabled: true` y su adaptador carga (`backends/<type>.py` o `--backends-dir`), el bloque
 «Capacidades opcionales» pinta la comprobación de red **en vivo** que hace ese adaptador (`health()` + `verify()`), con el
-mismo tope de tiempo que cualquier otra capacidad y siempre contra el endpoint **local** declarado. Un `type` sin
-adaptador sale como no disponible y manda a la guía `skills/knowledge-services/references/add-backend.md`. `/doctor` no registra ningún servidor MCP ni toca
+mismo tope de tiempo que cualquier otra capacidad y siempre contra el endpoint **local** declarado. Hay una fila
+por backend declarado con `enabled: true` (la capacidad `knowledge-gate` los lista por el contrato genérico
+`health.backends`; sin código por backend). Un `type` **retirado** (los que el plugin incluyó hasta 3.x) o **sin
+adaptador** sale como ⚠️ «no disponible» —el retirado, con «retirado desde la versión 4.0.0»— y manda a la guía
+`skills/knowledge-services/references/add-backend.md`. `/doctor` no registra ningún servidor MCP ni toca
 configuración global: solo lee.
 
 `/doctor` recorta la ventana de lectura del adaptador a **200 entradas** (es un diagnóstico, no

@@ -203,11 +203,21 @@ def _knowledge_gate_enabled(root):
 
 
 def _knowledge_gate_health(root):
-    _ks, _config, _origen, ruta, errores = _estado_taxonomia(root)
+    _ks, config, _origen, ruta, errores = _estado_taxonomia(root)
     if errores:
         detalle = "; ".join(f"{e['campo']}: {e['mensaje']}" for e in errores)
         return {"estado": "error", "detalle": detalle, "fichero": ruta or TAXONOMY_CONFIG_PATH}
-    return {"estado": "ok", "fichero": ruta or "(plantilla por defecto)"}
+    salud = {"estado": "ok", "fichero": ruta or "(plantilla por defecto)"}
+    # Contrato generico `health.backends` (lo lee `/doctor`, `_ids_backend_declarados`): los ids de
+    # backend declarados con `enabled: true`. Sin codigo por backend (CA-14): un backend retirado, uno
+    # sin adaptador o uno propio salen en `/doctor` por la misma via, y es el cargador quien decide.
+    declarados = config.get("backends") if isinstance(config, dict) else None
+    if isinstance(declarados, dict):
+        activos = [bid for bid, e in declarados.items()
+                   if isinstance(bid, str) and isinstance(e, dict) and e.get("enabled") is True]
+        if activos:
+            salud["backends"] = activos
+    return salud
 
 
 def _knowledge_gate_doctor(root):

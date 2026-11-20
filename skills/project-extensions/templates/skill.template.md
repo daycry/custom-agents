@@ -1,6 +1,7 @@
 ---
 name: "{{nombre}}"
-description: "{{descripcion}}"
+description: >-
+  {{descripcion}}
 ---
 
 # {{nombre}} — <capacidad en una línea>

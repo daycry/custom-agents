@@ -1,5 +1,6 @@
 ---
-description: "{{descripcion}}"
+description: >-
+  {{descripcion}}
 ---
 
 # /{{nombre}} — <qué hace, en una línea>

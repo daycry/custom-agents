@@ -46,14 +46,33 @@ def revoke(knowledge_id, cfg):
     return {"revocado": False}
 ```
 
-Un ejemplo completo y probado, que publica en una carpeta con un diario de recuperación, es
+Un ejemplo completo y probado, que publica en una carpeta con un diario de recuperación y **contiene sus rutas**
+(`dir` dentro de `_root`; toda ruta de su manifiesto, dentro de `dir`), es
 [`scripts/fixtures/adaptador_prueba.py`](../scripts/fixtures/adaptador_prueba.py); léelo antes de escribir el tuyo.
 
 Si el servicio es un servidor MCP, el adaptador es su cliente: el plugin **no incluye un adaptador MCP genérico**.
-Reglas que no se negocian: habla solo con el endpoint que declare `taxonomy.json` (mejor local o privado), no pongas
-credenciales en `taxonomy.json` (guarda el *nombre* de la variable de entorno, no el valor), sanea lo que devuelva
-el servidor antes de escribirlo en un `detalle`, y trata una respuesta de «encolado» como no confirmada. Las
-funciones OPCIONALES `puede_leer`, `consultar`, `proponer_config` y `estado_grupo` están en el README del contrato.
+Reglas que no se negocian:
+
+- **Red acotada, como la constitución** (`docs/CONSTITUTION.md`): toda capacidad con red es opt-in y, por defecto,
+  queda acotada a hosts locales o privados. El plugin ya no trae helper de localidad: el adaptador valida el host de
+  su endpoint y rechaza el que no sea local o privado salvo opt-in explícito del proyecto en su propia config.
+- **Rutas contenidas** (CWE-22/73): ninguna lectura, escritura ni borrado fuera de la carpeta que el backend declara.
+  Resuelve `dir` contra `_root` y exige que quede dentro (`realpath` + `commonpath`); toda ruta que leas de un
+  manifiesto o de un `id` es un dato no confiable: si sale de esa carpeta, ignórala con aviso, nunca la sigas.
+- **Sin credenciales en `taxonomy.json`** (guarda el *nombre* de la variable de entorno, no el valor).
+- **Sanea** lo que devuelva el servidor antes de escribirlo en un `detalle`, y trata una respuesta de «encolado» como
+  no confirmada.
+
+Las funciones OPCIONALES `puede_leer`, `consultar`, `proponer_config` y `estado_grupo` están en el README del contrato.
+
+**Lectura (`consultar`, solo si implementas `puede_leer`).** El núcleo ya **no** acota la consulta al proyecto ni
+deriva un `group_id`: te entrega la `config` declarada tal cual (más `_root`). Acotar al proyecto lo que sirve la
+consulta es **responsabilidad del adaptador** (filtra por el prefijo de ID o la carpeta de tu backend); lo que
+devuelves pasa después por el filtro de aciertos del router y se degrada a lo local si falla.
+
+**Claves que `/doctor` añade a `cfg`.** `_root`, `health.timeout_ms` y `timeout_ms` recortados a unos segundos y
+`max_episodes` (≤ 200): la ventana de lectura de `verify()` en un diagnóstico rápido. Un adaptador que lea muchas
+entradas la respeta; si no la usa, la ignora.
 
 ## 2. Dónde vive y cómo se carga
 

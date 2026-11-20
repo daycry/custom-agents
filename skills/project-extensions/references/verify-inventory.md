@@ -32,6 +32,14 @@ nunca bloquees la entrega por esto.
 Filtros útiles: `--runtime claude-code|codex|opencode`, `--select <id>` para una sola pieza y
 `--user-root <runtime>=<ruta>` para una raíz personal que no sea la habitual.
 
+## Los hooks no están en el inventario
+
+`project-pieces.py` lista agentes, skills, comandos, servidores MCP y fuentes de tools, **no hooks**
+(`settings.json`, `hooks.json`, `.codex/`, `.opencode/`). Para un hook: comprueba que el JSON que lo declara
+parsea (`python3 -m json.tool <fichero>`), que la ruta del script existe y prueba el script a mano con un evento
+de ejemplo (`echo '{"tool_input":{"file_path":"x.py"}}' | python3 <script>`): exit 0, un `systemMessage` válido o
+silencio, y silencio también con una entrada que no sea el contrato.
+
 ## Lo que NO prueba
 
 Que la sesión del runtime la haya cargado, conectado o autorizado: eso lo decide el runtime. Tras

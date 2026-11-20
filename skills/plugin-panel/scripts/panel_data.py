@@ -929,10 +929,31 @@ def _ultima_publicacion(reader, project, backend):
     return mejor, (not listado['complete']) or len(todos) > MEM_OUTBOX_LEIDOS
 
 
+def _tipos_retirados():
+    """`RETIRADOS` del cargador de `knowledge-services` (los `type` que el plugin incluyo hasta 3.x), leido
+    como DATO con `ast`: el panel no ejecuta codigo del marco ni nombra ningun backend. Vacio si no esta."""
+    import ast
+    ruta = HERE.parent.parent / 'knowledge-services' / 'backends' / '__init__.py'
+    try:
+        arbol = ast.parse(ruta.read_text(encoding='utf-8'))
+        for nodo in arbol.body:
+            if isinstance(nodo, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'RETIRADOS' for t in nodo.targets):
+                valor = ast.literal_eval(nodo.value)
+                return frozenset(v for v in valor if isinstance(v, str))
+    except (OSError, SyntaxError, ValueError):
+        pass
+    return frozenset()
+
+
 def _fila_backend(project, reader, ident, cfg):
     tipo = cfg.get('type') if isinstance(cfg.get('type'), str) else ''
     conf = cfg.get('config') if isinstance(cfg.get('config'), dict) else {}
-    fila = {'backend': ident, 'tipo': tipo[:40], 'situacion': 'deshabilitado' if cfg.get('enabled') is False else 'configurado',
+    situacion = 'configurado'
+    if cfg.get('enabled') is False:
+        situacion = 'deshabilitado'
+    elif tipo in _tipos_retirados():
+        situacion = 'retirado'           # activo, pero el plugin ya no lleva su adaptador: no es «configurado»
+    fila = {'backend': ident, 'tipo': tipo[:40], 'situacion': situacion,
             'entradas': None, 'ultima': None, 'ultima_parcial': False, 'interrumpida': False, 'ui_url': None,
             'ui_url_no_local': False}
     fila['ultima'], fila['ultima_parcial'] = _ultima_publicacion(reader, project, ident)
