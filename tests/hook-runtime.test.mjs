@@ -28,7 +28,12 @@ for (const runtime of ['claude', 'codex', 'opencode']) {
       const output = JSON.parse(result.stdout).hookSpecificOutput;
       assert.equal(output.hookEventName, 'SessionStart');
       assert.match(output.additionalContext, /Plugin custom-agents/);
-      assert.ok(existsSync(join(dir, '.claude', '.skill-index.cache')));
+      if (runtime === 'claude') {
+        // plugin-audit-2 T-20: Claude Code gets only the index header (no listing, so no index cache).
+        assert.doesNotMatch(output.additionalContext, /Skills:/);
+      } else {
+        assert.ok(existsSync(join(dir, '.claude', '.skill-index.cache')));
+      }
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
   test(`${runtime}: combined ledger hook runs without Bash for standard MultiEdit and retains lint plus debounced Edit`, () => {
