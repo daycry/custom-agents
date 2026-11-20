@@ -1555,9 +1555,6 @@ def _execution_profile(args):
                 "warnings": ["execution profile unavailable; ordinary fallback only without a declared profile"]}
 
 
-UMBRAL_LEDGER_FALLBACK = 60_000   # si ledger-lint.py no carga; el valor vigente es su UMBRAL_TAMANO_BYTES
-
-
 def _vista_fase(args):
     """Lo que recibe la Lente A (T-14): fase revisada de un ledger grande; ledger entero si es pequeño."""
     tasks_p = os.path.join(args.carpeta, "tasks.md")
@@ -1573,10 +1570,12 @@ def _vista_fase(args):
         print(f"❌ no hay sección `## Fase {n}` en {tasks_p}", file=sys.stderr)
         return 1
     mod = _ledger_lint_mod()
-    umbral = getattr(mod, "UMBRAL_TAMANO_BYTES", UMBRAL_LEDGER_FALLBACK)
+    # Sin ledger-lint.py (instalación parcial) no hay umbral que copiar: el ledger entero, como siempre.
+    umbral = getattr(mod, "UMBRAL_TAMANO_BYTES", None)
     tam = len(texto.encode("utf-8"))
-    if tam <= umbral:
-        sys.stdout.write(f"<!-- Lente A · Fase {n}: ledger entero ({tam} bytes ≤ {umbral}) -->\n" + texto)
+    if umbral is None or tam <= umbral:
+        motivo = f"{tam} bytes ≤ {umbral}" if umbral is not None else "sin ledger-lint.py, sin umbral"
+        sys.stdout.write(f"<!-- Lente A · Fase {n}: ledger entero ({motivo}) -->\n" + texto)
         return 0
     fin = next((i for i in range(ini + 1, len(lineas)) if re.match(r"^##\s", lineas[i])), len(lineas))
     primera = next((i for i, l in enumerate(lineas) if re.match(r"^##\s", l)), ini)
