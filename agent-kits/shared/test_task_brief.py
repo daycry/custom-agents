@@ -1978,3 +1978,14 @@ def test_fase_lente_a_fase_inexistente_falla_con_mensaje(tmp_path):
     (d / "tasks.md").write_text(_ledger_por_fases(), encoding="utf-8")
     rc, _ = _run([str(d), "--fase", "9", "--sin-lint"])
     assert rc == 1
+
+
+def test_fase_lente_a_sin_ledger_lint_entrega_el_ledger_entero(tmp_path, monkeypatch):
+    # T-14 fix: sin ledger-lint.py (instalación parcial) no hay umbral; nada de una copia del valor (ADR-016)
+    d = tmp_path / "2026-01-05-grande"
+    d.mkdir()
+    texto = _ledger_por_fases()
+    (d / "tasks.md").write_text(texto, encoding="utf-8")
+    monkeypatch.setattr(tb, "_ledger_lint_mod", lambda: None)
+    rc, out = _run([str(d), "--fase", "2", "--sin-lint"])
+    assert rc == 0 and texto in out and "sin ledger-lint.py" in out
