@@ -770,3 +770,44 @@ def test_fix1_cabecera_orquesta_ignora_descripciones_de_roles():
     assert not MOD.despacha_agentes("Mientras `/pm-cycle` y `planner` estiman, esto mide.\n")
     assert not MOD.despacha_agentes("`lite` despacha cada tarea en secuencia, sin paralelismo, al `implementer` nativo.\n")
     assert not MOD.despacha_agentes("Sin roles: solo lee el roadmap.\n")
+
+
+@pytest.mark.parametrize("cuerpo,esperado", [
+    ("Esta vía no usa subagentes.", False),
+    ("Sin subagentes en paralelo: todo en el hilo principal.", False),
+    ("Si el gate pasa a verde, informa a `qa` del resultado.", False),
+    ("El comando se llama igual que el agente `planner`.", False),
+    ("```\nsubagent_type: reviewer\n```", False),
+    ("¿Despacho al `reviewer` ahora?", True),
+    ("Compara con `subagentes: true` en dev.json.", False),
+    ("Cuando pasa la puerta, el ledger de `implementer` queda marcado.", False),
+    ("Crea la fila del `planner` en la tabla.", False),
+    ("Usa el formato de los agentes `planner` y `qa`.", False),
+    ("Pasa a la fase de verificación con `qa`.", False),
+    ("Continúa delegando al `planner`.", True),
+    ("Continúa invocándolo.", True),
+    ("No invoca a `planner`, pero llama al `reviewer`.", True),
+    ("No se despacha al `reviewer`.", False),
+    ("Sin embargo, invoca a `planner`.", True),
+    ("~~~md\n```python\nDespacha a `reviewer`.\n~~~", False),
+    ("¿Cada tarea implementada por un subagente de contexto fresco (más calidad por tarea, más tokens)?", False),
+])
+def test_fix2_gap5_distingue_despachos_de_descripciones_y_negaciones(cuerpo, esperado):
+    assert MOD.despacha_agentes(cuerpo) is esperado
+
+
+def test_fix2_gap5_los_15_comandos_conservan_el_conjunto_despachan():
+    _, nombres, por_runtime = _comandos_exportados()
+    assert len(nombres) == 15
+    for textos in por_runtime.values():
+        assert {n for n, t in textos.items() if "ORQUESTA agentes" in t} == DESPACHAN
+
+
+def test_fix2_gap6_check_sanea_el_nombre_obsoleto_simulado(tmp_path, capsys, monkeypatch):
+    nombre = "interop/opencode/commands/uno\nDOS\r\x1b[31m\x00\x07\x85\x9b\u202e\u2066\u2028.md"
+    monkeypatch.setattr(MOD, "obsoletos", lambda _root, _plan: [nombre])
+    assert MOD.comprobar(tmp_path, {}) == 1
+    salida = capsys.readouterr().out
+    obsoleto = salida.splitlines()[0]
+    assert obsoleto.startswith("OBSOLETO") and "uno" in obsoleto and "DOS" in obsoleto and obsoleto.endswith(".md")
+    assert not any(control in salida for control in "\r\x1b\x00\x07\x85\x9b\u202e\u2066\u2028")
