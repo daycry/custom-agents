@@ -536,6 +536,9 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - [x] Medida antes/después registrada (estimada, no consumo facturado).
 - [x] Medido: agente + brief con `tdd: true` baja ≥ 8 KB (la skill ≈ 10 KB deja de cargarse; el brief gana ≤ 2 KB).
 
+**fix2 (intento 2 de la Fase 3, gaps 9; 2026-11-23; Codex gpt-6.2-sol)**
+- Changelog bilingüe en Changed desde el campo Changelog. `test_fix2_gap9_changelogs_bilingues_en_changed_y_trazados_por_tarea` verde en `04d719b` (RED `41cf29c`).
+
 ### T-13 — Tabla de lentes fuera de adversarial-review/SKILL.md (2.5)
 
 - **Descripción**: El revisor abre `skills/adversarial-review/SKILL.md` (18,6 KB) para leer una tabla de ≈4 KB. La tabla pasa a `references/` o al prompt de la lente y el SKILL conserva el mapa. Ahorro estimado hasta ≈21 K tokens por ciclo.
@@ -565,6 +568,10 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - [x] El reviewer lee solo la referencia de la lente.
 - [x] La skill conserva todos los criterios y severidades (`--diet-check`: 0 párrafos perdidos).
 - [x] Medido: lo que lee el revisor baja de 18,6 KB a ≤ 5 KB (≥ 13 KB menos por lectura).
+
+**fix2 (intento 2 de la Fase 3, gaps 2 y 9; 2026-11-23; Codex gpt-6.2-sol)**
+- El contrato de Lente A se comprueba en el prompt literal y el revisor (`test_intento1_gap1_lente_a_y_reviewer_piden_la_vista_de_fase`); el mutante «y `tasks.md`» cae y `cmp` confirma la restauración.
+- Changelog bilingüe por tarea (`test_fix2_gap9_changelogs_bilingues_en_changed_y_trazados_por_tarea`). RED `41cf29c` · GREEN `04d719b`.
 
 ### T-14 — Freno de tokens del ledger (2.1)
 
@@ -610,6 +617,15 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - [x] La Lente A recibe la fase revisada, no el ledger entero, sin perder los criterios de esa fase.
 - [x] Un ledger pequeño se lee igual que hoy.
 - [x] Medido: el aviso del ledger salta a ≤ 60.000 bytes (hoy 183.500) y la entrada de la Lente A para 100 KB baja ≥ 50 %.
+
+**fix2 (intento 2 de la Fase 3, gaps 1–4, 7, 9 y 10; 2026-11-23; Codex gpt-6.2-sol)**
+- RED: test_fix2_gap1_cercados_y_reparto_por_fase_como_ledger_lint falló con AssertionError: tareas omitidas/sobrantes · 2026-11-23
+- RED: test_fix2_gap3_marcas_del_ledger_quedan_dentro_de_la_cita falló con AssertionError: FIN repetido · 2026-11-23
+- RED: test_fix2_gap4_neutraliza_encabezados_solo_fuera_de_cercados falló con AssertionError: comentario escapado · 2026-11-23
+- RED: test_fix2_gap10_vista_incluye_intentos_en_orden_con_rangos_y_ahorra_50_por_ciento falló con ValueError: revisión ausente · 2026-11-23
+- RED `41cf29c` · GREEN `04d719b`. La fase oculta por un cercado sin cerrar conserva exit 1 como `ledger-lint.py:593` (`test_fix2_gap1_cercado_sin_cerrar_antes_de_la_fase`).
+- Verificación: rangos y dos intentos en la fase real; ahorro ≥50 % en el ledger sintético; ledger pequeño íntegro. Prosa, modo sin plan y Changed verificados.
+- Puertas: pytest 490/2 omitidas; Node Linux con init 256/7 omitidas; interop 88; lint/evals 0 errores; diet 0 pérdidas; vía rápida 6.023; evaluator 15.465 bytes LF.
 
 ### T-15 — Borrar «Alcance y activación» duplicado (2.9)
 
@@ -750,6 +766,10 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - [x] `dev.json` `sesion.indice` sigue mandando y la medida del bloque (≈4,6 KB → menos) queda anotada.
 - [x] Medido: en `claude` el bloque de `SessionStart` baja ≈ 3,4 KB (844 tokens); en `codex` y `opencode` no cambia (`-k "runtime_codex or runtime_opencode"`).
 
+**fix2 (intento 2 de la Fase 3, gaps 2 y 9; 2026-11-23; Codex gpt-6.2-sol)**
+- Intento 1 gap 9: `test_intento1_gap9_flujos_documentan_el_indice_por_runtime` (ES/EN). Gap 8 adicional: `test_intento1_gap8_m_c_incluye_evals_reales_de_activacion` cubre el texto de M-C, pendiente de ejecución manual.
+- Changelog bilingüe por tarea (`test_fix2_gap9_changelogs_bilingues_en_changed_y_trazados_por_tarea`). RED `41cf29c` · GREEN `04d719b`.
+
 ### T-21 — Cabecera «ORQUESTA agentes» solo donde despacha (2.14)
 
 - **Descripción**: `export-interop.py` antepone «Este comando ORQUESTA agentes…» (línea 107) a los 16 comandos exportados aunque 12 no despachan (≈600 caracteres por invocación en Codex/OpenCode). Se emite solo si el cuerpo nombra un rol.
@@ -784,6 +804,13 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - [x] La cabecera aparece solo en comandos cuyo cuerpo nombra un agente despachable.
 - [x] Los agentes y comandos exportados conservan su conducta (misma lista de roles).
 - [x] Medido: 12 de los 16 comandos exportados pierden ≈ 600 caracteres (≈ 7,2 KB).
+
+**fix2 (intento 2 de la Fase 3, gaps 5, 6, 8 y 9; 2026-11-23; Codex gpt-6.2-sol)**
+- RED: test_fix2_gap5_distingue_despachos_de_descripciones_y_negaciones falló con AssertionError: negaciones y despachos clasificados al revés · 2026-11-23
+- RED: test_fix2_gap6_check_sanea_el_nombre_obsoleto_simulado falló con AssertionError: nombre partido por un salto · 2026-11-23
+- RED `41cf29c` · GREEN `04d719b`. `test_fix2_gap5_los_15_comandos_conservan_el_conjunto_despachan`: cinco por runtime. Exportación y `--check`: 88.
+- Gap 8: TDD n/a: registro del ledger. Restaurada la evidencia de GREEN `e8cceba`; las cifras de `f627de3` constan en fix1.
+- Changed bilingüe: `test_fix2_gap9_changelogs_bilingues_en_changed_y_trazados_por_tarea`.
 
 ### T-22 — Reglas de este repo fuera de los agentes genéricos y qa condicional (2.8, 2.13)
 
@@ -1279,13 +1306,13 @@ Lentes A+B+C (Claude Opus 5.5, esfuerzo alto) sobre `c40fd0f..e072004` (fix1 de 
 
 | # | Grado | Gap | Tarea | Corrección | Evidencia |
 |---|---|---|---|---|---|
-| 1 | Important | `_lineas_con_fence` abre y cierra el cercado con cualquier ```/~~~ sin mirar carácter ni longitud (CommonMark), mientras `ledger-lint` sí lo hace (`sin_vallas`). Un cercado de 4 acentos con otro dentro sigue ocultando tareas y criterios con exit 0; `~~~` con ```` ```python ```` dentro deja el cercado abierto hasta el final; un cercado sin cerrar antes de `## Fase N` da exit 1 | T-14 | pendiente (fix2) | `agent-kits/shared/task-brief.py:267-278` (usa `:1573-1575`); reproducido (`scratchpad/probe_fase.py`) |
-| 2 | Important | Los gaps 1 y 9 del intento 1 constan `corregido` sin un test dedicado que los nombre: si el prompt de la Lente A vuelve a pedir `tasks.md`, nada falla | T-13, T-14, T-20 | pendiente (fix2) | `docs/CONSTITUTION.md:13`; `skills/adversarial-review/references/lens-prompts.md:17`; `agents/reviewer.md:72-75` |
-| 3 | Minor | Las marcas INICIO/FIN de la vista de fase se pueden falsificar desde el ledger (sin prefijo `> ` ni escape del literal de cierre); también cuando la vista es el ledger entero (CWE-1427) | T-14 | pendiente (fix2) | `task-brief.py:1596-1598`, `:352`; reproducido (`scratchpad/lc2`) |
-| 4 | Minor | `_neutraliza_encabezados` escapa también dentro de bloques de código (`# comentario` → `\# comentario`) | T-14 | pendiente (fix2) | `task-brief.py:352-360` |
-| 5 | Minor | `despacha_agentes`: falsos positivos con negaciones y descripciones («no usa subagentes», «Sin subagentes en paralelo», «el formato de los agentes `planner` y `qa`», un bloque con `subagent_type:`, «pasa a la fase … `qa`»); falsos negativos con preguntas y gerundios («¿Despacho al `reviewer`?», «delegando al `planner`») | T-21 | pendiente (fix2) | `scripts/export-interop.py:125-131`, `:341-362`; `scratchpad/probe_desp.py` |
-| 6 | Minor | `--check` imprime sin sanear el nombre de un generado obsoleto (`OBSOLETO %s`; CWE-150/117) | T-21 | pendiente (fix2) | `scripts/export-interop.py:836` → `:959` |
-| 7 | Minor | El «modo sin plan» de la Lente A manda sustituir un texto que el fix1 eliminó | T-14 | pendiente (fix2) | `lens-prompts.md:18` |
-| 8 | Minor | La evidencia original de T-21 (11 de 15, −7.656/−7.238, GREEN `e8cceba`) se reescribió en su sitio en vez de añadirse al bloque fix1 | T-21 | pendiente (fix2) | `tasks.md` (T-21, Evidencia) |
-| 9 | Minor | Entradas de CHANGELOG como «Fixed» de funciones nunca publicadas, declaradas solo en T-21; `changelog-sync` saltará la iniciativa al cerrarla porque `plugin-audit-2` ya aparece en `[Unreleased]` | T-14, T-21 | pendiente (fix2) | `CHANGELOG.md:14-17`, `CHANGELOG.es.md:14-17`; `skills/changelog-sync/SKILL.md:103` |
-| 10 | Minor | La vista `--fase` excluye las secciones `## Revisión … intento N` de esa fase y no lleva números de línea: la Lente A abre el ledger para ver la tabla anterior o citar | T-14 | pendiente (fix2) | `task-brief.py:1558-1598` |
+| 1 | Important | `_lineas_con_fence` abre y cierra el cercado con cualquier ```/~~~ sin mirar carácter ni longitud (CommonMark), mientras `ledger-lint` sí lo hace (`sin_vallas`). Un cercado de 4 acentos con otro dentro sigue ocultando tareas y criterios con exit 0; `~~~` con ```` ```python ```` dentro deja el cercado abierto hasta el final; un cercado sin cerrar antes de `## Fase N` da exit 1 | T-14 | corregido (fix2, 04d719b; test `test_fix2_gap1_cercados_y_reparto_por_fase_como_ledger_lint`) | `agent-kits/shared/task-brief.py:267-278` (usa `:1573-1575`); reproducido (`scratchpad/probe_fase.py`) |
+| 2 | Important | Los gaps 1 y 9 del intento 1 constan `corregido` sin un test dedicado que los nombre: si el prompt de la Lente A vuelve a pedir `tasks.md`, nada falla | T-13, T-14, T-20 | corregido (fix2, 04d719b; test `test_intento1_gap1_lente_a_y_reviewer_piden_la_vista_de_fase`, `test_intento1_gap9_flujos_documentan_el_indice_por_runtime`, `test_intento1_gap9_contratos_documentan_la_vista_de_fase`) | `docs/CONSTITUTION.md:13`; `skills/adversarial-review/references/lens-prompts.md:17`; `agents/reviewer.md:72-75` |
+| 3 | Minor | Las marcas INICIO/FIN de la vista de fase se pueden falsificar desde el ledger (sin prefijo `> ` ni escape del literal de cierre); también cuando la vista es el ledger entero (CWE-1427) | T-14 | corregido (fix2, 04d719b; test `test_fix2_gap3_marcas_del_ledger_quedan_dentro_de_la_cita`) | `task-brief.py:1596-1598`, `:352`; reproducido (`scratchpad/lc2`) |
+| 4 | Minor | `_neutraliza_encabezados` escapa también dentro de bloques de código (`# comentario` → `\# comentario`) | T-14 | corregido (fix2, 04d719b; test `test_fix2_gap4_neutraliza_encabezados_solo_fuera_de_cercados`) | `task-brief.py:352-360` |
+| 5 | Minor | `despacha_agentes`: falsos positivos con negaciones y descripciones («no usa subagentes», «Sin subagentes en paralelo», «el formato de los agentes `planner` y `qa`», un bloque con `subagent_type:`, «pasa a la fase … `qa`»); falsos negativos con preguntas y gerundios («¿Despacho al `reviewer`?», «delegando al `planner`») | T-21 | corregido (fix2, 04d719b; test `test_fix2_gap5_distingue_despachos_de_descripciones_y_negaciones`) | `scripts/export-interop.py:125-131`, `:341-362`; `scratchpad/probe_desp.py` |
+| 6 | Minor | `--check` imprime sin sanear el nombre de un generado obsoleto (`OBSOLETO %s`; CWE-150/117) | T-21 | corregido (fix2, 04d719b; test `test_fix2_gap6_check_sanea_el_nombre_obsoleto_simulado`) | `scripts/export-interop.py:836` → `:959` |
+| 7 | Minor | El «modo sin plan» de la Lente A manda sustituir un texto que el fix1 eliminó | T-14 | corregido (fix2, 04d719b; test `test_fix2_gap7_modo_sin_plan_sustituye_el_texto_vigente_de_lente_a`) | `lens-prompts.md:18` |
+| 8 | Minor | La evidencia original de T-21 (11 de 15, −7.656/−7.238, GREEN `e8cceba`) se reescribió en su sitio en vez de añadirse al bloque fix1 | T-21 | corregido (fix2, 04d719b; TDD n/a: registro del ledger) | `tasks.md` (T-21, Evidencia) |
+| 9 | Minor | Entradas de CHANGELOG como «Fixed» de funciones nunca publicadas, declaradas solo en T-21; `changelog-sync` saltará la iniciativa al cerrarla porque `plugin-audit-2` ya aparece en `[Unreleased]` | T-14, T-21 | corregido (fix2, 04d719b; test `test_fix2_gap9_changelogs_bilingues_en_changed_y_trazados_por_tarea`) | `CHANGELOG.md:14-17`, `CHANGELOG.es.md:14-17`; `skills/changelog-sync/SKILL.md:103` |
+| 10 | Minor | La vista `--fase` excluye las secciones `## Revisión … intento N` de esa fase y no lleva números de línea: la Lente A abre el ledger para ver la tabla anterior o citar | T-14 | corregido (fix2, 04d719b; test `test_fix2_gap10_vista_incluye_intentos_en_orden_con_rangos_y_ahorra_50_por_ciento`) | `task-brief.py:1558-1598` |
