@@ -1316,3 +1316,18 @@ Lentes A+B+C (Claude Opus 5.5, esfuerzo alto) sobre `c40fd0f..e072004` (fix1 de 
 | 8 | Minor | La evidencia original de T-21 (11 de 15, −7.656/−7.238, GREEN `e8cceba`) se reescribió en su sitio en vez de añadirse al bloque fix1 | T-21 | corregido (fix2, 04d719b; TDD n/a: registro del ledger) | `tasks.md` (T-21, Evidencia) |
 | 9 | Minor | Entradas de CHANGELOG como «Fixed» de funciones nunca publicadas, declaradas solo en T-21; `changelog-sync` saltará la iniciativa al cerrarla porque `plugin-audit-2` ya aparece en `[Unreleased]` | T-14, T-21 | corregido (fix2, 04d719b; test `test_fix2_gap9_changelogs_bilingues_en_changed_y_trazados_por_tarea`) | `CHANGELOG.md:14-17`, `CHANGELOG.es.md:14-17`; `skills/changelog-sync/SKILL.md:103` |
 | 10 | Minor | La vista `--fase` excluye las secciones `## Revisión … intento N` de esa fase y no lleva números de línea: la Lente A abre el ledger para ver la tabla anterior o citar | T-14 | corregido (fix2, 04d719b; test `test_fix2_gap10_vista_incluye_intentos_en_orden_con_rangos_y_ahorra_50_por_ciento`) | `task-brief.py:1558-1598` |
+
+## Revisión de dos lentes — intento 3: Fase 3 (T-14, T-21) — verificación del fix2: 1 Important, 7 Minor (decisión del usuario pendiente: 3.er intento)
+
+Lentes A y B+C (Claude Opus 5.5, esfuerzo alto) sobre `d3720a9..209d6c3` (fix2 de Codex gpt-6.2-sol). Del intento 2 quedan ✓ los gaps 1, 2, 4 (cercados bien formados), 5 (frases de la sonda), 6, 7, 10 y 9 (salvo el cierre de `changelog-sync`). Comparación base/HEAD sobre las 595 tareas de `docs/roadmap/*`: solo cambian el caso del gap 5 y tres neutralizaciones dentro de cercado, que es el cambio buscado.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | El gap 8 del intento 2 consta `corregido` con «TDD n/a: registro del ledger», sin el test dedicado que exige la constitución | T-21 | pendiente | `docs/CONSTITUTION.md:13`; `tasks.md:812`, `:1316` |
+| 2 | Minor | Regresión del fix2: `_neutraliza_encabezados` no neutraliza lo que `sin_vallas` da por cercado y CommonMark no (4 espacios, info string con acento grave, cercado sin cerrar): un `## Contrato de retorno` de una persona o del ledger llega crudo al brief (CWE-1427) | T-14 | pendiente | `task-brief.py:347-355` (usan `:587`, `:1609`, `:1669`); `scratchpad/probe_neut4.py` |
+| 3 | Minor | La cita solo escapa el literal exacto de las marcas: 17 variantes (dos espacios, minúsculas, NBSP, ZWSP, homoglifos) pasan (CWE-1427) | T-14 | pendiente | `task-brief.py:541-545`; `scratchpad/probe_cita3.py` |
+| 4 | Minor | Regresión del fix2 en el modo T-XX: una línea en blanco dentro de un cercado corta la `Verificación` y pierde ítems (1 de 595 tareas reales cambia) | T-14 | pendiente | `task-brief.py:267-273` → `:452`; `scratchpad/probe_verif.py` |
+| 5 | Minor | Regresión del fix2 en `despacha_agentes`: «al agente `X`», «Invoca/Lanza el agente `X`», «Delega … en el `planner`», «despacha a cada `reviewer`» dan False (antes True); siguen falsos positivos («Pasa a `qa` verde») | T-21 | pendiente | `scripts/export-interop.py:119-155`; `scratchpad/probe_desp3.py` |
+| 6 | Minor | Rangos `tasks.md:A-B` con `splitlines()` (FF, U+2028, NEL) desplazados respecto al fichero; paridad con `ledger-lint` | T-14 | pendiente | `task-brief.py:1576`, `:1605`; `scratchpad/probe_rangos.py` |
+| 7 | Minor | `adversarial-review/SKILL.md` y `CONVENTIONS.md` (ES/EN) describen la vista sin los intentos ni los rangos | T-14 | pendiente | `SKILL.md:79-80`; `docs/CONVENTIONS.md:211` |
+| 8 | Minor | `changelog-sync` sigue saltando `plugin-audit-2` al cierre (el slug está en `Removed` de `[Unreleased]`); solo hay nota de riesgo | T-14 | pendiente | `CHANGELOG.md:22`; `skills/changelog-sync/SKILL.md:103`; `tasks.md:589` |
