@@ -1198,3 +1198,20 @@ Lente C (+B sobre los dos Important) dirigida sobre `df2c60e..bef4844`, con el c
 | 1 | Minor | El aviso de línea sin clave no salta si la continuación sin sangrar empieza por `Palabra:` o `- ` (`_FRONTMATTER_LINE` la toma por clave o lista): verde truncado | T-11 | deuda aceptada por el usuario (2026-11-20, criterio de cierre): brecha residual del detector; la defensa principal es la regla de una sola línea de la skill | agent-kits/shared/project-pieces.py:190, :235 |
 
 **Fase 2 cerrada (2026-11-20)** según el criterio del usuario: 0 Critical y 0 Important tras los intentos 1 (fix1), 2 (fix2) y 3; deuda aceptada: el gap 1 de este intento. Pendiente del usuario: M-B (T-11).
+
+## Revisión de dos lentes — intento 1: Fase 3 (T-12, T-13, T-14, T-20, T-21) — tanda A: 5 Important, 5 Minor (corrección: fix1)
+
+Lentes A+B+C+D (Claude Opus 5.5, esfuerzo alto) sobre `ab7eeb2..4893637`; C por `hooks/session-context.*` y el flujo de `phase3-subagents.md:20`, D por `scripts/export-interop.py` (D: sin hallazgos). Criterios de A: todos ✓ salvo T-14 «la Lente A recibe la fase» (✗ parcial) y T-21 en lo instalado. T-15..T-19 y T-22 siguen en borrador (tanda B).
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | El prompt literal de la Lente A sigue mandando revisar «contra `improvement-plan.md` y `tasks.md`» y `reviewer.md` lista `tasks.md`: el revisor abre el ledger entero y el ahorro no se da | T-14 | pendiente (fix1) | `skills/adversarial-review/references/lens-prompts.md:17`; `agents/reviewer.md:72` |
+| 2 | Important | Huérfano `interop/opencode/commands/confluence-pull.md` (fuente retirada en T-03) con cabecera «ORQUESTA» y mapa de roles; `export-interop.py --check` no detecta generados sin fuente y el instalador copia la carpeta entera | T-21 (origen T-03) | pendiente (fix1) | `interop/opencode/commands/confluence-pull.md:8-9`; `install/providers.mjs:531` |
+| 3 | Important | `tests/test_hooks_shell.py` sigue exigiendo `Comandos:`/`Agentes:`/caché del índice a `session-context.sh` en runtime `claude` (por defecto): se salta en Windows y falla en la CI de Linux | T-20 | pendiente (fix1) | `hooks/session-context.sh:195-196` frente a `tests/test_hooks_shell.py:270,274,278,296,930,944,1058`; reproducido |
+| 4 | Important | `despacha_agentes` solo ve un rol entre acentos graves: `/spec-drift` («subagente de contexto fresco», lotes de 3) pierde la traducción a `spawn_agent`/`subagent`; tampoco ve «los agentes `x`», «Llama al `planner`», «Pasa … a `implementer`», «Despacha … al `reviewer`», «Handoff a `qa`» | T-21 | pendiente (fix1) | `scripts/export-interop.py:121-127`; `commands/spec-drift.md:19` → `False` |
+| 5 | Important | `--fase` corta la sección en cualquier `## ` aunque esté dentro de un bloque cercado (y toma un `## Fase N` citado como inicio): tareas y criterios omitidos con exit 0 | T-14 | pendiente (fix1) | `agent-kits/shared/task-brief.py:1566-1567,1580-1581`; reproducido (64 KB y 70 KB CRLF) |
+| 6 | Minor | La vista de fase entra en el prompt de la Lente A sin delimitadores ni `_neutraliza_encabezados` (CWE-1427) | T-14 | pendiente (fix1) | `task-brief.py:1578-1586` |
+| 7 | Minor | Aviso con unidades mezcladas (`//1024` frente a `//1000`: «58 KB (aviso a 60 KB)»); umbral en texto CRLF→LF frente a `getsize`; `--fase` ignora `--umbral-bytes`; `--umbral-bytes` ≤ 0 sin validar | T-14 | pendiente (fix1) | `ledger-lint.py:912-919`; `task-brief.py:1572-1575` |
+| 8 | Minor | k11: T-20 cerrada sin los evals reales de activación (`evals/run.py`) ni acción del usuario | T-20 | corregido por el orquestador (`4e3d58a`): M-C del plan los incluye | `tasks.md` (T-20, k11) |
+| 9 | Minor | `FLOWS.md` (ES/EN) sigue diciendo índice completo en todos los runtimes; `--fase` falta en `agent-kits/shared/README.md` y en E8 de `CONTRACTS.md` | T-20, T-14 | pendiente (fix1) | `docs/FLOWS.md:547`; `agent-kits/shared/README.md:59`; `docs/agents/CONTRACTS.md:79` |
+| 10 | Minor | `skill-index.py --solo-cabecera --json` imprime texto plano | T-20 | pendiente (fix1) | `agent-kits/shared/skill-index.py:443-445` |
