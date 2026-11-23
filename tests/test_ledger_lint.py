@@ -575,3 +575,21 @@ def test_umbral_tokens_por_defecto_a_60_kb_como_mucho_y_configurable():
 def test_umbral_tokens_un_ledger_pequeno_no_avisa():
     code, out = _run_args(_ledger_de(20))
     assert code == 0 and "ledger-archive.py" not in out, out
+
+
+def test_fix1_umbral_tokens_mide_en_bytes_sin_redondear():
+    with tempfile.TemporaryDirectory() as tmp:
+        p = os.path.join(tmp, "tasks.md")
+        raw = _ledger_de(59).encode("utf-8")
+        with open(p, "wb") as f:
+            f.write(raw)
+        r = subprocess.run([sys.executable, SCRIPT, p, "--umbral-bytes", "60000"],
+                           capture_output=True, text=True, encoding="utf-8")
+    assert len(raw) > 60_000 and r.returncode == 0
+    assert f"ledger de {len(raw)} bytes (aviso a 60000 bytes" in r.stdout
+
+
+def test_fix1_umbral_tokens_rechaza_valores_no_positivos():
+    for valor in ("0", "-1"):
+        code, out = _run_args(doc(), "--umbral-bytes", valor)
+        assert code == 2 and not out

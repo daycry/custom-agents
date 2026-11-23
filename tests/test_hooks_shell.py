@@ -113,11 +113,11 @@ def env_de(proj, tmp_path, sin_python=False, plugin_root=ROOT):
     return result
 
 
-def hook(nombre, payload, env, cwd=None):
+def hook(nombre, payload, env, cwd=None, *, args=()):
     """Lanza hooks/<nombre> con el payload por stdin. Devuelve (rc, stdout, stderr)."""
     script = STATUSLINE if nombre == "statusline" else os.path.join(HOOKS, nombre)
     data = payload if isinstance(payload, str) else json.dumps(payload, ensure_ascii=False)
-    r = subprocess.run([BASH, script], input=data, capture_output=True, text=True, encoding="utf-8", errors="replace", env=env,
+    r = subprocess.run([BASH, script, *args], input=data, capture_output=True, text=True, encoding="utf-8", errors="replace", env=env,
                        cwd=cwd or env["CLAUDE_PROJECT_DIR"], timeout=60)
     return r.returncode, r.stdout, r.stderr
 
@@ -259,32 +259,43 @@ def test_session_context_con_activa_additional_context_anidado(tmp_path):
     assert hso["hookEventName"] == "SessionStart" and "demo" in hso["additionalContext"]
 
 
-def test_session_context_startup_indice_mas_roadmap_bajo_el_tope(tmp_path):
-    """T-02 activation-reliability: en `startup` el contexto lleva el ÍNDICE de piezas (3 bloques) y,
-    detrás, el bloque del roadmap; total < 10.000 caracteres; se escribe la caché del índice."""
+_LISTADO_NATIVO = "listado nativo"
+_GRUPOS_INDICE = ("Comandos:", "Skills:", "Agentes:")
+_ARGS_INDICE = [(), ("--runtime=codex",), ("--runtime=opencode",)]
+
+
+@pytest.mark.parametrize("args", _ARGS_INDICE)
+def test_session_context_startup_indice_mas_roadmap_bajo_el_tope(tmp_path, args):
+    """En startup y compact el contexto de piezas precede al roadmap; caché del índice por runtime."""
     proj, _ = proyecto(tmp_path)
-    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup",
-                                             "session_id": "s-indice"}, env_de(proj, tmp_path))
-    assert rc == 0
-    ctx = un_json(out)["hookSpecificOutput"]["additionalContext"]
-    assert ctx.startswith("Plugin custom-agents") and "Comandos:" in ctx and "Skills:" in ctx and "Agentes:" in ctx
-    assert "/dev-cycle" in ctx and "quick-implement" in ctx and "implementer" in ctx
-    assert ctx.index("Agentes:") < ctx.index("demo")            # índice primero, roadmap después
-    assert len(ctx) < 10_000
-    assert (proj / ".claude" / ".skill-index.cache").read_text(encoding="utf-8").startswith("# skill-index ")
-    # `compact` también reinyecta el índice (la compactación resume la conversación; guía oficial)
-    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "compact",
-                                             "session_id": "s-indice"}, env_de(proj, tmp_path))
-    assert rc == 0 and "Comandos:" in un_json(out)["hookSpecificOutput"]["additionalContext"]
+    cache = proj / ".claude" / ".skill-index.cache"
+    for source in ("startup", "compact"):
+        rc, out, err = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": source,
+                                                  "session_id": "s-indice"}, env_de(proj, tmp_path), args=args)
+        assert rc == 0, err
+        ctx = un_json(out)["hookSpecificOutput"]["additionalContext"]
+        assert ctx.startswith("Plugin custom-agents") and len(ctx) < 10_000
+        if args:
+            assert all(grupo in ctx for grupo in _GRUPOS_INDICE)
+            assert "/dev-cycle" in ctx and "quick-implement" in ctx and "implementer" in ctx
+            assert ctx.index("Agentes:") < ctx.index("demo")
+            assert cache.read_text(encoding="utf-8").startswith("# skill-index ")
+        else:
+            assert all(grupo not in ctx for grupo in _GRUPOS_INDICE)
+            assert ctx.index(_LISTADO_NATIVO) < ctx.index("demo")
+            assert not cache.exists()
 
 
-def test_session_context_indice_false_solo_roadmap(tmp_path):
+@pytest.mark.parametrize("args", _ARGS_INDICE)
+def test_session_context_indice_false_solo_roadmap(tmp_path, args):
     proj, _ = proyecto(tmp_path)
     (proj / ".claude" / "dev.json").write_text('{"sesion": {"indice": false}}', encoding="utf-8")
-    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path))
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"},
+                      env_de(proj, tmp_path), args=args)
     assert rc == 0
     ctx = un_json(out)["hookSpecificOutput"]["additionalContext"]
-    assert "Comandos:" not in ctx and "demo" in ctx
+    assert _LISTADO_NATIVO not in ctx and all(grupo not in ctx for grupo in _GRUPOS_INDICE)
+    assert "demo" in ctx
     assert not (proj / ".claude" / ".skill-index.cache").exists()
 
 
@@ -293,7 +304,8 @@ def test_session_context_sin_activas_solo_indice(tmp_path):
     rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path))
     assert rc == 0
     ctx = un_json(out)["hookSpecificOutput"]["additionalContext"]
-    assert "Comandos:" in ctx and "demo" not in ctx and "Ledger canónico" not in ctx
+    assert _LISTADO_NATIVO in ctx and all(grupo not in ctx for grupo in _GRUPOS_INDICE)
+    assert "demo" not in ctx and "Ledger canónico" not in ctx
 
 
 def test_session_context_sin_activas_e_indice_off_vacio(tmp_path):
@@ -892,7 +904,7 @@ def test_session_context_inyecta_la_memoria_del_area_activa_bajo_su_tope(tmp_pat
         assert "LES-001" not in bloque, "la lección de estimación NO es del área de la iniciativa activa"
         assert "aceptada" in bloque and "knowledge-find.py" in bloque and "--show" in bloque
         assert len(bloque) <= 1200 and len(ctx) <= 9500
-        assert ctx.index("Agentes:") < ctx.index("Ledger canónico") < ctx.index("Memoria técnica"), src
+        assert ctx.index(_LISTADO_NATIVO) < ctx.index("Ledger canónico") < ctx.index("Memoria técnica"), src
 
 
 def test_session_context_sin_knowledge_sin_aciertos_o_sin_activa_no_emite_el_bloque(tmp_path):
@@ -927,7 +939,7 @@ def test_session_context_sesion_memoria_false_apaga_el_bloque(tmp_path):
     rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path))
     assert rc == 0
     ctx = _ctx(out)
-    assert "Memoria técnica" not in ctx and "Comandos:" in ctx and "demo" in ctx
+    assert "Memoria técnica" not in ctx and _LISTADO_NATIVO in ctx and "demo" in ctx
 
 
 def test_session_context_el_tope_de_memoria_va_antes_del_recorte_global(tmp_path):
@@ -941,7 +953,7 @@ def test_session_context_el_tope_de_memoria_va_antes_del_recorte_global(tmp_path
     bloque = _bloque_memoria(ctx)
     assert 0 < len(bloque) <= 1200, len(bloque)
     assert "más" in bloque, "recortado Y dicho"
-    assert "Comandos:" in ctx and "Agentes:" in ctx and "Ledger canónico" in ctx and len(ctx) <= 9500
+    assert _LISTADO_NATIVO in ctx and "Ledger canónico" in ctx and len(ctx) <= 9500
     assert not ctx.endswith("…"), "no hizo falta el recorte global"
 
 
@@ -1055,7 +1067,7 @@ def test_session_context_resuelve_el_kit_del_repo_del_plugin_antes_que_una_copia
     (del_repo).mkdir(parents=True)
     (del_repo / "skill-index.py").write_text("print('INDICE-DEL-REPO-DEL-PLUGIN')\n", encoding="utf-8")
     rc, out, _ = hook("session-context.sh", payload, env_de(proj, tmp_path), cwd=str(proj))
-    assert rc == 0 and "Comandos:" in _ctx(out) and "INDICE-DEL-REPO" not in _ctx(out)
+    assert rc == 0 and _LISTADO_NATIVO in _ctx(out) and "INDICE-DEL-REPO" not in _ctx(out)
 
 
 # -------------------------------------------------------- implementer-guardrail ----

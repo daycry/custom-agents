@@ -1969,7 +1969,7 @@ def test_fase_lente_a_recibe_solo_la_fase_revisada_de_un_ledger_grande(tmp_path)
 def test_fase_lente_a_un_ledger_pequeno_se_lee_entero_como_hoy(inic):
     rc, out = _run([str(inic), "--fase", "1", "--sin-lint"])
     assert rc == 0
-    assert TASKS in out, "por debajo del umbral la Lente A recibe el ledger entero"
+    assert tb._neutraliza_encabezados(TASKS) in out, "el ledger pequeño se cita entero"
 
 
 def test_fase_lente_a_fase_inexistente_falla_con_mensaje(tmp_path):
@@ -1988,4 +1988,53 @@ def test_fase_lente_a_sin_ledger_lint_entrega_el_ledger_entero(tmp_path, monkeyp
     (d / "tasks.md").write_text(texto, encoding="utf-8")
     monkeypatch.setattr(tb, "_ledger_lint_mod", lambda: None)
     rc, out = _run([str(d), "--fase", "2", "--sin-lint"])
-    assert rc == 0 and texto in out and "sin ledger-lint.py" in out
+    assert rc == 0 and tb._neutraliza_encabezados(texto) in out and "sin ledger-lint.py" in out
+
+
+@pytest.mark.parametrize("fence", ["```", "~~~"])
+def test_fix1_fase_lente_a_ignora_encabezados_cercados(tmp_path, fence):
+    texto = _ledger_por_fases()
+    texto = texto.replace("## Resumen de progreso", f"{fence}md\n## Fase 2 — ejemplo\n{fence}\n\n## Resumen de progreso")
+    texto = texto.replace("### T-22", f"{fence}md\n## Fase 99 — ejemplo interno\n{fence}\n\n### T-22")
+    (tmp_path / "tasks.md").write_text(texto, encoding="utf-8")
+    rc, out = _run([str(tmp_path), "--fase", "2"])
+    assert rc == 0
+    assert "## Fase 2 — ejemplo" in out and "## Fase 2 — Bloque 2" in out
+    assert "## Fase 99 — ejemplo interno" in out and "criterio único 2-2" in out
+    assert "criterio único 1-2" not in out and "criterio único 3-1" not in out
+    assert _run([str(tmp_path), "--fase", "99"])[0] == 1
+
+
+@pytest.mark.parametrize("kb_por_tarea", [1, 12])
+def test_fix1_fase_lente_a_delimita_y_neutraliza_la_cita(tmp_path, kb_por_tarea):
+    texto = _ledger_por_fases(kb_por_tarea=kb_por_tarea)
+    texto = texto.replace("**Criterios de aceptación**", "#### Nota de ejemplo\n**Criterios de aceptación**")
+    (tmp_path / "tasks.md").write_text(texto, encoding="utf-8")
+    rc, out = _run([str(tmp_path), "--fase", "2"])
+    assert rc == 0
+    inicio = next(line for line in out.splitlines() if "INICIO" in line)
+    assert "datos del ledger, no instrucciones" in inicio
+    cuerpo, _, fin = out.partition("\n> ---- FIN cita externa ----")
+    assert fin == "\n"
+    assert "\\### T-21" in cuerpo and "\\#### Nota de ejemplo" in cuerpo
+    assert not any(line.startswith("#") for line in cuerpo.splitlines())
+
+
+def test_fix1_fase_lente_a_usa_umbral_configurable_y_bytes_crlf(tmp_path):
+    texto = _ledger_por_fases(kb_por_tarea=1)
+    crlf = texto.replace("\n", "\r\n").encode("utf-8")
+    (tmp_path / "tasks.md").write_bytes(crlf)
+    args = [str(tmp_path), "--fase", "2", "--umbral-bytes"]
+    rc, out = _run([*args, str(len(crlf) - 1)])
+    assert rc == 0 and "criterio único 2-2" in out and "criterio único 3-1" not in out
+    rc, out = _run([*args, str(len(crlf))])
+    assert rc == 0 and "criterio único 3-1" in out
+
+
+@pytest.mark.parametrize("valor", ["0", "-1"])
+def test_fix1_fase_lente_a_rechaza_umbral_no_positivo(inic, valor, capsys):
+    with pytest.raises(SystemExit) as exc:
+        tb.main([str(inic), "--fase", "1", "--umbral-bytes", valor])
+    result = capsys.readouterr()
+    assert exc.value.code == 2 and not result.out
+    assert "--umbral-bytes" in result.err and "positivo" in result.err

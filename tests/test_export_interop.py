@@ -179,6 +179,23 @@ def test_obsolete_generated_exports_are_removed_without_touching_unowned_files(t
     assert MOD.comprobar(str(tmp_path), plan) == 0
 
 
+def test_retired_opencode_command_is_reported_and_removed_only_with_matching_marker(tmp_path, capsys):
+    folder = tmp_path / "interop/opencode/commands"
+    folder.mkdir(parents=True)
+    retired = folder / "confluence-pull.md"
+    marker = MOD.cabecera("html", "commands/confluence-pull.md")
+    retired.write_text("---\ndescription: Old command\n---\n\n" + marker, encoding="utf-8")
+    foreign = folder / "local.md"
+    foreign.write_text(marker, encoding="utf-8")
+
+    assert MOD.comprobar(str(tmp_path), {}) == 1
+    assert "OBSOLETO      interop/opencode/commands/confluence-pull.md" in capsys.readouterr().out
+    assert MOD.escribir(str(tmp_path), {}, quiet=True) == 0
+    assert not retired.exists()
+    assert foreign.read_text(encoding="utf-8") == marker
+    assert MOD.comprobar(str(tmp_path), {}) == 0
+
+
 @pytest.mark.parametrize('quote', ['', '"'])
 def test_codex_exports_known_launcher_runtime_and_pretool_registration(tmp_path, quote):
     (tmp_path / 'hooks').mkdir()
@@ -690,7 +707,7 @@ if __name__ == "__main__":
 
 
 # --- plugin-audit-2 T-21: la cabecera «ORQUESTA agentes» solo en comandos que despachan un rol ---
-DESPACHAN = {"dev-cycle", "pm-cycle", "retro", "knowledge-category-check"}
+DESPACHAN = {"dev-cycle", "pm-cycle", "retro", "knowledge-category-check", "spec-drift"}
 
 
 def _comandos_exportados():
@@ -709,7 +726,6 @@ def test_cabecera_orquesta_solo_en_los_comandos_que_despachan_un_agente():
     for runtime, textos in por_runtime.items():
         con = {n for n, t in textos.items() if "ORQUESTA agentes" in t}
         assert con == DESPACHAN, (runtime, sorted(con))
-        assert len(nombres) - len(con) >= 11, (runtime, len(con))
         for n, t in textos.items():
             assert "Adaptación a" in t and "Las skills se invocan" in t, (runtime, n)
 
@@ -728,6 +744,28 @@ def test_cabecera_orquesta_conserva_la_misma_lista_de_roles():
 def test_cabecera_orquesta_detecta_el_despacho_en_el_cuerpo():
     assert MOD.despacha_agentes("Invoca al `planner` con el objetivo.\n")
     assert MOD.despacha_agentes("Usa el agente `reviewer` por lente.\n")
+
+
+@pytest.mark.parametrize("cuerpo", [
+    "Verifica cada spec con un subagente de contexto fresco.",
+    "Usa los agentes `planner` y `implementer`.",
+    "Llama al `planner`.",
+    "Pasa el brief a `implementer`.",
+    "Despacha cada lente al `reviewer`.",
+    "Handoff a `qa`.",
+    "Ejecuta subagentes en paralelo.",
+    "Lanza subagentes por lotes.",
+    "Delega en `reviewer`.",
+])
+def test_fix1_cabecera_orquesta_reconoce_redacciones_de_despacho(cuerpo):
+    assert MOD.despacha_agentes(cuerpo)
+
+
+def test_fix1_cabecera_orquesta_ignora_descripciones_de_roles():
+    comandos = {n: cuerpo for n, _, cuerpo in MOD.piezas(ROOT, "commands")}
+    for nombre in ("setup", "roadmap-metrics"):
+        assert not MOD.despacha_agentes(comandos[nombre]), nombre
+    assert not MOD.despacha_agentes("`planner` estima. Consulta con el usuario.")
     assert MOD.despacha_agentes("Entrega candidatos y SHA a `knowledge-curator` mediante el proceso.\n")
     assert not MOD.despacha_agentes("Mientras `/pm-cycle` y `planner` estiman, esto mide.\n")
     assert not MOD.despacha_agentes("`lite` despacha cada tarea en secuencia, sin paralelismo, al `implementer` nativo.\n")

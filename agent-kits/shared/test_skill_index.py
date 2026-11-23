@@ -425,3 +425,10 @@ def test_t20_solo_cabecera_respeta_sesion_indice_false(tmp_path):
     (proj / '.claude' / 'dev.json').write_text('{}', encoding='utf-8')
     rc, out, _err = run(['--root', str(REPO), '--runtime', 'claude', '--solo-cabecera'], env_extra=env)
     assert rc == 0 and out.strip() == si.cabecera_sola('claude')
+
+
+def test_fix1_solo_cabecera_rechaza_json(tmp_path):
+    rc, out, err = run(["--root", str(REPO), "--solo-cabecera", "--json"],
+                       env_extra={"CLAUDE_PROJECT_DIR": str(tmp_path)})
+    assert (rc, out) == (2, "")
+    assert "--json" in err and "--solo-cabecera" in err
