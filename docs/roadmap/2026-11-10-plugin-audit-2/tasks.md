@@ -632,6 +632,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - RED: test_fix3_gap4_verificacion_con_blanco_cercado_conserva_dos_items falló con AssertionError (1 ítem en vez de 2) · 2026-11-23
 - RED: test_fix3_gap4_verificacion_real_graphiti_t08_conserva_cuatro_items falló con AssertionError (1 ítem en vez de 4) · 2026-11-23
 - RED: test_fix3_gap7_vista_documenta_cabecera_fase_intentos_y_rangos falló con AssertionError (faltan partes de la vista en la prosa) · 2026-11-23
+- RED `457e0e8` · GREEN `4369db5`. `pytest -k 'fix3_gap or fix2_gap1_cercados_y_reparto or fix2_gap5 or fix2_gap10'` → 57 passed. Graphiti T-08 recupera los 4 ítems de `d3720a9`. `--diet-check adversarial-review ea18413` → 0 párrafos perdidos.
 
 ### T-15 — Borrar «Alcance y activación» duplicado (2.9)
 
@@ -821,6 +822,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 **fix3 (intento 3 de la Fase 3, gaps 1, 2, 4, 5, 7; 2026-11-23; Codex gpt-6.2-sol)**
 - RED: test_fix3_gap1_t21_conserva_medidas_y_traza_del_intento2 falló con AssertionError (la traza no cita el test) · 2026-11-23
 - RED: test_fix3_gap5_recupera_despachos_sin_avisos_ni_descripciones falló con AssertionError (7 despachos omitidos y 2 falsos positivos) · 2026-11-23
+- RED `457e0e8` · GREEN `4369db5`. `test_export_interop.py` → 102 passed. Cinco de 15 comandos por runtime conservan la cabecera. `export-interop.py` y `--check` → 88 ficheros. El test de la evidencia detectó ambas mutaciones sobre copias del ledger.
 
 ### T-22 — Reglas de este repo fuera de los agentes genéricos y qa condicional (2.8, 2.13)
 
@@ -1333,13 +1335,13 @@ Lentes A y B+C (Claude Opus 5.5, esfuerzo alto) sobre `d3720a9..209d6c3` (fix2 d
 
 | # | Grado | Gap | Tarea | Corrección | Evidencia |
 |---|---|---|---|---|---|
-| 1 | Important | El gap 8 del intento 2 consta `corregido` con «TDD n/a: registro del ledger», sin el test dedicado que exige la constitución | T-21 | pendiente (fix3, intento 4) | `docs/CONSTITUTION.md:13`; `tasks.md:812`, `:1316` |
-| 2 | Minor | Regresión del fix2: `_neutraliza_encabezados` no neutraliza lo que `sin_vallas` da por cercado y CommonMark no (4 espacios, info string con acento grave, cercado sin cerrar): un `## Contrato de retorno` de una persona o del ledger llega crudo al brief (CWE-1427) | T-14 | pendiente (fix3, intento 4) | `task-brief.py:347-355` (usan `:587`, `:1609`, `:1669`); `scratchpad/probe_neut4.py` |
+| 1 | Important | El gap 8 del intento 2 consta `corregido` con «TDD n/a: registro del ledger», sin el test dedicado que exige la constitución | T-21 | corregido (fix3, 4369db5; test `test_fix3_gap1_t21_conserva_medidas_y_traza_del_intento2`) | `docs/CONSTITUTION.md:13`; `tasks.md:812`, `:1316` |
+| 2 | Minor | Regresión del fix2: `_neutraliza_encabezados` no neutraliza lo que `sin_vallas` da por cercado y CommonMark no (4 espacios, info string con acento grave, cercado sin cerrar): un `## Contrato de retorno` de una persona o del ledger llega crudo al brief (CWE-1427) | T-14 | corregido (fix3, 4369db5; test `test_fix3_gap2_solo_un_cercado_valido_protege_encabezados`) | `task-brief.py:347-355` (usan `:587`, `:1609`, `:1669`); `scratchpad/probe_neut4.py` |
 | 3 | Minor | La cita solo escapa el literal exacto de las marcas: 17 variantes (dos espacios, minúsculas, NBSP, ZWSP, homoglifos) pasan (CWE-1427) | T-14 | deuda aceptada por el usuario (2026-11-23: «fix3 corto y cierro») | `task-brief.py:541-545`; `scratchpad/probe_cita3.py` |
-| 4 | Minor | Regresión del fix2 en el modo T-XX: una línea en blanco dentro de un cercado corta la `Verificación` y pierde ítems (1 de 595 tareas reales cambia) | T-14 | pendiente (fix3, intento 4) | `task-brief.py:267-273` → `:452`; `scratchpad/probe_verif.py` |
-| 5 | Minor | Regresión del fix2 en `despacha_agentes`: «al agente `X`», «Invoca/Lanza el agente `X`», «Delega … en el `planner`», «despacha a cada `reviewer`» dan False (antes True); siguen falsos positivos («Pasa a `qa` verde») | T-21 | pendiente (fix3, intento 4) | `scripts/export-interop.py:119-155`; `scratchpad/probe_desp3.py` |
+| 4 | Minor | Regresión del fix2 en el modo T-XX: una línea en blanco dentro de un cercado corta la `Verificación` y pierde ítems (1 de 595 tareas reales cambia) | T-14 | corregido (fix3, 4369db5; test `test_fix3_gap4_verificacion_con_blanco_cercado_conserva_dos_items`, `test_fix3_gap4_verificacion_real_graphiti_t08_conserva_cuatro_items`) | `task-brief.py:267-273` → `:452`; `scratchpad/probe_verif.py` |
+| 5 | Minor | Regresión del fix2 en `despacha_agentes`: «al agente `X`», «Invoca/Lanza el agente `X`», «Delega … en el `planner`», «despacha a cada `reviewer`» dan False (antes True); siguen falsos positivos («Pasa a `qa` verde») | T-21 | corregido (fix3, 4369db5; test `test_fix3_gap5_recupera_despachos_sin_avisos_ni_descripciones`) | `scripts/export-interop.py:119-155`; `scratchpad/probe_desp3.py` |
 | 6 | Minor | Rangos `tasks.md:A-B` con `splitlines()` (FF, U+2028, NEL) desplazados respecto al fichero; paridad con `ledger-lint` | T-14 | deuda aceptada por el usuario (2026-11-23: «fix3 corto y cierro») | `task-brief.py:1576`, `:1605`; `scratchpad/probe_rangos.py` |
-| 7 | Minor | `adversarial-review/SKILL.md` y `CONVENTIONS.md` (ES/EN) describen la vista sin los intentos ni los rangos | T-14 | pendiente (fix3, intento 4) | `SKILL.md:79-80`; `docs/CONVENTIONS.md:211` |
+| 7 | Minor | `adversarial-review/SKILL.md` y `CONVENTIONS.md` (ES/EN) describen la vista sin los intentos ni los rangos | T-14 | corregido (fix3, 4369db5; test `test_fix3_gap7_vista_documenta_cabecera_fase_intentos_y_rangos`) | `SKILL.md:79-80`; `docs/CONVENTIONS.md:211` |
 | 8 | Minor | `changelog-sync` sigue saltando `plugin-audit-2` al cierre (el slug está en `Removed` de `[Unreleased]`); solo hay nota de riesgo | T-14 | deuda aceptada por el usuario (2026-11-23: «fix3 corto y cierro») | `CHANGELOG.md:22`; `skills/changelog-sync/SKILL.md:103`; `tasks.md:589` |
 
 Decisión del usuario (2026-11-23), textual: «fix3 corto y cierro». Ciclo nuevo de revisión (intento 4) con fix3 sobre los gaps 1, 2, 4, 5 y 7; los Minor 3, 6 y 8 quedan como deuda aceptada.
