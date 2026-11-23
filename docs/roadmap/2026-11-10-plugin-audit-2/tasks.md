@@ -559,6 +559,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 **fix1 (intento 1 de la Fase 3, gaps 1; 2026-11-23; implementado por Codex gpt-6.2-sol)**
 - TDD n/a: prosa. Criterios literales conservados en el prompt de la Lente A.
+- GREEN `f627de3`: `--diet-check adversarial-review a701e11`, 0 párrafos perdidos. `context-footprint.py --file agents/reviewer.md` mide 9.062 caracteres (antes 8.833).
 
 **Criterios de aceptación**
 - [x] El reviewer lee solo la referencia de la lente.
@@ -598,7 +599,9 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - RED: test_fix1_fase_lente_a_delimita_y_neutraliza_la_cita falló con StopIteration (sin marca de inicio) · 2026-11-23
 - RED: test_fix1_fase_lente_a_usa_umbral_configurable_y_bytes_crlf falló con SystemExit 2 (flag desconocido) · 2026-11-23
 - RED: test_fix1_fase_lente_a_rechaza_umbral_no_positivo falló con AssertionError (sin diagnóstico de positividad) · 2026-11-23
-- RED: test_fix1_umbral_tokens_mide_en_bytes_sin_redondear falló con AssertionError (aviso en KB); test_fix1_umbral_tokens_rechaza_valores_no_positivos devolvió 0 · 2026-11-23
+- RED: test_fix1_umbral_tokens_mide_en_bytes_sin_redondear falló con AssertionError (aviso en KB) · 2026-11-23
+- RED: test_fix1_umbral_tokens_rechaza_valores_no_positivos falló con AssertionError (exit 0) · 2026-11-23
+- RED `31e26a7`; GREEN `f627de3`. `pytest -k 'fase_lente_a or fix1_umbral'` pasó. `task-brief.py … --fase 3`: 42.143 bytes LF frente a 214.452 en disco, puertas comunes presentes. Las citas conservan todo el ledger pequeño; las grandes omiten otras fases. Puertas de tokens: vía rápida 6.023 y evaluator 15.465 bytes LF.
 
 **Criterios de aceptación**
 - [x] El aviso salta en el umbral nuevo (configurable) y su texto nombra `ledger-archive.py`.
@@ -739,6 +742,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - TDD n/a: prosa (diagramas).
 - RED: test_session_context_startup_indice_mas_roadmap_bajo_el_tope de la línea base falló en Linux con AssertionError (pedía Comandos: en Claude) · 2026-11-23
 - RED: test_fix1_solo_cabecera_rechaza_json falló con AssertionError (exit 0 y texto plano) · 2026-11-23
+- RED `31e26a7`; GREEN `f627de3`. `skill-index.py --solo-cabecera --json` rechaza la combinación con exit 2. Linux, archivo Git de GREEN y bind de solo lectura: `pytest -q tests/test_hooks_shell.py tests/test_session_context.py` → 137 passed, 1 skipped. Se verificaron la paridad .py/.sh y `sesion.indice`.
 
 **Criterios de aceptación**
 - [x] Runtime `claude`: solo cabecera; `codex` y `opencode`: índice completo como hoy, fijado por test.
@@ -756,10 +760,10 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - **Archivos**: `scripts/export-interop.py`, `tests/test_export_interop.py`, `docs/INTEROP.md`, `interop/**` (regenerado), `docs/en/INTEROP.md` (nota: espejo EN, regla bilingüe), `docs/{,en/}TOKEN-EFFICIENCY.md` (nota: regla de CLAUDE.md) Fix1: `CHANGELOG.md` y `CHANGELOG.es.md` (registro bilingüe del comportamiento del exportador y la revisión).
 - RED: tests/test_export_interop.py::test_cabecera_orquesta_solo_en_los_comandos_que_despachan_un_agente falló con AssertionError (15 de 15 comandos por runtime con la cabecera); ::test_cabecera_orquesta_conserva_la_misma_lista_de_roles falló (el mapa de roles en comandos que no despachan) y ::test_cabecera_orquesta_detecta_el_despacho_en_el_cuerpo con AttributeError: sin `despacha_agentes` (commit `7dbbff9`) · 2026-11-20
 - **Evidencia** (GREEN `e8cceba`; caracteres; estimación, no consumo facturado):
-  - `despacha_agentes(cuerpo)`: «agente `X`» o un verbo de despacho (despachar, lanzar, invocar, delegar, entregar) seguido del rol en la misma cláusula (sin `.,;:` entre medias), o `subagent_type`; nombrar un rol al describir («`planner` estima», «`lite` despacha cada tarea, sin paralelismo, al `implementer`») no cuenta. Conservan la cabecera y el mapa completo de roles: `dev-cycle`, `pm-cycle`, `retro`, `knowledge-category-check`. Los 11 restantes llevan solo «Adaptación a …» + cómo se invocan las skills.
-  - Medido: 11 de 15 comandos por runtime pierden 696 (Codex, `references/command.md`) y 658 (OpenCode) caracteres: **−7.656** y **−7.238**. Los agentes exportados no cambian (`export-interop.py` regenera 88 ficheros; solo cambian los 22 de comandos).
+  - `despacha_agentes(cuerpo)` reconoce roles propios en singular/plural, verbos de despacho con destino en la misma cláusula y referencias a subagentes de contexto fresco, en paralelo o por lotes. Conservan la cabecera y el mapa de roles `dev-cycle`, `pm-cycle`, `retro`, `knowledge-category-check` y `spec-drift`. `setup` y `roadmap-metrics` siguen siendo controles negativos.
+  - Medido en fix1: **10 de 15** comandos por runtime pierden la cabecera. Codex: **−6.960** caracteres (10 × 696, `references/command.md`). OpenCode: **−6.580** (10 × 658). El archivo huérfano queda fuera del total de comandos vigentes.
   - `pytest -q -n 3 tests/test_export_interop.py tests/test_plugin_root_resolution.py tests/test_native_role_context.py tests/test_native_guardrail_dispatch.py tests/test_native_prefilter_parity.py tests/test_codex_command_transport.py tests/test_dev_cycle_split.py` → `137 passed, 1 skipped` (+1 fallo de T-20 en `test_native_role_context.py[claude]`, corregido en T-20); `evals/check.py` → `0 errores`.
-  - Interpretación **k8**: hoy hay 15 comandos (no 16: `confluence-pull` salió en T-03), así que «12 de 16» pasa a 11 de 15; `retro` y `knowledge-category-check` conservan la cabecera porque entregan a `knowledge-curator`.
+  - Interpretación **k8**: hoy hay 15 comandos (no 16: `confluence-pull` salió en T-03), así que «12 de 16» pasa a 10 de 15 tras recuperar la cabecera de `spec-drift`; `retro` y `knowledge-category-check` conservan la cabecera porque entregan a `knowledge-curator`.
 - **Runtimes**: Solo Codex y OpenCode (es el exportador); Claude sin cambio.
 - **Verificación**:
   - `pytest -q tests/test_export_interop.py -k cabecera_orquesta` → `passed` (rojo antes: 16 de 16 la llevan)
@@ -770,6 +774,9 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 **fix1 (intento 1 de la Fase 3, gaps 2 y 4; 2026-11-23; implementado por Codex gpt-6.2-sol)**
 - RED: test_retired_opencode_command_is_reported_and_removed_only_with_matching_marker falló con AssertionError (check devolvió 0) · 2026-11-23
 - RED: test_fix1_cabecera_orquesta_reconoce_redacciones_de_despacho y test_cabecera_orquesta_solo_en_los_comandos_que_despachan_un_agente fallaron con AssertionError (despachos omitidos) · 2026-11-23
+- RED `31e26a7`; GREEN `f627de3`. `pytest -k 'retired_opencode or cabecera_orquesta'` pasó. La forma simple «Despacha … al rol» ya se reconocía (línea 126 de scripts/export-interop.py en c40fd0f).
+- `export-interop.py`: 88 escritos; `--check`: 88 al día. Única retirada `interop/opencode/commands/confluence-pull.md`. El borrado exige marca original y nombre coincidente.
+- Puerta común `pytest -q -n 3`, suites afectadas y runtimes: 509 passed, 2 skipped. Puerta `node --test` (cuatro suites de la cabecera, Linux): 256 passed, 7 skipped, 0 fallos. `lint_plugin.py` y `evals/check.py`, 0 errores.
 
 **Criterios de aceptación**
 - [x] La cabecera aparece solo en comandos cuyo cuerpo nombra un agente despachable.
@@ -1225,13 +1232,13 @@ Lentes A+B+C+D (Claude Opus 5.5, esfuerzo alto) sobre `ab7eeb2..4893637`; C por 
 
 | # | Grado | Gap | Tarea | Corrección | Evidencia |
 |---|---|---|---|---|---|
-| 1 | Important | El prompt literal de la Lente A sigue mandando revisar «contra `improvement-plan.md` y `tasks.md`» y `reviewer.md` lista `tasks.md`: el revisor abre el ledger entero y el ahorro no se da | T-14 | pendiente (fix1) | `skills/adversarial-review/references/lens-prompts.md:17`; `agents/reviewer.md:72` |
-| 2 | Important | Huérfano `interop/opencode/commands/confluence-pull.md` (fuente retirada en T-03) con cabecera «ORQUESTA» y mapa de roles; `export-interop.py --check` no detecta generados sin fuente y el instalador copia la carpeta entera | T-21 (origen T-03) | pendiente (fix1) | `interop/opencode/commands/confluence-pull.md:8-9`; `install/providers.mjs:531` |
-| 3 | Important | `tests/test_hooks_shell.py` sigue exigiendo `Comandos:`/`Agentes:`/caché del índice a `session-context.sh` en runtime `claude` (por defecto): se salta en Windows y falla en la CI de Linux | T-20 | pendiente (fix1) | `hooks/session-context.sh:195-196` frente a `tests/test_hooks_shell.py:270,274,278,296,930,944,1058`; reproducido |
-| 4 | Important | `despacha_agentes` solo ve un rol entre acentos graves: `/spec-drift` («subagente de contexto fresco», lotes de 3) pierde la traducción a `spawn_agent`/`subagent`; tampoco ve «los agentes `x`», «Llama al `planner`», «Pasa … a `implementer`», «Despacha … al `reviewer`», «Handoff a `qa`» | T-21 | pendiente (fix1) | `scripts/export-interop.py:121-127`; `commands/spec-drift.md:19` → `False` |
-| 5 | Important | `--fase` corta la sección en cualquier `## ` aunque esté dentro de un bloque cercado (y toma un `## Fase N` citado como inicio): tareas y criterios omitidos con exit 0 | T-14 | pendiente (fix1) | `agent-kits/shared/task-brief.py:1566-1567,1580-1581`; reproducido (64 KB y 70 KB CRLF) |
-| 6 | Minor | La vista de fase entra en el prompt de la Lente A sin delimitadores ni `_neutraliza_encabezados` (CWE-1427) | T-14 | pendiente (fix1) | `task-brief.py:1578-1586` |
-| 7 | Minor | Aviso con unidades mezcladas (`//1024` frente a `//1000`: «58 KB (aviso a 60 KB)»); umbral en texto CRLF→LF frente a `getsize`; `--fase` ignora `--umbral-bytes`; `--umbral-bytes` ≤ 0 sin validar | T-14 | pendiente (fix1) | `ledger-lint.py:912-919`; `task-brief.py:1572-1575` |
+| 1 | Important | El prompt literal de la Lente A sigue mandando revisar «contra `improvement-plan.md` y `tasks.md`» y `reviewer.md` lista `tasks.md`: el revisor abre el ledger entero y el ahorro no se da | T-14 | corregido (fix1, f627de3) | `skills/adversarial-review/references/lens-prompts.md:17`; `agents/reviewer.md:72` |
+| 2 | Important | Huérfano `interop/opencode/commands/confluence-pull.md` (fuente retirada en T-03) con cabecera «ORQUESTA» y mapa de roles; `export-interop.py --check` no detecta generados sin fuente y el instalador copia la carpeta entera | T-21 (origen T-03) | corregido (fix1, f627de3) | `interop/opencode/commands/confluence-pull.md:8-9`; `install/providers.mjs:531` |
+| 3 | Important | `tests/test_hooks_shell.py` sigue exigiendo `Comandos:`/`Agentes:`/caché del índice a `session-context.sh` en runtime `claude` (por defecto): se salta en Windows y falla en la CI de Linux | T-20 | corregido (fix1, 31e26a7) | `hooks/session-context.sh:195-196` frente a `tests/test_hooks_shell.py:270,274,278,296,930,944,1058`; reproducido |
+| 4 | Important | `despacha_agentes` solo ve un rol entre acentos graves: `/spec-drift` («subagente de contexto fresco», lotes de 3) pierde la traducción a `spawn_agent`/`subagent`; tampoco ve «los agentes `x`», «Llama al `planner`», «Pasa … a `implementer`», «Despacha … al `reviewer`», «Handoff a `qa`» | T-21 | corregido (fix1, f627de3) | `scripts/export-interop.py:121-127`; `commands/spec-drift.md:19` → `False` |
+| 5 | Important | `--fase` corta la sección en cualquier `## ` aunque esté dentro de un bloque cercado (y toma un `## Fase N` citado como inicio): tareas y criterios omitidos con exit 0 | T-14 | corregido (fix1, f627de3) | `agent-kits/shared/task-brief.py:1566-1567,1580-1581`; reproducido (64 KB y 70 KB CRLF) |
+| 6 | Minor | La vista de fase entra en el prompt de la Lente A sin delimitadores ni `_neutraliza_encabezados` (CWE-1427) | T-14 | corregido (fix1, f627de3) | `task-brief.py:1578-1586` |
+| 7 | Minor | Aviso con unidades mezcladas (`//1024` frente a `//1000`: «58 KB (aviso a 60 KB)»); umbral en texto CRLF→LF frente a `getsize`; `--fase` ignora `--umbral-bytes`; `--umbral-bytes` ≤ 0 sin validar | T-14 | corregido (fix1, f627de3) | `ledger-lint.py:912-919`; `task-brief.py:1572-1575` |
 | 8 | Minor | k11: T-20 cerrada sin los evals reales de activación (`evals/run.py`) ni acción del usuario | T-20 | corregido por el orquestador (`4e3d58a`): M-C del plan los incluye | `tasks.md` (T-20, k11) |
-| 9 | Minor | `FLOWS.md` (ES/EN) sigue diciendo índice completo en todos los runtimes; `--fase` falta en `agent-kits/shared/README.md` y en E8 de `CONTRACTS.md` | T-20, T-14 | pendiente (fix1) | `docs/FLOWS.md:547`; `agent-kits/shared/README.md:59`; `docs/agents/CONTRACTS.md:79` |
-| 10 | Minor | `skill-index.py --solo-cabecera --json` imprime texto plano | T-20 | pendiente (fix1) | `agent-kits/shared/skill-index.py:443-445` |
+| 9 | Minor | `FLOWS.md` (ES/EN) sigue diciendo índice completo en todos los runtimes; `--fase` falta en `agent-kits/shared/README.md` y en E8 de `CONTRACTS.md` | T-20, T-14 | corregido (fix1, f627de3) | `docs/FLOWS.md:547`; `agent-kits/shared/README.md:59`; `docs/agents/CONTRACTS.md:79` |
+| 10 | Minor | `skill-index.py --solo-cabecera --json` imprime texto plano | T-20 | corregido (fix1, f627de3) | `agent-kits/shared/skill-index.py:443-445` |
