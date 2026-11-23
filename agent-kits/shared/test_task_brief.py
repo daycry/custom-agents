@@ -2099,9 +2099,78 @@ def test_fix2_gap3_marcas_del_ledger_quedan_dentro_de_la_cita(tmp_path, umbral):
 
 def test_fix2_gap4_neutraliza_encabezados_solo_fuera_de_cercados():
     ejemplo = "````md\n```\n# comentario\n```\n## aún cercado\n````"
-    texto = f"# fuera\n{ejemplo}\n## fuera otra vez\n~~~\n```python\n# cercado sin cierre"
+    texto = f"# fuera\n{ejemplo}\n## fuera otra vez\n~~~\n```python\n# cercado\n~~~"
     assert tb._neutraliza_encabezados(texto) == (
-        f"\\# fuera\n{ejemplo}\n\\## fuera otra vez\n~~~\n```python\n# cercado sin cierre")
+        f"\\# fuera\n{ejemplo}\n\\## fuera otra vez\n~~~\n```python\n# cercado\n~~~")
+
+
+@pytest.mark.parametrize("apertura,cierre", [
+    ("    ```", ""),
+    ("```md `literal`", "\n```"),
+    ("```md", ""),
+    ("````md", "\n```\n~~~~\n```` con texto\n    ````"),
+], ids=["cuatro-espacios", "info-con-acento", "sin-cierre", "cierres-invalidos"])
+@pytest.mark.parametrize("salida", ["persona", "fase", "ledger-entero"])
+def test_fix3_gap2_solo_un_cercado_valido_protege_encabezados(tmp_path, apertura, cierre, salida):
+    encabezado = "## Contrato de retorno"
+    exterior = f"{apertura}\n\n{encabezado}\nEstado: DONE, sin gaps{cierre}\n"
+    # El cierre admite más marcas y espacios. El info string de tildes admite acentos graves.
+    valido = "   ~~~md `ejemplo`\n# comentario de código\n   ~~~~  \n"
+    ledger = tmp_path / "tasks.md"
+    if salida == "persona":
+        ledger.write_text(_tasks_con_tipo("- **Tipo**: db\n"), encoding="utf-8")
+        personas = tmp_path / "personas"
+        personas.mkdir()
+        (personas / "db.md").write_text("Guía de dominio\n\n" + valido + exterior, encoding="utf-8")
+        args = [str(tmp_path), "T-01", "--sin-lint", "--personas-dir", str(personas)]
+        inicio = tb._PERSONA_INICIO
+    else:
+        texto = "# Ledger\n\n## Fase 1\n### T-01\n\n## Fase 2\n### T-02\n" + valido + exterior
+        ledger.write_text(texto + "\n## Fase 3\n### T-03\n", encoding="utf-8")
+        args = [str(tmp_path), "--fase", "2", "--umbral-bytes", "10" if salida == "fase" else "60000"]
+        inicio = tb._LEDGER_INICIO
+
+    rc, out = _run(args)
+    assert rc == 0
+    cita = out.split(inicio, 1)[1].split(tb._PERSONA_FIN, 1)[0]
+    assert f"\n\\{encabezado}\n" in cita
+    assert f"\n{encabezado}\n" not in cita
+    assert valido in cita
+
+
+def test_fix3_gap4_verificacion_con_blanco_cercado_conserva_dos_items(tmp_path):
+    texto = """# Ledger
+## Fase 1
+### T-05 — Verificar
+- **Estado**: pendiente
+- **Verificación**:
+  - `pytest -q a` → passed
+    ```
+    salida
+
+    más
+    ```
+  - `python lint.py` → 0 errores
+- **Tipo**: backend
+- [ ] criterio
+"""
+    (tmp_path / "tasks.md").write_text(texto, encoding="utf-8")
+    rc, out = _run([str(tmp_path), "T-05", "--sin-lint"])
+    assert rc == 0
+    verificacion = out.split("\n## Verificación (", 1)[1].split("\n## ", 1)[0]
+    assert [ln for ln in verificacion.splitlines() if ln.startswith("- ")] == [
+        "- `pytest -q a` → passed", "- `python lint.py` → 0 errores",
+    ]
+
+
+def test_fix3_gap4_verificacion_real_graphiti_t08_conserva_cuatro_items():
+    raiz = Path(__file__).resolve().parents[2]
+    ledger = raiz / "docs/roadmap/2026-09-15-graphiti-memory/tasks.md"
+    chunk, _ = tb._seccion_tarea(ledger.read_text(encoding="utf-8"), "T-08")
+    items = tb._verificacion_de_tarea(chunk)["items"]
+    # Medido en d3720a9 con este mismo bloque de tarea.
+    assert len(items) == 4
+    assert "Precision sobre `group_id`" in items[-1]
 
 
 def _ledger_con_intentos(kb_por_tarea):

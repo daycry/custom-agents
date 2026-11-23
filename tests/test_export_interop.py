@@ -796,6 +796,26 @@ def test_fix2_gap5_distingue_despachos_de_descripciones_y_negaciones(cuerpo, esp
     assert MOD.despacha_agentes(cuerpo) is esperado
 
 
+@pytest.mark.parametrize("cuerpo,esperado", [
+    ("Despacha las lentes al agente `reviewer`.", True),
+    ("Lentes despachadas al agente `reviewer`.", True),
+    ("Invoca el agente `planner`.", True),
+    ("Lanza el agente `qa`.", True),
+    ("Delega la tarea en el `planner`.", True),
+    ("Despacha a cada `reviewer`.", True),
+    ("Nunca bloquea: despacha al `qa`.", True),
+    ("Nunca invoca al `qa`.", False),
+    ("Sin delegar en el `planner`.", False),
+    ("El formato de los agentes `planner` y `qa`.", False),
+    ("```\nDespacha al agente `reviewer`.\n```", False),
+    ("Pasa a la fase de `qa`.", False),
+    ("Pasa a `qa` verde.", False),
+    ("Lanza un aviso a `qa`.", False),
+])
+def test_fix3_gap5_recupera_despachos_sin_avisos_ni_descripciones(cuerpo, esperado):
+    assert MOD.despacha_agentes(cuerpo) is esperado
+
+
 def test_fix2_gap5_los_15_comandos_conservan_el_conjunto_despachan():
     _, nombres, por_runtime = _comandos_exportados()
     assert len(nombres) == 15

@@ -85,3 +85,31 @@ def test_fix2_gap9_changelogs_bilingues_en_changed_y_trazados_por_tarea():
             assert changed.splitlines().count(f"- {texto}") == 1
             assert bloque.splitlines().count(f"- {texto}") == 1
     assert "changelog-sync" in ledger.split("### T-14 —", 1)[1].split("\n### ", 1)[0]
+
+
+def test_fix3_gap1_t21_conserva_medidas_y_traza_del_intento2():
+    ledger = _read(f"{ROADMAP}/tasks.md")
+    tarea = ledger.split("### T-21 —", 1)[1].split("\n### T-22 —", 1)[0]
+    evidencia = tarea.split("- **Evidencia**", 1)[1].split("\n- **Runtimes**", 1)[0]
+    fix1 = tarea.split("\n**fix1 (", 1)[1].split("\n**Criterios de aceptación**", 1)[0]
+    original = ("11 de 15", "−7.656", "−7.238", "GREEN `e8cceba`")
+    revision = ("10 de 15", "−6.960", "−6.580", "GREEN `f627de3`")
+    assert all(dato in evidencia and dato not in fix1 for dato in original)
+    assert all(dato in fix1 and dato not in evidencia for dato in revision)
+
+    filas = ledger.split("## Revisión de dos lentes — intento 2: Fase 3", 1)[1]
+    intento2 = filas.split("## Revisión de dos lentes — intento 3: Fase 3", 1)[0]
+    gap8 = next(line for line in intento2.splitlines() if line.startswith("| 8 |"))
+    assert "test `test_fix3_gap1_t21_conserva_medidas_y_traza_del_intento2`" in gap8
+
+
+@pytest.mark.parametrize("path,inicio,terminos", [
+    ("skills/adversarial-review/SKILL.md", "**Lente A con ledger:", ("cabecera", "## Fase N", "Revisión")),
+    ("docs/CONVENTIONS.md", "- **Historia cerrada", ("cabecera", "## Fase N", "Revisión")),
+    ("docs/en/CONVENTIONS.md", "- **Closed history", ("header", "## Fase N", "Revisión")),
+])
+def test_fix3_gap7_vista_documenta_cabecera_fase_intentos_y_rangos(path, inicio, terminos):
+    texto = _read(path).split(f"\n{inicio}", 1)[1]
+    parrafo = re.split(r"\n(?:\n|- \*\*)", texto, maxsplit=1)[0]
+    for literal in (*terminos, "--fase", "intento K: Fase N", "tasks.md:A-B"):
+        assert literal in parrafo
