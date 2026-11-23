@@ -261,11 +261,11 @@ before acting; canonical bodies and shell recipes remain literal. Arguments come
 from the invoking user message, without prompt-composer substitution.
 
 In Codex and OpenCode, the «Este comando ORQUESTA agentes» header and the map of
-owned roles go only to a command whose body dispatches a role: «agente `X`», or
-dispatch, launch, invoke, delegate or hand over (Spanish verbs in the source)
-followed by the role in the same clause (`despacha_agentes` in `export-interop.py`).
-Today that is `dev-cycle`, `pm-cycle`, `retro` and `knowledge-category-check`; the
-rest keep only the skills adaptation.
+owned roles appear when a command dispatches an owned role or an unnamed
+subagent. `despacha_agentes` recognises references like «los agentes `X` y `Y`»,
+dispatch verbs followed by a role in the same clause, and references to fresh-context,
+parallel or batched subagents. The five commands with the header are `dev-cycle`,
+`pm-cycle`, `retro`, `knowledge-category-check` and `spec-drift`.
 
 Metadata declares `allow_implicit_invocation: false`. An isolated Codex0.161.0
 probe establishes discovery of both roots; body injection used a separate

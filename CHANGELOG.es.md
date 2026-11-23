@@ -11,6 +11,11 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Fixed
+
+- La Lente A recibe la fase pertinente de los ledgers grandes. La revisión y el linter usan el mismo umbral en bytes, y los encabezados de un ejemplo cercado no acortan la fase.
+- La comprobación de interop detecta los comandos retirados de OpenCode y la regeneración los elimina. `/spec-drift` incluye instrucciones para despachar subagentes en Codex y OpenCode.
+
 ### Removed — CAMBIO ROMPEDOR, versión mayor (4.0.0): se retiran los backends Kwipu y Graphiti (`plugin-audit-2`, 2026-11-19)
 
 - **Cambio rompedor.** El plugin ya no incluye los adaptadores Kwipu (`markdown-export`) y Graphiti, `kwipu-project-add.py`, sus guías y ejemplos, ni las capacidades `kwipu`/`graphiti` de `/setup` y `/doctor`. Una `taxonomy.json` que aún los declare no es un error al cargar: `knowledge-sync.py --backend <id>` sale con código 2 y un mensaje «retirado», y `/doctor` no pinta fila para ellos. La plantilla de taxonomía por defecto ya no declara backends ni `routing`.

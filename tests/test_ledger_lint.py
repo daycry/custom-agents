@@ -369,7 +369,7 @@ def main():
     assert len(grande.encode("utf-8")) > 183_500
     code, out = run(grande)
     assert code == 0, out
-    assert "tope de lectura 256 KiB" in out and "ledger-archive.py" in out and "--apply" in out, out
+    assert "tope de lectura 262144 bytes" in out and "ledger-archive.py" in out and "--apply" in out, out
     code, out = run(doc() + "\n## Notas\n\n" + ("x\n" * 1000))
     assert "tope de lectura" not in out, out
 

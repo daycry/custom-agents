@@ -914,8 +914,8 @@ def lint(path, *, text=None, parsed=None, umbral_bytes=None):
     umbral = UMBRAL_TAMANO_BYTES if umbral_bytes is None else umbral_bytes
     if tam > umbral:
         carpeta = os.path.dirname(path) or "."
-        warnings.append(f"ledger de {tam // 1024} KB (aviso a {umbral // 1000} KB por tokens; tope de "
-                        f"lectura 256 KiB): archiva la historia cerrada con "
+        warnings.append(f"ledger de {tam} bytes (aviso a {umbral} bytes por tokens; tope de "
+                        f"lectura {TOPE_LECTURA_BYTES} bytes): archiva la historia cerrada con "
                         f"`python3 agent-kits/shared/ledger-archive.py {carpeta} --apply`")
 
     # ---- Changelog por tarea (changelog-brief): AVISO, nunca incoherencia ----
@@ -1023,6 +1023,8 @@ def main():
     ap.add_argument("--umbral-bytes", type=int, default=None,
                     help=f"avisa de archivar por encima de N bytes (por defecto {UMBRAL_TAMANO_BYTES})")
     args = ap.parse_args()
+    if args.umbral_bytes is not None and args.umbral_bytes <= 0:
+        ap.error("--umbral-bytes debe ser positivo")
 
     if not os.path.isfile(args.tasks):
         print(f"⚠️  ledger-lint: no existe {args.tasks}")

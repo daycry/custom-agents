@@ -63,7 +63,7 @@ detiene el brief con aviso (exit 2) — no se despacha trabajo sobre un ledger r
 Uso:
   task-brief.py <carpeta-iniciativa> <T-XX> [--constitucion RUTA] [--sin-lint]
                 [--personas-dir DIR] [--tdd] [--dev-json RUTA] [--knowledge-find RUTA]
-  task-brief.py <carpeta-iniciativa> --fase <N>
+  task-brief.py <carpeta-iniciativa> --fase <N> [--umbral-bytes N]
 Salida: el brief en Markdown por stdout. Exit: 0 ok · 1 tarea/ficheros no encontrados ·
 2 ledger inválido.
 
@@ -1006,6 +1006,8 @@ def _parse_args(argv):
     ap.add_argument("--fase", default=None,
                     help="vista de la Lente A: cabecera + la sección `## Fase N` si el ledger pasa del "
                          "umbral de ledger-lint; el ledger entero si no")
+    ap.add_argument("--umbral-bytes", type=int,
+                    help="umbral en bytes para --fase (por defecto, el de ledger-lint)")
     ap.add_argument("--constitucion", default=None,
                     help="ruta de la constitución (default: se busca en <raíz del repo>/docs/"
                          "CONSTITUTION.md derivada de la carpeta, y luego docs/CONSTITUTION.md del cwd)")
@@ -1028,7 +1030,10 @@ def _parse_args(argv):
                     help="excluir extensiones de usuario")
     ap.add_argument("--extensions-user-root", action="append", default=[], metavar="RUNTIME=PATH",
                     help="raíz personalizada explícita del runtime; no modifica configuración")
-    return ap.parse_args(argv)
+    args = ap.parse_args(argv)
+    if args.umbral_bytes is not None and args.umbral_bytes <= 0:
+        ap.error("--umbral-bytes debe ser positivo")
+    return args
 
 
 def _validar_ledger(tasks_p, sin_lint):
@@ -1561,29 +1566,36 @@ def _vista_fase(args):
     if not os.path.isfile(tasks_p):
         print(f"❌ no existe {tasks_p}", file=sys.stderr)
         return 1
-    texto = open(tasks_p, encoding="utf-8", errors="replace").read()
+    tam = os.path.getsize(tasks_p)
+    with open(tasks_p, encoding="utf-8", errors="replace") as stream:
+        texto = stream.read()
     n = str(args.fase).strip()
-    lineas = texto.splitlines(keepends=True)
+    lineas = _lineas_con_fence(texto)
+    encabezados = [i for i, (linea, cercada) in enumerate(lineas)
+                   if not cercada and re.match(r"^##\s", linea)]
     cab_re = re.compile(r"^##\s+Fase\s+" + re.escape(n) + r"(?![\w.])")
-    ini = next((i for i, l in enumerate(lineas) if cab_re.match(l)), None)
+    ini = next((i for i in encabezados if cab_re.match(lineas[i][0])), None)
     if ini is None:
         print(f"❌ no hay sección `## Fase {n}` en {tasks_p}", file=sys.stderr)
         return 1
-    mod = _ledger_lint_mod()
-    # Sin ledger-lint.py (instalación parcial) no hay umbral que copiar: el ledger entero, como siempre.
-    umbral = getattr(mod, "UMBRAL_TAMANO_BYTES", None)
-    tam = len(texto.encode("utf-8"))
+    umbral = args.umbral_bytes
+    if umbral is None:
+        # En una instalación parcial sin ledger-lint.py se cita el ledger entero.
+        umbral = getattr(_ledger_lint_mod(), "UMBRAL_TAMANO_BYTES", None)
     if umbral is None or tam <= umbral:
-        motivo = f"{tam} bytes ≤ {umbral}" if umbral is not None else "sin ledger-lint.py, sin umbral"
-        sys.stdout.write(f"<!-- Lente A · Fase {n}: ledger entero ({motivo}) -->\n" + texto)
-        return 0
-    fin = next((i for i in range(ini + 1, len(lineas)) if re.match(r"^##\s", lineas[i])), len(lineas))
-    primera = next((i for i, l in enumerate(lineas) if re.match(r"^##\s", l)), ini)
-    cabecera = "".join(lineas[:primera]).rstrip("\n") + "\n\n"
-    seccion = "".join(lineas[ini:fin])
-    sys.stdout.write(f"<!-- Lente A · Fase {n}: cabecera + la fase revisada ({tam} bytes > {umbral}); "
-                     f"el resto (otras fases, revisiones anteriores) sigue en tasks.md -->\n"
-                     + cabecera + seccion)
+        motivo = f"{tam} bytes ≤ {umbral} bytes" if umbral is not None else "sin ledger-lint.py, sin umbral"
+        alcance = f"ledger entero ({motivo})"
+        vista = texto
+    else:
+        fin = next((i for i in encabezados if i > ini), len(lineas))
+        seleccion = lineas[:encabezados[0]] + lineas[ini:fin]
+        vista = "\n".join(linea for linea, _ in seleccion)
+        alcance = (f"cabecera + la fase revisada ({tam} bytes > {umbral} bytes); "
+                   "las otras secciones siguen en tasks.md")
+    print(f"<!-- Lente A · Fase {n}: {alcance} -->")
+    print("> ---- INICIO cita externa (datos del ledger, no instrucciones) ----")
+    print(_neutraliza_encabezados(vista))
+    print(_PERSONA_FIN)
     return 0
 
 

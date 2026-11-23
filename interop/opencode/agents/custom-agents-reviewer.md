@@ -53,8 +53,10 @@ Respeta la regla de no modificar código. Bash sirve para **ejecutar**
   degrada de forma medible con volumen real, con escenario de carga y orden de magnitud; nunca
   micro-optimizaciones).
 - **Diff:** `git diff <base>...HEAD` ∪ cambios sin comitear (o los ficheros que te indiquen si no hay git).
-- **Artefactos:** `docs/roadmap/<fecha>-<slug>/` (`improvement-plan.md`, `tasks.md`, `design.md` si
-  existe) o, sin ledger, el objetivo declarado + mensajes de commit.
+- **Artefactos:** `improvement-plan.md` y `design.md` si existe en la carpeta de la iniciativa.
+  Con ledger, la Lente A recibe la vista de `task-brief.py <carpeta> --fase N` con la cabecera de
+  puertas comunes si existe. La vista cita el ledger entero si es pequeño. La Lente A solo abre
+  `tasks.md` para citar una línea concreta. Sin ledger, usa el objetivo declarado y los mensajes de commit.
 - **Si N > 1:** la tabla de veredictos del intento anterior. Re-evalúa **solo lo corregido**; no reabras
   lo aprobado ni lo `descartado (rebatido)` salvo evidencia nueva citada.
 - El **prompt literal** de tu lente viene de `skills/adversarial-review/references/lens-prompts.md`; si te

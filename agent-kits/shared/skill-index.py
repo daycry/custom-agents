@@ -425,10 +425,11 @@ def generar(root, cache=None, usar_cache=True, runtime=None):
 def main(argv=None):
     ap = argparse.ArgumentParser(description="índice compacto de comandos/skills/agentes del plugin")
     ap.add_argument("--root", help="raíz del plugin (default: CLAUDE_PLUGIN_ROOT → este kit → find)")
-    ap.add_argument("--json", action="store_true")
+    salida = ap.add_mutually_exclusive_group()
+    salida.add_argument("--json", action="store_true")
     ap.add_argument("--runtime", choices=tuple(CABECERAS_RUNTIME), help="IDs y delegación del runtime; sin él, índice canónico")
     ap.add_argument("--no-cache", action="store_true", help="ignora y no escribe la caché")
-    ap.add_argument("--solo-cabecera", action="store_true",
+    salida.add_argument("--solo-cabecera", action="store_true",
                     help="solo la cabecera del runtime, sin el listado (bloque de sesión de Claude Code)")
     ap.add_argument("--cache", metavar="FICHERO", help=f"ruta de la caché (default: <proyecto>/.claude/{CACHE_NOMBRE})")
     args = ap.parse_args(argv)

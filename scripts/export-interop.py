@@ -113,18 +113,24 @@ PRE_COMANDO = """> **Adaptación a {runtime}** (fichero generado; la fuente es `
 PRE_COMANDO_SIN_AGENTES = """> **Adaptación a {runtime}** (fichero generado; la fuente es `commands/{nombre}.md`).
 > Las skills se invocan {skills}. Todo lo demás (puertas, artefactos, ledger) no cambia.
 """
-# Despacho = el cuerpo pone un rol propio en manos de alguien: «agente `X`», o un verbo de despacho
-# (despachar, lanzar, invocar, delegar, entregar) seguido del rol en la misma cláusula (sin coma ni
-# punto entre medias). Nombrar un rol al describir algo («`planner` estima») no es despachar.
-_VERBO_DESPACHO = r"(?:despach|lanz|invoc|deleg|entreg)\w*"
+# Un verbo y su destino deben aparecer en la misma cláusula.
+_VERBO_DESPACHO = r"(?:despach|lanz|invoc|deleg|entreg|llam|pas)(?:a|ad|an|ar|e|en)|handoff"
+_HASTA_DESTINO = r"[^.,;:\n`]{0,60}?"
 
 
 def despacha_agentes(cuerpo, mapping=None):
-    roles = sorted((mapping or native_roles(ROOT_DEFAULT))["runtimes"]["codex"], key=len, reverse=True)
-    rol = r"\*{0,2}`(?:%s)`" % "|".join(re.escape(r) for r in roles)
-    patron = re.compile(r"(?i)\b(?:sub)?agente\s+%s|\b%s\b[^.,;:\n`]{0,60}?%s|subagent_type"
-                        % (rol, _VERBO_DESPACHO, rol))
-    return bool(patron.search(cuerpo))
+    roles = (mapping or native_roles(ROOT_DEFAULT))["runtimes"]["codex"]
+    rol = r"\*{0,2}`(?:%s)`" % "|".join(re.escape(r) for r in sorted(roles))
+    # Las preguntas de configuración describen opciones, no pasos del comando.
+    pasos = re.sub(r"¿[^?\n]*\?", "", cuerpo)
+    patrones = (
+        rf"\b(?:sub)?agentes?\s+{rol}",
+        rf"\b(?:{_VERBO_DESPACHO})\b{_HASTA_DESTINO}{rol}",
+        rf"\b(?:{_VERBO_DESPACHO}|ejecuta|crea|usa)\b{_HASTA_DESTINO}\bsubagentes?\b",
+        r"\bsubagentes?\s+(?:de contexto fresco|en paralelo|por lotes)\b",
+        r"\bsubagent_type\b",
+    )
+    return bool(re.search("|".join(patrones), pasos, re.IGNORECASE))
 
 
 def pre_comando(runtime, nombre, cuerpo, mapping=None):
@@ -817,15 +823,17 @@ def obsoletos(root, plan):
             role = match.group(1)
             if filename in (role + extension, "custom-agents-" + role + extension):
                 out.append(relative)
-    prompts = os.path.join(root, "interop", "codex", "prompts")
-    if _regular_export_path(root, prompts, directory=True):
-        for filename in sorted(os.listdir(prompts)):
-            relative = "interop/codex/prompts/" + filename
-            path = os.path.join(prompts, filename)
+    for directory in ("interop/codex/prompts", "interop/opencode/commands"):
+        folder = os.path.join(root, directory)
+        if not _regular_export_path(root, folder, directory=True):
+            continue
+        for filename in sorted(os.listdir(folder)):
+            relative = f"{directory}/{filename}"
+            path = os.path.join(folder, filename)
             if relative in plan or not filename.endswith(".md") or not _regular_export_path(root, path):
                 continue
             _, text = partir_frontmatter(leer(path))
-            if text.startswith(cabecera("html", "commands/%s" % filename)):
+            if text.lstrip("\n").startswith(cabecera("html", "commands/%s" % filename)):
                 out.append(relative)
     adapters = os.path.join(root, "interop", "codex", "command-skills")
     if _regular_export_path(root, adapters, directory=True):

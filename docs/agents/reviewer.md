@@ -14,7 +14,7 @@ tier propio (`opus` · `effort: high`, override en `dev.json` `modelos.reviewer`
 ## Entrada / salida
 - **Entrada (la da la skill):** la lente (`A` conformidad con spec/plan/constitución — y `docs-style.md`
   en iniciativas de prosa —, `B` corrección/robustez con persona de dominio, `C` seguridad introducida por
-  el diff), el diff/rango, los artefactos (`improvement-plan.md`, `tasks.md`, `design.md` si existe) y, si
+  el diff), el diff/rango, los artefactos (`improvement-plan.md`, `design.md` si existe y la vista `task-brief.py <carpeta> --fase N` para la Lente A con ledger) y, si
   N > 1, la tabla del intento anterior. El prompt literal viene de
   `skills/adversarial-review/references/lens-prompts.md`.
 - **Salida (estructura fija que la skill fusiona):** tabla por criterio ✓/✗/no verificable con evidencia

@@ -544,7 +544,7 @@ flowchart LR
     OCP["OpenCode V2: session.prompt"] --> H5
     OCI["OpenCode V2: session.execution<br/>succeeded · failed · interrupted"] --> H4
     SS["sesión: startup · resume · compact"] --> H3["hook SessionStart<br/>session-context.sh"]
-    H3 -->|"additionalContext: índice de piezas (≤ 45 líneas, caché por hash)<br/>+ retoma ≤ 15 líneas (tarea en-progreso)<br/>+ journal ≤ 25 líneas (solo startup · resume)"| C(["🧠 contexto de sesión"])
+    H3 -->|"additionalContext: cabecera de piezas en Claude Code<br/>índice completo en Codex y OpenCode (≤ 45 líneas, caché por hash)<br/>+ retoma ≤ 15 líneas (tarea en-progreso)<br/>+ journal ≤ 25 líneas (solo startup · resume)"| C(["🧠 contexto de sesión"])
     UP["turno del usuario"] --> H5["hook UserPromptSubmit<br/>user-prompt-capture.sh (timeout 5)"]
     H5 -->|"journal-prompt.py, captura ligera (sin stdout, exit 0; opt-out private; secretos redactados)"| LOG[(".claude/session-prompts-sid.log<br/>no versionado · 0600 · purga 30 d<br/>= checkpoint de la sesión")]
     SE["Claude: cierre / clear<br/>Codex: cierre del hilo principal"] --> H4["captura compartida<br/>Claude: registro 5 s · Codex: registro 3 s<br/>OpenCode: adapter 20 s"]

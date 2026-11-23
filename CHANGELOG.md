@@ -11,6 +11,11 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Fixed
+
+- Lens A receives the relevant ledger phase for large initiatives. Both review and lint use the same byte threshold, and headings inside fenced examples cannot cut the phase short.
+- Interop checks detect retired OpenCode command exports and regeneration removes them. `/spec-drift` includes subagent dispatch instructions in Codex and OpenCode.
+
 ### Removed — BREAKING CHANGE, major version (4.0.0): the Kwipu and Graphiti backends are retired (`plugin-audit-2`, 2026-11-19)
 
 - **Breaking change.** The plugin no longer bundles the Kwipu (`markdown-export`) and Graphiti adapters, `kwipu-project-add.py`, their guides and examples, nor the `kwipu`/`graphiti` capabilities of `/setup` and `/doctor`. A `taxonomy.json` that still declares them is not an error at load time: `knowledge-sync.py --backend <id>` exits with code 2 and a «retirado» message, and `/doctor` shows no row for them. The default taxonomy template now declares no backends and no `routing`.
