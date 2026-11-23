@@ -758,21 +758,21 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 ### T-22 — Reglas de este repo fuera de los agentes genéricos y qa condicional (2.8, 2.13)
 
-- **Descripción**: Reglas propias de este repositorio (`export-interop`, `CONTRACTS.md`) viven dentro de agentes genéricos (≈4,2 KB) y `qa.md:114` (2 KB) solo aplica al QA sin UI. Las primeras pasan a `docs/CONSTITUTION.md` o a `plugin-dev` (carga solo en este repo); lo segundo, a una referencia condicional.
+- **Descripción**: Reglas propias de este repositorio (`export-interop`, `CONTRACTS.md`) viven dentro de agentes genéricos (≈4,2 KB) y `qa.md:114` (2 KB) solo aplica al QA sin UI. Las primeras pasan a `skills/project-extensions/references/custom-agents-repo.md` (solo se lee dentro de custom-agents; replanificado por el orquestador el 2026-11-23: `plugin-dev` ya no existe tras T-11 y `docs/CONSTITUTION.md` no se toca); lo segundo, a una referencia condicional.
 - **Changelog**: Los agentes genéricos dejan de cargar reglas que solo valen para el repositorio del plugin.
 - **Estado**: borrador
 - **Tiempo humano**: est. 3h · real —
 - **Tiempo IA (ejec.)**: est. 0.8h · real —
 - **Dependencias**: T-18, T-19, T-11
-- **Archivos**: `agents/planner.md`, `agents/implementer.md`, `agents/qa.md`, `agent-kits/qa/references/sin-ui.md` (nuevo), `.claude/skills/plugin-dev/SKILL.md` (tras T-11), `docs/CONSTITUTION.md`, `docs/agents/CONTRACTS.md`, `docs/agents/planner.md`, `docs/agents/qa.md`, `interop/**` (regenerado)
+- **Archivos**: `agents/planner.md`, `agents/implementer.md`, `agents/qa.md`, `agent-kits/qa/references/sin-ui.md` (nuevo), `skills/project-extensions/references/custom-agents-repo.md` (sustituye a `.claude/skills/plugin-dev/SKILL.md` y `docs/CONSTITUTION.md`, replanificado 2026-11-23), `docs/agents/CONTRACTS.md`, `docs/agents/planner.md`, `docs/agents/qa.md`, `interop/**` (regenerado)
 - **Runtimes**: Constitución y referencias se leen igual en los tres; el consumidor no recibe reglas de este repo.
 - **Verificación**:
-  - `grep -n "export-interop\|CONTRACTS.md" agents/*.md` → sin coincidencias salvo la regla que se quede en `plugin-dev`
+  - `grep -n "export-interop\|CONTRACTS.md" agents/*.md` → sin coincidencias salvo un puntero a `custom-agents-repo.md`
   - `context-footprint.py --project . --file agents/qa.md` antes/después → menos bytes (`testing/tokens.md`) → ≈2 KB menos
   - puertas de runtimes (cabecera) → verde
 
 **Criterios de aceptación**
-- [ ] `planner` conserva el mecanismo E2/E3 como regla de PROYECTO (constitución/`plugin-dev`), no como texto del agente genérico.
+- [ ] `planner` conserva el mecanismo E2/E3 como regla de PROYECTO (`skills/project-extensions/references/custom-agents-repo.md`), no como texto del agente genérico.
 - [ ] El QA sin UI carga la referencia solo cuando aplica.
 - [ ] Un proyecto consumidor no pierde ninguna puerta.
 - [ ] Medido: `planner`, `implementer` y `qa` pierden ≥ 6 KB entre los tres.
