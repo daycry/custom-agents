@@ -102,7 +102,7 @@ Qué cubre ya el repo y qué no (comprobado en código y tests):
 |---|---|---|---|
 | 1. Defectos | Aviso falso, invocar skills sin `Skill`, nombre duplicado, prosa, descriptions, guardarraíl, `code-health` | 1.1-1.10 | T-01…T-07 |
 | 2. Retirada decidida | Kwipu y Graphiti (código y docs), marco de `knowledge-services`, `plugin-dev` fuera del plugin | 3.2 (parte), decisiones | T-08…T-11 |
-| 3. Tokens | Ordenada por ahorro/esfuerzo; línea base tras la fase 2 | 2.1-2.14 (2.10 absorbida por T-08/T-09) | T-12…T-22 |
+| 3. Tokens | Ordenada por ahorro/esfuerzo; línea base tras la fase 2 | 2.1-2.14 (2.10 absorbida por T-08/T-09); estados de tarea en vivo (decisión del usuario, 2026-11-23) | T-12…T-22, T-40 |
 | 4. Simplificación | CI paralela, hooks, alias shell, copias, instalador, FTS5, panel, nombres de tests | 4.1-4.3, 4.6-4.8, 4.10, 4.11 | T-23…T-30 |
 | 5. Alcance y entrenamiento | Evaluación y exportación de casos (T-32 condicionada a T-31), fusión `lite`/`subagentes`, retro en la vía rápida, fusiones | 3.4-3.8 | T-31…T-35 |
 | 6. Higiene | Cierres, estados rancios, memoria | nivel 5 | T-36, T-37 |
@@ -167,7 +167,7 @@ La skill `knowledge-services/` tiene 49 ficheros versionados: se borran 39 (18.2
 ```
 Fase 1 (T-01…T-07)   sin dependencias; T-23 (CI) puede adelantarse a la fase 1
 Fase 2 (T-08…T-11)   T-08 → T-09 ; T-08 → T-10 ; T-11 independiente
-Fase 3 (T-12…T-22)   línea base tras la fase 2; T-12, T-13, T-14 primero;
+Fase 3 (T-12…T-22, T-40) línea base tras la fase 2; T-12, T-13, T-14 primero;
                      T-12,T-13,T-11 → T-15 → T-16 → T-17 → T-18 → T-19 ; T-18,T-19,T-11 → T-22
 Fase 4 (T-23…T-30)   T-23 → T-24 → T-25 → T-27 ; T-23 → T-29 ; T-19,T-08 → T-26 → T-30
 Fase 5 (T-31…T-35)   T-31 → T-32 (puerta: veredicto de T-31) ; T-33 tras T-19 ; T-34 tras T-16 ; T-35 tras T-03, T-05 y T-16
@@ -182,7 +182,7 @@ Cada fase es una entrega revisable por separado (revisión de dos lentes al cerr
 2. **Fase 1** (T-01…T-07), en cualquier orden; T-02 y T-03 primero si se quiere cerrar los defectos que afectan a los tres runtimes.
 3. **Fase 2**: T-08 → T-09 → T-10 (retirada, con `testing/retirada.md` y el commit recuperable antes de borrar) y T-11 (`plugin-dev`) en paralelo. Línea base de tokens al terminar.
 4. **T-31** (evaluación, sin código) en cuanto acabe la fase 2: su veredicto decide T-32 y no depende de nada más.
-5. **Fase 3** (tokens): T-12, T-13, T-14; después T-15 → T-16 → T-17 → T-18 → T-19 → T-21, T-22; T-20 independiente.
+5. **Fase 3** (tokens): T-12, T-13, T-14; después T-15 → T-16 → T-17 → T-18 → T-19 → T-21, T-22; T-20 independiente. T-40 (estados de tarea en vivo) va tras la revisión de T-12, T-13, T-14, T-20 y T-21 y antes de T-15.
 6. **Fase 4**: T-24 → T-25 → T-27, T-29, T-26 → T-30 (el renombrado de tests va al final: es mecánico y ruidoso), T-28 libre.
 7. **T-32 solo si T-31 lo permite**, T-33, T-34 y T-35 tras sus dependencias (T-19, T-16 y T-03/T-05/T-16).
 8. **Fase 6**: T-36 y T-37 al cerrar; la retro de `plugin-audit-remediation` espera al merge del PR #32.
@@ -290,3 +290,4 @@ Tarifa 50 €/h · supervisión 25 % de las horas IA · contingencia +20 % · FT
 - 2026-11-10: revisión de huecos (37 tareas): T-08 dividida en código y documentación, alcance real de la retirada medido (137 ficheros), `test_graphiti_security.py` dividido en vez de borrado, `Archivos` de todas las tareas comprobados, 4.2 acotado a 4 shells, 4.12 retirado, supuestos de runtimes convertidos en verificaciones manuales M-A…M-F, `.claude/knowledge-services/taxonomy.json` fuera de T-08, ledger a 80 KB.
 - 2026-11-20: decisiones del usuario de los días 18 y 19 incorporadas (regla 7: cadena coherente con `tasks.md`): el marco de `knowledge-services` se conserva sin adaptadores incluidos (T-10, 2026-11-18); `plugin-dev` no sale a `.claude/skills/` sino que se generaliza en `project-extensions` (T-11, 2026-11-19) y el paso manual M-B pasa a comprobar que dispara en los tres runtimes; ningún texto promete Kairos. Las cifras de la opción (b) original quedan como histórico.
 - 2026-11-23: T-22 replanificada por el orquestador (regla 7): las reglas propias de este repo van a `skills/project-extensions/references/custom-agents-repo.md`, porque `plugin-dev` ya no existe tras T-11 y `docs/CONSTITUTION.md` no se toca; M-C añade los evals reales de activación (`evals/run.py`). Desde la Fase 3 implementa Codex (`gpt-6.2-sol`, esfuerzo alto) y revisa Claude Opus 5.5 (esfuerzo alto), por decisión del usuario.
+- 2026-11-23: T-40 añadida a la Fase 3 por decisión del usuario: el PLUGIN (no el orquestador ni el agente de memoria) mueve el estado de cada tarea en todo el ciclo —`en-progreso` al empezar (`usage-meter.py start`, `task-brief.py`), `en-revision` al terminar la implementación y al abrir la revisión (`ledger-write.py review`), y el veredicto (`ledger-write.py verdict`, nuevo) la devuelve a `en-progreso` o la cierra `completado`— con cualquier runtime o mezcla de proveedores, y cada transición se ve en vivo en la consola (tablero y Actividad, ≤ 7 s). `ledger-lint` y el hook posterior a la edición avisan de incoherencias. Se ejecuta tras cerrar la revisión de la tanda A y antes de la tanda B (T-15..T-19, T-22). Estimación: 6 h humanas, 1,5 h IA.

@@ -40,11 +40,11 @@ changelog: Changed
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Defectos | 7 | 8 | 87.5% | 0 / 16h | 0 / 5.0h | 0 / 1.25h | 0 / 1090k |
 | Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev) | 4 | 4 | 100% | 0 / 32h | 0 / 7.9h | 0 / 1.98h | 0 / 2100k |
-| Fase 3 — Tokens | 5 | 11 | 45.5% | 0 / 30h | 1.1 / 8.2h | 0 / 2.05h | 0 / 2260k |
+| Fase 3 — Tokens | 5 | 12 | 41.7% | 0 / 36h | 1.1 / 9.7h | 0 / 2.42h | 0 / 2260k |
 | Fase 4 — Simplificación del código | 0 | 8 | 0.0% | 0 / 34.5h | 0 / 8.5h | 0 / 2.12h | 0 / 2470k |
 | Fase 5 — Alcance y entrenamiento | 0 | 5 | 0% | 0 / 26h | 0 / 6.5h | 0 / 1.62h | 0 / 1800k |
 | Fase 6 — Higiene del roadmap | 0 | 3 | 0% | 0 / 10h | 0 / 2.5h | 0 / 0.62h | 0 / 750k |
-| **TOTAL** | **16** | **39** | **41.0%** | **0 / 148.5h** | **0 / 38.6h** | **0 / 9.65h** | **0 / 10470k** |
+| **TOTAL** | **16** | **40** | **40.0%** | **0 / 154.5h** | **0 / 40.1h** | **0 / 10.02h** | **0 / 10470k** |
 
 Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +20 % está en el plan); tokens al precio de `.claude/rates.json`.
 
@@ -804,6 +804,34 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - [ ] Un proyecto consumidor no pierde ninguna puerta.
 - [ ] Medido: `planner`, `implementer` y `qa` pierden ≥ 6 KB entre los tres.
 
+### T-40 — El plugin mueve el estado de cada tarea en todo el ciclo y el dashboard lo muestra en vivo (decidido por el usuario el 2026-11-23)
+
+- **Descripción**: Hoy el estado de las tareas solo se mueve si el agente se acuerda. `implementer.md` pasa de `en-progreso` a `completado` sin `en-revision`. `adversarial-review` dice en prosa que con gaps las tareas «vuelven a `en-progreso`», pero ningún script lo hace. `ledger-write.py review` abre la cabecera sin tocar estados. Cuando implementa otro proveedor (Codex u OpenCode, o uno implementa y otro revisa), nada mueve el estado: en esta misma iniciativa T-12..T-21 quedaron `completado` con gaps abiertos. El usuario pide que lo haga el PLUGIN, no el orquestador ni el agente de memoria, y que el dashboard muestre en vivo todo lo que pasa. Las transiciones se escriben dentro de los scripts que el flujo ya obliga a ejecutar en los traspasos, sea cual sea el runtime o el proveedor: inicio de tarea → `en-progreso`; fin de la implementación → `en-revision`; apertura de la revisión → `en-revision`; veredicto con Critical/Important → `en-progreso`; veredicto sin Critical/Important → `completado` (con criterios marcados). Cada transición emite además un evento de actividad (tarea, de→a, runtime, rol, fuente) que la consola muestra en vivo.
+- **Changelog**: Las tareas pasan solas por En marcha, En revisión y Completada en cualquier runtime, y el dashboard lo muestra en vivo.
+- **Estado**: borrador
+- **Tiempo humano**: est. 6h · real —
+- **Tiempo IA (ejec.)**: est. 1.5h · real —
+- **Archivos**: `agent-kits/shared/ledger-write.py`, `agent-kits/shared/ledger-write.md`, `agent-kits/shared/test_ledger_write*.py`, `agent-kits/shared/usage-meter.py`, `agent-kits/shared/test_usage_meter*.py`, `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/shared/ledger-lint.py`, `tests/test_ledger_lint.py`, `agent-kits/shared/agent-activity.py`, `agent-kits/shared/agent-activity-store.py`, `agent-kits/shared/test_agent_activity*.py`, `hooks/` (solo el aviso de incoherencia del hook posterior a la edición del ledger), `agents/implementer.md`, `commands/dev-cycle.md`, `agent-kits/dev-cycle/references/phase3-subagents.md`, `skills/adversarial-review/SKILL.md`, `skills/adversarial-review/references/lentes.md`, `skills/quick-implement/SKILL.md`, `skills/jira-sync/` (solo si el mapeo de eventos cambia), `skills/plugin-panel/scripts/*.py` y `skills/plugin-panel/assets/*.js` (actividad y tablero), `tests/test_plugin_panel*.py`, `tests/console-*.test.mjs`, `docs/CONVENTIONS.md` + `docs/en/CONVENTIONS.md` (regla 7), `docs/FLOWS.md` + `docs/en/FLOWS.md`, `docs/agents/ROLES.md`, `docs/agents/CONTRACTS.md`, `docs/observability.md` + `docs/en/observability.md`, `docs/roadmap/2026-11-10-plugin-audit-2/tasks.md` (reconciliación de esta iniciativa con la herramienta), `interop/**` (regenerado)
+- **Runtimes**: Las transiciones viven en scripts de `agent-kits/shared/` que llaman igual Claude, Codex y OpenCode; la prosa de las piezas solo deja de pedir el cambio manual. Se prueba con los tres runtimes (`--runtime claude|codex|opencode` en el evento) y con proveedores mezclados (implementa uno, revisa otro).
+- **Verificación**:
+  - `pytest -q agent-kits/shared/test_ledger_write*.py -k "transicion or verdict"` → `passed` (rojo antes: `review` no mueve estados y `verdict` no existe)
+  - `pytest -q agent-kits/shared/test_usage_meter*.py -k estado_tarea` → `passed` (rojo antes: `start`/`close` de `<slug>/T-XX` no tocan el ledger)
+  - `pytest -q tests/test_ledger_lint.py -k incoherencia_estado` → `passed` (rojo antes: `completado` con gap pendiente no avisa)
+  - prueba de punta a punta con la consola arrancada (`control_center.py --project <tmp>`): transición por script → tablero y actividad la muestran en ≤ 7 s, en los tres runtimes
+  - puertas de runtimes y de tokens (cabecera) → verde
+
+**Criterios de aceptación**
+- [ ] Inicio de tarea (`usage-meter.py start --artefacto <slug>/T-XX`, y `task-brief.py` al despachar) → `en-progreso`, si la tarea estaba en `borrador`/`en-progreso`; nunca degrada una `completado` ni una `cancelado`.
+- [ ] Fin de la implementación (`usage-meter.py close` de la tarea) → `en-revision`; el implementer ya no marca `completado`.
+- [ ] `ledger-write.py review --tasks …` pone esas tareas en `en-revision` en la misma escritura atómica que abre la cabecera.
+- [ ] `ledger-write.py verdict --tasks … --attempt N --result gaps|limpio` (nuevo): `gaps` → las tareas con gap Critical/Important vuelven a `en-progreso`; `limpio` → `completado` solo si todos sus criterios están marcados (si no, exit 1 y no escribe). Lo invoca `adversarial-review` al escribir la traza.
+- [ ] Los estados de fase y la tabla «Resumen de progreso» se recalculan en cada transición.
+- [ ] Funciona igual con Claude, Codex y OpenCode y con proveedores distintos para implementar y revisar (tests parametrizados por runtime).
+- [ ] Cada transición emite un evento de actividad (tarea, estado anterior → nuevo, runtime, rol, fuente) sin datos personales; la consola muestra el cambio en el tablero y en Actividad en ≤ 7 s (prueba de punta a punta).
+- [ ] `ledger-lint` (y el hook posterior a la edición del ledger, que solo informa) avisa de incoherencias: `completado` con gap pendiente en su última revisión; revisión abierta sin veredicto con tareas en `en-progreso`; `en-progreso` con el marcador de medición ya cerrado.
+- [ ] Degrada sin bloquear: sin Python, ledger ilegible o lock ocupado → aviso y el ciclo sigue (la transición se reintenta en el siguiente traspaso).
+- [ ] Esta iniciativa se reconcilia con la propia herramienta (no a mano): T-12..T-21 quedan en el estado que les toca según su revisión.
+
 ## Fase 4 — Simplificación del código
 
 **Estado**: borrador · **Est.**: 34.5h humanas · **Real**: — · 1725 € · 2470k tokens
@@ -1242,3 +1270,20 @@ Lentes A+B+C+D (Claude Opus 5.5, esfuerzo alto) sobre `ab7eeb2..4893637`; C por 
 | 8 | Minor | k11: T-20 cerrada sin los evals reales de activación (`evals/run.py`) ni acción del usuario | T-20 | corregido por el orquestador (`4e3d58a`): M-C del plan los incluye | `tasks.md` (T-20, k11) |
 | 9 | Minor | `FLOWS.md` (ES/EN) sigue diciendo índice completo en todos los runtimes; `--fase` falta en `agent-kits/shared/README.md` y en E8 de `CONTRACTS.md` | T-20, T-14 | corregido (fix1, f627de3) | `docs/FLOWS.md:547`; `agent-kits/shared/README.md:59`; `docs/agents/CONTRACTS.md:79` |
 | 10 | Minor | `skill-index.py --solo-cabecera --json` imprime texto plano | T-20 | corregido (fix1, f627de3) | `agent-kits/shared/skill-index.py:443-445` |
+
+## Revisión de dos lentes — intento 2: Fase 3 (T-13, T-14, T-20, T-21) — verificación del fix1: 2 Important, 8 Minor (corrección: fix2)
+
+Lentes A+B+C (Claude Opus 5.5, esfuerzo alto) sobre `c40fd0f..e072004` (fix1 de Codex gpt-6.2-sol). D no se relanza: la Lente B midió `despacha_agentes` ampliada (lineal, 700 KB → 3,1 s). Del intento 1 quedan ✓ los gaps 2, 3, 4, 5 (escenario original), 6, 7 y 10; los gaps 1 y 9 están corregidos en contenido, pero sin test (gap 2 de abajo). Confirmado: el borrado de generados sin fuente de `export-interop.py` no sigue junctions, enlaces ni hardlinks, y el instalador no borra nada.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | `_lineas_con_fence` abre y cierra el cercado con cualquier ```/~~~ sin mirar carácter ni longitud (CommonMark), mientras `ledger-lint` sí lo hace (`sin_vallas`). Un cercado de 4 acentos con otro dentro sigue ocultando tareas y criterios con exit 0; `~~~` con ```` ```python ```` dentro deja el cercado abierto hasta el final; un cercado sin cerrar antes de `## Fase N` da exit 1 | T-14 | pendiente (fix2) | `agent-kits/shared/task-brief.py:267-278` (usa `:1573-1575`); reproducido (`scratchpad/probe_fase.py`) |
+| 2 | Important | Los gaps 1 y 9 del intento 1 constan `corregido` sin un test dedicado que los nombre: si el prompt de la Lente A vuelve a pedir `tasks.md`, nada falla | T-13, T-14, T-20 | pendiente (fix2) | `docs/CONSTITUTION.md:13`; `skills/adversarial-review/references/lens-prompts.md:17`; `agents/reviewer.md:72-75` |
+| 3 | Minor | Las marcas INICIO/FIN de la vista de fase se pueden falsificar desde el ledger (sin prefijo `> ` ni escape del literal de cierre); también cuando la vista es el ledger entero (CWE-1427) | T-14 | pendiente (fix2) | `task-brief.py:1596-1598`, `:352`; reproducido (`scratchpad/lc2`) |
+| 4 | Minor | `_neutraliza_encabezados` escapa también dentro de bloques de código (`# comentario` → `\# comentario`) | T-14 | pendiente (fix2) | `task-brief.py:352-360` |
+| 5 | Minor | `despacha_agentes`: falsos positivos con negaciones y descripciones («no usa subagentes», «Sin subagentes en paralelo», «el formato de los agentes `planner` y `qa`», un bloque con `subagent_type:`, «pasa a la fase … `qa`»); falsos negativos con preguntas y gerundios («¿Despacho al `reviewer`?», «delegando al `planner`») | T-21 | pendiente (fix2) | `scripts/export-interop.py:125-131`, `:341-362`; `scratchpad/probe_desp.py` |
+| 6 | Minor | `--check` imprime sin sanear el nombre de un generado obsoleto (`OBSOLETO %s`; CWE-150/117) | T-21 | pendiente (fix2) | `scripts/export-interop.py:836` → `:959` |
+| 7 | Minor | El «modo sin plan» de la Lente A manda sustituir un texto que el fix1 eliminó | T-14 | pendiente (fix2) | `lens-prompts.md:18` |
+| 8 | Minor | La evidencia original de T-21 (11 de 15, −7.656/−7.238, GREEN `e8cceba`) se reescribió en su sitio en vez de añadirse al bloque fix1 | T-21 | pendiente (fix2) | `tasks.md` (T-21, Evidencia) |
+| 9 | Minor | Entradas de CHANGELOG como «Fixed» de funciones nunca publicadas, declaradas solo en T-21; `changelog-sync` saltará la iniciativa al cerrarla porque `plugin-audit-2` ya aparece en `[Unreleased]` | T-14, T-21 | pendiente (fix2) | `CHANGELOG.md:14-17`, `CHANGELOG.es.md:14-17`; `skills/changelog-sync/SKILL.md:103` |
+| 10 | Minor | La vista `--fase` excluye las secciones `## Revisión … intento N` de esa fase y no lleva números de línea: la Lente A abre el ledger para ver la tabla anterior o citar | T-14 | pendiente (fix2) | `task-brief.py:1558-1598` |
