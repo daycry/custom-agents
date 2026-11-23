@@ -80,6 +80,8 @@ revisa, y si N > 1 la tabla del intento anterior (ver §5). Despacho:
 <carpeta> --fase <N>` en lugar de `tasks.md` entero: cabecera del ledger + la sección `## Fase N` íntegra
 (todas sus tareas, criterios y verificaciones). Por debajo del umbral de `ledger-lint.py` es el ledger
 entero, como siempre. Fase inexistente → exit 1: pásale el ledger entero y dilo en la salida.
+La vista incluye también las secciones `## Revisión … intento K: Fase N` de esa fase. El comentario
+de apertura indica el rango `tasks.md:A-B` de cada bloque incluido.
 
 1. **Tier del revisor:** `python3 "$SHAREDKIT/model-tier.py" reviewer --json` → pasa `model` al Agent
    tool si `fuente.model` es `dev.json` (el `effort` de dev.json es informativo; sin script → frontmatter).

@@ -269,8 +269,10 @@ def _lineas_con_fence(text):
     mod = _ledger_lint_mod()
     enmascara = getattr(mod, "sin_vallas", sin_vallas)  # respaldo existente del kit parcial
     lineas = text.splitlines()
-    visibles = enmascara("\n".join(lineas)).split("\n")
-    return [(original, original != visible) for original, visible in zip(lineas, visibles)]
+    # Una línea vacía también puede estar cercada. Un espacio la distingue del resultado vacío
+    # de la máscara sin que se interprete como apertura o cierre.
+    visibles = enmascara("\n".join(ln or " " for ln in lineas)).split("\n")
+    return [(original, not visible) for original, visible in zip(lineas, visibles)]
 
 
 def _estado_estructura_por_linea(text):
@@ -344,15 +346,31 @@ def _aprovecha_margen_de_linea(texto, siguiente, estado_previo, tope):
     return texto + siguiente[:restante] if restante > 0 else texto
 
 
+_VALLA_CITA_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+_ENCABEZADO_CITA_RE = re.compile(r"^ {0,3}#{1,6}(?:\s|$)")
+
+
 def _neutraliza_encabezados(texto):
-    """Antepone `\\` a cualquier línea que Markdown renderizaría como encabezado (`# ...`) dentro de
-    contenido INYECTADO (persona de dominio): así no puede fingir una sección al mismo nivel que
-    `## Contrato de retorno` u otra del brief (gap B-1, revisión intento 2) — el texto sigue siendo
-    legible, solo deja de ser un heading real."""
-    return "\n".join(
-        ("\\" + ln if not cercada and re.match(r"^ {0,3}#{1,6}(\s|$)", ln) else ln)
-        for ln, cercada in _lineas_con_fence(texto)
-    )
+    """Escapa encabezados de la cita y restaura los de cercados CommonMark cerrados."""
+    lineas = texto.splitlines()
+    salida = ["\\" + ln if _ENCABEZADO_CITA_RE.match(ln) else ln for ln in lineas]
+    apertura = None
+    # El reparto del ledger usa la gramática compartida. En la cita solo se restaura un
+    # cercado si la apertura y el cierre cumplen las reglas de Markdown.
+    for i, linea in enumerate(lineas):
+        m = _VALLA_CITA_RE.match(linea)
+        if not m:
+            continue
+        marca, resto = m.groups()
+        if apertura is None:
+            if marca[0] == "~" or "`" not in resto:
+                apertura = i, marca
+            continue
+        inicio, original = apertura
+        if marca[0] == original[0] and len(marca) >= len(original) and not resto.strip(" \t"):
+            salida[inicio:i + 1] = lineas[inicio:i + 1]
+            apertura = None
+    return "\n".join(salida)
 
 
 def _seccion_tarea(tasks_text, tid):

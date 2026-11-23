@@ -805,6 +805,7 @@ def test_fix2_gap5_distingue_despachos_de_descripciones_y_negaciones(cuerpo, esp
     ("Despacha a cada `reviewer`.", True),
     ("Nunca bloquea: despacha al `qa`.", True),
     ("Nunca invoca al `qa`.", False),
+    ("No hace falta: despacha al `reviewer` solo si hay diff.", False),
     ("Sin delegar en el `planner`.", False),
     ("El formato de los agentes `planner` y `qa`.", False),
     ("```\nDespacha al agente `reviewer`.\n```", False),

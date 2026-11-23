@@ -117,11 +117,13 @@ PRE_COMANDO_SIN_AGENTES = """> **Adaptación a {runtime}** (fichero generado; la
 """
 # Un verbo y su destino deben aparecer en la misma cláusula.
 _RAIZ_DESPACHO = r"(?:despach|lanz|invoc|deleg|entreg|llam)"
-_FORMA_DESPACHO = r"(?:a|ad|an|ar|e|en|o|ando)"
-_VERBO_DESPACHO = rf"(?:{_RAIZ_DESPACHO}|pas){_FORMA_DESPACHO}|handoff"
+_FORMA_DESPACHO = r"(?:a|ad(?:[oa]s?)?|an|ar|e|en|o|ando)"
+_VERBO_DESPACHO = rf"{_RAIZ_DESPACHO}{_FORMA_DESPACHO}|handoff"
 _HASTA_DESTINO = r"[^.,;:\n`]{0,60}?"
 _CORTE_CLAUSULA = re.compile(r"[.,;!?\n]+|\b(?:pero|sino(?:\s+que)?)\b", re.I)
-_NEGACION_DESPACHO = re.compile(r"\b(?:no\b(?!\s+s[oó]lo\b)|sin\b(?!\s+embargo\b)|ni\b|nunca\b|jamás\b)", re.I)
+# «Nunca bloquea:» niega el bloqueo, no el despacho introducido tras los dos puntos.
+_NEGACION_DESPACHO = re.compile(
+    r"\b(?:no\b(?!\s+s[oó]lo\b)|sin\b(?!\s+embargo\b)|ni\b|nunca\b(?!\s+bloquea\s*:)|jamás\b)", re.I)
 
 
 @lru_cache(maxsize=1)
@@ -136,11 +138,13 @@ def _sin_vallas():
 def despacha_agentes(cuerpo, mapping=None):
     roles = (mapping or native_roles(ROOT_DEFAULT))["runtimes"]["codex"]
     rol = r"\*{0,2}`(?:%s)`" % "|".join(re.escape(r) for r in sorted(roles))
-    destino = r"\b(?:al?|en)\s+"
+    destino = r"\b(?:al?|en)\s+(?:(?:el|los|cada)\s+)?(?:agentes?\s+)?"
+    objetivo = (rf"(?!\s+a\s+la\s+fase\b)"
+                rf"(?:\s+(?:(?:el|los)\s+agentes?\s+)?{rol}|{_HASTA_DESTINO}{destino}{rol})")
     patrones = (
         rf"\b(?:usa|ejecuta)\s+(?:el|los|un|unos)\s+(?:sub)?agentes?\s+{rol}",
-        rf"\b(?:{_VERBO_DESPACHO})\b(?!\s+a\s+la\s+fase\b)"
-        rf"(?:\s+{rol}|{_HASTA_DESTINO}{destino}{rol})",
+        rf"\b(?:{_VERBO_DESPACHO})\b(?!\s+(?:un|el)\s+aviso\b){objetivo}",
+        rf"\bpas{_FORMA_DESPACHO}\b{objetivo}(?!\*{{0,2}}\s+verde\b)",
         rf"\b(?:{_RAIZ_DESPACHO}{_FORMA_DESPACHO}|ejecuta|crea|usa)\b"
         rf"{_HASTA_DESTINO}\bsubagentes?\b",
         rf"\b(?:verifica|revisa)\b{_HASTA_DESTINO}\bcon\s+un\s+subagente\b",

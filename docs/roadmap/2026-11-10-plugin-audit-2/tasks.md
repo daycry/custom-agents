@@ -627,6 +627,12 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - Verificación: rangos y dos intentos en la fase real; ahorro ≥50 % en el ledger sintético; ledger pequeño íntegro. Prosa, modo sin plan y Changed verificados.
 - Puertas: pytest 490/2 omitidas; Node Linux con init 256/7 omitidas; interop 88; lint/evals 0 errores; diet 0 pérdidas; vía rápida 6.023; evaluator 15.465 bytes LF.
 
+**fix3 (intento 3 de la Fase 3, gaps 1, 2, 4, 5, 7; 2026-11-23; Codex gpt-6.2-sol)**
+- RED: test_fix3_gap2_solo_un_cercado_valido_protege_encabezados falló con AssertionError (encabezado sin escapar) · 2026-11-23
+- RED: test_fix3_gap4_verificacion_con_blanco_cercado_conserva_dos_items falló con AssertionError (1 ítem en vez de 2) · 2026-11-23
+- RED: test_fix3_gap4_verificacion_real_graphiti_t08_conserva_cuatro_items falló con AssertionError (1 ítem en vez de 4) · 2026-11-23
+- RED: test_fix3_gap7_vista_documenta_cabecera_fase_intentos_y_rangos falló con AssertionError (faltan partes de la vista en la prosa) · 2026-11-23
+
 ### T-15 — Borrar «Alcance y activación» duplicado (2.9)
 
 - **Descripción**: Párrafos que repiten la description antigua dentro del cuerpo (25 ocurrencias de «Alcance y activación» en `agents/`, `commands/` y `skills/`; el análisis contó 21: se clasifica pieza a pieza). Se borran los que duplican la description y se conserva lo que aporta un guardarraíl. Ahorro estimado ≈15 KB.
@@ -809,8 +815,12 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - RED: test_fix2_gap5_distingue_despachos_de_descripciones_y_negaciones falló con AssertionError: negaciones y despachos clasificados al revés · 2026-11-23
 - RED: test_fix2_gap6_check_sanea_el_nombre_obsoleto_simulado falló con AssertionError: nombre partido por un salto · 2026-11-23
 - RED `41cf29c` · GREEN `04d719b`. `test_fix2_gap5_los_15_comandos_conservan_el_conjunto_despachan`: cinco por runtime. Exportación y `--check`: 88.
-- Gap 8: TDD n/a: registro del ledger. Restaurada la evidencia de GREEN `e8cceba`; las cifras de `f627de3` constan en fix1.
+- Gap 8: `test_fix3_gap1_t21_conserva_medidas_y_traza_del_intento2`. Restaurada la evidencia de GREEN `e8cceba`; las cifras de `f627de3` constan en fix1.
 - Changed bilingüe: `test_fix2_gap9_changelogs_bilingues_en_changed_y_trazados_por_tarea`.
+
+**fix3 (intento 3 de la Fase 3, gaps 1, 2, 4, 5, 7; 2026-11-23; Codex gpt-6.2-sol)**
+- RED: test_fix3_gap1_t21_conserva_medidas_y_traza_del_intento2 falló con AssertionError (la traza no cita el test) · 2026-11-23
+- RED: test_fix3_gap5_recupera_despachos_sin_avisos_ni_descripciones falló con AssertionError (7 despachos omitidos y 2 falsos positivos) · 2026-11-23
 
 ### T-22 — Reglas de este repo fuera de los agentes genéricos y qa condicional (2.8, 2.13)
 
@@ -1313,7 +1323,7 @@ Lentes A+B+C (Claude Opus 5.5, esfuerzo alto) sobre `c40fd0f..e072004` (fix1 de 
 | 5 | Minor | `despacha_agentes`: falsos positivos con negaciones y descripciones («no usa subagentes», «Sin subagentes en paralelo», «el formato de los agentes `planner` y `qa`», un bloque con `subagent_type:`, «pasa a la fase … `qa`»); falsos negativos con preguntas y gerundios («¿Despacho al `reviewer`?», «delegando al `planner`») | T-21 | corregido (fix2, 04d719b; test `test_fix2_gap5_distingue_despachos_de_descripciones_y_negaciones`) | `scripts/export-interop.py:125-131`, `:341-362`; `scratchpad/probe_desp.py` |
 | 6 | Minor | `--check` imprime sin sanear el nombre de un generado obsoleto (`OBSOLETO %s`; CWE-150/117) | T-21 | corregido (fix2, 04d719b; test `test_fix2_gap6_check_sanea_el_nombre_obsoleto_simulado`) | `scripts/export-interop.py:836` → `:959` |
 | 7 | Minor | El «modo sin plan» de la Lente A manda sustituir un texto que el fix1 eliminó | T-14 | corregido (fix2, 04d719b; test `test_fix2_gap7_modo_sin_plan_sustituye_el_texto_vigente_de_lente_a`) | `lens-prompts.md:18` |
-| 8 | Minor | La evidencia original de T-21 (11 de 15, −7.656/−7.238, GREEN `e8cceba`) se reescribió en su sitio en vez de añadirse al bloque fix1 | T-21 | corregido (fix2, 04d719b; TDD n/a: registro del ledger) | `tasks.md` (T-21, Evidencia) |
+| 8 | Minor | La evidencia original de T-21 (11 de 15, −7.656/−7.238, GREEN `e8cceba`) se reescribió en su sitio en vez de añadirse al bloque fix1 | T-21 | corregido (fix2, 04d719b; test `test_fix3_gap1_t21_conserva_medidas_y_traza_del_intento2`) | `tasks.md` (T-21, Evidencia) |
 | 9 | Minor | Entradas de CHANGELOG como «Fixed» de funciones nunca publicadas, declaradas solo en T-21; `changelog-sync` saltará la iniciativa al cerrarla porque `plugin-audit-2` ya aparece en `[Unreleased]` | T-14, T-21 | corregido (fix2, 04d719b; test `test_fix2_gap9_changelogs_bilingues_en_changed_y_trazados_por_tarea`) | `CHANGELOG.md:14-17`, `CHANGELOG.es.md:14-17`; `skills/changelog-sync/SKILL.md:103` |
 | 10 | Minor | La vista `--fase` excluye las secciones `## Revisión … intento N` de esa fase y no lleva números de línea: la Lente A abre el ledger para ver la tabla anterior o citar | T-14 | corregido (fix2, 04d719b; test `test_fix2_gap10_vista_incluye_intentos_en_orden_con_rangos_y_ahorra_50_por_ciento`) | `task-brief.py:1558-1598` |
 
