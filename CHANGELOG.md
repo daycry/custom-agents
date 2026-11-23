@@ -11,10 +11,13 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
-### Fixed
+### Changed
 
-- Lens A receives the relevant ledger phase for large initiatives. Both review and lint use the same byte threshold, and headings inside fenced examples cannot cut the phase short.
-- Interop checks detect retired OpenCode command exports and regeneration removes them. `/spec-drift` includes subagent dispatch instructions in Codex and OpenCode.
+- Each task brief includes the essential TDD rule, so the subagent no longer loads the whole skill.
+- The reviewer reads only the lens table it needs, without loading the full adversarial review skill.
+- Ledgers warn before they grow too large, can be archived by phase, and reviews read only the current phase.
+- Claude Code startup no longer repeats the skill listing. Codex and OpenCode keep it.
+- Codex and OpenCode commands that do not dispatch agents no longer include the orchestration header.
 
 ### Removed — BREAKING CHANGE, major version (4.0.0): the Kwipu and Graphiti backends are retired (`plugin-audit-2`, 2026-11-19)
 

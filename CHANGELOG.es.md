@@ -11,10 +11,13 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
-### Fixed
+### Changed
 
-- La Lente A recibe la fase pertinente de los ledgers grandes. La revisión y el linter usan el mismo umbral en bytes, y los encabezados de un ejemplo cercado no acortan la fase.
-- La comprobación de interop detecta los comandos retirados de OpenCode y la regeneración los elimina. `/spec-drift` incluye instrucciones para despachar subagentes en Codex y OpenCode.
+- El brief de cada tarea trae la regla TDD esencial y el subagente ya no carga la skill completa.
+- El revisor lee solo la tabla de lentes que necesita, no toda la skill de revisión adversarial.
+- Los ledgers avisan antes de crecer, se archivan por fase y la revisión lee solo la fase en curso.
+- El arranque de Claude Code ya no repite el listado de skills; Codex y OpenCode lo conservan.
+- Los comandos de Codex y OpenCode que no despachan agentes ya no llevan la cabecera de orquestación.
 
 ### Removed — CAMBIO ROMPEDOR, versión mayor (4.0.0): se retiran los backends Kwipu y Graphiti (`plugin-audit-2`, 2026-11-19)
 

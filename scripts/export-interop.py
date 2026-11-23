@@ -53,6 +53,8 @@ import os
 import re
 import stat
 import sys
+import unicodedata
+from functools import lru_cache
 
 # Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -114,23 +116,43 @@ PRE_COMANDO_SIN_AGENTES = """> **Adaptación a {runtime}** (fichero generado; la
 > Las skills se invocan {skills}. Todo lo demás (puertas, artefactos, ledger) no cambia.
 """
 # Un verbo y su destino deben aparecer en la misma cláusula.
-_VERBO_DESPACHO = r"(?:despach|lanz|invoc|deleg|entreg|llam|pas)(?:a|ad|an|ar|e|en)|handoff"
+_RAIZ_DESPACHO = r"(?:despach|lanz|invoc|deleg|entreg|llam)"
+_FORMA_DESPACHO = r"(?:a|ad|an|ar|e|en|o|ando)"
+_VERBO_DESPACHO = rf"(?:{_RAIZ_DESPACHO}|pas){_FORMA_DESPACHO}|handoff"
 _HASTA_DESTINO = r"[^.,;:\n`]{0,60}?"
+_CORTE_CLAUSULA = re.compile(r"[.,;!?\n]+|\b(?:pero|sino(?:\s+que)?)\b", re.I)
+_NEGACION_DESPACHO = re.compile(r"\b(?:no\b(?!\s+s[oó]lo\b)|sin\b(?!\s+embargo\b)|ni\b|nunca\b|jamás\b)", re.I)
+
+
+@lru_cache(maxsize=1)
+def _sin_vallas():
+    ruta = os.path.join(ROOT_DEFAULT, "agent-kits", "shared", "ledger-lint.py")
+    spec = importlib.util.spec_from_file_location("ledger_lint_export", ruta)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.sin_vallas
 
 
 def despacha_agentes(cuerpo, mapping=None):
     roles = (mapping or native_roles(ROOT_DEFAULT))["runtimes"]["codex"]
     rol = r"\*{0,2}`(?:%s)`" % "|".join(re.escape(r) for r in sorted(roles))
-    # Las preguntas de configuración describen opciones, no pasos del comando.
-    pasos = re.sub(r"¿[^?\n]*\?", "", cuerpo)
+    destino = r"\b(?:al?|en)\s+"
     patrones = (
-        rf"\b(?:sub)?agentes?\s+{rol}",
-        rf"\b(?:{_VERBO_DESPACHO})\b{_HASTA_DESTINO}{rol}",
-        rf"\b(?:{_VERBO_DESPACHO}|ejecuta|crea|usa)\b{_HASTA_DESTINO}\bsubagentes?\b",
-        r"\bsubagentes?\s+(?:de contexto fresco|en paralelo|por lotes)\b",
-        r"\bsubagent_type\b",
+        rf"\b(?:usa|ejecuta)\s+(?:el|los|un|unos)\s+(?:sub)?agentes?\s+{rol}",
+        rf"\b(?:{_VERBO_DESPACHO})\b(?!\s+a\s+la\s+fase\b)"
+        rf"(?:\s+{rol}|{_HASTA_DESTINO}{destino}{rol})",
+        rf"\b(?:{_RAIZ_DESPACHO}{_FORMA_DESPACHO}|ejecuta|crea|usa)\b"
+        rf"{_HASTA_DESTINO}\bsubagentes?\b",
+        rf"\b(?:verifica|revisa)\b{_HASTA_DESTINO}\bcon\s+un\s+subagente\b",
+        rf"\b{_RAIZ_DESPACHO}[áa]ndo(?:lo|la|los|las|le|les)\b",
+        r"\bsubagent_type\s*:",
     )
-    return bool(re.search("|".join(patrones), pasos, re.IGNORECASE))
+    deteccion = re.compile("|".join(patrones), re.I)
+    for clausula in _CORTE_CLAUSULA.split(_sin_vallas()(cuerpo)):
+        despacho = deteccion.search(clausula)
+        if despacho and not _NEGACION_DESPACHO.search(clausula, 0, despacho.end()):
+            return True
+    return False
 
 
 def pre_comando(runtime, nombre, cuerpo, mapping=None):
@@ -938,6 +960,12 @@ def rutas_absolutas(plan):
             for n, linea in enumerate(contenido.splitlines(), 1) if RUTA_HOME_ABSOLUTA.search(linea)]
 
 
+def _ruta_para_consola(ruta):
+    """Escapa controles y separadores de línea sin ocultar el nombre del fichero."""
+    return "".join(ascii(c)[1:-1] if unicodedata.category(c) in {"Cc", "Cf", "Zl", "Zp", "Cs"} else c
+                   for c in ruta)
+
+
 def comprobar(root, plan):
     faltan, distintos = [], []
     retirados = obsoletos(root, plan)
@@ -952,13 +980,13 @@ def comprobar(root, plan):
         print("export-interop --check: %d ficheros al día" % len(plan))
         return 0
     for rel in faltan:
-        print("FALTA         %s" % rel)
+        print("FALTA         %s" % _ruta_para_consola(rel))
     for rel in distintos:
-        print("DESINCRONIZADO %s" % rel)
+        print("DESINCRONIZADO %s" % _ruta_para_consola(rel))
     for rel in retirados:
-        print("OBSOLETO      %s" % rel)
+        print("OBSOLETO      %s" % _ruta_para_consola(rel))
     for rel, n in absolutas:
-        print("RUTA ABSOLUTA %s:%d" % (rel, n))
+        print("RUTA ABSOLUTA %s:%d" % (_ruta_para_consola(rel), n))
     if faltan or distintos or retirados:
         print("\nERROR: la interop de Codex/OpenCode no refleja las piezas del repo.\n"
               "       Arréglalo con: python3 scripts/export-interop.py")

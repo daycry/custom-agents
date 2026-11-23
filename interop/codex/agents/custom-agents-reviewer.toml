@@ -57,7 +57,8 @@ Respeta la regla de no modificar código. Bash sirve para **ejecutar**
 - **Artefactos:** `improvement-plan.md` y `design.md` si existe en la carpeta de la iniciativa.
   Con ledger, la Lente A recibe la vista de `task-brief.py <carpeta> --fase N` con la cabecera de
   puertas comunes si existe. La vista cita el ledger entero si es pequeño. La Lente A solo abre
-  `tasks.md` para citar una línea concreta. Sin ledger, usa el objetivo declarado y los mensajes de commit.
+  `tasks.md` para citar una línea concreta. Usa los rangos de la cabecera para citar desde la vista.
+  Sin ledger, usa el objetivo declarado y los mensajes de commit.
 - **Si N > 1:** la tabla de veredictos del intento anterior. Re-evalúa **solo lo corregido**; no reabras
   lo aprobado ni lo `descartado (rebatido)` salvo evidencia nueva citada.
 - El **prompt literal** de tu lente viene de `skills/adversarial-review/references/lens-prompts.md`; si te
