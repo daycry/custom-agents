@@ -1292,3 +1292,7 @@ Ciclo nuevo autorizado por el usuario el 2026-11-23 («fix3 corto y cierro»). L
 | 3 | Minor | La excepción `nunca\b(?!\s+bloquea\s*:)` está hecha a medida de la frase del test: «Nunca degrada: despacha al `qa`» → False (latente) | T-21 | deuda aceptada por el usuario (2026-11-23, criterio de cierre) | `scripts/export-interop.py:162-163` |
 
 **Tanda A de la Fase 3 cerrada (2026-11-24)** según el criterio del usuario: 0 Critical y 0 Important tras los intentos 1 (fix1), 2 (fix2), 3 (fix3) y 4. La deuda aceptada son los gaps 3, 6 y 8 del intento 3 y los 3 Minor de este intento. Los estados de T-12, T-13, T-14, T-20 y T-21 los reconcilia la herramienta de T-40.
+
+## Revisión de dos lentes — intento 1: Fase 3 (T-40) — estados de tarea movidos por el plugin y consola en vivo (T-40)
+
+Pendiente de revisión; sin veredicto.
