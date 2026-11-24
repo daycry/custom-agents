@@ -1423,3 +1423,7 @@ Lentes A y B (Claude Opus 5.5, esfuerzo alto) sobre `ebd9ad6..5eace02` (fix3 de 
 | 5 | Minor | `_read_codex` recorre todas las sesiones de Codex en cada `close` (crece con el histórico); `CUSTOM_AGENTS_RUNTIME=codex` global hace que un close de Claude mida sesiones de Codex | T-40 | corregido (fix4, `4f9b3ea`; test `test_fix4_gap5_codex_limits_days_and_skips_stale_files`) | `usage-meter.py:626-628` y lectura de `sessions/AAAA/MM/DD/*.jsonl` |
 | 6 | Important | Rojo previo al fix3 que deja la CI en rojo: `tests/test_f4fix2_misc.py::test_f4fix2_5_*` (2 tests) — `docs/TOKEN-EFFICIENCY.md:156` dice 16.878 de `skills/adversarial-review/SKILL.md` y mide 17.691 (T-14 fix3 `4369db5` y T-40 `0599538`/`c13853e` cambiaron los ficheros sin actualizar las cifras) | T-40, T-14 | corregido (fix4, `4f9b3ea`; test `test_f4fix2_5_*`) | `docs/TOKEN-EFFICIENCY.md:156` (+ espejo EN) |
 
+
+## Revisión de dos lentes — intento 5: Fase 3 (T-40) — verificación del fix4 (T-40)
+
+Pendiente de revisión; sin veredicto.
