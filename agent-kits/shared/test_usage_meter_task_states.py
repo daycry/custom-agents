@@ -121,3 +121,19 @@ def test_fix2_gap7_start_reports_unsaved_marker_when_state_locked(ledger):
     result = meter(ledger, "start", "T-01")
     assert json.loads(result.stdout)["marker_saved"] is True
     assert f"{SLUG}/T-01" in json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_fix2_gap3_meter_handoff_avoids_second_interpreter(ledger, monkeypatch, capsys):
+    module = load_script(KIT / "usage-meter.py")
+    monkeypatch.chdir(ledger.parents[3])
+
+    def unexpected(*args, **kwargs):
+        pytest.fail("meter handoff started a second interpreter")
+
+    monkeypatch.setattr(subprocess, "run", unexpected)
+    args = ["--artefacto", f"{SLUG}/T-01", "--runtime", "codex", "--state", "usage.json"]
+    for command, state in (("start", "en-progreso"), ("close", "en-revision")):
+        assert module.main([command, *args]) == 0
+        report = json.loads(capsys.readouterr().out)
+        assert not any("transición pendiente" in warning for warning in report.get("avisos", []))
+        assert f"- **Estado**: {state}" in source(ledger)
