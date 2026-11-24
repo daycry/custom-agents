@@ -137,8 +137,8 @@ A missing value is `null` and is stated ("sin datos"); it is never drawn as 0.
 
 ### The `Cerrada` ledger field
 
-`- **Cerrada**: YYYY-MM-DD` is an optional per-task field: the real closing date. The
-implementer fills it when completing the task; `ledger-lint.py` requires a real date (empty,
+`- **Cerrada**: YYYY-MM-DD` is an optional field with the actual closing date. `ledger-write.py`
+records it when a clean verdict or `reconcile` completes the task. `ledger-lint.py` requires a real date (empty,
 malformed or impossible is an inconsistency) not earlier than `creado:` or the `| **Fecha** |`
 row. `ledger-view.py` publishes `cerrada` (valid) and `cerrada_invalida` (the text), and the
 burndown only uses the former. `task-brief.py` does not pass it to the subagent. Like

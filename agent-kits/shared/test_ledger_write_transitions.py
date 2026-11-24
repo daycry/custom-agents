@@ -231,6 +231,10 @@ def test_fix1_gap1_implementer_docs_describe_plugin_owned_states():
     for fragment in ("`en-progreso`", "`en-revision`", "`completado`", "`ledger-write.py verdict`", "`Cerrada`"):
         assert fragment in doc
     assert "checkbox + estado" not in doc
+    for rel in ("docs/PLUGIN-PANEL.md", "docs/en/PLUGIN-PANEL.md"):
+        panel = (root / rel).read_text(encoding="utf-8").split("### `ledger-view.py`", 1)[0]
+        closing_field = panel.rsplit("\n### ", 1)[-1]
+        assert all(fragment in closing_field for fragment in ("`Cerrada`", "`ledger-write.py`", "`reconcile`"))
 
 
 def test_fix1_gap11_shared_readme_documents_runtime_handoffs():

@@ -137,8 +137,8 @@ Un dato ausente es `null` y se dice («sin datos»); nunca se pinta como 0.
 
 ### Campo `Cerrada` del ledger
 
-`- **Cerrada**: AAAA-MM-DD` es un campo opcional de cada tarea: la fecha real de cierre. Lo
-rellena el implementer al completar la tarea; `ledger-lint.py` exige fecha real (vacío, mal
+`- **Cerrada**: AAAA-MM-DD` es un campo opcional con la fecha real de cierre. `ledger-write.py`
+lo registra si `verdict limpio` o `reconcile` completan la tarea. `ledger-lint.py` exige fecha real (vacío, mal
 formada o imposible → incoherencia) y no anterior a `creado:` ni a la fila `| **Fecha** |`.
 `ledger-view.py` publica `cerrada` (válida) y `cerrada_invalida` (el texto), y el burndown
 solo usa la primera. `task-brief.py` no lo pasa al subagente. Como `Changelog`, es
