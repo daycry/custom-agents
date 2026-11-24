@@ -1329,3 +1329,7 @@ Lentes A y B (Claude Opus 5.5, esfuerzo alto; C y D no se activan por heurístic
 | 10 | Minor | Coste en la ruta caliente: +1,4 s en `start` y +0,5 s en `close` con 215 KB (lint 4 veces por escritura, relee `usage-state.json`, un intérprete más) | T-40 | corregido (fix1, c13853e; test `test_fix1_gap10_writer_validates_each_input_snapshot_once`) | `ledger-write.py`, `usage-meter.py` |
 | 11 | Minor | Runtime `unknown` por defecto: ninguna pieza fija `CUSTOM_AGENTS_RUNTIME`; `agent-kits/shared/README.md` (E8) no recoge `verdict`/`reconcile`/`handoff`/`--dispatch`; el ledger no pega la salida de `reconcile` | T-40 | corregido (fix1, c13853e; test `test_fix1_gap11_shared_readme_documents_runtime_handoffs`) | `ledger-write.py:319-321`; `agent-kits/shared/README.md:58-59` |
 
+
+## Revisión de dos lentes — intento 2: Fase 3 (T-40) — verificación del fix1 (T-40)
+
+Pendiente de revisión; sin veredicto.
