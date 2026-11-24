@@ -265,10 +265,10 @@ def test_fix2_gap6_ledger_discloses_concurrent_doc_assertion():
 
 @pytest.mark.parametrize("cell,expected", [
     ("T-01; T-02", {"T-01", "T-02"}), ("T-01 + T-02", {"T-01", "T-02"}),
-    ("T-01 → T-02", {"T-01", "T-02"}), ("(T-01)", {"T-01"}),
-    ("Fase 1 (T-01)", {"T-01"}), ("T-21 (origen T-03)", {"T-21"}),
+    ("T-01 → T-02", {"T-01", "T-02"}), ("(T-01)", None),
+    ("Fase 1 (T-01)", None), ("T-21 (origen T-03)", {"T-21"}),
     ("T-01 (mensaje de `T-02`) (ver T-03) (cf. T-04)", {"T-01"}),
-    ("T-01 (origen T-02; T-03)", {"T-01", "T-02", "T-03"}),
+    ("T-01 (origen T-02; T-03)", None),
 ])
 def test_fix2_gap2_task_cells_count_ids_unless_explicit_context(cell, expected):
     for script in (KIT / "ledger-lint.py", KIT / "task-brief.py",
@@ -292,6 +292,73 @@ def test_fix2_gap2_critical_cell_blocks_clean_verdict_brief_and_jira(ledger, cel
     jira = load_script(KIT.parents[1] / "skills/jira-sync/scripts/jira-flow.py")
     approved, reason = jira.evidencia_aprobado(content, ["T-01"], qa_verde=True)
     assert approved is None and "1 gap(s)" in reason
+
+
+@pytest.mark.parametrize("cell,expected", [
+    ("T-01..T-03", {"T-01", "T-02", "T-03"}),
+    ("T-01 a T-03", {"T-01", "T-02", "T-03"}),
+    ("T-01–T-03", {"T-01", "T-02", "T-03"}),
+    ("T-01-T-03", {"T-01", "T-02", "T-03"}),
+    ("`T-03-fix2` & T-01/T-02 y T-04, T-05 + T-06; T-07 → T-08",
+     {f"T-{n:02}" for n in range(1, 9)}),
+    ("T-01 (origen T-09), `T-02` (ver T-10) (mensaje de T-11) (cf. T-12)",
+     {"T-01", "T-02"}),
+    ("todas", set()), ("Fase 3", set()),
+    ("", None), ("T-01/02", None), ("T-01, 02", None),
+    ("(T-01)", None), ("Fase 1 (T-01)", None), ("T-01 (alcance)", None),
+    ("T-03..T-01", None), ("T-01…T-03", None), ("T-01—T-03", None),
+    ("T-01 al T-03", None), ("T-01 hasta T-03", None),
+    ("T-01 (origen T-02; T-03)", None), ("T-01 (origen T-02", None),
+    ("T-01 y", None), ("y T-01", None), ("T-01 T-02", None),
+    ("T-01 && T-02", None), ("T-01foo", None), ("pre T-01", None),
+    ("T-01-fixx", None), ("`T-01", None), ("(ver T-01)", None),
+    ("T-16 (alcance), T-01..T-15", None),
+])
+def test_fix3_gap1_task_cell_whitelist(cell, expected):
+    for script in (KIT / "ledger-lint.py", KIT / "task-brief.py",
+                   KIT.parents[1] / "skills/jira-sync/scripts/jira-flow.py"):
+        assert load_script(script).ids_de_celda_tarea(cell) == expected, script.name
+
+
+@pytest.mark.parametrize("cell,warns", [
+    ("T-01..T-03", False), ("todas", False), ("Fase 1", False),
+    ("T-01 (alcance), T-01..T-03", True), ("T-01/03", True), ("(ver T-01)", True),
+])
+def test_fix3_gap1_section_wide_or_range_blocks_all_consumers(ledger, cell, warns):
+    review = ("--tasks", "T-01,T-02,T-03", "--attempt", "1")
+    third = BASE[BASE.index("### T-02"):].replace("T-02", "T-03")
+    content = (BASE + "\n" + third).replace("| 0 | 2 |", "| 0 | 3 |").replace("**2**", "**3**")
+    ledger.write_text(content.replace("- [ ] Pending.", "- [x] Verified."), encoding="utf-8")
+    assert writer(ledger, "review", *review, "--summary", "Fixture").returncode == 0
+    content = source(ledger) + review_table(cell, "pendiente").replace("| Important |", "| Critical |")
+    ledger.write_text(content, encoding="utf-8")
+    result = writer(ledger, "verdict", *review, "--result", "limpio")
+    assert json.loads(result.stdout)["status"] == "blocking_gaps"
+    assert source(ledger) == content
+    brief = load_script(KIT / "task-brief.py")
+    lint = load_script(KIT / "ledger-lint.py")
+    jira = load_script(KIT.parents[1] / "skills/jira-sync/scripts/jira-flow.py")
+    sections = brief.secciones_revision(content)
+    for task in ("T-01", "T-02", "T-03"):
+        assert lint.blocking_tasks(sections[-1], {task}) == {task}
+        assert len(brief.filas_pendientes_de_tarea(sections, task)[1]) == 1
+        approved, reason = jira.evidencia_aprobado(content, [task], qa_verde=True)
+        assert approved is None and "1 gap(s)" in reason
+    line = next(i for i, text in enumerate(content.splitlines(), 1) if f"| {cell} |" in text)
+    warnings = lint.lint(ledger)[1]
+    assert any(f"línea {line}:" in warning and cell in warning for warning in warnings) == warns
+
+
+def test_fix3_gap1_real_panel_redesign_cell_covers_the_declared_range():
+    path = KIT.parents[1] / "docs/roadmap/2026-10-15-panel-redesign/tasks.md"
+    lint = load_script(KIT / "ledger-lint.py")
+    sections = lint.secciones_revision(source(path))
+    section, row = next((section, row) for section in sections for row in section["filas"]
+                        if row["tarea"] == "T-16 (alcance), T-01..T-15")
+    assert lint.ids_de_celda_tarea(row["tarea"]) is None
+    assert lint.blocking_tasks(
+        {**section, "filas": [{**row, "correccion": "pendiente"}]}, {"T-07"}
+    ) == {"T-07"}
 
 
 @pytest.mark.parametrize("current,target,open_review,status", [

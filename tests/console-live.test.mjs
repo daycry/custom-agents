@@ -83,6 +83,7 @@ function activityFixture(t){
   remove(){const parent=this.parentNode;parent.children.splice(parent.children.indexOf(this),1);this.parentNode=null}
   replaceWith(node){const parent=this.parentNode;parent.children[parent.children.indexOf(this)]=node;node.parentNode=parent;this.parentNode=null}
   get childElementCount(){return this.children.length}
+  contains(node){return this===node||this.children.some(child=>child.contains?.(node))}
   querySelector(selector){return selector==='[data-task-transitions]'
    ?this.children.find(child=>Object.hasOwn(child.dataset,'taskTransitions')):undefined}
   setAttribute(){}
@@ -141,4 +142,21 @@ test('T-40 fix2 gap 5: transition-only polling replaces one leading panel with t
  await context.activity()
  assert.equal(panels().length,0)
  assert.deepEqual(root.children,activity)
+})
+
+test('T-40 fix3 gap 2: new activity keeps the unchanged transitions panel',async t=>{
+ const {root,now}=activityFixture(t)
+ const history={status:'ok',task_transitions:[{task:'T-40',from:'en-progreso',to:'en-revision',
+  role:'implementer',runtime:'codex',source:'usage-meter',observed_at:now/1000-120}]}
+ const context=createContext({state:{epoch:1,view:'activity'},notice(){},safe:fn=>fn,
+  api:async key=>key==='activity'?history:{sessions:[]}})
+ const panel=()=>root.querySelector('[data-task-transitions]')
+ await context.activity()
+ const initialPanel=panel(),initialStage=root.children[1]
+ assert.ok(initialPanel)
+ history.recientes=[{tool:'Read',role:'implementer',observed_at:now/1000}]
+ await context.activity()
+ assert.notEqual(root.children[1],initialStage,'new activity must refresh the activity stage')
+ assert.ok(panel()===initialPanel,'the activity refresh dropped the unchanged transitions panel')
+ assert.ok(root.children[0]===initialPanel,'the transitions panel must remain first')
 })
