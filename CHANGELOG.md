@@ -11,6 +11,11 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Fixed — `plugin-audit-2`
+
+- Review gap tables include every task in a range. An unrecognized task cell triggers a lint warning and applies to the whole review section.
+- The usage meter counts project usage in local Codex and OpenCode sessions and flags windows without a measurement.
+
 ### Changed
 
 - Each task brief includes the essential TDD rule, so the subagent no longer loads the whole skill.

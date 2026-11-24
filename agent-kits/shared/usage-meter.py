@@ -2,7 +2,7 @@
 """usage-meter.py — coste real de generación de artefactos y tareas (iniciativa coste-generacion).
 
 Mide los TOKENS REALES consumidos por una ventana de trabajo (generar una spec, una
-evaluación, un plan, una tarea T-XX) leyendo las transcripciones JSONL de Claude Code,
+evaluación, un plan, una tarea T-XX) leyendo el uso local de Claude Code, Codex u OpenCode,
 y los convierte a € (rates.json) y horas-IA (ratio tokens→hora, CALIBRATION > default).
 
 Modelo confirmado con el usuario (2026-08-11):
@@ -87,8 +87,9 @@ _STATE_WINDOWS = os.name == "nt"
 
 # ---------------------------------------------------------------- utilidades
 
-def _now_iso():
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+def _now_iso(*, native=False):
+    precision = "milliseconds" if native else "seconds"
+    return datetime.now(timezone.utc).isoformat(timespec=precision).replace("+00:00", "Z")
 
 
 # tolerancia del filtro por timestamp (T-04): relojes de fichero vs. reloj del `start`
@@ -616,6 +617,168 @@ def _sum_usage_window(tdir, offsets, inicio=None, cobertura=None, podados=False)
     return tokens, avisos
 
 
+# --------------------------------------------------- sesiones nativas no Claude
+
+_NATIVE_RUNTIME = {"codex", "opencode"}
+_TOKEN_FIELDS = ("entrada", "salida", "cache_creacion", "cache_lectura")
+
+
+def _runtime(args, marker=None):
+    return (getattr(args, "runtime", None) or (marker or {}).get("runtime")
+            or os.environ.get("CUSTOM_AGENTS_RUNTIME") or "claude")
+
+
+def _native_store(runtime):
+    if runtime == "codex":
+        return Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex") / "sessions"
+    return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "opencode"
+
+
+def _project_path(path):
+    if not isinstance(path, str) or not Path(path).is_absolute():
+        return None
+    if os.name == "nt":
+        if path.upper().startswith("\\\\?\\UNC\\"):
+            path = "\\\\" + path[8:]
+        elif path.startswith("\\\\?\\"):
+            path = path[4:]
+    return os.path.normcase(os.path.normpath(path))
+
+
+def _project_id(cwd):
+    return hashlib.sha256(cwd.encode("utf-8")).hexdigest()
+
+
+def _native_add(tokens, counts, coverage):
+    if any(type(value) is not int or value < 0 for value in counts):
+        coverage["campos_malos"] += 1
+    elif any(counts):
+        for field, value in zip(_TOKEN_FIELDS, counts):
+            tokens[field] += value
+        tokens["respuestas"] += 1
+
+
+def _codex_counts(usage):
+    values = tuple(usage.get(key, 0) for key in
+                   ("input_tokens", "output_tokens", "cache_write_input_tokens", "cached_input_tokens"))
+    if any(type(value) is not int or value < 0 for value in values):
+        return values
+    entrada, salida, creacion, lectura = values
+    return entrada - creacion - lectura, salida, creacion, lectura
+
+
+def _read_codex_session(stream, stat, cwd, start, end, tokens, coverage):
+    meta = json.loads(stream.readline())
+    if meta.get("type") != "session_meta":
+        raise ValueError("missing session metadata")
+    if _project_path(meta["payload"].get("cwd")) != cwd:
+        return
+    if stat.st_mtime < start.timestamp():
+        # On Windows an open (possibly resumed) session may keep its old mtime.
+        offset = stream.tell()
+        last_record = _ts_previo(None, stat.st_size, fh=stream)
+        if last_record and last_record < start:
+            return
+        stream.seek(offset)
+    coverage["leidos"] += 1
+    last_total = None
+    for line in stream:
+        try:
+            record = json.loads(line)
+            if record.get("type") != "event_msg":
+                continue
+            payload = record["payload"]
+            if payload.get("type") != "token_count" or not (info := payload.get("info")):
+                continue
+            total = info["total_token_usage"]
+            if total == last_total:
+                continue
+            last_total = total
+            stamp = _parse_iso(record.get("timestamp"))
+            if stamp is None:
+                coverage["campos_malos"] += 1
+            elif start <= stamp <= end:
+                _native_add(tokens, _codex_counts(info["last_token_usage"]), coverage)
+        except (AttributeError, KeyError, TypeError, ValueError):
+            coverage["campos_malos"] += 1
+
+
+def _read_codex(store, cwd, start, end, tokens, coverage):
+    if not store.is_dir():
+        return False
+    for path in store.glob("[0-9][0-9][0-9][0-9]/[0-9][0-9]/[0-9][0-9]/*.jsonl"):
+        try:
+            with path.open("rb") as stream:
+                _read_codex_session(stream, os.fstat(stream.fileno()), cwd, start, end, tokens, coverage)
+        except (OSError, AttributeError, KeyError, TypeError, ValueError):
+            coverage["errores"] += 1
+    return True
+
+
+def _read_opencode(store, cwd, start, end, tokens, coverage):
+    import sqlite3
+    from contextlib import closing
+
+    path = store / "opencode.db"
+    if not path.is_file():
+        return False
+    try:
+        with closing(sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=0.25)) as db:
+            db.create_function("project_path", 1, _project_path)
+            # Prepare the query even with no matching sessions to detect an incompatible schema.
+            rows = db.execute("""
+                SELECT m.session_id, json_extract(m.data, '$.tokens.input'),
+                    json_extract(m.data, '$.tokens.output'), json_extract(m.data, '$.tokens.reasoning'),
+                    json_extract(m.data, '$.tokens.cache.write'), json_extract(m.data, '$.tokens.cache.read')
+                FROM session_v2 AS s
+                JOIN session_message AS m ON m.session_id = s.id
+                WHERE project_path(s.directory) = ? AND m.type = 'assistant'
+                    AND json_extract(m.data, '$.time.completed') BETWEEN ? AND ?
+                    AND json_type(m.data, '$.tokens') = 'object'
+            """, (cwd, round(start.timestamp() * 1000), round(end.timestamp() * 1000)))
+            sessions = set()
+            for session, entrada, salida, razonamiento, creacion, lectura in rows:
+                # OpenCode stores reasoning separately. Codex includes it in output_tokens.
+                if type(salida) is int and type(razonamiento) is int and razonamiento >= 0:
+                    salida += razonamiento
+                elif razonamiento is not None:
+                    salida = None
+                _native_add(tokens, (entrada, salida, 0 if creacion is None else creacion,
+                                     0 if lectura is None else lectura), coverage)
+                sessions.add(session)
+            coverage["leidos"] = len(sessions)
+    except sqlite3.Error:
+        return False
+    return True
+
+
+def _native_window(runtime, store, marker, end, coverage, avisos):
+    cwd = _project_path(os.getcwd())
+    if marker.get("proyecto_id") not in (None, _project_id(cwd)):
+        avisos.append(f"{runtime}: el proyecto actual no coincide con el marcador")
+        return None, "estimado"
+    start, end = _parse_iso(marker["inicio"]), _parse_iso(end)
+    if not start or not end or end < start:
+        avisos.append(f"{runtime}: ventana de medición inválida")
+        return None, "estimado"
+    tokens = dict.fromkeys((*_TOKEN_FIELDS, "respuestas"), 0)
+    coverage.update(leidos=0, errores=0, campos_malos=0)
+    reader = _read_codex if runtime == "codex" else _read_opencode
+    try:
+        available = reader(store, cwd, start, end, tokens, coverage)
+    except (ImportError, OSError, ValueError):
+        available = False
+    if not available:
+        avisos.append(f"{runtime}: almacenamiento local no disponible o formato no reconocido")
+        return None, "no-disponible" if runtime == "opencode" else "estimado"
+    if coverage["errores"] or coverage["campos_malos"]:
+        avisos.append(f"{runtime}: sesiones o eventos de uso ilegibles; cobertura parcial")
+    if not tokens["respuestas"]:
+        avisos.append(f"{runtime}: sin contadores de uso del proyecto dentro de la ventana")
+        return None, "estimado"
+    return tokens, "estimado"
+
+
 # ----------------------------------------------------------- conversión €/h
 
 def _find_rates(explicit):
@@ -793,12 +956,13 @@ def _horas(tokens, ratio):
 
 # ------------------------------------------------------------------ comandos
 
-def _task_handoff(args, target, avisos):
+def _task_handoff(args, target, avisos, runtime=None):
     if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*/T-[0-9]+(?:-fix[1-9][0-9]*)?", args.artefacto):
         return False
     try:
         writer = _load_sibling("ledger-write")
-        moved, warning = writer.measurement_handoff(args.artefacto, target, getattr(args, "runtime", None))
+        moved, warning = writer.measurement_handoff(
+            args.artefacto, target, getattr(args, "runtime", None) or runtime)
     except Exception:  # The optional writer cannot stop measurement, including on partial installs.
         moved, warning = False, "ledger: transición pendiente (writer no disponible)"
     if warning:
@@ -808,10 +972,18 @@ def _task_handoff(args, target, avisos):
 
 def cmd_start(args):
     avisos = []
-    tdir = args.transcript_dir or _project_transcript_dir()
-    marcador = {"version": 2, "inicio": _now_iso(), "transcriptDir": str(tdir) if tdir else None,
-                "offsets": _snapshot_offsets(tdir), "ventana_id": "win-" + uuid.uuid4().hex,
+    runtime = _runtime(args)
+    native = runtime in _NATIVE_RUNTIME
+    tdir = args.transcript_dir or (_native_store(runtime) if native else _project_transcript_dir())
+    inicio = _now_iso(native=True) if native else _now_iso()
+    marcador = {"version": 2, "inicio": inicio, "transcriptDir": str(tdir) if tdir else None,
+                "offsets": {} if native else _snapshot_offsets(tdir), "ventana_id": "win-" + uuid.uuid4().hex,
                 "revision_medicion": 0}
+    if native:
+        marcador.update(runtime=runtime, proyecto_id=_project_id(_project_path(os.getcwd())),
+                        transcriptDir=str(Path(tdir).absolute()))
+    elif runtime == "claude" and (getattr(args, "runtime", None) or os.environ.get("CUSTOM_AGENTS_RUNTIME")):
+        marcador["runtime"] = runtime
     if not tdir:
         marcador["aviso"] = "transcripciones no localizadas; close degradará a fuente=estimado"
     saved = False
@@ -853,7 +1025,7 @@ def _identidad_medicion(marcador, tdir, avisos):
             "revision_medicion": revision + 1}
 
 
-def _persist_close(args, marker, end, moved, measured, transcript_dir, avisos):
+def _persist_close(args, marker, end, moved, measured, transcript_dir, avisos, runtime=None):
     try:
         with _locked_state(args.state, avisos) as state:
             current = state.get(args.artefacto)
@@ -862,11 +1034,16 @@ def _persist_close(args, marker, end, moved, measured, transcript_dir, avisos):
                     or (window is not None and current.get("ventana_id") != window)):
                 avisos.append("el marcador cambió durante el cierre; se conserva la ventana actual")
                 return None, False
-            previous_end = current.get("ultimoCierre")
-            current["ultimoCierre"] = max(previous_end, end) if isinstance(previous_end, str) else end
+            previous_end = _parse_iso(current.get("ultimoCierre"))
+            if previous_end is None or previous_end <= _parse_iso(end):
+                current["ultimoCierre"] = end
             if moved:
                 current["ledgerClose"] = True
-            _podar_offsets(current, args.transcript_dir or current.get("transcriptDir"))   # H-40
+            if measured and runtime in _NATIVE_RUNTIME and not current.get("runtime"):
+                current.update(runtime=runtime, proyecto_id=_project_id(_project_path(os.getcwd())),
+                               transcriptDir=str(transcript_dir.absolute()), offsets={})
+            if current.get("runtime") not in _NATIVE_RUNTIME:
+                _podar_offsets(current, args.transcript_dir or current.get("transcriptDir"))   # H-40
             _migrar_cerrados(state)
             identity = _identidad_medicion(current, transcript_dir, avisos) if measured else None
             if identity:
@@ -880,10 +1057,12 @@ def _persist_close(args, marker, end, moved, measured, transcript_dir, avisos):
 def cmd_close(args):
     avisos = []
     marcador = _load_state(args.state, avisos, estricto=True).get(args.artefacto)
-    fin = _now_iso()
+    runtime = _runtime(args, marcador)
+    fin = _now_iso(native=True) if runtime in _NATIVE_RUNTIME else _now_iso()
     resultado = {"artefacto": args.artefacto,
                  "inicio": marcador.get("inicio") if marcador else None, "fin": fin}
     tokens = tdir = None
+    sin_medida = "estimado"
     cobertura, sin_precio = {}, []
     if not marcador:
         avisos.append("sin marcador start para este artefacto")
@@ -901,6 +1080,13 @@ def cmd_close(args):
         # al bug exacto que T-04 arregla → degradar igual que "sin offsets"/"anterior al arreglo"
         # (B-5, revisión R1: `offsets` sí tenía esta defensa, `inicio` no)
         avisos.append("marcador sin `inicio` (¿corrupto o editado a mano?); degradado a estimado")
+    elif marcador.get("runtime") and marcador["runtime"] != runtime:
+        avisos.append(f"{runtime}: el runtime no coincide con el marcador")
+    elif runtime in _NATIVE_RUNTIME:
+        # Marcadores anteriores a fix3 podían apuntar a Claude aunque start recibiera --runtime.
+        saved_store = marcador.get("transcriptDir") if marcador.get("runtime") == runtime else None
+        tdir = Path(args.transcript_dir or saved_store or _native_store(runtime))
+        tokens, sin_medida = _native_window(runtime, tdir, marcador, fin, cobertura, avisos)
     else:
         tdir = args.transcript_dir or marcador.get("transcriptDir")
         if tdir and Path(tdir).is_dir():
@@ -951,17 +1137,18 @@ def cmd_close(args):
     else:
         if tokens is not None and tokens["respuestas"] == 0:
             avisos.append("ventana sin respuestas del modelo (¿start y close seguidos?)")
-        resultado.update({"fuente": "estimado", "tokens_reales": None, "eur": None,
+        resultado.update({"fuente": sin_medida, "tokens_reales": None, "eur": None,
                           "horas_ia": None, "duracion": None, "duracion_reloj": dur_reloj,
                           "ratio_usado": ratio, "ratio_origen": ratio_info,
                           "nota": "estima tokens/horas a juicio y márcalo como estimado"})
     resultado.update(_procedencia(resultado["fuente"] == "medido", cobertura, resultado["eur"], sin_precio, rates))
     moved = bool(marcador and marcador.get("ledgerClose"))
     if not moved:
-        moved = _task_handoff(args, "en-revision", avisos)
+        moved = _task_handoff(args, "en-revision", avisos,
+                              runtime=runtime if runtime in _NATIVE_RUNTIME else None)
     if marcador:
         measured = resultado["fuente"] == "medido"
-        identidad, persisted = _persist_close(args, marcador, fin, moved, measured, tdir, avisos)
+        identidad, persisted = _persist_close(args, marcador, fin, moved, measured, tdir, avisos, runtime)
         if measured:
             resultado["medicion_persistida"] = persisted
         if identidad and persisted:
@@ -1023,7 +1210,7 @@ def main(argv=None):
                         help="clave estable del artefacto/tarea (ruta o <slug>/T-XX)")
         sp.add_argument("--state", default=DEFAULT_STATE)
         sp.add_argument("--runtime", choices=sorted({"claude", "codex", "opencode", "unknown"}),
-                        help="runtime explícito de la transición del ledger")
+                        help="runtime de medición y de la transición del ledger")
         sp.add_argument("--transcript-dir", default=None,
                         help="carpeta de transcripciones (tests/entornos raros)")
 

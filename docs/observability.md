@@ -57,7 +57,24 @@ calibrado (la que usan dashboards, plantillas e imputación a Jira — nunca cam
 `duracion_reloj` es aditiva y mide el reloj de pared (`fin − inicio`), útil para detectar sesiones
 largas con poco token real (pausas, lectura) pero que **no** sustituye a `duracion` en ningún cálculo.
 
-**Límite conocido: marcadores encadenados dentro de la tolerancia de 60 s.** El filtro de ventana de
+**Medición por runtime.** Ejecuta `usage-meter.py start --artefacto <clave> --runtime codex` y
+`close` con la misma clave desde la raíz del proyecto. También puedes seleccionar `claude` u
+`opencode`. El selector precede a `CUSTOM_AGENTS_RUNTIME` y el marcador recuerda el origen
+nativo. Sin selector ni variable se usa Claude Code.
+
+- Codex lee los eventos `token_count` de `~/.codex/sessions/AAAA/MM/DD/*.jsonl`, o de
+  `CODEX_HOME/sessions`. Compara el `cwd` de la sesión con el proyecto, descarta snapshots
+  repetidos y suma el delta de cada evento registrado entre `start` y `close`.
+- OpenCode lee en modo de solo lectura la base SQLite local de la versión 2
+  (`$XDG_DATA_HOME/opencode/opencode.db` o `~/.local/share/opencode/opencode.db`).
+  Cuenta las respuestas completadas en la ventana para el directorio del proyecto.
+
+La salida contiene contadores agregados. `--transcript-dir` permite indicar el directorio de
+origen. Una ventana sin contadores queda como `fuente: estimado`, con aviso y tokens y horas
+nulos. Si la base OpenCode falta o su formato no es compatible, la fuente es `no-disponible`.
+Las ventanas simultáneas del mismo proyecto pueden compartir eventos.
+
+**Límite de Claude Code con marcadores encadenados dentro de la tolerancia de 60 s.** El filtro de ventana de
 `close` admite registros hasta 60 s antes de `inicio` (relojes de fichero vs. reloj de `start`). Si un
 segundo marcador abre su `start` a menos de 60 s del `close` del primero, y el segundo `close` lee un
 fichero de transcript que el primero **no** tenía en su snapshot de offsets, los registros de ese solape

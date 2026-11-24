@@ -11,6 +11,11 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Fixed — `plugin-audit-2`
+
+- Las tablas de revisión incluyen todas las tareas de un rango. Una celda Tarea desconocida genera un aviso y se aplica a toda la sección de revisión.
+- El medidor suma el uso del proyecto en sesiones locales de Codex y OpenCode y avisa cuando una ventana queda sin medir.
+
 ### Changed
 
 - El brief de cada tarea trae la regla TDD esencial y el subagente ya no carga la skill completa.

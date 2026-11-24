@@ -3,6 +3,7 @@
 import importlib.util
 import json
 from datetime import datetime
+import os
 from pathlib import Path
 import sqlite3
 
@@ -24,7 +25,7 @@ def meter(tmp_path, monkeypatch, capsys):
     monkeypatch.delenv("CUSTOM_AGENTS_RUNTIME", raising=False)
 
     def run(command, runtime, *, at=START, source=None):
-        monkeypatch.setattr(mod, "_now_iso", lambda: at)
+        monkeypatch.setattr(mod, "_now_iso", lambda **_: at)
         args = [command, "--artefacto", "fixture", "--state", str(tmp_path / "state.json")]
         if runtime:
             args.extend(["--runtime", runtime])
@@ -51,6 +52,9 @@ def codex_log(root, date, name, cwd, events):
     path.parent.mkdir(parents=True, exist_ok=True)
     meta = {"type": "session_meta", "payload": {"cwd": str(cwd)}}
     path.write_text("".join(json.dumps(row) + "\n" for row in [meta, *events]), encoding="utf-8")
+    # Windows can retain the creation mtime while a live session keeps its log open.
+    mtime = datetime.fromisoformat(START.replace("Z", "+00:00")).timestamp() - 60
+    os.utime(path, (mtime, mtime))
 
 
 def test_fix3_gap4_codex_measures_window_and_project_without_duplicate_tokens(tmp_path, meter):
@@ -81,6 +85,9 @@ def test_fix3_gap4_codex_explicit_close_recovers_pre_fix_marker(tmp_path, meter,
     receipt = meter("close", "codex", at=END)
     assert receipt["fuente"] == "medido"
     assert receipt["tokens_reales"]["respuestas"] == 1
+    repeated = meter("close", None, at=END)
+    assert repeated["tokens_reales"] == receipt["tokens_reales"]
+    assert repeated["fuente_id"] == receipt["fuente_id"]
 
 
 def opencode_fixture(path, project):

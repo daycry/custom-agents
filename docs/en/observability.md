@@ -58,7 +58,24 @@ change); `duracion_reloj` is additive and measures wall-clock time (`fin − ini
 spotting long sessions with little real token usage (pauses, reading), but it **never** replaces
 `duracion` in any calculation.
 
-**Known limit: markers chained within the 60 s tolerance.** `close`'s window filter accepts records
+**Usage by runtime.** Run `usage-meter.py start --artefacto <key> --runtime codex` and
+`close` with the same key from the project root. You can also select `claude` or `opencode`.
+The flag takes precedence over `CUSTOM_AGENTS_RUNTIME`, and the marker remembers the native
+source. Without a flag or environment variable, the meter uses Claude Code.
+
+- Codex reads `token_count` events from `~/.codex/sessions/YYYY/MM/DD/*.jsonl` or
+  `CODEX_HOME/sessions`. It matches the session's `cwd` to the project, skips repeated
+  cumulative snapshots, and sums each delta recorded between `start` and `close`.
+- OpenCode reads the local version 2 SQLite database in read-only mode
+  (`$XDG_DATA_HOME/opencode/opencode.db` or `~/.local/share/opencode/opencode.db`).
+  It counts completed responses for the project directory within the window.
+
+The output contains aggregate counters. Use `--transcript-dir` to specify the source directory.
+A window without usage counters reports `fuente: estimado`, with a warning and null tokens and
+hours. A missing or incompatible OpenCode database reports `fuente: no-disponible`.
+Overlapping windows for the same project can share usage events.
+
+**Claude Code limit for markers chained within the 60 s tolerance.** `close`'s window filter accepts records
 up to 60 s before `inicio` (file clocks vs. `start`'s clock). If a second marker opens its `start`
 less than 60 s after the first marker's `close`, and the second `close` reads a transcript file the
 first marker did not have in its offset snapshot, the overlapping records get counted in BOTH

@@ -239,6 +239,18 @@ REVISION_HDR_RE = re.compile(REVISION_HDR_PATTERN, re.M)
 _HDR_CUALQUIERA_RE = re.compile(r"^##[ \t]+.*$", re.M)
 _OPEN_REVIEW = "Pendiente de revisión; sin veredicto."
 _PLUGIN_VERDICT = re.compile(r"^\*\*Veredicto del plugin\*\*: (limpio|gaps)(?: \((T-\d+(?:, T-\d+)*)\))?$", re.M)
+_CELDA_ID = r"T-[0-9]{2,}(?:-fix[1-9][0-9]*)?"
+_CELDA_ID_MD = rf"(?:`{_CELDA_ID}`|{_CELDA_ID})"
+_CELDA_RANGO = r"(?:[ \t]*(?:\.\.|–|-)[ \t]*|[ \t]+(?i:a)[ \t]+)"
+_CELDA_TRAMO = rf"({_CELDA_ID_MD})(?:{_CELDA_RANGO}({_CELDA_ID_MD}))?"
+_CELDA_CONTEXTO = rf"\([ \t]*(?i:origen|mensaje de|ver|cf\.)[ \t]+{_CELDA_ID_MD}[ \t]*\)"
+_CELDA_ITEM_RE = re.compile(rf"{_CELDA_TRAMO}(?:[ \t]*{_CELDA_CONTEXTO})*")
+_CELDA_SEPARADOR_RE = re.compile(r"(?:[ \t]*[,;+&/→–][ \t]*|[ \t]+(?i:y)[ \t]+)")
+_CELDA_SECCION_RE = re.compile(r"todas|Fase[ \t]+[0-9]+", re.I)
+_RANGO_CABECERA_RE = re.compile(rf"(?<![\w`]){_CELDA_ID_MD}{_CELDA_RANGO}{_CELDA_ID_MD}(?![\w`])")
+_FASE_REVISION_RE = re.compile(r"\bFase[ \t]+([0-9]+)\b", re.I)
+_FASE_LEDGER_RE = re.compile(r"^##[ \t]+Fase[ \t]+([0-9]+)\b", re.I)
+_TAREA_LEDGER_RE = re.compile(r"^###[ \t]+(T-[0-9]+)\b")
 from bisect import bisect_right as _bisect_right
 
 
@@ -276,6 +288,7 @@ def secciones_revision(texto):
     limpio = sin_vallas(texto)
     cabeceras = [m.start() for m in _HDR_CUALQUIERA_RE.finditer(limpio)]
     out = []
+    catalogo = None
     for m in REVISION_HDR_RE.finditer(limpio):
         intento = int(m.group(1))
         resumen = (m.group(2) or "").strip()
@@ -283,7 +296,8 @@ def secciones_revision(texto):
         fin = cabeceras[k] if k < len(cabeceras) else len(limpio)
         cuerpo = limpio[m.end():fin]
         parrafo = []
-        for ln in cuerpo.splitlines():
+        lineas = cuerpo.splitlines()
+        for ln in lineas:
             s = ln.strip()
             if s.startswith("|"):
                 break
@@ -292,17 +306,30 @@ def secciones_revision(texto):
         if parrafo:
             resumen = (resumen + " " + " ".join(parrafo)).strip()
         filas = []
-        for ln in cuerpo.splitlines():
+        globales = []
+        linea_cuerpo = limpio.count("\n", 0, m.end()) + 1
+        for linea, ln in enumerate(lineas, linea_cuerpo):
             s = ln.strip()
             if not s.startswith("|") or set(s.replace("|", "").strip()) <= {"-", " "}:
                 continue
             celdas = split_fila_md(s)
             if len(celdas) < 6 or celdas[0] in ("#", "") or not re.match(r"^\d+$", celdas[0]):
                 continue
-            filas.append({"num": celdas[0], "grado": celdas[1], "gap": celdas[2],
-                          "tarea": celdas[3], "correccion": celdas[4], "evidencia": celdas[5]})
+            fila = {"num": celdas[0], "grado": celdas[1], "gap": celdas[2],
+                    "tarea": celdas[3], "correccion": celdas[4], "evidencia": celdas[5]}
+            if not (ids := ids_de_celda_tarea(fila["tarea"])):
+                globales.append(fila)
+                if ids is None:
+                    fila["linea_tarea_no_reconocida"] = linea
+            filas.append(fila)
         section = {"intento": intento, "cabecera": m.group(0).strip(), "resumen": resumen,
                    "filas": filas, "inicio": m.start(), "fin": fin}
+        if globales:
+            if catalogo is None:
+                catalogo = _catalogo_de_tareas(limpio)
+            alcance = sorted(_alcance_de_seccion(section, catalogo))
+            for fila in globales:
+                fila["alcance_tarea"] = alcance
         verdict = _PLUGIN_VERDICT.search(cuerpo)
         if verdict:
             section["veredicto"] = verdict[1]
@@ -319,9 +346,66 @@ def ids_de_tarea(texto):
 
 
 def ids_de_celda_tarea(texto):
-    """Cuenta todos los IDs salvo notas de contexto explícitas de un solo ID."""
-    contexto = r"\([ \t]*(?:origen|mensaje de|ver|cf\.)[ \t]+(?:T-\d+|`T-\d+`)[ \t]*\)"
-    return ids_de_tarea(re.sub(contexto, " ", texto, flags=re.I))
+    """IDs de una celda completa, vacío para toda la sección, None si no se reconoce."""
+    texto = texto.strip()
+    if _CELDA_SECCION_RE.fullmatch(texto):
+        return set()
+    ids = set()
+    pos = 0
+    while (item := _CELDA_ITEM_RE.match(texto, pos)):
+        primero, ultimo = (token.strip("`").split("-fix", 1)[0] if token else None
+                           for token in item.groups())
+        if ultimo is None:
+            ids.add(primero)
+        else:
+            ancho = len(primero) - 2
+            # Mantén el ancho de los IDs y acota la expansión de rangos anómalos.
+            if max(len(primero), len(ultimo)) > 8:
+                return None
+            inicio, fin = int(primero[2:]), int(ultimo[2:])
+            if not 0 <= fin - inicio < 10_000 or ultimo != f"T-{fin:0{ancho}d}":
+                return None
+            ids.update(f"T-{n:0{ancho}d}" for n in range(inicio, fin + 1))
+        if item.end() == len(texto):
+            return ids
+        separador = _CELDA_SEPARADOR_RE.match(texto, item.end())
+        if not separador:
+            break
+        pos = separador.end()
+    return None
+
+
+def _catalogo_de_tareas(texto):
+    """Tareas por fase y tareas del ledger para revisiones sin IDs en la cabecera."""
+    fases, todas, fase = {}, set(), None
+    for linea in texto.splitlines():
+        if linea.startswith("## "):
+            marca = _FASE_LEDGER_RE.match(linea)
+            fase = marca[1] if marca else None
+        elif (tarea := _TAREA_LEDGER_RE.match(linea)):
+            todas.add(tarea[1])
+            if fase:
+                fases.setdefault(fase, set()).add(tarea[1])
+    return fases, todas
+
+
+def _alcance_de_seccion(seccion, catalogo):
+    cabecera = seccion["cabecera"]
+    ids = ids_de_tarea(cabecera)
+    for rango in _RANGO_CABECERA_RE.finditer(cabecera):
+        ids.update(ids_de_celda_tarea(rango[0]) or ())
+    if not ids:
+        fases, todas = catalogo
+        fase = _FASE_REVISION_RE.search(cabecera)
+        ids.update(fases.get(fase[1], todas) if fase else todas)
+    for fila in seccion["filas"]:
+        ids.update(ids_de_celda_tarea(fila["tarea"]) or ())
+    return ids
+
+
+def tareas_de_fila(fila, por_defecto=()):
+    """Las filas globales usan el alcance resuelto al leer la sección."""
+    return ids_de_celda_tarea(fila["tarea"]) or set(fila.get("alcance_tarea") or por_defecto)
 
 
 def menciones(seccion):
@@ -334,7 +418,7 @@ def menciones(seccion):
     otra fase tambien puede citar "T-04" sin ser SU tarea)."""
     ids = ids_de_tarea(seccion["cabecera"])
     for f in seccion["filas"]:
-        ids |= ids_de_celda_tarea(f["tarea"])
+        ids |= tareas_de_fila(f)
     return ids
 
 
@@ -366,7 +450,7 @@ def seleccionar_seccion(secciones, intento, tareas):
     if propias:
         return propias[-1], None
     ajenas = [s for s in candidatas
-              if any(ids_de_celda_tarea(f["tarea"]) & tareas_set for f in s["filas"])]
+              if any(tareas_de_fila(f) & tareas_set for f in s["filas"])]
     if ajenas:
         return ajenas[-1], None
     aviso = (f"el intento {intento} tiene {len(candidatas)} secciones «## Revisión de dos "
@@ -479,7 +563,7 @@ def filas_pendientes_de_tarea(secciones, tarea):
     pendientes = []
     for s in citantes:
         for f in s["filas"]:
-            if tarea in ids_de_celda_tarea(f["tarea"]) and gap_pendiente(f):
+            if tarea in tareas_de_fila(f) and gap_pendiente(f):
                 pendientes.append(dict(f, seccion=s["cabecera"], intento=s["intento"]))
     return intento, pendientes
 
@@ -511,8 +595,7 @@ def blocking_tasks(section, tasks):
     blocked = set(section.get("gaps_plugin", ())) & tasks
     for row in section["filas"]:
         if _blocking_severity(row) and gap_pendiente(row):
-            affected = ids_de_celda_tarea(row["tarea"])
-            blocked.update(tasks & affected if affected else tasks)
+            blocked.update(tasks & tareas_de_fila(row, tasks))
     return blocked
 
 
@@ -523,9 +606,9 @@ def _blocking_severity(row):
 def unverified_fix(section, task):
     """A historical gap table records the correction, without a later review of it."""
     for row in section["filas"]:
-        affected = ids_de_celda_tarea(row["tarea"])
+        affected = tareas_de_fila(row, {task})
         correction = row["correccion"]
-        if (_blocking_severity(row) and (not affected or task in affected)
+        if (_blocking_severity(row) and task in affected
                 and not GAP_REBATIDO_RE.search(correction)
                 and re.search(r"\bcorregid[oa]s?\b.*\bfix\d+\b", correction, re.I)):
             return True
@@ -965,7 +1048,13 @@ def lint(path, *, text=None, parsed=None, umbral_bytes=None, closed_measurements
                           f"criterio(s) sin marcar `- [ ]` — incoherencia dura")
 
     states = {t["id"]: t["estado"] for t in all_tasks}
-    reviews = latest_reviews(secciones_revision(text)) if "dos lentes" in text else {}
+    sections = secciones_revision(text) if "dos lentes" in text else []
+    reviews = latest_reviews(sections)
+    for section in sections:
+        for row in section["filas"]:
+            if "linea_tarea_no_reconocida" in row:
+                warnings.append(f"línea {row['linea_tarea_no_reconocida']}: celda Tarea no reconocida "
+                                f"«{row['tarea']}»; el gap afecta a toda la sección")
     closed = set()
     if path and "en-progreso" in states.values():
         closed = closed_measurements() if closed_measurements is not None else _closed_measurements(path)

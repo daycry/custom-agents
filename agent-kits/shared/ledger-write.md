@@ -29,10 +29,13 @@ python3 "$SHAREDKIT/ledger-write.py" reconcile docs/roadmap/<iniciativa>/tasks.m
 - Completa la tabla de evidencia y llama a `verdict` sobre la misma cabecera.
   `gaps` reabre los IDs con Critical/Important pendientes (de la tabla o de
   `--gap-tasks`); `limpio` cierra con los criterios marcados y fecha `Cerrada`.
-  En la columna `Tarea` cuentan todos los IDs, cualquiera que sea su posición o
-  separador. Solo se excluyen notas entre paréntesis con un único ID precedido
-  por `origen`, `mensaje de`, `ver` o `cf.` (p. ej., `T-21 (origen T-03)` afecta
-  a T-21). Si el formato de la nota es ambiguo, también cuentan sus IDs.
+  La columna `Tarea` admite IDs sueltos, con comillas invertidas o sufijo
+  `-fixN`, y listas separadas por `,`, `;`, `+`, `&`, `y`, `/`, `→` o
+  `–`. Los rangos con `..`, ` a `, `–` o `-` incluyen las tareas
+  intermedias. Una nota de contexto admite un único ID precedido por `origen`,
+  `mensaje de`, `ver` o `cf.` (p. ej., `T-21 (origen T-03)` afecta a T-21).
+  `todas` y `Fase N` aplican el gap a toda la sección. Cualquier otra forma
+  aplica el mismo alcance y genera un aviso con su número de línea.
   Un rechazo conserva el ledger byte a byte. Valida después con `ledger-lint.py`.
 - `usage-meter.py start/close` y `task-brief.py --dispatch` usan el mismo writer.
   `handoff` acepta el ledger y `--task`, o `--artifact` del medidor en el proyecto actual.
