@@ -956,13 +956,12 @@ def _horas(tokens, ratio):
 
 # ------------------------------------------------------------------ comandos
 
-def _task_handoff(args, target, avisos, runtime=None):
+def _task_handoff(args, target, avisos):
     if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*/T-[0-9]+(?:-fix[1-9][0-9]*)?", args.artefacto):
         return False
     try:
         writer = _load_sibling("ledger-write")
-        moved, warning = writer.measurement_handoff(
-            args.artefacto, target, getattr(args, "runtime", None) or runtime)
+        moved, warning = writer.measurement_handoff(args.artefacto, target, getattr(args, "runtime", None))
     except Exception:  # The optional writer cannot stop measurement, including on partial installs.
         moved, warning = False, "ledger: transición pendiente (writer no disponible)"
     if warning:
@@ -1144,8 +1143,9 @@ def cmd_close(args):
     resultado.update(_procedencia(resultado["fuente"] == "medido", cobertura, resultado["eur"], sin_precio, rates))
     moved = bool(marcador and marcador.get("ledgerClose"))
     if not moved:
-        moved = _task_handoff(args, "en-revision", avisos,
-                              runtime=runtime if runtime in _NATIVE_RUNTIME else None)
+        if runtime in _NATIVE_RUNTIME and not getattr(args, "runtime", None):
+            args.runtime = runtime
+        moved = _task_handoff(args, "en-revision", avisos)
     if marcador:
         measured = resultado["fuente"] == "medido"
         identidad, persisted = _persist_close(args, marcador, fin, moved, measured, tdir, avisos, runtime)
