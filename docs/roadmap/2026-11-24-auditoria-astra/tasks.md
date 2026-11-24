@@ -497,35 +497,37 @@ changelog: Fixed
 
 **Notas**: Hallazgo del orquestador, fuera de la auditoría de astra. Los demás ficheros del inventario se migran solo si leen contenido del ledger; el resto queda en la lista blanca documentada.
 
-### T-13 — Journal: política del log local de turnos (hallazgo 4), CONDICIONADA a la decisión del usuario
+### T-13 — Journal: el texto de los turnos no se persiste; solo la extracción mínima (hallazgo 4, decisión 2026-11-24)
 
-- **Descripción**: `journal-prompt.py` guarda por defecto el texto literal de los turnos del usuario (redactados solo los secretos evidentes) en `.claude/session-prompts-<session_id>.log`, local y no versionado, con retención de 30 días y opt-out `<private>`/`sesion.captura: false`, documentado en `ADR-010/013`. Choca con `docs/CONSTITUTION.md:35` («nunca conversaciones crudas en ningún artefacto»). La corrección depende de una decisión del usuario; esta tarea NO empieza sin ella y `docs/CONSTITUTION.md` no se edita sin ella.
-- **Changelog**: El log local de turnos sigue una política explícita: o se documenta la excepción en la Constitución o se borra tras extraer el journal.
+- **Descripción**: `journal-prompt.py:279` guarda por defecto el texto de cada turno (redactado solo de secretos) en `.claude/session-prompts-<sesión>.log`, lo que contradice `docs/CONSTITUTION.md:35` aunque luego se borre. **Decisión (2026-11-24): el usuario la delegó en gpt-6.2-astra («lo que considere Astra»), que eligió una variante de la opción B: extraer en memoria en cada `UserPromptSubmit` y persistir solo decisiones y pendientes (redactados y acotados), el contador y la marca de actividad; nunca el texto crudo.** No se borra el log en `SessionEnd` porque `SessionEnd` solo encola y `replay`/`recover` lo necesitan para las sesiones huérfanas (`hooks/session-journal.sh:5-10`, `journal.py:1165-1179`).
+- **Changelog**: El plugin ya no guarda el texto de los turnos: solo las decisiones y los pendientes extraídos para el journal.
 - **Estado**: borrador
 - **Tiempo humano**: est. 3h · real —
 - **Tiempo IA (ejec.)**: est. 0.6h · real —
 - **Supervisión**: est. 0.15h (≈25 % IA) · real —
 - **Previsión IA**: 200k in / 30k out tok · 1.29 €
-- **Dependencias**: decisión del usuario (opción A o B del plan)
+- **Dependencias**: —
 - **Tipo**: hooks
-- **Archivos**: Opción A: `docs/CONSTITUTION.md` (§4, solo con orden del usuario), `docs/knowledge/adr/` (nota sobre ADR-010/013), `docs/observability.md`, `docs/en/observability.md`. Opción B: `agent-kits/shared/journal-prompt.py`, `agent-kits/shared/journal.py`, `agent-kits/shared/test_journal.py`, `hooks/`, `docs/observability.md`, `docs/en/observability.md`, `interop/**` (regenerado: `hooks/` tocados)
-- **Runtimes**: La opción B toca el hook `SessionEnd` en los tres runtimes (Claude Code, Codex, adaptador OpenCode): regenerar `interop/` y probar que, si el runtime no ejecuta `SessionEnd`, el log no queda sin política (`journal.py` lo limpia en el siguiente arranque).
+- **Archivos**: `agent-kits/shared/journal-prompt.py`, `agent-kits/shared/journal.py`, `agent-kits/shared/test_journal*.py`, `hooks/session-journal.sh`, `hooks/` (lo que llame a la captura), `docs/knowledge/adr/ADR-010-*.md` (nota de revisión), `CLAUDE.md` (párrafo de memoria técnica), `docs/observability.md`, `docs/en/observability.md`, `interop/**` (regenerado si cambian hooks)
+- **Runtimes**: La captura y el cierre corren como hooks en Claude Code, Codex y el adaptador de OpenCode: probar los tres con salida 0 y regenerar `interop/`.
 - **Verificación**:
-  - Opción B: `python -m pytest -q agent-kits/shared/test_journal.py -k "borra_log_tras_extraer"` → `passed` (rojo antes: el log literal persiste tras `SessionEnd`) · puertas de runtimes → verde
-  - Opción A: lectura: la Constitución incluye la excepción con alcance (solo el log local, no versionado), retención y opt-out, y el espejo EN de `observability` coincide · `python scripts/lint_plugin.py` → sin errores nuevos
+  - `python -m pytest -q agent-kits/shared/test_journal*.py -k "sin_texto_crudo or recover or replay or private or captura"` → `passed` (rojo antes: el log guarda el turno literal)
+  - prueba de punta a punta: cierre normal, corte sin `SessionEnd` + `recover`, reanudación de una sesión huérfana, fallo de escritura y reintento → journal correcto y ningún fichero con texto crudo del usuario
+  - puertas de runtimes (cabecera) → verde
 
 **Criterios de aceptación**
 
-- [ ] La decisión del usuario consta en el changelog del plan antes de empezar.
-- [ ] Opción A: la excepción de `docs/CONSTITUTION.md` nombra el fichero, la retención de 30 días y el opt-out, y ningún otro artefacto guarda texto crudo.
-- [ ] Opción B: tras extraer `decisiones`/`pendientes` el log se borra (o no se persiste literal); el journal conserva la extracción sin texto crudo; sigue siendo exit 0 y `sesion.captura: false` sigue apagándolo.
-- [ ] Con cualquiera de las dos, el hallazgo se cierra con un test o una lectura verificable, no con prosa.
+- [ ] La decisión consta en el changelog del plan (2026-11-24, delegada en astra).
+- [ ] En cada turno, respetando `<private>` y `sesion.captura: false`, se extraen decisiones y pendientes en memoria y se guardan atómicamente solo esos campos (redactados y acotados), el contador y la marca de actividad; ningún fichero contiene el texto crudo del turno.
+- [ ] `replay`, `recover` y el resumen IA opt-in consumen ese estado; la copia del primer prompt o del transcript se sustituye por un resumen basado en la iniciativa y los datos extraídos (`journal.py:1753-1755`, `:2447`).
+- [ ] El estado se retira tras confirmar la escritura del journal; una sesión huérfana reanudada integra los turnos posteriores sin perder ni duplicar (`journal.py:1137-1143`); los logs heredados se convierten y se borran solo tras confirmar la conversión.
+- [ ] Probado: cierre normal, corte sin `SessionEnd`, reanudación, fallo de escritura y reintento, ambos opt-outs, ausencia de texto crudo y salida 0 en los tres runtimes; ADR-010, `CLAUDE.md` y `observability` ES/EN actualizados.
 
 **Subtareas**
 
-- [ ] Obtener la decisión del usuario
-- [ ] Aplicar la opción elegida
-- [ ] Test (B) o lectura (A)
-- [ ] Docs ES/EN
+- [ ] RED: tests de ausencia de texto crudo, recover y reanudación
+- [ ] Captura mínima en `journal-prompt.py`
+- [ ] `replay`/`recover`/resumen sobre el estado mínimo; migración de logs heredados
+- [ ] Docs ES/EN, ADR-010, `CLAUDE.md`; interop
 
-**Notas**: Grado reajustado: Minor. Estimada con la opción B (la más costosa); la A son ~1h. Queda en `borrador` hasta que decida el usuario; si elige A, `Archivos` se reduce a sus ficheros.
+**Notas**: Grado reajustado: Minor. La estimación original (opción B) se conserva; la variante elegida puede costar algo más (revisar al empezar).
