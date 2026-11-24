@@ -144,7 +144,11 @@ Este plan los corrige agrupados por dueño del fichero. Primero las puertas que 
 
 ---
 
-## Decisión pendiente del usuario (hallazgo 4)
+## Decisión del usuario (hallazgo 4) — tomada el 2026-11-24
+
+El usuario la delegó en gpt-6.2-astra («lo que considere Astra»). Decisión: variante de la opción B — el texto de los turnos no se persiste nunca; en cada `UserPromptSubmit` se extraen en memoria decisiones y pendientes y solo eso (redactado y acotado) se guarda hasta confirmar el journal. Se descarta borrar el log en `SessionEnd` porque `replay`/`recover` lo necesitan para las sesiones huérfanas. Detalle en T-13.
+
+### Opciones que se valoraron
 
 `journal-prompt.py` conserva por defecto el texto literal de los turnos del usuario en `.claude/session-prompts-<session_id>.log` (local, no versionado, 30 días, opt-out `<private>` y `sesion.captura: false`; documentado en `ADR-010` y `ADR-013`). Choca con `docs/CONSTITUTION.md:35` («nunca se guardan conversaciones crudas»). La verificación lo reajusta a Minor y lo deja en manos del usuario. **`docs/CONSTITUTION.md` no se edita sin esta decisión.**
 
@@ -273,6 +277,7 @@ T-13 es la tarea condicionada: no arranca sin la decisión y se estima con la op
 | Fecha | Cambio | Autor |
 |-------|--------|-------|
 | 2026-11-24 | Creación del plan: 13 tareas en 5 fases. Excluye el hallazgo 16 (descartado en HEAD; residuo en `plugin-audit-2` T-40). Hallazgo 4 pendiente de decisión del usuario | planner |
+| 2026-11-24 | Decisión del hallazgo 4 (T-13) delegada por el usuario en gpt-6.2-astra: no persistir el texto de los turnos, solo la extracción mínima hasta confirmar el journal. T-13 deja de estar condicionada | orquestador |
 
 ---
 
