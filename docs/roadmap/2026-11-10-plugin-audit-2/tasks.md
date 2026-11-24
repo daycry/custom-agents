@@ -1393,3 +1393,7 @@ Lentes A y B (Claude Opus 5.5, esfuerzo alto) sobre `5e397d0..b212ae6` (fix2 de 
 | 4 | Minor | El fix2 se apunta «0.01h (medido)» con el marcador vacío: `usage-meter` no ve las transcripciones de Codex (busca las de Claude), así que la medida de un implementador Codex no existe | T-40 | corregido (fix3, 0fc4c21 y a19989f; test `test_fix3_gap4_codex_measures_window_and_project_without_duplicate_tokens` y fixture OpenCode) | `tasks.md` (fix2 de T-40); marcador `plugin-audit-2/T-40-fix2` con `offsets: {}` |
 
 Decisión del usuario (2026-11-24), textual: «Lista blanca + medir Codex». Ciclo nuevo de revisión (intento 4) con fix3: la celda Tarea solo admite formas reconocidas (falla cerrado por construcción), test del mutante del panel y medición de las sesiones de Codex y OpenCode en `usage-meter`; el margen de la ruta caliente queda como deuda aceptada.
+
+## Revisión de dos lentes — intento 4: Fase 3 (T-40) — verificación del fix3 — ciclo 2, abierto con OK del usuario: «Lista blanca + medir Codex» (T-40)
+
+Pendiente de revisión; sin veredicto.
