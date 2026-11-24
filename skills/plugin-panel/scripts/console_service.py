@@ -126,6 +126,10 @@ class Service:
         workspace=self.workspace(ident)
         history,reason=LEGACY.activity_history(workspace.root)
         value=DATA.actividad_runs(history,now=time.time()) if history is not None else LEGACY._unavailable_history(reason)
+        try:
+            value['task_transitions']=C.bundled('agent-activity-store.py').task_transitions(workspace.root)
+        except (OSError, ImportError, C.ConsoleError):
+            value['task_transitions']=[]
         return LEGACY._scrub_history(value,lambda text:C.scrub(text,workspace.root))
     def activity_run(self,ident,key16):
         workspace=self.workspace(ident)

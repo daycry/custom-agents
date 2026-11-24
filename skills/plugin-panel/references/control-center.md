@@ -161,6 +161,9 @@ no representa una ficha independiente ni una historia exhaustiva por cada turno.
 Sin inicio comunicado, la duración queda no disponible. Sin actualizar, se congela
 en la última señal. La ficha indica recortes y ofrece Reintentar ante un fallo.
 Las señales no certifican procesos vivos ni sustituyen el estado canónico del plan.
+Actividad también muestra los cambios de estado escritos por el plugin, con
+fecha, tarea, runtime, rol y fuente. La vista de plan relee el ledger cada dos
+segundos con la pestaña visible. La cartera puede conservar su caché cinco segundos.
 La captura externa requiere `sesion.actividad: true` y hooks cargados; comienza con
 los siguientes eventos reales, sin reconstruir el pasado.
 

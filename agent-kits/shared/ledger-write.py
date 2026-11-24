@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Write selected canonical ledger fields, RED evidence or a review header.
+"""Write canonical task states, RED evidence and review handoffs.
 
 The canonical parser/linter owns interpretation; local-state owns cooperative
 locking and atomic publication. This tool does not judge evidence or approve QA.
@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import re
+import subprocess
 import sys
 import time
 
@@ -23,6 +24,7 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 sys.dont_write_bytecode = True
 HERE = Path(__file__).resolve().parent
 MAX_BYTES = 256 * 1024
+RUNTIMES = frozenset({"claude", "codex", "opencode", "unknown"})
 
 
 def load(name):
@@ -73,9 +75,10 @@ def _source_lines(text):
     return [line + "\n" for line in pieces[:-1]] + ([pieces[-1]] if pieces[-1] else [])
 
 
-def task_range(text, task):
+def task_range(text, task, clean=None):
     """Locate editable lines only; task identity/meaning is validated by LINT."""
-    clean = LINT.sin_vallas(text).split("\n")
+    if clean is None:
+        clean = LINT.sin_vallas(text).split("\n")
     starts = [i for i, line in enumerate(clean) if re.match(r"^###\s+" + re.escape(task) + r"\b", line)]
     need(len(starts) == 1, "ambiguous_task", 1)
     start = starts[0]
@@ -96,7 +99,13 @@ def summarize(text, previous):
     prior_total = (sum(task["estado"] == "completado" for task in previous["tareas"]), len(previous["tareas"]))
     lines = _source_lines(text)
     clean = LINT.sin_vallas(text).split("\n")
+    has_summary = any(line.strip() == "## Resumen de progreso" for line in clean)
+    summary = not has_summary
     for i, line in enumerate(clean):
+        if has_summary and line.startswith("## "):
+            summary = line.strip() == "## Resumen de progreso"
+        if not summary:
+            continue
         match = re.match(r"^\|(?P<label>[^|]+)\|(?P<done>[^|]+)\|(?P<total>[^|]+)\|(?P<pct>[^|]+)\|", line)
         if not match:
             continue
@@ -115,25 +124,125 @@ def summarize(text, previous):
     return "".join(lines)
 
 
+def phase_state(tasks):
+    states = {task["estado"] for task in tasks}
+    if states <= {"completado", "cancelado"}:
+        return "completado" if "completado" in states else "cancelado"
+    if "en-progreso" in states:
+        return "en-progreso"
+    if "en-revision" in states:
+        return "en-revision"
+    return "en-progreso" if "completado" in states else "borrador"
+
+
+def set_states(text, parsed, changes, *, close=False):
+    known = {task["id"]: task for task in parsed["tareas"]}
+    for task, state in changes.items():
+        current = known[task]
+        need(state != "completado" or (current["tiene_criterios"]
+             and current["checked"] > 0 and current["unchecked"] == 0), "unchecked_criteria", 1)
+    actual = {task: state for task, state in changes.items() if known[task]["estado"] != state}
+    if not actual:
+        return text
+    lines = _source_lines(text)
+    clean = LINT.sin_vallas(text).split("\n")
+    for task, state in actual.items():
+        start, stop, _ = task_range(text, task, clean)
+        hits = [i for i in range(start, stop) if re.match(r"^\s*-\s*\*\*Estado\*\*\s*:", clean[i])]
+        need(len(hits) == 1, "ambiguous_state", 1)
+        i = hits[0]
+        lines[i] = re.sub(r"(:)[^\n]*", r"\1 " + state, lines[i], count=1)
+        if close and state == "completado" and known[task]["cerrada"] is None:
+            date = datetime.date.today().isoformat()
+            lines[i] = lines[i].rstrip("\n") + f"\n- **Cerrada**: {date}\n"
+    phases = {phase["nombre"]: phase_state([dict(t, estado=actual.get(t["id"], t["estado"]))
+              for t in phase["tareas"]]) for phase in parsed["fases"]
+              if phase["estados"] and any(t["id"] in actual for t in phase["tareas"])}
+    phase = None
+    for i, line in enumerate(clean):
+        if re.match(r"^#{2,3}\s", line):
+            phase = phases.get(line[3:].strip()) if line.startswith("## ") else None
+        if phase and re.match(r"^\s*\*\*Estado\*\*\s*:", line):
+            lines[i] = re.sub(r"(^\s*\*\*Estado\*\*\s*:\s*)[^·\n]*?(?=\s*(?:·|$))",
+                              lambda m: m[1] + phase, lines[i], count=1)
+            phase = None
+    return summarize("".join(lines), parsed)
+
+
+def verdict(text, parsed, known, tasks, args):
+    sections = LINT.secciones_revision(text)
+    latest = LINT.latest_reviews(sections)
+    selected = [s for s in sections if s["intento"] == args.attempt
+                and LINT.ids_de_tarea(s["cabecera"]) == set(tasks)]
+    need(len(selected) == 1, "review_not_found_or_ambiguous", 1)
+    section = selected[0]
+    need(all(latest.get(task) is section for task in tasks), "superseded_review", 1)
+    blocked = LINT.blocking_tasks(section, tasks)
+    supplied = args.gap_tasks.split(",") if args.gap_tasks else []
+    need(len(supplied) == len(set(supplied)) and set(supplied) <= set(tasks), "invalid_gap_tasks")
+    if args.result == "gaps":
+        gaps = set(supplied) if supplied else blocked
+        need(gaps and (not blocked or gaps == blocked), "invalid_gap_tasks", 1)
+    else:
+        need(not supplied and not blocked, "blocking_gaps", 1)
+        gaps = set()
+    marker = "**Veredicto del plugin**: " + args.result
+    if gaps:
+        marker += " (" + ", ".join(sorted(gaps)) + ")"
+    body = text[section["inicio"]:section["fin"]]
+    existing = LINT._PLUGIN_VERDICT.search(LINT.sin_vallas(body))
+    if existing:
+        need(existing[0] == marker, "verdict_conflict", 1)
+        return text
+    clean_lines = LINT.sin_vallas(body).split("\n")
+    placeholder = next((i for i, line in enumerate(clean_lines) if line == LINT._OPEN_REVIEW), None)
+    if placeholder is None:
+        body = body.rstrip("\n") + "\n\n" + marker + "\n\n"
+    else:
+        body_lines = _source_lines(body)
+        body_lines[placeholder] = marker + "\n"
+        body = "".join(body_lines)
+    changes = {task: "en-progreso" for task in gaps if known[task]["estado"] != "cancelado"}
+    if args.result == "limpio":
+        changes = {task: "completado" for task in tasks if known[task]["estado"] != "cancelado"}
+    text = text[:section["inicio"]] + body + text[section["fin"]:]
+    return set_states(text, LINT.parse_ledger(text), changes, close=True)
+
+
+def reconcile(text, parsed, known, tasks):
+    latest = LINT.latest_reviews(LINT.secciones_revision(text))
+    changes = {}
+    for task in tasks:
+        section = latest.get(task)
+        status = LINT.review_status(section) if section else None
+        if not status or known[task]["estado"] == "cancelado":
+            continue
+        if LINT.blocking_tasks(section, {task}):
+            changes[task] = "en-progreso"
+        elif status in ("abierta", "gaps"):
+            changes[task] = "en-revision"
+        elif known[task]["checked"] and not known[task]["unchecked"]:
+            changes[task] = "completado"
+        else:
+            changes[task] = "en-revision"
+    return set_states(text, parsed, changes)
+
+
 def transform(text, args):
     parsed = LINT.parse_ledger(text)
     errors, _ = LINT.lint(args.path, text=text, parsed=parsed)
     need(not errors, "invalid_ledger", 1)
     known = {task["id"]: task for task in parsed["tareas"]}
-    if args.operation in ("state", "red"):
+    if args.operation in ("state", "handoff", "red"):
         need(args.task in known, "unknown_task", 2)
+        if args.operation == "state":
+            return set_states(text, parsed, {args.task: args.state})
+        if args.operation == "handoff":
+            if known[args.task]["estado"] in ("completado", "cancelado"):
+                return text
+            return set_states(text, parsed, {args.task: args.state})
         start, stop, clean = task_range(text, args.task)
         lines = _source_lines(text)
-        if args.operation == "state":
-            need(args.state != "completado" or (known[args.task]["tiene_criterios"]
-                 and known[args.task]["checked"] > 0 and known[args.task]["unchecked"] == 0), "unchecked_criteria", 1)
-            hits = [i for i in range(start, stop) if re.match(r"^\s*-\s*\*\*Estado\*\*\s*:", clean[i])]
-            need(len(hits) == 1, "ambiguous_state", 1)
-            if known[args.task]["estado"] == args.state:
-                return text
-            i = hits[0]
-            lines[i] = re.sub(r"(:)[^\n]*", r"\1 " + args.state, lines[i], count=1)
-            return summarize("".join(lines), parsed)
         single_line(args.test, 512)
         single_line(args.error, 2048)
         need("`" not in args.test, "invalid_test")
@@ -150,6 +259,10 @@ def transform(text, args):
         return prefix + ("\n" if prefix.endswith("\n") else "\n\n") + entry + "\n\n" + suffix
     tasks = args.tasks.split(",")
     need(tasks and len(set(tasks)) == len(tasks) and all(task in known for task in tasks), "unknown_task")
+    if args.operation == "verdict":
+        return verdict(text, parsed, known, tasks, args)
+    if args.operation == "reconcile":
+        return reconcile(text, parsed, known, tasks)
     summary = single_line(args.summary, 512)
     # H-24: each review CYCLE has three attempts. «Seguir» after the third opens the next cycle
     # (attempts 4-6, then 7-9) only with the user's OK quoted in the header; inside a cycle the
@@ -171,7 +284,9 @@ def transform(text, args):
         return text
     prior = LINT.ultimo_intento_para(sections, set(tasks))
     need(args.attempt == (prior or 0) + 1, "review_sequence", 1)
-    return text + ("\n" if text.endswith("\n") else "\n\n") + header + "\n\nPendiente de revisión; sin veredicto.\n"
+    text = set_states(text, parsed, {task: "en-revision" for task in tasks
+                                     if known[task]["estado"] != "cancelado"})
+    return text + ("\n" if text.endswith("\n") else "\n\n") + header + "\n\n" + LINT._OPEN_REVIEW + "\n"
 
 
 def prepare(raw, args):
@@ -187,6 +302,28 @@ def prepare(raw, args):
     output = bom + updated.replace("\n", newline).encode("utf-8")
     need(len(output) <= MAX_BYTES, "ledger_budget")
     return output, warnings
+
+
+def states_from(raw):
+    return {task["id"]: task["estado"] for task in LINT.parse_ledger(raw.decode("utf-8-sig"))["tareas"]}
+
+
+def _emit(path, before, after, args):
+    project = LINT.ledger_project(path)
+    if project is None or args.operation == "red":
+        return
+    old, new = states_from(before), states_from(after)
+    changed = [(task, old[task], state) for task, state in new.items() if old[task] != state]
+    if not changed:
+        return
+    runtime = args.runtime or os.environ.get("CUSTOM_AGENTS_RUNTIME")
+    if runtime not in RUNTIMES:
+        runtime = "unknown"
+    role = "reviewer" if args.operation in ("review", "verdict") else (
+        "implementer" if args.operation == "handoff" else "orchestrator")
+    activity = load("agent-activity-store")
+    return activity.record_task_transitions(project, path.parent.name, changed, runtime=runtime,
+                                            role=role, source=args.source)
 
 
 def write(args):
@@ -213,29 +350,84 @@ def write(args):
             if output != raw:
                 mode = path.lstat().st_mode & 0o777 if os.name != "nt" else None
                 IO.write(path, output, deadline, expected=identity, mode=mode)
-    return {"schema_version": 1, "status": "ok", "operation": args.operation,
-            "changed": output != raw, "dry_run": args.dry_run,
-            "input_sha256": digest(raw), "output_sha256": digest(output), "warnings": warnings}
+                try:
+                    if _emit(path, raw, output, args) is False:
+                        warnings.append("ledger: actividad de transición no disponible")
+                except (OSError, ValueError, ImportError, RuntimeError):
+                    warnings.append("ledger: actividad de transición no disponible")
+    receipt = {"schema_version": 1, "status": "ok", "operation": args.operation,
+               "changed": output != raw, "dry_run": args.dry_run,
+               "input_sha256": digest(raw), "output_sha256": digest(output), "warnings": warnings}
+    if args.operation == "reconcile":
+        states = states_from(output)
+        receipt["states"] = {task: states[task] for task in args.tasks.split(",")}
+    return receipt
+
+
+def task_handoff(path, task, state, source, runtime=None):
+    """Optional CLI bridge for callers: bounded, no raw errors or personal paths in warnings."""
+    args = [sys.executable, str(HERE / "ledger-write.py"), "handoff", str(path),
+            "--task", task, "--state", state, "--source", source, "--json"]
+    if runtime in RUNTIMES:
+        args += ["--runtime", runtime]
+    try:
+        result = subprocess.run(args, capture_output=True, encoding="utf-8", errors="replace", timeout=5)
+        row = json.loads(result.stdout)
+        if result.returncode:
+            return False, f"ledger: transición pendiente ({row['status']})"
+        warning = next((message for message in row["warnings"] if message.startswith("ledger:")), None)
+        return True, warning
+    except (OSError, ValueError, KeyError, subprocess.TimeoutExpired):
+        return False, "ledger: transición pendiente (writer no disponible)"
+
+
+def measurement_handoff(artifact, state, runtime):
+    match = LINT.TASK_ARTIFACT.fullmatch(artifact)
+    if not match:
+        return True, None
+    slug, task = match.groups()
+    root = Path.cwd()
+    folder = slug
+    if not LINT.INITIATIVE_FOLDER.fullmatch(slug):
+        listing = READER.list_names(root, "docs/roadmap", max_entries=512)
+        if listing["status"] == "not_found":
+            return False, "ledger: transición pendiente (roadmap no disponible)"
+        names = [name for name in listing["names"] if LINT.INITIATIVE_FOLDER.fullmatch(name)
+                 and name[11:] == slug]
+        if not listing["complete"] or len(names) != 1:
+            return False, "ledger: transición pendiente (iniciativa ausente o ambigua)"
+        folder = names[0]
+    return task_handoff(root / "docs" / "roadmap" / folder / "tasks.md", task, state, "usage-meter", runtime)
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     subs = parser.add_subparsers(dest="operation", required=True)
-    for name in ("state", "red", "review"):
+    for name in ("state", "handoff", "red", "review", "verdict", "reconcile"):
         sub = subs.add_parser(name)
         sub.add_argument("path", help="existing canonical tasks.md")
         sub.add_argument("--expected-sha256")
         sub.add_argument("--dry-run", action="store_true")
         sub.add_argument("--json", action="store_true")
-        if name == "review":
-            sub.add_argument("--attempt", type=int, choices=range(1, 10), metavar="1-9", required=True)
-            sub.add_argument("--new-cycle-ok", help="user's OK quoted when attempt 4 or 7 opens a new cycle")
+        sub.add_argument("--runtime", choices=sorted(RUNTIMES))
+        sub.set_defaults(source="ledger-write")
+        if name in ("review", "verdict", "reconcile"):
             sub.add_argument("--tasks", required=True, help="comma-separated task ids")
-            sub.add_argument("--summary", required=True)
         else:
             sub.add_argument("--task", required=True)
+        if name in ("review", "verdict"):
+            sub.add_argument("--attempt", type=int, choices=range(1, 10), metavar="1-9", required=True)
+        if name == "review":
+            sub.add_argument("--new-cycle-ok", help="user's OK quoted when attempt 4 or 7 opens a new cycle")
+            sub.add_argument("--summary", required=True)
         if name == "state":
             sub.add_argument("--state", choices=sorted(LINT.ESTADOS), required=True)
+        elif name == "handoff":
+            sub.add_argument("--state", choices=("en-progreso", "en-revision"), required=True)
+            sub.add_argument("--source", choices=("usage-meter", "task-brief"), required=True)
+        elif name == "verdict":
+            sub.add_argument("--result", choices=("gaps", "limpio"), required=True)
+            sub.add_argument("--gap-tasks", help="comma-separated affected task ids")
         elif name == "red":
             for flag in ("--test", "--error", "--date"):
                 sub.add_argument(flag, required=True)

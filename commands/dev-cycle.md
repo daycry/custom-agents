@@ -82,7 +82,7 @@ Ejecuta `execution-profile.py --project <raíz del proyecto> --json` desde el
 recalcules: `blocked: true`/exit 2 impide despachar. En `perfil: lite`, despacha
 cada tarea en secuencia, sin paralelismo, al `implementer` nativo (ID en `agent-kits/shared/native-roles.json`; con el bundle
 copiado, el agente `implementer` homónimo; nunca el hilo principal, que no tiene guardia) con el brief de
-`task-brief.py` como prompt; no abras `phase3-subagents.md`. Su exit 2 no entrega brief y exige ajustar la tarea. El writer es obligatorio y los
+`task-brief.py --dispatch --runtime <claude-code|codex|opencode>` como prompt; no abras `phase3-subagents.md`. Su exit 2 exige ajustar la tarea. El writer es obligatorio y los
 revisores frescos se despachan secuencialmente; invoca `adversarial-review` con
 ese perfil. TDD, QA, cobertura y Knowledge Gate conservan todas sus puertas.
 El perfil
@@ -155,9 +155,9 @@ La autorización conversacional suficiente conserva su alcance y evita otro OK.
    Sin ese opt-in, sigue el flujo clásico en el contexto principal. La revisión
    independiente conserva su propio método y no depende de este interruptor.
 
-   **Medición por tarea (usage-meter).** Al ARRANCAR cada `T-XX`: `usage-meter.py start --artefacto "<slug>/T-XX"`; al COMPLETARLA: `close` con la misma clave (en el flujo clásico lo ejecuta el `implementer` — su P3 lo trae; con `subagentes: true` lo coordinas tú por despacho). Las **horas-IA medidas** del JSON (`horas_ia`, con `fuente: medido`) se escriben como tiempo IA **real** de la tarea en `tasks.md` — anota `(medido)` junto al valor — y son las que usa la imputación externa (el adaptador consume mediciones reales antes que estimaciones, sin recalcular el ledger). Reglas: (a) si el meter degrada, deja la estimación a juicio marcada `(estimado)` y sigue; (b) re-medir la MISMA ventana (re-close inmediato) sustituye; pero una **corrección posterior** (gaps de revisión) se mide con clave nueva `"<slug>/T-XX-fix<N>"` y sus horas se **SUMAN** al real de la tarea en el ledger — la implementación original no se pierde; (c) los tokens del bucle de revisión (los revisores) NO van a la tarea — la revisión tiene su propia imputación `[revisión]` por intento (ver más abajo); cierra el marcador de la tarea ANTES de lanzar la revisión. Duraciones presentadas en formato `XhYm` (`usage-meter.py fmt`).
+   **Medición por tarea (usage-meter).** `usage-meter.py start --artefacto "<slug>/T-XX"` mueve a `en-progreso`; `close` con la misma clave mueve a `en-revision` antes de lanzar la revisión. Pásales el runtime ejecutor (`--runtime claude|codex|opencode`) si se conoce. Lo ejecuta `implementer` en clásico; con subagentes o lite, lo coordinas por despacho. Registra `horas_ia` con `fuente: medido` como tiempo IA real `(medido)` para la imputación externa; el adaptador prioriza esos valores sin recalcular el ledger. Si degrada, anota `(estimado)` y sigue. Re-close de la MISMA ventana sustituye; una corrección usa `"<slug>/T-XX-fix<N>"` y **suma** sus horas. Los tokens de revisión llevan su propia imputación `[revisión]` por intento. Muestra duraciones `XhYm` (`usage-meter.py fmt`).
 2. **Revisión adversarial — skill `adversarial-review` (fuente única del método; aquí solo se invoca).** Invócala por nombre pasándole: la carpeta de la iniciativa (`docs/roadmap/<fecha>-<slug>/`), el **nº de intento N** y, si N > 1, la **tabla de veredictos del intento anterior** (incluidos los `descartado (rebatido)` con su evidencia). La skill hace el resto: puerta previa `scope-check.py` (exit 1 → gap Important al `implementer` sin gastar revisores), `review-lens-select.py` para decidir si añade las **Lentes C** (seguridad) y **D** (rendimiento), condicionales, lentes A/B(/C/D) en paralelo con contexto fresco, fusión, graduación `Critical / Important / Minor`, arbitraje de los rebates con evidencia, sección «Revisión de dos lentes — intento N» en `tasks.md`, evidencia para Curator al cerrar sin gaps pendientes (sin promoción ni aprobación de memoria), y la proyección externa de CADA intento según `project-integrations.md` (el evento lo ejecuta la propia skill, sin duplicarla aquí). Espera de vuelta: veredicto por criterio ✓/✗, gaps graduados con su veredicto, qué lentes corrieron y el ledger actualizado (`ledger-lint` exit 0).
-   - **Tuyo (orquestador) — bucle reviewer→implementer ACOTADO (regla dura).** Si quedan gaps Critical/Important: las tareas afectadas vuelven a `en-progreso`, `implementer` corrige (ese tiempo es **implementación**, clave `"<slug>/T-XX-fix<N>"`) y **relanzas la skill** sobre el nuevo diff con contador explícito ("revisión, intento 2 de 3"). **Máximo 3 intentos**; al 3.º con gaps, PARA y pregunta (seguir / re-planificar con `planner` / aceptar como deuda). «Seguir» = ciclo nuevo de hasta 3 intentos con el OK del usuario citado: `ledger-write.py review --attempt 4 --new-cycle-ok "<cita>"`. Rebatir con evidencia **no consume intento**; lo Minor se anota sin bloquear.
+   - **Bucle reviewer→implementer ACOTADO.** Con Critical/Important, `ledger-write.py verdict` reabre las tareas afectadas; `implementer` corrige (`"<slug>/T-XX-fix<N>"`) y **relanzas la skill** con contador explícito sobre el nuevo diff. **Máximo 3 intentos**; al 3.º con gaps, PARA y pregunta (seguir / re-planificar con `planner` / aceptar como deuda). «Seguir» = ciclo nuevo de hasta 3 intentos con OK citado: `ledger-write.py review --attempt 4 --new-cycle-ok "<cita>"`. Rebatir con evidencia **no consume intento**; lo Minor se anota sin bloquear.
    - **Tuyo (orquestador):** resuelve `review.worklog` por `project-integrations.md` con la medición propia de cada intento, si existe y el proyecto ha solicitado imputación. No dupliques el comentario que publica la skill de revisión ni inventes horas. Los tokens de revisión no se cargan a la tarea de implementación.
 3. **`qa`** → pruebas E2E (solo local), informe y evidencias. El veredicto verde/rojo lo da `qa-gate.py` (exit code), no una impresión. **Antes de despacharlo, lee el frontmatter de `improvement-plan.md` (en vía rápida, el de `tasks.md`):** con `test-plan: n/a (sin UI)` la iniciativa no tiene interfaz por diseño, así que invoca `qa` en **modo sin UI** (corre `ledger-lint.py` y `coverage-check.py` —que reconoce el marcador—, sin Playwright ni URL) y anota en el ledger «qa: sin UI por diseño (`test-plan: n/a (sin UI)`)». Sin marcador **y** sin `test-plan.md`, `qa` avisa UNA vez con el comando que lo fija y termina: no lo relances por eso.
 
@@ -209,7 +209,7 @@ Los artefactos nacen en `borrador`. En **cada fase/puerta** que se supera, actua
 spec = `borrador · aprobada · implementada · obsoleta`; evaluación/plan/tareas = `borrador ·
 en-progreso · en-revision · completado · cancelado`; design = `borrador · aprobado · obsoleto`.
 
-> **Vía rápida:** no hay spec/evaluación/plan que transicionar — solo el `tasks.md` ligero, que sigue el vocabulario de tareas (`borrador → en-progreso → completado`). Todo lo demás de esta tabla se salta.
+> **Vía rápida:** aplica la fila de tareas al `tasks.md` ligero; las demás puertas de estado de artefactos corresponden al flujo completo.
 >
 > **`design.md` (opcional, agente `architect`):** vocabulario propio `borrador · aprobado · obsoleto`. Solo existe si se hizo el paso de diseño; la columna queda `—` si no.
 
@@ -222,20 +222,17 @@ en-progreso · en-revision · completado · cancelado`; design = `borrador · ap
 | Opción validada por el usuario | aprobada | completado | `aprobado` | — |
 | Plan creado (Fase 2-b) | aprobada | completado | aprobado (`plan:` relleno) | `borrador` |
 | Puerta OK del plan → arranca impl. | aprobada | completado | aprobado | `en-progreso` (plan y fase activa) |
-| Durante impl. (Fase 3) | aprobada | completado | aprobado | tareas `en-progreso`→`completado`; fase `completado` al cerrar |
+| Implementación y revisión (Fase 3) | aprobada | completado | aprobado | `start`/despacho → `en-progreso`; `close`/`review` → `en-revision`; `verdict` limpio → `completado`, con gaps → `en-progreso`; fase y resumen derivados |
 | qa en rojo | aprobada | completado | aprobado | tarea/plan → `en-progreso` (reabrir) |
 | Re-diseño (se descarta la opción) | aprobada | completado | `obsoleto` → nuevo `design.md` `borrador` | plan `en-revision` |
 | Cierre (revisión sin gaps + qa verde + documentado + retro-gate exit 0) | `implementada` | completado | aprobado | plan `completado` |
 | Cancelación en cualquier punto | (obsoleta) | `cancelado` | `obsoleto` | `cancelado` |
 
-Aplica la transición **en el mismo paso** en que se cruza la puerta, y mantén coherente la tabla
-de resumen de `tasks.md`.
+Aplica las transiciones de artefactos **en el mismo paso** que su puerta; el writer mantiene fase y resumen.
 
-**Estas transiciones son responsabilidad del orquestador.** En el flujo normal,
-`implementer` registra el progreso de sus tareas según sus instrucciones; con subagentes frescos,
-lo registras tú después de validar sus retornos. QA entrega veredicto y evidencia: tú reabres las
-tareas afectadas con rojo y aplicas las transiciones de las puertas (go/no-go, OK del plan,
-cierre), garantizando que `tasks.md` refleje el progreso.
+**El plugin aplica las transiciones de tarea de implementación y revisión.** El orquestador valida
+criterios y evidencias, reabre el rojo de QA con `ledger-write.py state` y aplica las puertas
+de los artefactos (go/no-go, OK del plan y cierre).
 
 ## Reglas del orquestador
 - **Invoca a los agentes por nombre**; no dependas de la auto-delegación.

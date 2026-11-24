@@ -429,7 +429,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 ## Fase 3 — Tokens
 
-**Estado**: en-progreso · **Est.**: 30h humanas · **Real**: — · 1500 € · 2260k tokens
+**Estado**: en-revision · **Est.**: 30h humanas · **Real**: — · 1500 € · 2260k tokens
 
 ### T-12 — TDD en el brief, skill bajo demanda (2.4)
 
@@ -772,10 +772,10 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: Hoy el estado de las tareas solo se mueve si el agente se acuerda. `implementer.md` pasa de `en-progreso` a `completado` sin `en-revision`. `adversarial-review` dice en prosa que con gaps las tareas «vuelven a `en-progreso`», pero ningún script lo hace. `ledger-write.py review` abre la cabecera sin tocar estados. Cuando implementa otro proveedor (Codex u OpenCode, o uno implementa y otro revisa), nada mueve el estado: en esta misma iniciativa T-12..T-21 quedaron `completado` con gaps abiertos. El usuario pide que lo haga el PLUGIN, no el orquestador ni el agente de memoria, y que el dashboard muestre en vivo todo lo que pasa. Las transiciones se escriben dentro de los scripts que el flujo ya obliga a ejecutar en los traspasos, sea cual sea el runtime o el proveedor: inicio de tarea → `en-progreso`; fin de la implementación → `en-revision`; apertura de la revisión → `en-revision`; veredicto con Critical/Important → `en-progreso`; veredicto sin Critical/Important → `completado` (con criterios marcados). Cada transición emite además un evento de actividad (tarea, de→a, runtime, rol, fuente) que la consola muestra en vivo.
 - **Changelog**: Las tareas pasan solas por En marcha, En revisión y Completada en cualquier runtime, y el dashboard lo muestra en vivo.
-- **Estado**: borrador
+- **Estado**: en-revision
 - **Tiempo humano**: est. 6h · real —
 - **Tiempo IA (ejec.)**: est. 1.5h · real —
-- **Archivos**: `agent-kits/shared/ledger-write.py`, `agent-kits/shared/ledger-write.md`, `agent-kits/shared/test_ledger_write*.py`, `agent-kits/shared/usage-meter.py`, `agent-kits/shared/test_usage_meter*.py`, `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/shared/ledger-lint.py`, `tests/test_ledger_lint.py`, `agent-kits/shared/agent-activity.py`, `agent-kits/shared/agent-activity-store.py`, `agent-kits/shared/test_agent_activity*.py`, `hooks/` (solo el aviso de incoherencia del hook posterior a la edición del ledger), `agents/implementer.md`, `commands/dev-cycle.md`, `agent-kits/dev-cycle/references/phase3-subagents.md`, `skills/adversarial-review/SKILL.md`, `skills/adversarial-review/references/lentes.md`, `skills/quick-implement/SKILL.md`, `skills/jira-sync/` (solo si el mapeo de eventos cambia), `skills/plugin-panel/scripts/*.py` y `skills/plugin-panel/assets/*.js` (actividad y tablero), `tests/test_plugin_panel*.py`, `tests/console-*.test.mjs`, `docs/CONVENTIONS.md` + `docs/en/CONVENTIONS.md` (regla 7), `docs/FLOWS.md` + `docs/en/FLOWS.md`, `docs/agents/ROLES.md`, `docs/agents/CONTRACTS.md`, `docs/observability.md` + `docs/en/observability.md`, `docs/roadmap/2026-11-10-plugin-audit-2/tasks.md` (reconciliación de esta iniciativa con la herramienta), `interop/**` (regenerado)
+- **Archivos**: `agent-kits/shared/ledger-write.py`, `agent-kits/shared/ledger-write.md`, `agent-kits/shared/test_ledger_write*.py`, `agent-kits/shared/usage-meter.py`, `agent-kits/shared/test_usage_meter*.py`, `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/shared/ledger-lint.py`, `tests/test_ledger_lint.py`, `agent-kits/shared/agent-activity.py`, `agent-kits/shared/agent-activity-store.py`, `agent-kits/shared/test_agent_activity*.py`, `hooks/` (solo el aviso de incoherencia del hook posterior a la edición del ledger), `agents/implementer.md`, `commands/dev-cycle.md`, `agent-kits/dev-cycle/references/phase3-subagents.md`, `skills/adversarial-review/SKILL.md`, `skills/adversarial-review/references/lentes.md`, `skills/quick-implement/SKILL.md`, `skills/jira-sync/` (solo si el mapeo de eventos cambia), `skills/plugin-panel/scripts/*.py` y `skills/plugin-panel/assets/*.js` (actividad y tablero), `tests/test_plugin_panel*.py`, `tests/console-*.test.mjs`, `docs/CONVENTIONS.md` + `docs/en/CONVENTIONS.md` (regla 7), `docs/FLOWS.md` + `docs/en/FLOWS.md`, `docs/agents/ROLES.md`, `docs/agents/CONTRACTS.md`, `docs/observability.md` + `docs/en/observability.md`, `docs/roadmap/2026-11-10-plugin-audit-2/tasks.md` (reconciliación de esta iniciativa con la herramienta), `interop/**` (regenerado), `skills/plugin-panel/references/control-center.md`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/test_hook_network_egress.py`
 - **Runtimes**: Las transiciones viven en scripts de `agent-kits/shared/` que llaman igual Claude, Codex y OpenCode; la prosa de las piezas solo deja de pedir el cambio manual. Se prueba con los tres runtimes (`--runtime claude|codex|opencode` en el evento) y con proveedores mezclados (implementa uno, revisa otro).
 - **Verificación**:
   - `pytest -q agent-kits/shared/test_ledger_write*.py -k "transicion or verdict"` → `passed` (rojo antes: `review` no mueve estados y `verdict` no existe)
@@ -785,16 +785,44 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
   - puertas de runtimes y de tokens (cabecera) → verde
 
 **Criterios de aceptación**
-- [ ] Inicio de tarea (`usage-meter.py start --artefacto <slug>/T-XX`, y `task-brief.py` al despachar) → `en-progreso`, si la tarea estaba en `borrador`/`en-progreso`; nunca degrada una `completado` ni una `cancelado`.
-- [ ] Fin de la implementación (`usage-meter.py close` de la tarea) → `en-revision`; el implementer ya no marca `completado`.
-- [ ] `ledger-write.py review --tasks …` pone esas tareas en `en-revision` en la misma escritura atómica que abre la cabecera.
-- [ ] `ledger-write.py verdict --tasks … --attempt N --result gaps|limpio` (nuevo): `gaps` → las tareas con gap Critical/Important vuelven a `en-progreso`; `limpio` → `completado` solo si todos sus criterios están marcados (si no, exit 1 y no escribe). Lo invoca `adversarial-review` al escribir la traza.
-- [ ] Los estados de fase y la tabla «Resumen de progreso» se recalculan en cada transición.
-- [ ] Funciona igual con Claude, Codex y OpenCode y con proveedores distintos para implementar y revisar (tests parametrizados por runtime).
-- [ ] Cada transición emite un evento de actividad (tarea, estado anterior → nuevo, runtime, rol, fuente) sin datos personales; la consola muestra el cambio en el tablero y en Actividad en ≤ 7 s (prueba de punta a punta).
-- [ ] `ledger-lint` (y el hook posterior a la edición del ledger, que solo informa) avisa de incoherencias: `completado` con gap pendiente en su última revisión; revisión abierta sin veredicto con tareas en `en-progreso`; `en-progreso` con el marcador de medición ya cerrado.
-- [ ] Degrada sin bloquear: sin Python, ledger ilegible o lock ocupado → aviso y el ciclo sigue (la transición se reintenta en el siguiente traspaso).
-- [ ] Esta iniciativa se reconcilia con la propia herramienta (no a mano): T-12..T-21 quedan en el estado que les toca según su revisión.
+- [x] Inicio de tarea (`usage-meter.py start --artefacto <slug>/T-XX`, y `task-brief.py` al despachar) → `en-progreso`, si la tarea estaba en `borrador`/`en-progreso`; nunca degrada una `completado` ni una `cancelado`.
+- [x] Fin de la implementación (`usage-meter.py close` de la tarea) → `en-revision`; el implementer ya no marca `completado`.
+- [x] `ledger-write.py review --tasks …` pone esas tareas en `en-revision` en la misma escritura atómica que abre la cabecera.
+- [x] `ledger-write.py verdict --tasks … --attempt N --result gaps|limpio` (nuevo): `gaps` → las tareas con gap Critical/Important vuelven a `en-progreso`; `limpio` → `completado` solo si todos sus criterios están marcados (si no, exit 1 y no escribe). Lo invoca `adversarial-review` al escribir la traza.
+- [x] Los estados de fase y la tabla «Resumen de progreso» se recalculan en cada transición.
+- [x] Funciona igual con Claude, Codex y OpenCode y con proveedores distintos para implementar y revisar (tests parametrizados por runtime).
+- [x] Cada transición emite un evento de actividad (tarea, estado anterior → nuevo, runtime, rol, fuente) sin datos personales; la consola muestra el cambio en el tablero y en Actividad en ≤ 7 s (prueba de punta a punta).
+- [x] `ledger-lint` (y el hook posterior a la edición del ledger, que solo informa) avisa de incoherencias: `completado` con gap pendiente en su última revisión; revisión abierta sin veredicto con tareas en `en-progreso`; `en-progreso` con el marcador de medición ya cerrado.
+- [x] Degrada sin bloquear: sin Python, ledger ilegible o lock ocupado → aviso y el ciclo sigue (la transición se reintenta en el siguiente traspaso).
+- [x] Esta iniciativa se reconcilia con la propia herramienta (no a mano): T-12..T-21 quedan en el estado que les toca según su revisión.
+
+
+RED: `test_transicion_review_opens_header_with_states_and_phase` falló con 0 tareas en revisión; la fase no transiciona · 2026-11-24.
+
+
+RED: `test_verdict_clean_is_all_or_nothing_and_updates_summary` falló con verdict era una operación desconocida (exit 2) · 2026-11-24.
+
+
+RED: `test_transicion_brief_only_writes_on_explicit_dispatch` falló con flag --dispatch no reconocido · 2026-11-24.
+
+
+RED: `test_estado_tarea_handoffs_and_events` falló con flag --runtime no reconocido para los tres runtimes · 2026-11-24.
+
+
+RED: `test_estado_tarea_busy_writer_is_nonblocking_and_next_handoff_recovers` falló con KeyError avisos con el writer ocupado · 2026-11-24.
+
+
+RED: `test_incoherencia_estado_gap_and_open_review` falló con cero avisos ante incoherencias de estado · 2026-11-24.
+
+
+RED: `test_task_transition_on_board_and_activity_within_seven_seconds` falló con meter rechazó --runtime antes de publicar tablero y actividad · 2026-11-24.
+
+
+RED: `test_transicion_reconcile_uses_latest_review_without_inventing_one` falló con reconcile era una operación desconocida · 2026-11-24.
+
+- **Verificación ejecutada** (2026-11-24): RED `df734b0` (16 failed, 2 passed). Pruebas Python de traspasos y regresión: 385 passed, 3 skipped. Puertas Python de runtimes, consola, fuentes y contexto: 346 passed, 3 skipped. Historial y consola: 344 passed, 2 skipped. Contratos y diagramas: 33 passed. Dos mutantes detectados en copia con cmp. Puerta Node de runtimes y consola (6 ficheros): 267 passed, 6 skipped, 0 failed. Tres traspasos con runtime constante y tres mezclados validados. Consola CLI aislada y tablero real en Edge, tiempos tablero/Actividad: Claude 2,556/2,928 s, Codex 2,722/3,137 s, OpenCode 2,281/2,582 s. Hook de edición: aviso visible, exit 0. Interop 88 al día; linter y evals 0 errores; dieta 0 pérdidas en ambas skills; vía rápida ahorra 6.167 tokens y evaluator 15.465 bytes LF.
+- **Interpretaciones**: k1: `--dispatch` explicita que se va a despachar; la consulta sigue siendo de lectura. k2: los eventos del ledger tienen su propio historial local acotado y conservan el opt-in de los hooks. Si falla publicar actividad, queda un aviso tras el cambio canónico. k3: `reconcile` reconoce revisiones históricas y conserva el estado de tareas sin veredicto. Se entrega T-40 en revisión.
+- **Fuera de Archivos inicial**: referencia de la consola (contrato de actividad); fixture de párrafos (reemplazos trazados); prueba de egreso (huella de fuente actualizada, escáner intacto).
 
 ## Fase 4 — Simplificación del código
 

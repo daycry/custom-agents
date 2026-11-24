@@ -210,3 +210,27 @@ def project_events(events, *, now, run_key=None):
     """Reception order (`revision`), not execution order; drops what exceeded the retention."""
     return sorted((e for e in events if now - e['observed_at'] < RETENTION_SECONDS
         and (run_key is None or e['run_key'] == run_key)), key=lambda e: e['revision'])
+
+
+TASK_EVENT_LIMIT = 128
+TASK_EVENT_STATES = frozenset(("borrador", "en-progreso", "en-revision", "completado", "cancelado"))
+TASK_EVENT_FIELDS = frozenset(("schema_version", "event", "plan", "task", "from", "to",
+                               "runtime", "role", "source", "observed_at"))
+
+
+def valid_task_transition(row):
+    return (type(row) is dict and set(row) == TASK_EVENT_FIELDS
+            and type(row["schema_version"]) is int and row["schema_version"] == 1
+            and row["event"] == "task.transition" and type(row["plan"]) is str
+            and re.fullmatch(r"[a-f0-9]{16}", row["plan"])
+            and type(row["task"]) is str and re.fullmatch(r"T-[0-9]{1,16}", row["task"])
+            and row["from"] in (None, *TASK_EVENT_STATES) and row["to"] in tuple(TASK_EVENT_STATES)
+            and row["from"] != row["to"]
+            and type(row["runtime"]) is str and row["runtime"] in {"claude", "codex", "opencode", "unknown"}
+            and row["role"] in ("implementer", "reviewer", "orchestrator")
+            and row["source"] in ("usage-meter", "task-brief", "ledger-write")
+            and _number(row["observed_at"]))
+
+
+def recent_task_transitions(rows, *, now):
+    return [row for row in rows if 0 <= now - row["observed_at"] < RETENTION_SECONDS][-TASK_EVENT_LIMIT:]

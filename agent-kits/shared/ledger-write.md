@@ -1,29 +1,41 @@
 # Escritura del ledger
 
-Lee este fragmento solo al cambiar el estado de una tarea, registrar un RED o
-abrir una revisión. Resuelve `SHAREDKIT` con las raíces del runtime, en el mismo
-bundle que el rol. Usa preferentemente `ledger-write.py`; con `perfil: lite` es
-obligatorio. El orquestador escribe las evidencias devueltas por sus revisores.
+Lee este fragmento al registrar un RED, una revisión o una corrección de estado.
+Resuelve `SHAREDKIT` en el bundle del rol. El orquestador registra las evidencias
+de los revisores. Los scripts de traspaso aplican los estados en todos los perfiles.
 
 ```bash
 python3 "$SHAREDKIT/ledger-write.py" state docs/roadmap/<iniciativa>/tasks.md --task T-01 --state en-progreso --json
 python3 "$SHAREDKIT/ledger-write.py" red docs/roadmap/<iniciativa>/tasks.md --task T-01 --test tests/test_x.py::test_x --error "resultado observado" --date AAAA-MM-DD --json
 python3 "$SHAREDKIT/ledger-write.py" review docs/roadmap/<iniciativa>/tasks.md --tasks T-01,T-02 --attempt 1 --summary "Fase actual" --json
+python3 "$SHAREDKIT/ledger-write.py" verdict docs/roadmap/<iniciativa>/tasks.md --tasks T-01,T-02 --attempt 1 --result gaps --gap-tasks T-02 --json
+python3 "$SHAREDKIT/ledger-write.py" reconcile docs/roadmap/<iniciativa>/tasks.md --tasks T-01,T-02 --dry-run --json
 ```
 
-- `state` modifica el estado y los contadores de progreso, sin marcar criterios
-  ni decidir que se han cumplido. Antes de `completado`, el responsable comprueba
-  y marca todos sus criterios. El escritor rechaza un cierre sin criterios
-  explícitos o con casillas pendientes. No cierra la fase, QA ni la iniciativa.
+- `state` permite correcciones explícitas (por ejemplo, un rojo de QA) y recalcula
+  el estado declarado de la fase y los contadores de progreso. Antes de
+  `completado`, el responsable comprueba y marca todos sus criterios. El
+  escritor rechaza un cierre sin criterios explícitos o con casillas pendientes.
+  El veredicto de QA y el cierre de la iniciativa conservan sus propias puertas.
 - `red` añade una evidencia de una sola línea en su tarea, sin duplicarla. Exige
   fecha `AAAA-MM-DD`; rechaza secretos y caracteres que creen líneas nuevas.
   Registra el fallo observado antes del código; el script no ejecuta el test.
-- `review` abre la cabecera canónica y deja «sin veredicto». No escribe gaps ni
-  aprueba una revisión. Conserva el máximo de tres intentos por ciclo y la secuencia
+- `review` abre la cabecera canónica, deja «sin veredicto» y mueve sus tareas a
+  `en-revision` en la misma escritura. Conserva tres intentos por ciclo y la secuencia
   por tareas; no cambies sus IDs para reiniciar el contador. Tras el 3.º con gaps,
   «seguir» abre un ciclo nuevo solo con el OK del usuario citado:
-  `review --attempt 4 --new-cycle-ok "<cita>"` (intentos 4-6; el 7 abre el último). El responsable completa
-  la tabla de veredictos según `adversarial-review` y valida después el ledger.
+  `review --attempt 4 --new-cycle-ok "<cita>"` (intentos 4-6; el 7 abre el último).
+- Completa la tabla de evidencia y llama a `verdict` sobre la misma cabecera.
+  `gaps` reabre los IDs con Critical/Important pendientes (de la tabla o de
+  `--gap-tasks`); `limpio` cierra con los criterios marcados y fecha `Cerrada`.
+  Un rechazo conserva el ledger byte a byte. Valida después con `ledger-lint.py`.
+- `usage-meter.py start/close` y `task-brief.py --dispatch` usan el mismo writer.
+  Los inicios y cierres conservan tareas terminales. Los cambios efectivos generan
+  eventos de actividad. Indica `--runtime claude|codex|opencode` o configura
+  `CUSTOM_AGENTS_RUNTIME` explícitamente; cualquier runtime sin identificar se
+  registra como `unknown`.
+- `reconcile` aplica revisiones ya registradas sin fabricar un intento.
+  Las tareas sin veredicto histórico interpretable conservan su estado.
 - `--dry-run` calcula la salida y sus hashes sin crear estado ni escribir.
   `--expected-sha256 <hash>` rechaza una lectura obsoleta con exit3; tras ese
   conflicto, relee y revisa el cambio antes de preparar otra escritura.
@@ -47,8 +59,7 @@ otros editores deben cooperar y los cambios observados antes de publicar se
 rechazan. Un fallo de durabilidad posterior al reemplazo puede haber publicado:
 reconcilia el hash del archivo antes de repetir, sin asumir rollback.
 
-Instalación ordinaria parcial sin Python o sin este kit: avisa y conserva el
-fallback de edición del ledger con `ledger-lint.py`; no inventes un recibo del
-escritor. En lite, esa ausencia impide despachar trabajo hasta restaurar el kit
-o elegir explícitamente un perfil ordinario. Las puertas de TDD, revisión y QA
-permanecen activas en ambos casos.
+Si Python, el escritor o el ledger no están disponibles, avisa y sigue con el
+traspaso autorizado. Conserva la evidencia y reintenta la transición cuando se
+restaure el writer. La validación del perfil lite y las puertas de TDD, revisión
+y QA permanecen activas.

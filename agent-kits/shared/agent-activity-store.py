@@ -464,6 +464,59 @@ def events_document(project):
     return doc
 
 
+_TASK_STATE = '.ledger-write'
+_TASK_EVENTS = 'task-transitions.json'
+_TASK_IGNORED = b'*\n'
+
+
+def _task_events_read(root, io):
+    try:
+        raw, signature = io.read(root / _TASK_STATE / _TASK_EVENTS, MAX_BYTES, changed_status='state_busy')
+    except FileNotFoundError:
+        return [], None
+    value = _strict(raw)
+    _need(type(value) is list and len(value) <= _projection.TASK_EVENT_LIMIT
+          and all(_projection.valid_task_transition(row) for row in value), 'invalid_state')
+    return value, signature
+
+
+def task_transitions(project):
+    """Bounded ledger audit events, independent of optional native-hook capture."""
+    io = _io()
+    try:
+        rows, _ = _task_events_read(_root(project, io), io)
+        return _projection.recent_task_transitions(rows, now=time.time())
+    except (_Failure, OSError, ValueError, RecursionError):
+        return []
+
+
+def record_task_transitions(project, initiative, changes, *, runtime, role, source):
+    io = _io()
+    deadline = time.monotonic() + 1
+    try:
+        root = _root(project, io)
+        state = root / _TASK_STATE
+        now = time.time()
+        plan = hashlib.sha256(initiative.encode('utf-8')).hexdigest()[:16]
+        rows = [{'schema_version': 1, 'event': 'task.transition', 'plan': plan,
+                 'task': task, 'from': before, 'to': after, 'runtime': runtime,
+                 'role': role, 'source': source, 'observed_at': now}
+                for task, before, after in changes]
+        _need(all(_projection.valid_task_transition(row) for row in rows), 'invalid_event')
+        state.mkdir(exist_ok=True)
+        with io.locked(state, deadline, True, wait=.2):
+            try:
+                io.write(state / '.gitignore', _TASK_IGNORED, deadline)
+            except FileExistsError:
+                pass
+            old, signature = _task_events_read(root, io)
+            updated = _projection.recent_task_transitions(old + rows, now=now)
+            io.write(state / _TASK_EVENTS, _json(updated), deadline, expected=signature)
+        return True
+    except (_Failure, OSError, ValueError, RecursionError):
+        return False
+
+
 def _update_events(root, state, io, config_signature, deadline, mutate, nowait=False, preloaded=None):
     marker, _, ignore_signature = _base(root, state, io)
     now = time.time()

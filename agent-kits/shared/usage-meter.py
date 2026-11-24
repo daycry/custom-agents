@@ -60,6 +60,7 @@ Contrato de procedencia y cobertura de `close` (D-086; claves PLANAS y aditivas,
 import argparse
 import json
 import hashlib
+import importlib.util
 import os
 import re
 import sys
@@ -763,6 +764,22 @@ def _horas(tokens, ratio):
 
 # ------------------------------------------------------------------ comandos
 
+def _task_handoff(args, target, avisos):
+    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*/T-[0-9]+(?:-fix[1-9][0-9]*)?", args.artefacto):
+        return False
+    try:
+        script = Path(__file__).with_name("ledger-write.py")
+        spec = importlib.util.spec_from_file_location("usage_task_writer", script)
+        writer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(writer)
+        ok, warning = writer.measurement_handoff(args.artefacto, target, getattr(args, "runtime", None))
+    except (OSError, ImportError, ValueError):
+        ok, warning = False, "ledger: transición pendiente (writer no disponible)"
+    if warning:
+        avisos.append(warning)
+    return ok
+
+
 def cmd_start(args):
     avisos = []
     tdir = args.transcript_dir or _project_transcript_dir()
@@ -775,6 +792,7 @@ def cmd_start(args):
     state[args.artefacto] = marcador
     _migrar_cerrados(state)
     _save_state(args.state, state, avisos)
+    _task_handoff(args, "en-progreso", avisos)
     salida = {"ok": True, "artefacto": args.artefacto,
               "inicio": marcador["inicio"], "ficheros": len(marcador["offsets"])}
     if avisos:
@@ -883,8 +901,13 @@ def cmd_close(args):
                           "ratio_usado": ratio, "ratio_origen": ratio_info,
                           "nota": "estima tokens/horas a juicio y márcalo como estimado"})
     resultado.update(_procedencia(resultado["fuente"] == "medido", cobertura, resultado["eur"], sin_precio, rates))
+    moved = bool(marcador and marcador.get("ledgerClose"))
+    if not moved:
+        moved = _task_handoff(args, "en-revision", avisos)
     if marcador:
         marcador["ultimoCierre"] = fin  # el marcador se conserva: re-close = misma ventana actualizada
+        if moved:
+            marcador["ledgerClose"] = True
         _podar_offsets(marcador, args.transcript_dir or marcador.get("transcriptDir"))   # H-40
         _migrar_cerrados(state)
         identidad = None
@@ -952,6 +975,8 @@ def main(argv=None):
         sp.add_argument("--artefacto", required=True,
                         help="clave estable del artefacto/tarea (ruta o <slug>/T-XX)")
         sp.add_argument("--state", default=DEFAULT_STATE)
+        sp.add_argument("--runtime", choices=sorted({"claude", "codex", "opencode", "unknown"}),
+                        help="runtime explícito de la transición del ledger")
         sp.add_argument("--transcript-dir", default=None,
                         help="carpeta de transcripciones (tests/entornos raros)")
 

@@ -319,11 +319,11 @@ flowchart TD
     H -.->|"respuesta a comentario ya consumido"| PF
     PF -.->|"observación humana ya recibida<br/>opcional"| VF["CLI verify-result<br/>anotación comunicada · no autenticada<br/>sin otra puerta"]
     H["implementer<br/>tarea a tarea<br/>(dev.json opt-in: TDD ·<br/>worktree · subagentes frescos)<br/>P5: gate de cobertura skill unit-tests<br/>(coverage-gate.py --changed-only)"]
-    H --> SC{"scope-check.py<br/>ficheros cambiados ⊆<br/>Archivos del ledger?"}
+    H -->|"start → en-progreso<br/>close → en-revision"| SC{"scope-check.py<br/>ficheros cambiados ⊆<br/>Archivos del ledger?"}
     SC -.->|"exit 1: gap Important<br/>(sin gastar revisores)"| H
     SC -->|exit 0| R["🔍 skill adversarial-review<br/>lentes A+B → agente reviewer<br/>(solo lectura, tier model-tier.py)<br/>+ C seguridad + D rendimiento<br/>(condicionales: review-lens-select.py)<br/>(fusión + dedupe)"]
-    R -.->|gaps| H
-    R --> I["qa · E2E local<br/>veredicto: qa-gate.py"]
+    R -.->|"verdict gaps → en-progreso"| H
+    R -->|"verdict limpio → completado"| I["qa · E2E local<br/>veredicto: qa-gate.py"]
     I -->|"rojo (máx. 3 intentos,<br/>luego preguntar)"| H
     I -->|verde| J["documenter<br/>una vez al final<br/>estados: orquestador en Fase 6"]
     J --> KG{"¿hay candidatos en<br/>pending o needs_changes?"}

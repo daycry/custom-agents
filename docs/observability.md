@@ -317,6 +317,17 @@ plugin cargado con `--plugin-dir`, si con `--bare` el plugin carga pero no hay t
 `--bare` y deja constancia (`::warning::`) de en qué modo hubo evidencia. Los pasos 2 y 3 siguen siendo
 manuales (una sesión interactiva). Detalle del job: `evals/README.md`.
 
+## Transiciones de tareas en la consola
+
+El tablero consulta `tasks.md` y la vista **Actividad** muestra los traspasos del
+plugin con tarea, estado anterior y nuevo, runtime, rol, fuente y hora de
+registro. Un runtime sin identificar se muestra como desconocido. El historial
+local conserva hasta 128 cambios de las últimas 24 horas. Los eventos describen
+cambios ya registrados. La captura de herramientas sigue siendo opt-in.
+
+El hook posterior a la edición avisa si detecta un cierre con gaps, una revisión
+abierta con una tarea en marcha o un marcador cerrado en una tarea en marcha.
+
 ## Agentes en vivo: captura de herramientas (opt-in)
 
 El panel servido (`/plugin-catalog --serve`) tiene una página **Agentes en vivo** que responde, de forma

@@ -70,7 +70,8 @@ solo van los nombres, para no mantener una copia que se desincronice:
 2. **Medición** con `usage-meter.py`, respetando su **regla de no-solape**: una ventana para el
    ledger, que se **cierra en cuanto queda escrito** (antes de implementar), y después **una
    ventana por cada `T-XX`** (`<slug>/T-XX`). Nunca una ventana global que englobe a las de las
-   tareas: contaría los mismos tokens dos veces.
+   tareas: contaría los mismos tokens dos veces. `start` y `close` mueven cada tarea;
+   la revisión registra su veredicto con `ledger-write.py`.
 3. **Implementación** por `implementer`, con la disciplina de `.claude/dev.json` si está activa
    (si `tdd: true`, el implementer sigue la skill **`tdd`**). Antes de despacharlo, resuelve su tier
    con `python3 "$SHAREDKIT/model-tier.py" implementer --json` (`SHAREDKIT="${R:+$R/agent-kits/shared}"`, con la raíz `R` observada al resolver `DEVCYCLE`) y pasa `model` al Agent tool solo si

@@ -55,8 +55,10 @@ horas IA) sin efectos secundarios — lo reutiliza `progress-report.py` (live-vi
 """
 import argparse
 import datetime
+import importlib.util
 import json
 import os
+from pathlib import Path
 import re
 import sys
 
@@ -297,8 +299,15 @@ def secciones_revision(texto):
                 continue
             filas.append({"num": celdas[0], "grado": celdas[1], "gap": celdas[2],
                           "tarea": celdas[3], "correccion": celdas[4], "evidencia": celdas[5]})
-        out.append({"intento": intento, "cabecera": m.group(0).strip(), "resumen": resumen,
-                     "filas": filas, "inicio": m.start(), "fin": fin})
+        section = {"intento": intento, "cabecera": m.group(0).strip(), "resumen": resumen,
+                   "filas": filas, "inicio": m.start(), "fin": fin}
+        verdict = _PLUGIN_VERDICT.search(cuerpo)
+        if verdict:
+            section["veredicto"] = verdict[1]
+            section["gaps_plugin"] = (verdict[2] or "").split(", ")
+        if _OPEN_REVIEW in cuerpo.splitlines():
+            section["abierta"] = True
+        out.append(section)
     return out
 
 
@@ -434,6 +443,76 @@ def gap_pendiente(fila):
     if GAP_REBATIDO_RE.search(correccion) or GAP_REBATIDO_RE.search(evidencia):
         return False
     return bool(GAP_PENDIENTE_RE.match(correccion))
+
+
+_OPEN_REVIEW = "Pendiente de revisión; sin veredicto."
+_PLUGIN_VERDICT = re.compile(r"^\*\*Veredicto del plugin\*\*: (limpio|gaps)(?: \((T-\d+(?:, T-\d+)*)\))?$", re.M)
+INITIATIVE_FOLDER = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9]+(?:-[a-z0-9]+)*")
+TASK_ARTIFACT = re.compile(r"([a-z0-9]+(?:-[a-z0-9]+)*)/(T-[0-9]+)(?:-fix[1-9][0-9]*)?")
+
+
+def latest_reviews(sections):
+    return {task: section for section in sections for task in menciones(section)}
+
+
+def review_status(section):
+    """Machine verdict, with evidence-compatible reads of historical sections."""
+    if section.get("veredicto"):
+        return section["veredicto"]
+    if section.get("abierta"):
+        return "abierta"
+    if section["filas"] or re.search(r"\b0\s+Critical\b.*\b0\s+Important\b|\bsin gaps\b",
+                                    section["resumen"], re.I):
+        return "historica"
+    return None
+
+
+def blocking_tasks(section, tasks):
+    tasks = set(tasks)
+    blocked = set(section.get("gaps_plugin", ())) & tasks
+    for row in section["filas"]:
+        if row["grado"].strip("*_` ").casefold() in ("critical", "important") and gap_pendiente(row):
+            affected = ids_de_tarea(row["tarea"])
+            blocked.update(tasks & affected if affected else tasks)
+    return blocked
+
+
+def ledger_project(path):
+    path = Path(path).absolute()
+    if (path.name == "tasks.md" and INITIATIVE_FOLDER.fullmatch(path.parent.name)
+            and path.parent.parent.name == "roadmap" and path.parents[2].name == "docs"):
+        return path.parents[3]
+
+
+def _closed_measurements(path):
+    """One bounded read of the default marker store, only for a canonical ledger."""
+    root = ledger_project(path)
+    if root is None:
+        return set()
+    try:
+        spec = importlib.util.spec_from_file_location("ledger_local_read", Path(__file__).with_name("local-read.py"))
+        reader = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(reader)
+        value = reader.read_text(root, ".claude/usage-state.json", max_bytes=TOPE_LECTURA_BYTES)
+        if value["status"] != "ok":
+            return set()
+        state = json.loads(value["text"])
+    except (OSError, ValueError, ImportError, RecursionError):
+        return set()
+    if not isinstance(state, dict):
+        return set()
+    folder = Path(path).parent.name
+    latest = {}
+    for order, (key, marker) in enumerate(state.items()):
+        match = TASK_ARTIFACT.fullmatch(key)
+        if not match or match[1] not in (folder, folder[11:]) or not isinstance(marker, dict):
+            continue
+        task = match[2]
+        start = marker.get("inicio")
+        observed = (start if isinstance(start, str) else "", order)
+        if task not in latest or observed > latest[task][0]:
+            latest[task] = (observed, marker.get("ultimoCierre"))
+    return {task for task, (_, closed) in latest.items() if isinstance(closed, str) and closed}
 
 
 def filas_pendientes_de_tarea(secciones, tarea):
@@ -871,6 +950,20 @@ def lint(path, *, text=None, parsed=None, umbral_bytes=None):
         if t["estado"] == "completado" and t["unchecked"] > 0:
             errors.append(f"{t['id']}: marcado `completado` con {t['unchecked']} "
                           f"criterio(s) sin marcar `- [ ]` — incoherencia dura")
+
+    states = {t["id"]: t["estado"] for t in all_tasks}
+    reviews = latest_reviews(secciones_revision(text)) if "dos lentes" in text else {}
+    closed = _closed_measurements(path) if path and "en-progreso" in states.values() else set()
+    for task, state in states.items():
+        section = reviews.get(task)
+        status = review_status(section) if section else None
+        if state == "completado" and section and blocking_tasks(section, {task}):
+            warnings.append(f"{task}: completado con gap Critical/Important pendiente en su última revisión")
+        if state == "en-progreso" and status == "abierta":
+            warnings.append(f"{task}: en-progreso con revisión abierta sin veredicto")
+        if state == "en-progreso" and task in closed and status != "gaps" and not (
+                section and blocking_tasks(section, {task})):
+            warnings.append(f"{task}: en-progreso con medición cerrada")
 
     # ---- `- **Cerrada**: AAAA-MM-DD` (panel-redesign T-22): opcional; si está, formato y orden ----
     # Solo se valida el FORMATO (una fecha real) y que no sea anterior a la creación del ledger: el campo

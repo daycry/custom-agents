@@ -5,9 +5,9 @@
     {
       "before_sha256": "0cb54a3904a6584fbda161ccc7c9f4af1e86c0837818bad258d0b5f0d88b794c",
       "before_file": "commands/dev-cycle.md",
-      "after_sha256": "efa522090025a0246ed4bbde061a50d30fe632581ce59f3180ee1a174a36a44b",
+      "after_sha256": "e8c2408856f99410d4f98edd7d35b7e60d94d12c6537cb5645861301fbb12f63",
       "after_file": "commands/dev-cycle.md",
-      "reason": "Neutral measurement handoff; retains start/close, measured/estimated distinction, fix windows and reviewer allocation. Audit H-15: the light ledger declares `test-plan: n/a (sin UI)` when there is no UI and qa reads that marker from tasks.md in the quick path (no improvement-plan.md), so the quick path has an executable QA gate; the equivalent ledger and ADR remarks are condensed to keep the quick-path saving. Audit H-24/H-25: «seguir» after the 3rd attempt opens a new bounded cycle with the user's OK quoted by ledger-write.py --new-cycle-ok; the commit procedure has a single owner (implementer P4, where commit-selection.py now lives) and Phase 6 only verifies it and reuses it for the orchestrator's own artefacts. Audit minors (T-21): the review sentence names Lens D (performance) next to Lens C, as adversarial-review and CLAUDE.md already do; nothing else in the paragraph changes."
+      "reason": "Neutral measurement handoff; retains start/close, measured/estimated distinction, fix windows and reviewer allocation. Audit H-15: the light ledger declares `test-plan: n/a (sin UI)` when there is no UI and qa reads that marker from tasks.md in the quick path (no improvement-plan.md), so the quick path has an executable QA gate; the equivalent ledger and ADR remarks are condensed to keep the quick-path saving. Audit H-24/H-25: «seguir» after the 3rd attempt opens a new bounded cycle with the user's OK quoted by ledger-write.py --new-cycle-ok; the commit procedure has a single owner (implementer P4, where commit-selection.py now lives) and Phase 6 only verifies it and reuses it for the orchestrator's own artefacts. Audit minors (T-21): the review sentence names Lens D (performance) next to Lens C, as adversarial-review and CLAUDE.md already do; nothing else in the paragraph changes. T-40: task handoffs call the writer, preserving measurement, review and QA gates."
     },
     {
       "before_sha256": "35918c8063f7a49bfec19df53fc6644fa3fccb6f806bdaffd2c8ab96658c9a6c",
@@ -47,9 +47,9 @@
     {
       "before_sha256": "cf0c8bae43b2fde085b10c67e8ed1407c07aa31c899e6733a4202353ce55286f",
       "before_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
-      "after_sha256": "6a4dd4a17ae409bf09ec53219ebf07ed537e2fb21e66e0398ecfa28bd0143a89",
+      "after_sha256": "12c133f4a5b5b1f50588f021bc746ee55dfd1f060dc57d3bce7bb20ea669f23e",
       "after_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
-      "reason": "Plugin-root resolution fix: ${CLAUDE_PLUGIN_ROOT} first (own repo first where master preferred it), then the real-bundle marker agent-kits/shared/ledger-lint.py root by root (project, this plugin's marketplace caches, user) bounded to the install layout (-maxdepth 5, jobs/ and worktrees/ excluded per root), highest version within a cache, stop at the first hit, empty when nothing matches; same lookup target and gate."
+      "reason": "Plugin-root resolution fix: ${CLAUDE_PLUGIN_ROOT} first (own repo first where master preferred it), then the real-bundle marker agent-kits/shared/ledger-lint.py root by root (project, this plugin's marketplace caches, user) bounded to the install layout (-maxdepth 5, jobs/ and worktrees/ excluded per root), highest version within a cache, stop at the first hit, empty when nothing matches; same lookup target and gate. T-40: task handoffs call the writer, preserving measurement, review and QA gates."
     },
     {
       "before_sha256": "8e15bf0f237208675ea4ee570e0cdff09091b50d58b0fde63b3dd7122d297621",
@@ -61,9 +61,9 @@
     {
       "before_sha256": "144a3a36420a1b4aae1dd64ab85f89ee7d07c720009177ea7fd40b3b29931d78",
       "before_file": "skills/quick-implement/SKILL.md",
-      "after_sha256": "2252f994cf3847401eda297a89ec7e6feb6845d8510990e15b0378385fae6cf1",
+      "after_sha256": "b00c5900c3fe81bc26b1058916c01a663bc41820c6f76536acf097af9906a2c6",
       "after_file": "skills/quick-implement/SKILL.md",
-      "reason": "Plugin-root resolution fix: step 3 builds SHAREDKIT from the plugin root R already resolved for DEVCYCLE instead of a second lookup; same model-tier gate. Audit minors (T-21): the review sentence names Lens D (performance) next to Lens C, as adversarial-review and CLAUDE.md already do; nothing else in the paragraph changes."
+      "reason": "Plugin-root resolution fix: step 3 builds SHAREDKIT from the plugin root R already resolved for DEVCYCLE instead of a second lookup; same model-tier gate. Audit minors (T-21): the review sentence names Lens D (performance) next to Lens C, as adversarial-review and CLAUDE.md already do; nothing else in the paragraph changes. T-40: task handoffs call the writer, preserving measurement, review and QA gates."
     },
     {
       "before_sha256": "f86c9ae830bdd207ddae88c7bfe3c0122b3d4654afca1308ac9b54255f103cca",
@@ -82,9 +82,9 @@
     {
       "before_sha256": "7c1d9803defe78ddcac981606263451619922a2c072121f82ee5d9263ced2d8a",
       "before_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
-      "after_sha256": "f2345e4af3ed800469fe822caa8dc35dbfb069971c77af6c5d535ea0c21e923c",
+      "after_sha256": "26401a46f2ba3a2ef0567364d841fd1a5bf5ae31caf3a015bb7e7964987763bc",
       "after_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
-      "reason": "Audit H-6/H-7: brief-only dispatch uses subagent_type = native implementer ID from native-roles.json with the brief as prompt, never a generic subagent (native-guardrail.py only protects that identity), with the bare `implementer` type when the bundle is copied into .claude/agents/; the fallback after the second attempt is a direct dispatch to the native implementer instead of the main context; return states, gates and parallel batch unchanged. plugin-audit-2 T-12: the parenthesis on tdd now says the brief carries the essential of the tdd skill (hard law, RED: format, what is not TDD) and the subagent opens the skill only when in doubt; the skill stays the single source."
+      "reason": "Audit H-6/H-7: brief-only dispatch uses subagent_type = native implementer ID from native-roles.json with the brief as prompt, never a generic subagent (native-guardrail.py only protects that identity), with the bare `implementer` type when the bundle is copied into .claude/agents/; the fallback after the second attempt is a direct dispatch to the native implementer instead of the main context; return states, gates and parallel batch unchanged. plugin-audit-2 T-12: the parenthesis on tdd now says the brief carries the essential of the tdd skill (hard law, RED: format, what is not TDD) and the subagent opens the skill only when in doubt; the skill stays the single source. T-40: task handoffs call the writer, preserving measurement, review and QA gates."
     },
     {
       "before_sha256": "ecde50b4e2ea57a0e19584b95d03682b2a705e3e45e639bf191c697bcb02d382",
@@ -134,6 +134,34 @@
       "after_sha256": "e970642498b0e88061fb68b5b44dd2eac716867378ef9dc27471b9c3648252be",
       "after_file": "agent-kits/dev-cycle/references/phase4-knowledge-gate.md",
       "reason": "plugin-audit-2 T-09: Kwipu and Graphiti are retired (4.0.0); the bullet now says that no external backend conditions the close. Same rule kept: approved stays correct, the export via knowledge-sync.py is asynchronous and rebuildable, and its failure is noted without stopping the cycle."
+    },
+    {
+      "before_sha256": "eb241e01a5e64e2f3962054ce4a35b3d0223ea98adcede04de409ed11a4f1d09",
+      "before_file": "commands/dev-cycle.md",
+      "after_sha256": "e325dc0260e50ab94a5eedeb7ee66ce39fc31aa5782ef9f285a6e35cfe7cd579",
+      "after_file": "commands/dev-cycle.md",
+      "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates."
+    },
+    {
+      "before_sha256": "ddb8674371d836e6d7a0e08e0359303aa8fb68ce4db0afc40a56ddc71f08f49e",
+      "before_file": "commands/dev-cycle.md",
+      "after_sha256": "757023f45cdbd9741c5b9ea686f2c49edde58f1c2a6703dca56124e2f0853e04",
+      "after_file": "commands/dev-cycle.md",
+      "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates."
+    },
+    {
+      "before_sha256": "fa76f237fad8dad6495332589128c1f38175a5865c383e60c00a01be3ec79781",
+      "before_file": "commands/dev-cycle.md",
+      "after_sha256": "e4054616a860ed4ed73b631ec3c794fb63714da83212a67a84f201231f01719e",
+      "after_file": "commands/dev-cycle.md",
+      "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates."
+    },
+    {
+      "before_sha256": "866baa4dec03c18a3ac52811536349034a51a3f757e0ecb49e7aa094e63c082e",
+      "before_file": "commands/dev-cycle.md",
+      "after_sha256": "6211a0cb43936ba6b8414658b4c1633a594c4f9b79414898f818a496e4169895",
+      "after_file": "commands/dev-cycle.md",
+      "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates."
     }
   ]
 }

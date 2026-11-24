@@ -317,11 +317,11 @@ flowchart TD
     H -.->|"response to an already consumed comment"| PF
     PF -.->|"human observation already received<br/>optional"| VF["CLI verify-result<br/>communicated annotation · unauthenticated<br/>no additional gate"]
     H["implementer<br/>task by task<br/>(dev.json opt-in: TDD ·<br/>worktree · fresh subagents)<br/>P5: coverage gate, unit-tests skill<br/>(coverage-gate.py --changed-only)"]
-    H --> SC{"scope-check.py<br/>changed files ⊆<br/>ledger's Archivos?"}
+    H -->|"start → en-progreso<br/>close → en-revision"| SC{"scope-check.py<br/>changed files ⊆<br/>ledger's Archivos?"}
     SC -.->|"exit 1: Important gap<br/>(no reviewers spent)"| H
     SC -->|exit 0| R["🔍 skill adversarial-review<br/>lenses A+B → reviewer agent<br/>(read-only, tier from model-tier.py)<br/>+ C security + D performance<br/>(conditional: review-lens-select.py)<br/>(merge + dedupe)"]
-    R -.->|gaps| H
-    R --> I["qa · local E2E<br/>verdict: qa-gate.py"]
+    R -.->|"verdict gaps → en-progreso"| H
+    R -->|"verdict limpio → completado"| I["qa · local E2E<br/>verdict: qa-gate.py"]
     I -->|"red (max 3 attempts,<br/>then ask)"| H
     I -->|green| J["documenter<br/>once at the end<br/>states: orchestrator in Phase 6"]
     J --> KG{"any candidates in<br/>pending or needs_changes?"}

@@ -1,5 +1,7 @@
 import {$,el,icon,button,badge,provider,providers,busy,relative,time,empty,loading,panel,progress,markdown,observedSessionCount,sessionCountLabel} from './console-dom.js'
 
+const taskStates={'borrador':'Borrador','en-progreso':'En marcha','en-revision':'En revisión','completado':'Completada','cancelado':'Cancelada'}
+
 export function createContext(app){
  const state=app.state
  let overviewSignature='',activitySignature='',memorySignature='',integrationSignature='',catalogSignature='',catalogData=null,memoryResult=null
@@ -162,6 +164,25 @@ export function createContext(app){
   const epoch=state.epoch
   const [history,sessions]=await Promise.all([app.api('activity'),app.api('sessions')])
   if(epoch!==state.epoch||state.view!=='activity')return
+  const transitions=history.task_transitions||[]
+  const transitionHost=$('activity-content').querySelector('[data-task-transitions]')
+  const transitionList=panel('Cambios de estado de tareas','Eventos registrados por el plugin')
+  transitionList.dataset.taskTransitions=''
+  const transitionBody=el('div',undefined,'activity-feed')
+  for(const event of transitions.slice(-20).reverse()){
+   const row=el('article',undefined,'timeline-item'),copy=el('div',undefined,'timeline-copy')
+   const runtime=providers[event.runtime==='claude'?'claude-code':event.runtime]||'Runtime desconocido'
+   copy.append(el('strong',event.task+' · '+(taskStates[event.from]||'Sin estado')+' → '+taskStates[event.to]),
+    el('small',event.role+' · '+runtime+' · '+event.source))
+   const when=el('time',fullTime(event.observed_at)+' · '+relative(event.observed_at))
+   when.dateTime=new Date(event.observed_at*1000).toISOString()
+   row.append(copy,when);transitionBody.append(row)
+  }
+  transitionList.append(transitionBody)
+  if(transitions.length){
+   if(transitionHost)transitionHost.replaceWith(transitionList)
+   else $('activity-content').prepend(transitionList)
+  }else transitionHost?.remove()
   state.sessions=sessions.sessions||[]
   const connected=state.sessions.filter(s=>!['disconnected','failed'].includes(s.status)).slice(0,8)
   const snapshots=await Promise.allSettled(connected.map(s=>app.api('sessions/'+s.id)))
@@ -187,6 +208,7 @@ export function createContext(app){
   if(signature===activitySignature){await refreshRun();return}activitySignature=signature
   const previousFocus=document.activeElement,restoreDetail=detailHost?.contains(previousFocus),focusedRun=previousFocus?.dataset?.run
   const root=$('activity-content');root.replaceChildren()
+  if(transitions.length)root.append(transitionList)
   const stage=el('div',undefined,'agent-stage'),head=el('div',undefined,'agent-stage-title')
   head.append(el('h2','Sesiones y agentes observados'),el('span','Señales recibidas · no certifican procesos vivos','small-muted'));stage.append(head)
   const nodes=el('div',undefined,'agent-nodes')

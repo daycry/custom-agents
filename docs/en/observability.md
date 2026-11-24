@@ -316,6 +316,17 @@ runs the hooks of a plugin loaded with `--plugin-dir`, when the plugin loads und
 witness the job retries WITHOUT `--bare` and records (`::warning::`) which mode produced the evidence.
 Steps 2 and 3 remain manual (an interactive session). Job details: `evals/README.md`.
 
+## Task transitions in the console
+
+The board reads `tasks.md`. **Activity** shows the plugin's handoffs with the
+task, previous and new states, runtime, role, source and recording time. An
+unidentified runtime is shown as unknown. Local history keeps up to 128 changes
+from the last 24 hours. Each event describes a recorded change. Tool capture
+remains opt-in.
+
+The post-edit hook warns about a completed task with pending gaps, an in-progress
+task in an open review, or an in-progress task with a closed measurement marker.
+
 ## Live agents: tool capture (opt-in)
 
 The served panel (`/plugin-catalog --serve`) has a **Agentes en vivo** (Live agents) page that answers, in a

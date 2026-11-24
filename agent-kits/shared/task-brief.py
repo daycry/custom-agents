@@ -1045,6 +1045,7 @@ def _parse_args(argv):
                     help="ruta de knowledge-find.py (default: el del mismo kit; solo para tests)")
     ap.add_argument("--runtime", choices=('claude-code', 'codex', 'opencode', 'all'), default='all',
                     help="runtime de las extensiones seleccionadas; all solo inventaría declaraciones")
+    ap.add_argument("--dispatch", action="store_true", help="registra el despacho en el ledger")
     ap.add_argument("--extensions-home", help="raíz de usuario para inventariar extensiones")
     ap.add_argument("--extensions-cwd", help="paquete de la tarea dentro de la raíz de proyecto")
     ap.add_argument("--extensions-project-only", action="store_true",
@@ -1052,6 +1053,8 @@ def _parse_args(argv):
     ap.add_argument("--extensions-user-root", action="append", default=[], metavar="RUNTIME=PATH",
                     help="raíz personalizada explícita del runtime; no modifica configuración")
     args = ap.parse_args(argv)
+    if args.dispatch and args.fase is not None:
+        ap.error("--dispatch requiere una tarea concreta")
     if args.umbral_bytes is not None and args.umbral_bytes <= 0:
         ap.error("--umbral-bytes debe ser positivo")
     return args
@@ -1629,6 +1632,24 @@ def _vista_fase(args):
     return 0
 
 
+def _dispatch(args, tasks_path, task):
+    if not args.dispatch:
+        return
+    try:
+        import importlib.util
+        from pathlib import Path
+        script = Path(__file__).with_name("ledger-write.py")
+        spec = importlib.util.spec_from_file_location("brief_task_writer", script)
+        writer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(writer)
+        runtime = "claude" if args.runtime == "claude-code" else args.runtime
+        _, warning = writer.task_handoff(tasks_path, task, "en-progreso", "task-brief", runtime)
+    except (OSError, ValueError, ImportError):
+        warning = "ledger: transición pendiente (writer no disponible)"
+    if warning:
+        print(warning, file=sys.stderr)
+
+
 def main(argv=None):
     args = _parse_args(argv)
     if args.fase is not None:
@@ -1692,6 +1713,7 @@ def main(argv=None):
             print(f"lite: contenido obligatorio={len(texto)} > 6000; divide la tarea o reduce su contexto explícito. "
                   "No se emite un brief parcial.", file=sys.stderr)
             return 2
+        _dispatch(args, tasks_p, tid)
         print(texto, end="")
         return 0
 
@@ -1701,6 +1723,7 @@ def main(argv=None):
 
     texto = chr(10).join(out) + chr(10)
     _avisa_si_excede_tope(tid, texto, resto_sin_persona)
+    _dispatch(args, tasks_p, tid)
     print(texto, end="")
     return 0
 
