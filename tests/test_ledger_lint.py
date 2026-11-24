@@ -53,6 +53,37 @@ def doc(**kw):
     return BASE.format(**d)
 
 
+def test_incoherencia_estado_gap_and_open_review():
+    raw = doc() + """
+## Revisión de dos lentes — intento 1: Fase 1 (T-01)
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+| 1 | Important | Missing check | T-01 | pendiente | — |
+
+## Revisión de dos lentes — intento 1: Fase 1 (T-02)
+
+Pendiente de revisión; sin veredicto.
+"""
+    code, out = run(raw)
+    assert code == 0
+    assert "T-01: completado con gap" in out
+    assert "T-02: en-progreso con revisión abierta" in out
+
+
+def test_incoherencia_estado_closed_measurement(tmp_path):
+    folder = tmp_path / "docs/roadmap/2026-11-24-fixture"
+    folder.mkdir(parents=True)
+    path = folder / "tasks.md"
+    path.write_text(doc(), encoding="utf-8")
+    config = tmp_path / ".claude"
+    config.mkdir()
+    (config / "usage-state.json").write_text(
+        '{"fixture/T-02-fix2":{"ultimoCierre":"2026-11-24T12:00:00Z"}}', encoding="utf-8")
+    result = subprocess.run([sys.executable, SCRIPT, str(path)], capture_output=True, encoding="utf-8")
+    assert result.returncode == 0
+    assert "T-02: en-progreso con medición cerrada" in result.stdout
+
+
 def main():
     # 1) coherente → exit 0
     code, out = run(doc())
