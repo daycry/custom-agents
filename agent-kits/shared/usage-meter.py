@@ -63,7 +63,6 @@ import hashlib
 import importlib.util
 import os
 import re
-import subprocess
 import sys
 import time
 import uuid
@@ -257,20 +256,21 @@ def _save_state(path, state, avisos=None):
                     avisos.append("no se pudo retirar el temporal propio del state")
 
 
+def _load_sibling(name):
+    spec = importlib.util.spec_from_file_location("usage_" + name, Path(__file__).with_name(name + ".py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 @contextmanager
 def _locked_state(path, avisos):
-    def load(name):
-        spec = importlib.util.spec_from_file_location("usage_" + name, Path(__file__).with_name(name + ".py"))
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module
-
     def need(condition, status):
         if not condition:
             raise OSError(status)
 
     deadline = time.monotonic() + 3
-    reader, state_io = load("local-read"), load("local-state")
+    reader, state_io = _load_sibling("local-read"), _load_sibling("local-state")
     io = state_io.StateIO(reader, need, lambda limit: need(time.monotonic() < limit, "state_timeout"), maximum=0)
     target = Path(path).absolute()
     lock = target.with_name(target.name + ".lock.d")
@@ -796,20 +796,14 @@ def _horas(tokens, ratio):
 def _task_handoff(args, target, avisos):
     if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*/T-[0-9]+(?:-fix[1-9][0-9]*)?", args.artefacto):
         return False
-    cmd = [sys.executable, str(Path(__file__).with_name("ledger-write.py")), "handoff",
-           "--artifact", args.artefacto, "--state", target, "--source", "usage-meter", "--json"]
-    if getattr(args, "runtime", None):
-        cmd += ["--runtime", args.runtime]
     try:
-        result = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace", timeout=5)
-        row = json.loads(result.stdout)
-        if not result.returncode:
-            avisos.extend(message for message in row["warnings"] if message.startswith("ledger:"))
-            return True
-        avisos.append(f"ledger: transición pendiente ({row['status']})")
-    except (OSError, ValueError, KeyError, subprocess.TimeoutExpired):
-        avisos.append("ledger: transición pendiente (writer no disponible)")
-    return False
+        writer = _load_sibling("ledger-write")
+        moved, warning = writer.measurement_handoff(args.artefacto, target, getattr(args, "runtime", None))
+    except Exception:  # The optional writer cannot stop measurement, including on partial installs.
+        moved, warning = False, "ledger: transición pendiente (writer no disponible)"
+    if warning:
+        avisos.append(warning)
+    return moved
 
 
 def cmd_start(args):

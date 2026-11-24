@@ -464,6 +464,21 @@ def measurement_target(artifact):
     return str(root / "docs" / "roadmap" / folder / "tasks.md"), task
 
 
+def measurement_handoff(artifact, state, runtime):
+    """Run a meter handoff without a second interpreter or the CLI JSON round-trip."""
+    try:
+        path, task = measurement_target(artifact)
+        receipt = write(argparse.Namespace(operation="handoff", path=path, task=task, state=state,
+                                           source="usage-meter", runtime=runtime, dry_run=False,
+                                           expected_sha256=None))
+    except WriteError as error:
+        return False, f"ledger: transición pendiente ({error.status})"
+    except (OSError, ValueError):
+        return False, "ledger: transición pendiente (unavailable)"
+    warning = next((message for message in receipt["warnings"] if message.startswith("ledger:")), None)
+    return True, warning
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     subs = parser.add_subparsers(dest="operation", required=True)
