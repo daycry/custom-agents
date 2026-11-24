@@ -26,6 +26,7 @@ sys.dont_write_bytecode = True
 HERE = Path(__file__).resolve().parent
 MAX_BYTES = 256 * 1024
 RUNTIMES = frozenset({"claude", "codex", "opencode", "unknown"})
+TASK_STATE_FIELD = re.compile(r"^\s*-\s*\*\*Estado\*\*\s*:\s*(.*)$")
 ERROR_DETAILS = {
     "review_open": "La tarea tiene una revisión abierta sin veredicto.",
     "review_not_reopened": "La revisión de la tarea requiere un veredicto con gaps para reabrirla.",
@@ -85,7 +86,9 @@ def task_range(text, task, clean=None):
     """Locate editable lines only; task identity/meaning is validated by LINT."""
     if clean is None:
         clean = LINT.sin_vallas(text).split("\n")
-    starts = [i for i, line in enumerate(clean) if re.match(r"^###\s+" + re.escape(task) + r"\b", line)]
+    heading = re.compile(r"^###\s+" + re.escape(task) + r"\b")
+    starts = [i for i, line in enumerate(clean) if heading.match(line)]
+    need(starts, "unknown_task")
     need(len(starts) == 1, "ambiguous_task", 1)
     start = starts[0]
     stop = next((i for i in range(start + 1, len(clean))
@@ -135,7 +138,9 @@ def summarize(text, previous, changes):
 
 def phase_state(tasks):
     states = {task["estado"] or "borrador" for task in tasks}
-    if not states or states == {"borrador"}:
+    if states == {"cancelado"}:
+        return "cancelado"
+    if states <= {"borrador", "cancelado"}:
         return "borrador"
     open_states = states - {"completado", "cancelado"}
     if not open_states:
@@ -158,7 +163,7 @@ def set_states(text, parsed, changes, *, close=False):
     clean = LINT.sin_vallas(text).split("\n")
     for task, state in actual.items():
         start, stop, _ = task_range(text, task, clean)
-        hits = [i for i in range(start, stop) if re.match(r"^\s*-\s*\*\*Estado\*\*\s*:", clean[i])]
+        hits = [i for i in range(start, stop) if TASK_STATE_FIELD.match(clean[i])]
         need(len(hits) == 1, "ambiguous_state", 1)
         i = hits[0]
         lines[i] = re.sub(r"(:)[^\n]*", r"\1 " + state, lines[i], count=1)
@@ -240,25 +245,33 @@ def reconcile(text, parsed, known, tasks):
     return set_states(text, parsed, changes, close=True)
 
 
+def handoff_current(text, args):
+    """Inspect the target without projecting or validating unrelated tasks."""
+    start, stop, clean = task_range(text, args.task)
+    matches = [m[1] for line in clean[start + 1:stop] if (m := TASK_STATE_FIELD.match(line))]
+    need(len(matches) == 1, "ambiguous_state", 1)
+    current = LINT.norm_estado(matches[0])
+    need(current in LINT.ESTADOS, "invalid_ledger", 1)
+    if current in (args.state, "completado", "cancelado"):
+        return None
+    if args.state == "en-progreso":
+        section = next((section for section in reversed(LINT.secciones_revision(text))
+                        if args.task in LINT.menciones(section)), None)
+        status = LINT.review_status(section) if section else None
+        need(status != "abierta", "review_open", 1)
+        if current == "en-revision":
+            need(status == "gaps" and LINT.blocking_tasks(section, {args.task}),
+                 "review_not_reopened", 1)
+        else:
+            need(current == "borrador", "invalid_handoff_state", 1)
+    return current
+
+
 def transform(text, parsed, args):
     known = {task["id"]: task for task in parsed["tareas"]}
-    if args.operation in ("state", "handoff", "red"):
+    if args.operation in ("state", "red"):
         need(args.task in known, "unknown_task", 2)
         if args.operation == "state":
-            return set_states(text, parsed, {args.task: args.state})
-        if args.operation == "handoff":
-            current = known[args.task]["estado"]
-            if current in ("completado", "cancelado"):
-                return text
-            if args.state == "en-progreso":
-                section = LINT.latest_reviews(LINT.secciones_revision(text)).get(args.task)
-                status = LINT.review_status(section) if section else None
-                need(status != "abierta", "review_open", 1)
-                if current == "en-revision":
-                    need(status == "gaps" and LINT.blocking_tasks(section, {args.task}),
-                         "review_not_reopened", 1)
-                else:
-                    need(current in ("borrador", "en-progreso"), "invalid_handoff_state", 1)
             return set_states(text, parsed, {args.task: args.state})
         start, stop, clean = task_range(text, args.task)
         lines = _source_lines(text)
@@ -309,23 +322,41 @@ def transform(text, parsed, args):
     return text + ("\n" if text.endswith("\n") else "\n\n") + header + "\n\n" + LINT._OPEN_REVIEW + "\n"
 
 
-def prepare(raw, args):
+def decode(raw):
     need(len(raw) <= MAX_BYTES, "ledger_budget")
     bom = b"\xef\xbb\xbf" if raw.startswith(b"\xef\xbb\xbf") else b""
     decoded = raw.decode("utf-8-sig")
     newline = "\r\n" if "\r\n" in decoded else "\n"
     text = decoded.replace("\r\n", "\n")
     need("\r" not in text and not (newline == "\r\n" and "\n" in decoded.replace("\r\n", "")), "mixed_newlines")
+    return text, bom, newline
+
+
+def prepare(raw, args):
+    text, bom, newline = decode(raw)
+    handoff = args.operation == "handoff"
+    current = handoff_current(text, args) if handoff else None
+    if handoff and current is None:
+        return raw, [], None, None
     closed = functools.cache(lambda: LINT._closed_measurements(args.path))
     parsed = LINT.parse_ledger(text)
     errors, warnings = LINT.lint(args.path, text=text, parsed=parsed, closed_measurements=closed)
     need(not errors, "invalid_ledger", 1)
-    updated = transform(text, parsed, args)
+    if handoff:
+        need(states_from(parsed).get(args.task) == current, "ambiguous_state", 1)
+        updated = set_states(text, parsed, {args.task: args.state})
+    else:
+        updated = transform(text, parsed, args)
     updated_parsed = parsed
     if updated != text:
         updated_parsed = LINT.parse_ledger(updated)
-        errors, warnings = LINT.lint(args.path, text=updated, parsed=updated_parsed, closed_measurements=closed)
-        need(not errors, "invalid_result", 1)
+        if handoff:
+            # Handoffs only change nonterminal states. Their closing dates,
+            # criteria and completed counts cannot change.
+            need(states_from(updated_parsed).get(args.task) == args.state, "invalid_result", 1)
+        else:
+            errors, warnings = LINT.lint(args.path, text=updated, parsed=updated_parsed, closed_measurements=closed)
+            need(not errors, "invalid_result", 1)
     output = bom + updated.replace("\n", newline).encode("utf-8")
     need(len(output) <= MAX_BYTES, "ledger_budget")
     return output, warnings, parsed, updated_parsed
@@ -359,8 +390,13 @@ def write(args):
     raw, identity = IO.read(path, MAX_BYTES, changed_status="conflict")
     if args.expected_sha256:
         need(digest(raw) == args.expected_sha256, "conflict", 3)
-    output, warnings, before, after = prepare(raw, args)
-    if not args.dry_run and output != raw:
+    if args.operation == "handoff" and not args.dry_run:
+        # A no-op never takes the writer lock. A changing handoff validates
+        # only the snapshot under that lock, even if another writer raced us.
+        plan = None if handoff_current(decode(raw)[0], args) is not None else (raw, [], None, None)
+    else:
+        plan = prepare(raw, args)
+    if not args.dry_run and (plan is None or plan[0] != raw):
         state = path.parent / ".ledger-write"
         state.mkdir(exist_ok=True)
         deadline = time.monotonic() + 5
@@ -373,9 +409,10 @@ def write(args):
             locked_raw, identity = IO.read(path, MAX_BYTES, changed_status="conflict")
             if args.expected_sha256:
                 need(digest(locked_raw) == args.expected_sha256, "conflict", 3)
-            if locked_raw != raw:
+            if locked_raw != raw or plan is None:
                 raw = locked_raw
-                output, warnings, before, after = prepare(raw, args)
+                plan = prepare(raw, args)
+            output, warnings, before, after = plan
             if output != raw:
                 mode = path.lstat().st_mode & 0o777 if os.name != "nt" else None
                 IO.write(path, output, deadline, expected=identity, mode=mode)
@@ -384,6 +421,7 @@ def write(args):
                         warnings.append("ledger: actividad de transición no disponible")
                 except (OSError, ValueError, ImportError, RuntimeError):
                     warnings.append("ledger: actividad de transición no disponible")
+    output, warnings, _, after = plan
     receipt = {"schema_version": 1, "status": "ok", "operation": args.operation,
                "changed": output != raw, "dry_run": args.dry_run,
                "input_sha256": digest(raw), "output_sha256": digest(output), "warnings": warnings}

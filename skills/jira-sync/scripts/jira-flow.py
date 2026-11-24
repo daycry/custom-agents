@@ -434,12 +434,9 @@ def ids_de_tarea(texto):
 
 
 def ids_de_celda_tarea(texto):
-    """IDs principales de la celda `Tarea`, incluida una lista como `T-02/T-04`.
-
-    El resto de la celda es contexto: `T-21 (origen T-03)` solo afecta a T-21.
-    """
-    lista = re.match(r"^[`*_ \t]*T-\d+\b(?:[`*_ \t]*(?:[,/]|[ \t]+(?:y|and)[ \t]+)[`*_ \t]*T-\d+\b)*", texto)
-    return ids_de_tarea(lista[0]) if lista else set()
+    """Cuenta todos los IDs salvo notas de contexto explícitas de un solo ID."""
+    contexto = r"\([ \t]*(?:origen|mensaje de|ver|cf\.)[ \t]+(?:T-\d+|`T-\d+`)[ \t]*\)"
+    return ids_de_tarea(re.sub(contexto, " ", texto, flags=re.I))
 
 
 def menciones(seccion):

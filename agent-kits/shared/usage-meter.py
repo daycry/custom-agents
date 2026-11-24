@@ -820,15 +820,18 @@ def cmd_start(args):
                 "revision_medicion": 0}
     if not tdir:
         marcador["aviso"] = "transcripciones no localizadas; close degradará a fuente=estimado"
+    saved = False
     try:
         with _locked_state(args.state, avisos) as state:
             state[args.artefacto] = marcador
             _migrar_cerrados(state)
-            _save_state(args.state, state, avisos)
+            saved = _save_state(args.state, state, avisos)
     except (OSError, ImportError) as error:
-        avisos.append(f"no se pudo guardar el state: {error}")
+        avisos.append(f"no se pudo guardar el marcador start: {error}")
+    if not saved:
+        avisos.append("marcador start no persistido; reintenta si necesitas medir esta ventana")
     _task_handoff(args, "en-progreso", avisos)
-    salida = {"ok": True, "artefacto": args.artefacto,
+    salida = {"ok": True, "marker_saved": saved, "artefacto": args.artefacto,
               "inicio": marcador["inicio"], "ficheros": len(marcador["offsets"])}
     if avisos:
         salida["avisos"] = avisos

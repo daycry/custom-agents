@@ -29,6 +29,10 @@ python3 "$SHAREDKIT/ledger-write.py" reconcile docs/roadmap/<iniciativa>/tasks.m
 - Completa la tabla de evidencia y llama a `verdict` sobre la misma cabecera.
   `gaps` reabre los IDs con Critical/Important pendientes (de la tabla o de
   `--gap-tasks`); `limpio` cierra con los criterios marcados y fecha `Cerrada`.
+  En la columna `Tarea` cuentan todos los IDs, cualquiera que sea su posición o
+  separador. Solo se excluyen notas entre paréntesis con un único ID precedido
+  por `origen`, `mensaje de`, `ver` o `cf.` (p. ej., `T-21 (origen T-03)` afecta
+  a T-21). Si el formato de la nota es ambiguo, también cuentan sus IDs.
   Un rechazo conserva el ledger byte a byte. Valida después con `ledger-lint.py`.
 - `usage-meter.py start/close` y `task-brief.py --dispatch` usan el mismo writer.
   `handoff` acepta el ledger y `--task`, o `--artifact` del medidor en el proyecto actual.
@@ -38,6 +42,10 @@ python3 "$SHAREDKIT/ledger-write.py" reconcile docs/roadmap/<iniciativa>/tasks.m
   eventos de actividad. Indica `--runtime claude|codex|opencode` o configura
   `CUSTOM_AGENTS_RUNTIME` explícitamente; cualquier runtime sin identificar se
   registra como `unknown`.
+  Un traspaso sin cambio consulta la tarea sin tomar el lock de escritura ni
+  ejecutar el linter. Un cambio valida una vez la entrada bajo el lock.
+  Si `usage-meter.py start` agota la espera del lock del medidor o falla al
+  guardar, devuelve `marker_saved: false` con un aviso y el traspaso continúa.
 - `reconcile` aplica revisiones ya registradas sin fabricar un intento.
   Las tareas sin veredicto histórico interpretable conservan su estado. Un gap
   histórico que consta como corregido en un fix requiere una revisión posterior
