@@ -1420,3 +1420,7 @@ Lentes A y B (Claude Opus 5.5, esfuerzo alto) sobre `78616e2..ecea3be` (fix4 de 
 | 3 | Minor | Los rangos dentro de una celda no reconocida no se expanden (`T-01–T-03–T-05`, `T-01..T-600`, `T-05..T-01`): la tarea intermedia que no nombra la cabecera queda libre | T-40 | corregido (fix5, c37dfd1; test test_fix5_gap3_embedded_ranges) | `ledger-lint.py:373-401` (y copias); `test_ledger_write_transitions.py:394,435` |
 | 4 | Minor | Alias ambiguo (`T-001` con `T-1` y `T-01` en el catálogo) no bloquea a ninguna y no avisa | T-40 | corregido (fix5, c37dfd1; test test_fix5_gap4_ambiguous_alias) | `ledger-lint.py:423-433` (y copias) |
 
+
+## Revisión de dos lentes — intento 6: Fase 3 (T-40) — verificación del fix5 (T-40)
+
+Pendiente de revisión; sin veredicto.
