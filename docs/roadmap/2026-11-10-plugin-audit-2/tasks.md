@@ -1364,3 +1364,7 @@ Lentes A y B (Claude Opus 5.5, esfuerzo alto) sobre `f3a8572..c0e2c02` (fix1 de 
 | 6 | Minor | La aserción de PLUGIN-PANEL del test del gap 1 entró con su cambio, sin rojo; la salida de `reconcile --dry-run` pegada solo cubre T-23 | T-40 | corregido (fix2, ab227f7; test `test_fix2_gap6_ledger_discloses_concurrent_doc_assertion`) | `test_ledger_write_transitions.py:234-237`; `tasks.md` (fix1 de T-40) |
 | 7 | Minor | Con el lock del state retenido > 2 s, `start` devuelve `ok` con aviso pero no guarda el marcador (el `close` posterior dirá «sin marcador») | T-40 | corregido (fix2, 9e79cad; test `test_fix2_gap7_start_reports_unsaved_marker_when_state_locked`) | `usage-meter.py:824-830` |
 
+
+## Revisión de dos lentes — intento 3: Fase 3 (T-40) — verificación del fix2 (T-40)
+
+Pendiente de revisión; sin veredicto.
