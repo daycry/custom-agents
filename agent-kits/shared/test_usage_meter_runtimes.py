@@ -2,7 +2,7 @@
 
 import importlib.util
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 from pathlib import Path
 import sqlite3
@@ -23,6 +23,7 @@ def meter(tmp_path, monkeypatch, capsys):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     monkeypatch.delenv("CUSTOM_AGENTS_RUNTIME", raising=False)
+    monkeypatch.delenv("CODEX_THREAD_ID", raising=False)
 
     def run(command, runtime, *, at=START, source=None):
         monkeypatch.setattr(mod, "_now_iso", lambda **_: at)
@@ -47,14 +48,14 @@ def codex_usage(time, input_tokens, cached, written, output, total):
                              "reasoning_output_tokens": 30, "total_tokens": input_tokens + output}}}}
 
 
-def codex_log(root, date, name, cwd, events):
+def codex_log(root, date, name, cwd, events, *, mtime=STAMP):
     path = root.joinpath(*date.split("-"), name + ".jsonl")
     path.parent.mkdir(parents=True, exist_ok=True)
     meta = {"type": "session_meta", "payload": {"cwd": str(cwd)}}
     path.write_text("".join(json.dumps(row) + "\n" for row in [meta, *events]), encoding="utf-8")
-    # Windows can retain the creation mtime while a live session keeps its log open.
-    mtime = datetime.fromisoformat(START.replace("Z", "+00:00")).timestamp() - 60
-    os.utime(path, (mtime, mtime))
+    timestamp = datetime.fromisoformat(mtime).timestamp()
+    os.utime(path, (timestamp, timestamp))
+    return path
 
 
 def test_fix3_gap4_codex_measures_window_and_project_without_duplicate_tokens(tmp_path, meter):
@@ -88,6 +89,60 @@ def test_fix3_gap4_codex_explicit_close_recovers_pre_fix_marker(tmp_path, meter,
     repeated = meter("close", None, at=END)
     assert repeated["tokens_reales"] == receipt["tokens_reales"]
     assert repeated["fuente_id"] == receipt["fuente_id"]
+
+
+def test_fix4_gap5_codex_limits_days_and_skips_stale_files(tmp_path, meter, monkeypatch):
+    sessions = tmp_path / "sessions"
+    thread = "00000000-0000-0000-0000-000000000001"
+    monkeypatch.setenv("CODEX_THREAD_ID", thread)
+    meter("start", "codex", source=sessions)
+    event = codex_usage(STAMP, 300, 200, 0, 50, 350)
+    # Historical logs can be touched recently. Neither date nor mtime alone suffices.
+    day = datetime.fromisoformat(START).date()
+    for offset in [*range(-60, -1), 2]:
+        codex_log(sessions, str(day + timedelta(days=offset)), "history", tmp_path, [event])
+    stale = "2026-11-24T11:59:00Z"
+    codex_log(sessions, str(day), "stale", tmp_path, [event], mtime=stale)
+    active = codex_log(sessions, str(day - timedelta(days=1)), f"rollout-{thread}", tmp_path,
+                       [event], mtime=stale)
+    fresh = codex_log(sessions, str(day), "fresh", tmp_path,
+                      [codex_usage(STAMP, 100, 0, 0, 10, 110)], mtime=START)
+
+    opened, searched = [], []
+    orig_open, orig_glob = Path.open, Path.glob
+
+    def open_log(path, *args, **kwargs):
+        if path.suffix == ".jsonl":
+            opened.append(path)
+        return orig_open(path, *args, **kwargs)
+
+    def glob_days(path, pattern):
+        if path.is_relative_to(sessions):
+            searched.append((path, pattern))
+        return orig_glob(path, pattern)
+
+    monkeypatch.setattr(Path, "open", open_log)
+    monkeypatch.setattr(Path, "glob", glob_days)
+    receipt = meter("close", None, at=END)
+    assert set(opened) == {active, fresh}
+    assert all(path.parent.parent.parent == sessions and pattern == "*.jsonl"
+               for path, pattern in searched)
+    assert receipt["tokens_reales"]["respuestas"] == 2
+    assert receipt["transcripts_leidos"] == 2
+
+
+def test_fix4_gap5_explicit_claude_runtime_overrides_global_codex(tmp_path, meter, monkeypatch):
+    monkeypatch.setenv("CUSTOM_AGENTS_RUNTIME", "codex")
+    source = tmp_path / "claude"
+    source.mkdir()
+    meter("start", "claude", source=source)
+    log = source / "session.jsonl"
+    log.write_text(json.dumps({"timestamp": STAMP, "type": "assistant", "message": {
+        "id": "fixture", "usage": {"input_tokens": 12, "output_tokens": 8},
+    }}) + "\n", encoding="utf-8")
+    receipt = meter("close", "claude", at=END)
+    assert receipt["fuente"] == "medido"
+    assert receipt["tokens_reales"]["entrada"] == 12
 
 
 def opencode_fixture(path, project):
