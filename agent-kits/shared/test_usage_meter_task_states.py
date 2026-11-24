@@ -1,5 +1,7 @@
 import importlib.util
 import json
+import subprocess
+import sys
 
 import pytest
 
@@ -74,3 +76,32 @@ def test_estado_tarea_busy_writer_is_nonblocking_and_next_handoff_recovers(ledge
         assert source(ledger) == BASE
     assert meter(ledger, "close", "T-01").returncode == 0
     assert "- **Estado**: en-revision" in source(ledger)
+
+
+def test_fix1_gap3_parallel_close_and_start_preserve_both_markers(ledger):
+    assert meter(ledger, "start", "T-01").returncode == 0
+    # An isolated process stops at the actual handoff boundary. A second process
+    # writes a different marker, then releases it. No timing assumptions.
+    wrapper = """
+import importlib.util
+import subprocess
+import sys
+spec = importlib.util.spec_from_file_location('meter', sys.argv[1])
+meter = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(meter)
+handoff = meter._task_handoff
+def interleave(args, target, warnings):
+    result = subprocess.run([sys.executable, sys.argv[1], 'start', '--artefacto', sys.argv[3],
+                             '--state', 'usage.json'], capture_output=True, timeout=10, check=True)
+    assert b'\"ok\": true' in result.stdout
+    return handoff(args, target, warnings)
+meter._task_handoff = interleave
+sys.exit(meter.main(['close', '--artefacto', sys.argv[2], '--state', 'usage.json']))
+"""
+    first, second = f"{SLUG}/T-01", f"{SLUG}/T-02"
+    result = subprocess.run([sys.executable, "-c", wrapper, str(KIT / "usage-meter.py"), first, second],
+                            cwd=ledger.parents[3], capture_output=True, encoding="utf-8", timeout=20)
+    assert result.returncode == 0, result.stderr
+    markers = json.loads((ledger.parents[3] / "usage.json").read_text(encoding="utf-8"))
+    assert second in markers, "parallel start marker was lost"
+    assert markers[first]["ultimoCierre"] and markers[first]["ledgerClose"] is True

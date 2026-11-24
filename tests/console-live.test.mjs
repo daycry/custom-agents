@@ -2,6 +2,7 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
 import {reconcileChildren,newMessageAnnouncements} from '../skills/plugin-panel/assets/console-dom.js'
+import {createContext} from '../skills/plugin-panel/assets/console-context.js'
 
 // A minimal parent: it records every insertion and removal, which is what a screen reader reacts to.
 function parent(children){
@@ -70,4 +71,43 @@ test('f4fix2 gap 3: an empty first fragment does not hide the answer',()=>{
  assert.deepEqual(newMessageAnnouncements(seen,turn('   ')),[])
  assert.deepEqual(newMessageAnnouncements(seen,turn('Ya hay respuesta.')),['Ya hay respuesta.'])
  assert.deepEqual(newMessageAnnouncements(seen,turn('Otra versión distinta.')),['Otra versión distinta.'])   // rewritten text: announce it whole
+})
+
+test('T-40 fix1 gap 2: Activity renders a transition and keeps its row on an unchanged poll',async t=>{
+ class Element {
+  children=[];dataset={};style={};textContent=''
+  constructor(tag){this.tagName=tag}
+  append(...children){this.children.push(...children)}
+  prepend(child){this.children.unshift(child)}
+  replaceChildren(...children){this.children=children}
+  get childElementCount(){return this.children.length}
+  querySelector(selector){return selector==='[data-task-transitions]'
+   ?this.children.find(child=>Object.hasOwn(child.dataset,'taskTransitions')):undefined}
+  setAttribute(){}
+  addEventListener(){}
+ }
+ const root=new Element('main')
+ // The legacy replacement path updates the actual fixture so the assertion detects DOM churn.
+ Element.prototype.replaceWith=function(node){root.children[root.children.indexOf(this)]=node}
+ const doc={getElementById:()=>root,createElement:tag=>new Element(tag),
+  createElementNS:(_,tag)=>new Element(tag),createTextNode:text=>({textContent:text})}
+ const previous=globalThis.document
+ globalThis.document=doc
+ t.after(()=>{globalThis.document=previous})
+ const now=Date.UTC(2026,10,24,10,0,0)
+ t.mock.method(Date,'now',()=>now)
+ const observed_at=now/1000-120
+ const history={status:'ok',task_transitions:[{task:'T-40',from:'en-progreso',to:'en-revision',
+  role:'implementer',runtime:'codex',source:'usage-meter',observed_at}]}
+ const context=createContext({state:{epoch:1,view:'activity'},notice(){},safe:fn=>fn,
+  api:async key=>key==='activity'?history:{sessions:[]}})
+ await context.activity()
+ const row=()=>root.querySelector('[data-task-transitions]').children[1].children[0]
+ const initial=row(),[copy,when]=initial.children
+ assert.equal(copy.children[0].textContent,'T-40 · En marcha → En revisión')
+ assert.equal(copy.children[1].textContent,'implementer · Codex · usage-meter')
+ assert.equal(when.dateTime,new Date(observed_at*1000).toISOString())
+ assert.match(when.textContent,/hace 2 min$/)
+ await context.activity()
+ assert.ok(row()===initial,'an unchanged transition row was replaced')
 })
