@@ -706,12 +706,26 @@ def _read_codex_session(stream, stat, cwd, start, end, tokens, coverage):
 def _read_codex(store, cwd, start, end, tokens, coverage):
     if not store.is_dir():
         return False
-    for path in store.glob("[0-9][0-9][0-9][0-9]/[0-9][0-9]/[0-9][0-9]/*.jsonl"):
-        try:
-            with path.open("rb") as stream:
-                _read_codex_session(stream, os.fstat(stream.fileno()), cwd, start, end, tokens, coverage)
-        except (OSError, AttributeError, KeyError, TypeError, ValueError):
-            coverage["errores"] += 1
+    # Las carpetas del almacén pueden usar la fecha local. Un día por cada lado
+    # cubre el desfase respecto a UTC y una sesión abierta el día anterior.
+    day = start.astimezone(timezone.utc).date() - timedelta(days=1)
+    last_day = end.astimezone(timezone.utc).date() + timedelta(days=1)
+    start_time = start.timestamp()
+    thread = os.environ.get("CODEX_THREAD_ID")
+    while day <= last_day:
+        directory = store / f"{day.year:04d}" / f"{day.month:02d}" / f"{day.day:02d}"
+        for path in directory.glob("*.jsonl"):
+            try:
+                stat = path.stat()
+                if stat.st_mtime < start_time and not (thread and path.name.endswith(f"-{thread}.jsonl")):
+                    continue
+                # Windows puede mantener un mtime antiguo mientras Codex escribe.
+                # Solo la sesión activa conocida puede saltar ese prefiltro.
+                with path.open("rb") as stream:
+                    _read_codex_session(stream, stat, cwd, start, end, tokens, coverage)
+            except (OSError, AttributeError, KeyError, TypeError, ValueError):
+                coverage["errores"] += 1
+        day += timedelta(days=1)
     return True
 
 
@@ -1210,7 +1224,7 @@ def main(argv=None):
                         help="clave estable del artefacto/tarea (ruta o <slug>/T-XX)")
         sp.add_argument("--state", default=DEFAULT_STATE)
         sp.add_argument("--runtime", choices=sorted({"claude", "codex", "opencode", "unknown"}),
-                        help="runtime de medición y de la transición del ledger")
+                        help="runtime de medición y traspaso; prevalece sobre CUSTOM_AGENTS_RUNTIME")
         sp.add_argument("--transcript-dir", default=None,
                         help="carpeta de transcripciones (tests/entornos raros)")
 

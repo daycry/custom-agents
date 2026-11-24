@@ -153,8 +153,12 @@ cuando hace falta.
 | Cabecera «ORQUESTA agentes» y mapa de roles solo en los comandos exportados que despachan un rol (T-21) | 15 comandos por runtime con cabecera | 5 la conservan; 10 pierden 696 (Codex) y 658 (OpenCode) caracteres: −6.960 y −6.580 |
 | Bloque de `SessionStart` en Claude Code: solo la cabecera del índice, porque Claude ya enseña su listado nativo de skills (T-20) | índice de 3.378 | cabecera de 331 (−3.047 por arranque y compactación); Codex (3.349) y OpenCode (3.499) sin cambio |
 
-Tras T-14, `skills/adversarial-review/SKILL.md` queda en 16.878 (+407 sobre T-13: la regla de la
-Lente A por fase) y `commands/dev-cycle.md` en 29.131 (−42); el ahorro de la vía rápida pasa a 6.023 (+11).
+T-14 introdujo la lectura por fase de la Lente A. Su fix3 llevó
+`skills/adversarial-review/SKILL.md` a 17.046 caracteres. Con los traspasos de
+estado de T-40, la medición actual con `context-footprint.py` da 17.691
+caracteres para esa skill, 29.077 para `agents/implementer.md`, 28.499 para
+`commands/dev-cycle.md` y 7.135 para `skills/quick-implement/SKILL.md`.
+El ahorro estimado de la vía rápida es de 6.157 tokens.
 
 ## Evitar contexto de poco valor durante la ejecución
 

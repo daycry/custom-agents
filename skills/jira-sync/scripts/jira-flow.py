@@ -354,7 +354,7 @@ def sin_vallas(text):
 _HDR_CUALQUIERA_RE = re.compile(r"^##[ \t]+.*$", re.M)
 _OPEN_REVIEW = "Pendiente de revisión; sin veredicto."
 _PLUGIN_VERDICT = re.compile(r"^\*\*Veredicto del plugin\*\*: (limpio|gaps)(?: \((T-\d+(?:, T-\d+)*)\))?$", re.M)
-_CELDA_ID = r"T-[0-9]{2,}(?:-fix[1-9][0-9]*)?"
+_CELDA_ID = r"T-[0-9]+(?:-fix[1-9][0-9]*)?"
 _CELDA_ID_MD = rf"(?:`{_CELDA_ID}`|{_CELDA_ID})"
 _CELDA_RANGO = r"(?:[ \t]*(?:\.\.|–|-)[ \t]*|[ \t]+(?i:a)[ \t]+)"
 _CELDA_TRAMO = rf"({_CELDA_ID_MD})(?:{_CELDA_RANGO}({_CELDA_ID_MD}))?"
@@ -362,7 +362,8 @@ _CELDA_CONTEXTO = rf"\([ \t]*(?i:origen|mensaje de|ver|cf\.)[ \t]+{_CELDA_ID_MD}
 _CELDA_ITEM_RE = re.compile(rf"{_CELDA_TRAMO}(?:[ \t]*{_CELDA_CONTEXTO})*")
 _CELDA_SEPARADOR_RE = re.compile(r"(?:[ \t]*[,;+&/→–][ \t]*|[ \t]+(?i:y)[ \t]+)")
 _CELDA_SECCION_RE = re.compile(r"todas|Fase[ \t]+[0-9]+", re.I)
-_RANGO_CABECERA_RE = re.compile(rf"(?<![\w`]){_CELDA_ID_MD}{_CELDA_RANGO}{_CELDA_ID_MD}(?![\w`])")
+_RANGO_CABECERA_RE = re.compile(rf"(?<![\w`]){_CELDA_ID_MD}(?:{_CELDA_RANGO}{_CELDA_ID_MD})+(?![\w`])")
+_MAX_TAREAS_POR_RANGO = 500
 _FASE_REVISION_RE = re.compile(r"\bFase[ \t]+([0-9]+)\b", re.I)
 _FASE_LEDGER_RE = re.compile(r"^##[ \t]+Fase[ \t]+([0-9]+)\b", re.I)
 _TAREA_LEDGER_RE = re.compile(r"^###[ \t]+(T-[0-9]+)\b")
@@ -405,8 +406,18 @@ def secciones_revision(texto):
     out = []
     catalogo = None
     for m in _REVISION_HDR_RE.finditer(limpio):
+        if catalogo is None:
+            fases, catalogo = _catalogo_de_tareas(limpio)
+            por_numero = {}
+            for tarea in catalogo:
+                por_numero.setdefault(_numero_tarea(tarea), set()).add(tarea)
         intento = int(m.group(1))
         resumen = (m.group(2) or "").strip()
+        cabecera = m.group(0).strip()
+        ids_cabecera = ids_de_tarea(cabecera)
+        for rango in _RANGO_CABECERA_RE.finditer(cabecera):
+            ids_cabecera.update(ids_de_celda_tarea(rango[0]) or ())
+        ids_cabecera, desconocidos = _resolver_ids(ids_cabecera, por_numero)
         k = _bisect_right(cabeceras, m.start())   # H-36: siguiente cabecera por bisección
         fin = cabeceras[k] if k < len(cabeceras) else len(limpio)
         cuerpo = limpio[m.end():fin]
@@ -422,6 +433,7 @@ def secciones_revision(texto):
             resumen = (resumen + " " + " ".join(parrafo)).strip()
         filas = []
         globales = []
+        celdas_tarea = {}
         linea_cuerpo = limpio.count("\n", 0, m.end()) + 1
         for linea, ln in enumerate(lineas, linea_cuerpo):
             s = ln.strip()
@@ -432,23 +444,36 @@ def secciones_revision(texto):
                 continue
             fila = {"num": celdas[0], "grado": celdas[1], "gap": celdas[2],
                     "tarea": celdas[3], "correccion": celdas[4], "evidencia": celdas[5]}
-            if not (ids := ids_de_celda_tarea(fila["tarea"])):
+            celda = fila["tarea"]
+            if celda not in celdas_tarea:
+                ids = ids_de_celda_tarea(celda)
+                citados = ids_de_tarea(celda) if ids is None else ids
+                celdas_tarea[celda] = (ids is None, not ids, *_resolver_ids(citados, por_numero))
+            ambigua, global_, fila["ids_tarea"], desconocidos_fila = celdas_tarea[celda]
+            if global_:
                 globales.append(fila)
-                if ids is None:
+                if ambigua:
                     fila["linea_tarea_no_reconocida"] = linea
+            if desconocidos_fila:
+                fila["tareas_desconocidas"] = (linea, desconocidos_fila)
             filas.append(fila)
-        section = {"intento": intento, "cabecera": m.group(0).strip(), "resumen": resumen,
-                   "filas": filas, "inicio": m.start(), "fin": fin}
+        section = {"intento": intento, "cabecera": cabecera, "resumen": resumen,
+                   "filas": filas, "inicio": m.start(), "fin": fin, "ids_cabecera": ids_cabecera}
+        if desconocidos:
+            section["tareas_desconocidas"] = (linea_cuerpo, desconocidos)
         if globales:
-            if catalogo is None:
-                catalogo = _catalogo_de_tareas(limpio)
-            alcance = sorted(_alcance_de_seccion(section, catalogo))
+            fase = _FASE_REVISION_RE.search(cabecera)
+            alcance = set(ids_cabecera or (fases.get(fase[1], catalogo) if fase else catalogo))
+            for fila in filas:
+                if "linea_tarea_no_reconocida" not in fila:
+                    alcance.update(fila["ids_tarea"])
+            alcance = frozenset(alcance)
             for fila in globales:
-                fila["alcance_tarea"] = alcance
+                fila["ids_tarea"] = alcance | fila["ids_tarea"] if fila["ids_tarea"] else alcance
         verdict = _PLUGIN_VERDICT.search(cuerpo)
         if verdict:
             section["veredicto"] = verdict[1]
-            section["gaps_plugin"] = (verdict[2] or "").split(", ")
+            section["gaps_plugin"] = _resolver_ids(ids_de_tarea(verdict[2] or ""), por_numero)[0]
         if _OPEN_REVIEW in cuerpo.splitlines():
             section["abierta"] = True
         out.append(section)
@@ -457,7 +482,7 @@ def secciones_revision(texto):
 
 def ids_de_tarea(texto):
     """IDs de tarea citados en texto libre (p. ej., la cabecera de una revisión)."""
-    return set(re.findall(r"\bT-\d+\b", texto))
+    return set(re.findall(r"\bT-[0-9]+\b", texto))
 
 
 def ids_de_celda_tarea(texto):
@@ -473,18 +498,20 @@ def ids_de_celda_tarea(texto):
         if ultimo is None:
             ids.add(primero)
         else:
-            ancho = len(primero) - 2
-            # Mantén el ancho de los IDs y acota la expansión de rangos anómalos.
-            if max(len(primero), len(ultimo)) > 8:
+            ancho = min(len(primero) - 2, 6)
+            # Acota el tamaño del rango y de los IDs intermedios antes de expandir.
+            a, b = _numero_tarea(primero), _numero_tarea(ultimo)
+            if max(len(a), len(b)) > 6:
                 return None
-            inicio, fin = int(primero[2:]), int(ultimo[2:])
-            if not 0 <= fin - inicio < 10_000 or ultimo != f"T-{fin:0{ancho}d}":
+            inicio, fin = int(a), int(b)
+            if not 0 <= fin - inicio < _MAX_TAREAS_POR_RANGO:
                 return None
-            ids.update(f"T-{n:0{ancho}d}" for n in range(inicio, fin + 1))
+            ids.update((primero, ultimo))
+            ids.update(f"T-{n:0{ancho}d}" for n in range(inicio + 1, fin))
         if item.end() == len(texto):
             return ids
         separador = _CELDA_SEPARADOR_RE.match(texto, item.end())
-        if not separador:
+        if not separador or (ultimo is not None and separador[0].strip() == "–"):
             break
         pos = separador.end()
     return None
@@ -504,23 +531,26 @@ def _catalogo_de_tareas(texto):
     return fases, todas
 
 
-def _alcance_de_seccion(seccion, catalogo):
-    cabecera = seccion["cabecera"]
-    ids = ids_de_tarea(cabecera)
-    for rango in _RANGO_CABECERA_RE.finditer(cabecera):
-        ids.update(ids_de_celda_tarea(rango[0]) or ())
-    if not ids:
-        fases, todas = catalogo
-        fase = _FASE_REVISION_RE.search(cabecera)
-        ids.update(fases.get(fase[1], todas) if fase else todas)
-    for fila in seccion["filas"]:
-        ids.update(ids_de_celda_tarea(fila["tarea"]) or ())
-    return ids
+def _numero_tarea(tarea):
+    return tarea[2:].lstrip("0") or "0"
+
+
+def _resolver_ids(ids, por_numero):
+    resueltos, desconocidos = set(), []
+    for tarea in ids:
+        candidatas = por_numero.get(_numero_tarea(tarea), ())
+        if len(candidatas) == 1:
+            resueltos.update(candidatas)
+        else:
+            resueltos.add(tarea)
+            if not candidatas:
+                desconocidos.append(tarea)
+    return frozenset(resueltos), tuple(sorted(desconocidos))
 
 
 def tareas_de_fila(fila, por_defecto=()):
-    """Las filas globales usan el alcance resuelto al leer la sección."""
-    return ids_de_celda_tarea(fila["tarea"]) or set(fila.get("alcance_tarea") or por_defecto)
+    """Devuelve el alcance calculado al leer la sección."""
+    return fila["ids_tarea"] or frozenset(por_defecto)
 
 
 def menciones(seccion):
@@ -531,9 +561,9 @@ def menciones(seccion):
     de contexto y dan falsos positivos en un ledger real con fases que se referencian entre si
     (gap #1: una fila de la Fase 1 cita "T-04" en su celda `Correccion`; el parrafo de contexto de
     otra fase tambien puede citar "T-04" sin ser SU tarea)."""
-    ids = ids_de_tarea(seccion["cabecera"])
+    ids = set(seccion["ids_cabecera"])
     for f in seccion["filas"]:
-        ids |= tareas_de_fila(f)
+        ids.update(tareas_de_fila(f))
     return ids
 
 
@@ -561,7 +591,7 @@ def seleccionar_seccion(secciones, intento, tareas):
     if not tareas or len(candidatas) == 1:
         return candidatas[-1], None
     tareas_set = set(tareas)
-    propias = [s for s in candidatas if ids_de_tarea(s["cabecera"]) & tareas_set]
+    propias = [s for s in candidatas if s["ids_cabecera"] & tareas_set]
     if propias:
         return propias[-1], None
     ajenas = [s for s in candidatas
@@ -596,7 +626,7 @@ def _menciones_efectivas(secciones):
     fin_previa = None
     for s in secciones:
         m = menciones(s)
-        anonima = not ids_de_tarea(s["cabecera"]) and not s["filas"]
+        anonima = not s["ids_cabecera"] and not s["filas"]
         sin_frontera = fin_previa is not None and fin_previa == s["inicio"]
         eff = previa if (not m and anonima and sin_frontera) else m
         out.append(eff)

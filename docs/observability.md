@@ -59,12 +59,17 @@ largas con poco token real (pausas, lectura) pero que **no** sustituye a `duraci
 
 **Medición por runtime.** Ejecuta `usage-meter.py start --artefacto <clave> --runtime codex` y
 `close` con la misma clave desde la raíz del proyecto. También puedes seleccionar `claude` u
-`opencode`. El selector precede a `CUSTOM_AGENTS_RUNTIME` y el marcador recuerda el origen
-nativo. Sin selector ni variable se usa Claude Code.
+`opencode`. `--runtime` prevalece sobre `CUSTOM_AGENTS_RUNTIME`. Si omites el
+flag, `close` toma el runtime del marcador. La variable global sirve de respaldo
+cuando ambos faltan. Claude Code es el valor predeterminado.
 
 - Codex lee los eventos `token_count` de `~/.codex/sessions/AAAA/MM/DD/*.jsonl`, o de
-  `CODEX_HOME/sessions`. Compara el `cwd` de la sesión con el proyecto, descarta snapshots
-  repetidos y suma el delta de cada evento registrado entre `start` y `close`.
+  `CODEX_HOME/sessions`. Busca en los días de la ventana con un día de margen
+  por cada lado y abre archivos modificados desde el inicio. Si identifica la
+  sesión activa mediante `CODEX_THREAD_ID`, comprueba su último evento también
+  con un `mtime` anterior, que Windows puede conservar mientras el archivo sigue
+  abierto. Compara el `cwd` con el proyecto, descarta snapshots repetidos y suma
+  los deltas registrados entre `start` y `close`.
 - OpenCode lee en modo de solo lectura la base SQLite local de la versión 2
   (`$XDG_DATA_HOME/opencode/opencode.db` o `~/.local/share/opencode/opencode.db`).
   Cuenta las respuestas completadas en la ventana para el directorio del proyecto.

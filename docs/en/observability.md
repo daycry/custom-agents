@@ -60,12 +60,17 @@ spotting long sessions with little real token usage (pauses, reading), but it **
 
 **Usage by runtime.** Run `usage-meter.py start --artefacto <key> --runtime codex` and
 `close` with the same key from the project root. You can also select `claude` or `opencode`.
-The flag takes precedence over `CUSTOM_AGENTS_RUNTIME`, and the marker remembers the native
-source. Without a flag or environment variable, the meter uses Claude Code.
+`--runtime` takes precedence over `CUSTOM_AGENTS_RUNTIME`. When you omit the
+flag, `close` uses the runtime stored in the marker. The environment variable is
+the fallback when both are absent. Claude Code is the default.
 
 - Codex reads `token_count` events from `~/.codex/sessions/YYYY/MM/DD/*.jsonl` or
-  `CODEX_HOME/sessions`. It matches the session's `cwd` to the project, skips repeated
-  cumulative snapshots, and sums each delta recorded between `start` and `close`.
+  `CODEX_HOME/sessions`. It searches the measurement dates with a one-day margin
+  on either side and opens files modified since the start. For the active session
+  identified by `CODEX_THREAD_ID`, it also checks the final event when the file
+  has an earlier `mtime`, which Windows can retain while the file stays open.
+  It matches the session's `cwd` to the project, skips repeated cumulative
+  snapshots, and sums deltas recorded between `start` and `close`.
 - OpenCode reads the local version 2 SQLite database in read-only mode
   (`$XDG_DATA_HOME/opencode/opencode.db` or `~/.local/share/opencode/opencode.db`).
   It counts completed responses for the project directory within the window.

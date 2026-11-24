@@ -31,20 +31,25 @@ python3 "$SHAREDKIT/ledger-write.py" reconcile docs/roadmap/<iniciativa>/tasks.m
   `--gap-tasks`); `limpio` cierra con los criterios marcados y fecha `Cerrada`.
   La columna `Tarea` admite IDs sueltos, con comillas invertidas o sufijo
   `-fixN`, y listas separadas por `,`, `;`, `+`, `&`, `y`, `/`, `→` o
-  `–`. Los rangos con `..`, ` a `, `–` o `-` incluyen las tareas
-  intermedias. Una nota de contexto admite un único ID precedido por `origen`,
+  `–`. Los rangos con `..`, ` a `, `–` o `-` incluyen hasta 500 tareas,
+  incluidos los extremos. Un rango en la cabecera también menciona todas esas
+  tareas. Cada ID se ajusta a la grafía del ledger si hay una sola tarea con ese
+  número. El linter señala los IDs desconocidos y su línea.
+  Una nota de contexto admite un único ID precedido por `origen`,
   `mensaje de`, `ver` o `cf.` (p. ej., `T-21 (origen T-03)` afecta a T-21).
-  `todas` y `Fase N` aplican el gap a toda la sección. Cualquier otra forma
-  aplica el mismo alcance y genera un aviso con su número de línea.
+  `todas` y `Fase N` aplican el gap a toda la sección. Si la nota es ambigua,
+  también cuentan sus IDs. Una celda no reconocida, incluidos los rangos
+  encadenados o demasiado largos, afecta a la unión de sus IDs con los de
+  la cabecera y las filas reconocidas. El linter avisa con el número de línea.
   Un rechazo conserva el ledger byte a byte. Valida después con `ledger-lint.py`.
 - `usage-meter.py start/close` y `task-brief.py --dispatch` usan el mismo writer.
   `handoff` acepta el ledger y `--task`, o `--artifact` del medidor en el proyecto actual.
   Los inicios y cierres conservan tareas terminales. El inicio desde `en-revision`
   requiere un veredicto `gaps` aplicable a esa tarea. Una revisión abierta devuelve
   `review_open` y deja el estado intacto. Los cambios efectivos generan
-  eventos de actividad. Indica `--runtime claude|codex|opencode` o configura
-  `CUSTOM_AGENTS_RUNTIME` explícitamente; cualquier runtime sin identificar se
-  registra como `unknown`.
+  eventos de actividad. Indica `--runtime claude|codex|opencode`. La variable
+  `CUSTOM_AGENTS_RUNTIME` se usa cuando omites el flag y el marcador no indica
+  el runtime. Un runtime sin identificar se registra como `unknown`.
   Un traspaso sin cambio consulta la tarea sin tomar el lock de escritura ni
   ejecutar el linter. Un cambio valida una vez la entrada bajo el lock.
   Si `usage-meter.py start` agota la espera del lock del medidor o falla al

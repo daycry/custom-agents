@@ -13,8 +13,8 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ### Fixed — `plugin-audit-2`
 
-- Review gap tables include every task in a range. An unrecognized task cell triggers a lint warning and applies to the whole review section.
-- The usage meter counts project usage in local Codex and OpenCode sessions and flags windows without a measurement.
+- Review headers and gap tables recognize task ranges of up to 500 tasks and match IDs to the ledger by number. An unrecognized task cell triggers a lint warning and applies to the review section and every task it cites.
+- The usage meter counts project usage in local Codex and OpenCode sessions and flags windows without a measurement. Codex transcript lookup is bounded by the measurement dates.
 
 ### Changed
 

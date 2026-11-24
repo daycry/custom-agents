@@ -13,8 +13,8 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ### Fixed — `plugin-audit-2`
 
-- Las tablas de revisión incluyen todas las tareas de un rango. Una celda Tarea desconocida genera un aviso y se aplica a toda la sección de revisión.
-- El medidor suma el uso del proyecto en sesiones locales de Codex y OpenCode y avisa cuando una ventana queda sin medir.
+- Las cabeceras y las tablas de revisión reconocen rangos de hasta 500 tareas y ajustan los IDs por número al ledger. Una celda Tarea no reconocida genera un aviso y se aplica a la sección de revisión y a todas las tareas que cita.
+- El medidor suma el uso del proyecto en sesiones locales de Codex y OpenCode y avisa cuando una ventana queda sin medir. La búsqueda de transcripciones de Codex se acota a las fechas de la medición.
 
 ### Changed
 
