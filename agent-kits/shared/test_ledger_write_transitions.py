@@ -399,7 +399,7 @@ def test_fix4_gap2_range_expansion_is_bounded_and_warns(ledger):
     section = lint.secciones_revision(text)[0]
     assert lint.ids_de_celda_tarea("T-01..T-500") == {f"T-{n:02}" for n in range(1, 501)}
     assert lint.ids_de_celda_tarea("T-01..T-501") is None
-    assert lint.blocking_tasks(section, {"T-01", "T-02", "T-9999"}) == {"T-01", "T-9999"}
+    assert lint.blocking_tasks(section, {"T-01", "T-02", "T-9999"}) == {"T-01", "T-02", "T-9999"}
     line = next(i for i, row in enumerate(text.splitlines(), 1) if f"| {cell} |" in row)
     assert any(f"línea {line}:" in w and cell in w and "no reconocida" in w
                for w in lint.lint(ledger, text=text)[1])
@@ -430,7 +430,7 @@ def test_fix4_gap2_brief_queries_do_not_reparse_review_rows(monkeypatch):
 
 @pytest.mark.parametrize("cell,expected", [
     ("T-001", {"T-01"}), ("T-1", {"T-01"}), ("T-001..T-2", {"T-01", "T-02"}),
-    ("T-01–T-03–T-05", {"T-01", "T-03", "T-04", "T-05"}),
+    ("T-01–T-03–T-05", {"T-01", "T-02", "T-03", "T-04", "T-05"}),
 ])
 def test_fix4_gap3_numeric_aliases_and_chained_ranges(cell, expected):
     text = BASE + """\n### T-03 — Third
@@ -532,3 +532,51 @@ def test_fix2_gap3_changed_handoff_validates_once(ledger, monkeypatch):
 def test_fix2_gap4_phase_state_respects_cancellation(states, expected):
     module = load_script(KIT / "ledger-write.py")
     assert module.phase_state([{"estado": state} for state in states]) == expected
+
+
+@pytest.mark.parametrize("heading,rows,blocked", [
+    ("2 Important, 1 Minor", [("Important", "pendiente")], True),
+    ("1 Important", [("Minor", "pendiente")], True),
+    ("1 Critical", [], True),
+    ("1 Important", [("Important", "corregido")], False),
+    ("1 Important", [("Important", "pendiente")], False),
+    ("0 Critical, 1 Minor", [], False),
+])
+def test_fix5_gap2_unread_counts(ledger, heading, rows, blocked):
+    text = BASE.replace("- [ ] Pending.", "- [x] Verified.")
+    text += f"\n## Revisión de dos lentes — intento 1: (T-01..T-02) — {heading}\n"
+    header_line = len(text.splitlines())
+    for severity, correction in rows:
+        text += review_table("T-01", correction).replace("| Important |", f"| {severity} |")
+    ledger.write_text(text, encoding="utf-8")
+    lint = load_script(KIT / "ledger-lint.py")
+    brief = load_script(KIT / "task-brief.py")
+    jira = load_script(KIT.parents[1] / "skills/jira-sync/scripts/jira-flow.py")
+    assert bool(brief.filas_pendientes_de_tarea(brief.secciones_revision(text), "T-02")[1]) == blocked
+    assert (jira.evidencia_aprobado(text, ["T-02"], qa_verde=True)[0] is None) == blocked
+    assert any(f"línea {header_line}:" in w and "recuento" in w for w in lint.lint(ledger)[1]) == blocked
+    if blocked:
+        result = writer(ledger, "verdict", "--tasks", "T-01,T-02", "--attempt", "1", "--result", "limpio")
+        assert json.loads(result.stdout)["status"] == "blocking_gaps" and source(ledger) == text
+
+
+@pytest.mark.parametrize("cell", ["T-05..T-01", "T-01–T-03–T-05", "nota T-01..T-05",
+                                  "T-01..T-99999999999999999999"])
+def test_fix5_gap3_embedded_ranges(cell):
+    text = BASE + "\n### T-03 — Third\n### T-04 — Fourth\n### T-05 — Fifth\n"
+    text += "## Revisión de dos lentes — intento 1: (T-01)\n" + review_table(cell, "pendiente")
+    lint = load_script(KIT / "ledger-lint.py")
+    tasks = {f"T-{n:02}" for n in range(1, 6)}
+    assert lint.blocking_tasks(lint.secciones_revision(text)[0], tasks) == tasks
+
+
+@pytest.mark.parametrize("alias", ["T-001", "T-1", "T-01"])
+def test_fix5_gap4_ambiguous_alias(ledger, alias):
+    text = BASE + "\n### T-1 — Duplicate number\n## Revisión de dos lentes — intento 1: (T-02)\n"
+    text += review_table(alias, "pendiente")
+    lint = load_script(KIT / "ledger-lint.py")
+    section = lint.secciones_revision(text)[0]
+    assert lint.blocking_tasks(section, {"T-01", "T-1"}) == {"T-01", "T-1"}
+    line = len(text.rstrip().splitlines())
+    assert any(f"línea {line}:" in w and "ambigu" in w and "T-01" in w and "T-1" in w
+               for w in lint.lint(ledger, text=text)[1])

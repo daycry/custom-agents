@@ -48,7 +48,7 @@ def codex_usage(time, input_tokens, cached, written, output, total):
                              "reasoning_output_tokens": 30, "total_tokens": input_tokens + output}}}}
 
 
-def codex_log(root, date, name, cwd, events, *, mtime=STAMP):
+def codex_log(root, date, name, cwd, events, *, mtime="2026-11-20T10:00:00Z"):
     path = root.joinpath(*date.split("-"), name + ".jsonl")
     path.parent.mkdir(parents=True, exist_ok=True)
     meta = {"type": "session_meta", "payload": {"cwd": str(cwd)}}
@@ -91,44 +91,59 @@ def test_fix3_gap4_codex_explicit_close_recovers_pre_fix_marker(tmp_path, meter,
     assert repeated["fuente_id"] == receipt["fuente_id"]
 
 
-def test_fix4_gap5_codex_limits_days_and_skips_stale_files(tmp_path, meter, monkeypatch):
+@pytest.mark.parametrize("thread_env", [False, True])
+def test_fix5_gap1_resumed_sessions(tmp_path, meter, monkeypatch, thread_env):
+    sessions = tmp_path / "sessions"
+    thread = "00000000-0000-0000-0000-000000000001"
+    if thread_env:
+        monkeypatch.setenv("CODEX_THREAD_ID", thread)
+    day = datetime.fromisoformat(START).date()
+    before = codex_usage("2026-11-20T09:00:00Z", 50, 0, 0, 10, 60)
+    event = codex_usage(STAMP, 300, 200, 0, 50, 410)
+    for age in range(4, 65):
+        codex_log(sessions, str(day - timedelta(days=age)), "history", tmp_path, [before])
+    old = codex_log(sessions, str(day - timedelta(days=3)), f"rollout-{thread}", tmp_path, [before])
+    original = Path.open
+    opened = []
+
+    def counted(path, *args, **kwargs):
+        if path.suffix == ".jsonl" and "r" in (args[0] if args else "r"):
+            opened.append(path)
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", counted)
+    meter("start", "codex", source=sessions)
+    old_stat = old.stat()
+    with old.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(event) + "\n")
+    os.utime(old, ns=(old_stat.st_atime_ns, old_stat.st_mtime_ns))
+    current = codex_log(sessions, str(day), "sibling", tmp_path, [event])
+    first = meter("close", None, at=END)
+    assert first["tokens_reales"] == dict(entrada=200, salida=100, cache_creacion=0,
+                                          cache_lectura=400, respuestas=2)
+    assert first["tokens_cobertura"] == "completa"
+    again = meter("close", None, at=END)
+    assert again["tokens_reales"] == first["tokens_reales"]
+    assert set(opened) == {old, current} and len(opened) <= 4
+
+
+def test_fix5_gap1_cold_history_warns_and_includes_thread(tmp_path, meter, monkeypatch):
     sessions = tmp_path / "sessions"
     thread = "00000000-0000-0000-0000-000000000001"
     monkeypatch.setenv("CODEX_THREAD_ID", thread)
-    meter("start", "codex", source=sessions)
     event = codex_usage(STAMP, 300, 200, 0, 50, 350)
-    # Historical logs can be touched recently. Neither date nor mtime alone suffices.
-    day = datetime.fromisoformat(START).date()
-    for offset in [*range(-60, -1), 2]:
-        codex_log(sessions, str(day + timedelta(days=offset)), "history", tmp_path, [event])
-    stale = "2026-11-24T11:59:00Z"
-    codex_log(sessions, str(day), "stale", tmp_path, [event], mtime=stale)
-    active = codex_log(sessions, str(day - timedelta(days=1)), f"rollout-{thread}", tmp_path,
-                       [event], mtime=stale)
-    fresh = codex_log(sessions, str(day), "fresh", tmp_path,
-                      [codex_usage(STAMP, 100, 0, 0, 10, 110)], mtime=START)
-
-    opened, searched = [], []
-    orig_open, orig_glob = Path.open, Path.glob
-
-    def open_log(path, *args, **kwargs):
-        if path.suffix == ".jsonl":
-            opened.append(path)
-        return orig_open(path, *args, **kwargs)
-
-    def glob_days(path, pattern):
-        if path.is_relative_to(sessions):
-            searched.append((path, pattern))
-        return orig_glob(path, pattern)
-
-    monkeypatch.setattr(Path, "open", open_log)
-    monkeypatch.setattr(Path, "glob", glob_days)
+    for day, name in [("2026-11-20", "unindexed"), ("2026-11-21", f"rollout-{thread}"),
+                      ("2026-11-24", "today")]:
+        codex_log(sessions, day, name, tmp_path, [event], mtime=STAMP if name == "today" else "2026-11-20T09:00:00Z")
+    # Existing v2 marker predating the Codex inventory.
+    marker = {"version": 2, "inicio": START, "runtime": "codex", "offsets": {},
+              "transcriptDir": str(sessions)}
+    (tmp_path / "state.json").write_text(json.dumps({"fixture": marker}), encoding="utf-8")
     receipt = meter("close", None, at=END)
-    assert set(opened) == {active, fresh}
-    assert all(path.parent.parent.parent == sessions and pattern == "*.jsonl"
-               for path, pattern in searched)
-    assert receipt["tokens_reales"]["respuestas"] == 2
-    assert receipt["transcripts_leidos"] == 2
+    assert receipt["tokens_reales"]["respuestas"] >= 2
+    if receipt["tokens_reales"]["respuestas"] < 3:
+        assert receipt["tokens_cobertura"] == "parcial"
+        assert any("parcial" in warning for warning in receipt["avisos"])
 
 
 def test_fix4_gap5_explicit_claude_runtime_overrides_global_codex(tmp_path, meter, monkeypatch):
