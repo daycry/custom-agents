@@ -824,6 +824,21 @@ RED: `test_transicion_reconcile_uses_latest_review_without_inventing_one` falló
 - **Interpretaciones**: k1: `--dispatch` explicita que se va a despachar; la consulta sigue siendo de lectura. k2: los eventos del ledger tienen su propio historial local acotado y conservan el opt-in de los hooks. Si falla publicar actividad, queda un aviso tras el cambio canónico. k3: `reconcile` reconoce revisiones históricas y conserva el estado de tareas sin veredicto. Se entrega T-40 en revisión.
 - **Fuera de Archivos inicial**: referencia de la consola (contrato de actividad); fixture de párrafos (reemplazos trazados); prueba de egreso (huella de fuente actualizada, escáner intacto).
 
+**Fix3** · RED `e3476b2` · GREEN `0fc4c21`, `a19989f`.
+
+RED: `test_fix3_gap1_task_cell_whitelist` falló con T-02 omitida en `T-01..T-03` · 2026-11-24.
+RED: `T-40 fix3 gap 2` falló con el panel retirado por el mutante · 2026-11-24.
+RED: `test_fix3_gap4_codex_measures_window_and_project_without_duplicate_tokens` y `test_fix3_gap4_opencode_measures_completed_messages_for_project_and_window` fallaron con `estimado` · 2026-11-24.
+RED: `test_fix3_gap4_missing_native_source_never_reports_measured_zero` falló con fuente o aviso incorrecto · 2026-11-24.
+
+Codex real (`close --runtime codex`): 22483064 tokens (234651 entrada, 66397 salida, 0 creación y 22182016 lectura de caché), 0.57 h IA al ratio 531798. 123 respuestas, 1 sesión, cobertura completa. T-40 en-revision por el medidor. OpenCode v2 verificado en SQLite local y con fixtures. Fix2 carecía de contadores de Codex.
+
+`views3.py`: 69 ledgers, 595 tareas, 0 cambios de bloqueo. 0 vistas de gaps pendientes cambian, 18 cambios de cobertura histórica por la regla. `forms.py`: un rango real (`panel-redesign:1955`). `l3/scripts/failopen.py` ausente: 31 celdas probadas (23 no reconocidas) y 7 casos de integración. Mutante Node 1/1 (`cmp` 0→1→0).
+
+Medianas s (n=9, 231682 B, c34e9e0/ebd9ad6/a19989f). Start cambio 0.203/0.538/0.675, sin cambio 0.249/0.356/0.405. Close cambio 0.216/0.613/0.622, sin cambio 0.206/0.403/0.379. Start con cambio frente a fix2: −0.114 s bajo carga y +0.137 s sin suites.
+
+Verificación: pytest afectados 544+3 omit.; runtimes/tokens 247+1 omit.; consola Python 135+2 omit. y Node 13/13; runtimes Node 256 + B02 aislado, 6 omit.; export-interop --check 88; lint_plugin 0 errores/16 avisos; evals 228/0; diet 0+0. B02 pasó aislado en base y HEAD. Dos pruebas auxiliares de cifras seguían rojas en archivos iguales a la base.
+
 **Fix1** · RED a30631e, 14 rojos Python y 1 Node.
 RED: `test_fix1_gap1_implementer_docs_describe_plugin_owned_states` falló con faltaba en-progreso · 2026-11-24
 RED: `T-40 fix1 gap 2: Activity renders a transition and keeps its row on an unchanged poll` falló con se reemplazó la fila · 2026-11-24
@@ -841,7 +856,7 @@ RED: `test_fix1_gap11_shared_readme_documents_runtime_handoffs` falló con falta
 `reconcile --dry-run --tasks T-23`
 `{"changed":false,"dry_run":true,"input_sha256":"4a6f77ba6320df8812f5f5c6112987324caf91d34d213598558938d67090fecd","operation":"reconcile","output_sha256":"4a6f77ba6320df8812f5f5c6112987324caf91d34d213598558938d67090fecd","schema_version":1,"states":{"T-23":"en-progreso"},"status":"ok","warnings":["T-02: en-progreso con medición cerrada","T-23: en-progreso con medición cerrada","ledger de 222748 bytes (aviso a 60000 bytes por tokens; tope de lectura 262144 bytes): archiva la historia cerrada con `python3 agent-kits/shared/ledger-archive.py docs\\roadmap\\2026-11-10-plugin-audit-2 --apply`"]}`
 
-**Fix2** · RED `e43426c`, `9d19226` · No medido: las 0.01h anotadas carecían de contadores de Codex.
+**Fix2** · RED `e43426c`, `9d19226` · 0.01h sin medir.
 RED: `test_fix2_gap1_ledger_records_verification` falló con bloque ausente · 2026-11-24
 RED: `test_fix2_gap2_critical_cell_blocks_clean_verdict_brief_and_jira` falló con veredicto ok u omisión del gap · 2026-11-24
 RED: `test_fix2_gap3_noop_handoff_only_reads_once` falló con parse completo; la escritura hizo 2 lints · 2026-11-24
@@ -859,21 +874,6 @@ Medianas en s (226087 B, n=9, c34e9e0/5e397d0/af8dde3). Start cambio 0.191/0.833
 
 `reconcile --dry-run --tasks T-12..T-23,T-40` (antes de close):
 `{"changed": false, "dry_run": true, "input_sha256": "2709569f8b2c9365766788fcea1bb5368698bf3d55f790d4e82eb57877a85180", "operation": "reconcile", "output_sha256": "2709569f8b2c9365766788fcea1bb5368698bf3d55f790d4e82eb57877a85180", "schema_version": 1, "states": {"T-12": "completado", "T-13": "completado", "T-14": "completado", "T-15": "borrador", "T-16": "borrador", "T-17": "borrador", "T-18": "borrador", "T-19": "borrador", "T-20": "completado", "T-21": "completado", "T-22": "borrador", "T-23": "en-progreso", "T-40": "en-progreso"}, "status": "ok", "warnings": ["T-02: en-progreso con medición cerrada", "T-23: en-progreso con medición cerrada", "ledger de 226087 bytes (aviso a 60000 bytes por tokens; tope de lectura 262144 bytes): archiva la historia cerrada con `python3 agent-kits/shared/ledger-archive.py docs/roadmap/2026-11-10-plugin-audit-2 --apply`"]}`
-
-**Fix3** · RED `e3476b2` · GREEN `0fc4c21`, `a19989f`.
-
-RED: `test_fix3_gap1_task_cell_whitelist` falló con T-02 omitida en `T-01..T-03` · 2026-11-24.
-RED: `T-40 fix3 gap 2` falló con el panel retirado por el mutante · 2026-11-24.
-RED: `test_fix3_gap4_codex_measures_window_and_project_without_duplicate_tokens` y `test_fix3_gap4_opencode_measures_completed_messages_for_project_and_window` fallaron con `estimado` · 2026-11-24.
-RED: `test_fix3_gap4_missing_native_source_never_reports_measured_zero` falló con fuente o aviso incorrecto · 2026-11-24.
-
-Codex real (`close --runtime codex`): 22483064 tokens (234651 entrada, 66397 salida, 0 creación y 22182016 lectura de caché), 0.57 h IA al ratio 531798. 123 respuestas, 1 sesión, cobertura completa. T-40 en-revision por el medidor. OpenCode v2 verificado en SQLite local y con fixtures.
-
-`views3.py`: 69 ledgers, 595 tareas, 0 cambios de bloqueo. 0 vistas de gaps pendientes cambian, 18 cambios de cobertura histórica por la regla. `forms.py`: un rango real (`panel-redesign:1955`). `l3/scripts/failopen.py` ausente: 31 celdas probadas (23 no reconocidas) y 7 casos de integración. Mutante Node 1/1 (`cmp` 0→1→0).
-
-Medianas s (n=9, 231682 B, c34e9e0/ebd9ad6/a19989f). Start cambio 0.203/0.538/0.675, sin cambio 0.249/0.356/0.405. Close cambio 0.216/0.613/0.622, sin cambio 0.206/0.403/0.379. Start con cambio frente a fix2: −0.114 s bajo carga y +0.137 s sin suites.
-
-Verificación: pytest afectados 544+3 omit.; runtimes/tokens 247+1 omit.; consola Python 135+2 omit. y Node 13/13; runtimes Node 256 + B02 aislado, 6 omit.; export-interop --check 88; lint_plugin 0 errores/16 avisos; evals 228/0; diet 0+0. B02 pasó aislado en base y HEAD. Dos pruebas auxiliares de cifras seguían rojas en archivos iguales a la base.
 
 ## Fase 4 — Simplificación del código
 
