@@ -200,9 +200,8 @@ def test_fix1_gap8_task_cell_context_does_not_participate_in_review(script):
 
 @pytest.mark.parametrize("states,expected", [
     (("borrador", "en-revision"), "en-progreso"), (("borrador", "completado"), "en-progreso"),
-    (("borrador", "cancelado"), "en-progreso"), (("borrador", "en-progreso"), "en-progreso"),
+    (("borrador", "en-progreso"), "en-progreso"),
     (("en-revision", "completado"), "en-revision"), (("en-revision", "cancelado"), "en-revision"),
-    (("completado", "cancelado"), "completado"), (("cancelado", "cancelado"), "completado"),
     (("borrador", "borrador"), "borrador"),
 ])
 def test_fix1_gap9_phase_state_uses_all_nonterminal_tasks(states, expected):
@@ -220,8 +219,7 @@ def test_fix1_gap10_writer_validates_each_input_snapshot_once(ledger, monkeypatc
         return lint(path, text=text, **kwargs)
 
     monkeypatch.setattr(module.LINT, "lint", counted)
-    assert module.main(["handoff", str(ledger), "--task", "T-01", "--state", "en-progreso",
-                        "--source", "usage-meter"]) == 0
+    assert module.main(["state", str(ledger), "--task", "T-01", "--state", "en-progreso"]) == 0
     assert calls == [BASE, source(ledger)]
 
 
@@ -243,3 +241,112 @@ def test_fix1_gap11_shared_readme_documents_runtime_handoffs():
     brief_row = next(row for row in rows if row.startswith("| `task-brief.py`"))
     assert all(f"`{operation}`" in writer_row for operation in ("handoff", "verdict", "reconcile"))
     assert "`--dispatch`" in brief_row and "`--runtime`" in brief_row
+
+
+def test_fix2_gap1_ledger_records_verification():
+    path = KIT.parents[1] / "docs/roadmap/2026-11-10-plugin-audit-2/tasks.md"
+    task = source(path).split("### T-40 —", 1)[1].split("\n## Fase 4", 1)[0]
+    _, separator, block = task.partition("**Fix2**")
+    assert separator, "missing T-40 Fix2 block"
+    assert len((separator + block.strip()).encode("utf-8")) <= 2500
+    assert "passed" in block and "export-interop --check" in block
+    receipt = next(json.loads(line.strip("`")) for line in block.splitlines() if line.startswith('`{"'))
+    assert receipt["operation"] == "reconcile" and receipt["dry_run"] is True
+    assert receipt["status"] == "ok" and receipt["input_sha256"] and receipt["output_sha256"]
+    assert set(receipt["states"]) == {f"T-{n:02}" for n in range(12, 24)} | {"T-40"}
+    assert isinstance(receipt["warnings"], list)
+
+
+def test_fix2_gap6_ledger_discloses_concurrent_doc_assertion():
+    path = KIT.parents[1] / "docs/roadmap/2026-11-10-plugin-audit-2/tasks.md"
+    task = source(path).split("### T-40 —", 1)[1].split("\n## Fase 4", 1)[0]
+    assert "TDD n/a: aserción de texto añadida con su doc" in task
+
+
+@pytest.mark.parametrize("cell,expected", [
+    ("T-01; T-02", {"T-01", "T-02"}), ("T-01 + T-02", {"T-01", "T-02"}),
+    ("T-01 → T-02", {"T-01", "T-02"}), ("(T-01)", {"T-01"}),
+    ("Fase 1 (T-01)", {"T-01"}), ("T-21 (origen T-03)", {"T-21"}),
+    ("T-01 (mensaje de `T-02`) (ver T-03) (cf. T-04)", {"T-01"}),
+    ("T-01 (origen T-02; T-03)", {"T-01", "T-02", "T-03"}),
+])
+def test_fix2_gap2_task_cells_count_ids_unless_explicit_context(cell, expected):
+    for script in (KIT / "ledger-lint.py", KIT / "task-brief.py",
+                   KIT.parents[1] / "skills/jira-sync/scripts/jira-flow.py"):
+        assert load_script(script).ids_de_celda_tarea(cell) == expected, script.name
+
+
+@pytest.mark.parametrize("cell", ["T-02; T-01", "T-02 + T-01", "T-02 → T-01", "(T-01)", "Fase 1 (T-01)"])
+def test_fix2_gap2_critical_cell_blocks_clean_verdict_brief_and_jira(ledger, cell):
+    review = ("--tasks", "T-01", "--attempt", "1")
+    assert writer(ledger, "review", *review, "--summary", "Fixture").returncode == 0
+    content = source(ledger).replace("- [ ] Pending.", "- [x] Verified.")
+    content += review_table(cell, "pendiente").replace("| Important |", "| Critical |")
+    ledger.write_text(content, encoding="utf-8")
+    result = writer(ledger, "verdict", *review, "--result", "limpio")
+    assert json.loads(result.stdout)["status"] == "blocking_gaps"
+    assert source(ledger) == content
+    brief = load_script(KIT / "task-brief.py")
+    sections = brief.secciones_revision(content)
+    assert len(brief.filas_pendientes_de_tarea(sections, "T-01")[1]) == 1
+    jira = load_script(KIT.parents[1] / "skills/jira-sync/scripts/jira-flow.py")
+    approved, reason = jira.evidencia_aprobado(content, ["T-01"], qa_verde=True)
+    assert approved is None and "1 gap(s)" in reason
+
+
+@pytest.mark.parametrize("current,target,open_review,status", [
+    ("en-progreso", "en-progreso", False, "ok"),
+    ("en-revision", "en-revision", False, "ok"),
+    ("en-revision", "en-progreso", True, "review_open"),
+])
+def test_fix2_gap3_noop_handoff_only_reads_once(ledger, monkeypatch, capsys,
+                                               current, target, open_review, status):
+    content = BASE.replace("- **Estado**: borrador", f"- **Estado**: {current}", 1)
+    if open_review:
+        content += "\n## Revisión de dos lentes — intento 1: Fixture (T-01)\n\nPendiente de revisión; sin veredicto.\n"
+    ledger.write_text(content, encoding="utf-8")
+    module = load_script(KIT / "ledger-write.py")
+    read = module.IO.read
+    reads = []
+
+    def counted(path, *args, **kwargs):
+        reads.append(path)
+        return read(path, *args, **kwargs)
+
+    def unexpected(*args, **kwargs):
+        pytest.fail("full parse, lint or lock on a no-op handoff")
+
+    monkeypatch.setattr(module.IO, "read", counted)
+    monkeypatch.setattr(module.LINT, "parse_ledger", unexpected)
+    monkeypatch.setattr(module.LINT, "lint", unexpected)
+    monkeypatch.setattr(module.IO, "locked", unexpected)
+    rc = module.main(["handoff", str(ledger), "--task", "T-01", "--state", target,
+                      "--source", "usage-meter", "--json"])
+    assert rc == (0 if status == "ok" else 1)
+    assert json.loads(capsys.readouterr().out)["status"] == status
+    assert reads == [ledger] and source(ledger) == content
+
+
+def test_fix2_gap3_changed_handoff_validates_once(ledger, monkeypatch):
+    module = load_script(KIT / "ledger-write.py")
+    lint = module.LINT.lint
+    calls = []
+
+    def counted(*args, **kwargs):
+        calls.append(kwargs["text"])
+        return lint(*args, **kwargs)
+
+    monkeypatch.setattr(module.LINT, "lint", counted)
+    assert module.main(["handoff", str(ledger), "--task", "T-01", "--state", "en-progreso",
+                        "--source", "usage-meter"]) == 0
+    assert "- **Estado**: en-progreso" in source(ledger)
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("states,expected", [
+    (("cancelado", "cancelado"), "cancelado"), (("completado", "cancelado"), "completado"),
+    (("borrador", "cancelado"), "borrador"),
+])
+def test_fix2_gap4_phase_state_respects_cancellation(states, expected):
+    module = load_script(KIT / "ledger-write.py")
+    assert module.phase_state([{"estado": state} for state in states]) == expected

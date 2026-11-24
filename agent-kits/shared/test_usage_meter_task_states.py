@@ -5,7 +5,7 @@ import sys
 
 import pytest
 
-from test_ledger_write_transitions import BASE, KIT, SLUG, cli, ledger, source, writer
+from test_ledger_write_transitions import BASE, KIT, SLUG, cli, ledger, load_script, source, writer
 
 
 def meter(ledger, operation, task, *args):
@@ -105,3 +105,19 @@ sys.exit(meter.main(['close', '--artefacto', sys.argv[2], '--state', 'usage.json
     markers = json.loads((ledger.parents[3] / "usage.json").read_text(encoding="utf-8"))
     assert second in markers, "parallel start marker was lost"
     assert markers[first]["ultimoCierre"] and markers[first]["ledgerClose"] is True
+
+
+def test_fix2_gap7_start_reports_unsaved_marker_when_state_locked(ledger):
+    module = load_script(KIT / "usage-meter.py")
+    path = ledger.parents[3] / "usage.json"
+    with module._locked_state(path, []):
+        result = meter(ledger, "start", "T-01")
+        assert result.returncode == 0, result.stderr
+        started = json.loads(result.stdout)
+        assert started.get("marker_saved") is False
+        assert any("marcador" in message and "state_busy" in message for message in started["avisos"])
+        assert not path.exists()
+        assert "- **Estado**: en-progreso" in source(ledger)
+    result = meter(ledger, "start", "T-01")
+    assert json.loads(result.stdout)["marker_saved"] is True
+    assert f"{SLUG}/T-01" in json.loads(path.read_text(encoding="utf-8"))
