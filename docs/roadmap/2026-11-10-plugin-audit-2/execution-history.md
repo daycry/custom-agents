@@ -1874,3 +1874,55 @@ Lentes A y B+C (Claude Opus 5.5, esfuerzo alto) sobre `d3720a9..209d6c3` (fix2 d
 
 Decisión del usuario (2026-11-23), textual: «fix3 corto y cierro». Ciclo nuevo de revisión (intento 4) con fix3 sobre los gaps 1, 2, 4, 5 y 7; los Minor 3, 6 y 8 quedan como deuda aceptada.
 
+
+## Archivado 2026-11-24 — T-14 fix1 (Fase 3) (movido literal desde tasks.md por el tope de lectura del ledger, antes del fix5 de T-40; bytes sin cambios)
+
+SHA-256 del bloque: `bb0b1fcc41d3e120ec42b4b9e0a54f7fccfabdb9dcca99573189785aa03b7bad`.
+
+**fix1 (intento 1 de la Fase 3, gaps 1, 5, 6, 7 y 9; 2026-11-23; implementado por Codex gpt-6.2-sol)**
+- TDD n/a: prosa (prompt y documentación).
+- RED: test_fix1_fase_lente_a_ignora_encabezados_cercados falló con AssertionError (fase citada antes de la real) · 2026-11-23
+- RED: test_fix1_fase_lente_a_delimita_y_neutraliza_la_cita falló con StopIteration (sin marca de inicio) · 2026-11-23
+- RED: test_fix1_fase_lente_a_usa_umbral_configurable_y_bytes_crlf falló con SystemExit 2 (flag desconocido) · 2026-11-23
+- RED: test_fix1_fase_lente_a_rechaza_umbral_no_positivo falló con AssertionError (sin diagnóstico de positividad) · 2026-11-23
+- RED: test_fix1_umbral_tokens_mide_en_bytes_sin_redondear falló con AssertionError (aviso en KB) · 2026-11-23
+- RED: test_fix1_umbral_tokens_rechaza_valores_no_positivos falló con AssertionError (exit 0) · 2026-11-23
+- RED `31e26a7`; GREEN `f627de3`. `pytest -k 'fase_lente_a or fix1_umbral'` pasó. `task-brief.py … --fase 3`: 42.143 bytes LF frente a 214.452 en disco, puertas comunes presentes. Las citas conservan todo el ledger pequeño; las grandes omiten otras fases. Puertas de tokens: vía rápida 6.023 y evaluator 15.465 bytes LF.
+
+## Archivado 2026-11-24 — T-14 fix2 y fix3 (Fase 3) (movido literal desde tasks.md por el tope de lectura del ledger, antes del fix5 de T-40; bytes sin cambios)
+
+SHA-256 del bloque: `1aa9655ffd2aa4b368978edcbdbab9bdcfeba1205475934c39788630fe36c544`.
+
+**fix2 (intento 2 de la Fase 3, gaps 1–4, 7, 9 y 10; 2026-11-23; Codex gpt-6.2-sol)**
+- RED: test_fix2_gap1_cercados_y_reparto_por_fase_como_ledger_lint falló con AssertionError: tareas omitidas/sobrantes · 2026-11-23
+- RED: test_fix2_gap3_marcas_del_ledger_quedan_dentro_de_la_cita falló con AssertionError: FIN repetido · 2026-11-23
+- RED: test_fix2_gap4_neutraliza_encabezados_solo_fuera_de_cercados falló con AssertionError: comentario escapado · 2026-11-23
+- RED: test_fix2_gap10_vista_incluye_intentos_en_orden_con_rangos_y_ahorra_50_por_ciento falló con ValueError: revisión ausente · 2026-11-23
+- RED `41cf29c` · GREEN `04d719b`. La fase oculta por un cercado sin cerrar conserva exit 1 como `ledger-lint.py:593` (`test_fix2_gap1_cercado_sin_cerrar_antes_de_la_fase`).
+- Verificación: rangos y dos intentos en la fase real; ahorro ≥50 % en el ledger sintético; ledger pequeño íntegro. Prosa, modo sin plan y Changed verificados.
+- Puertas: pytest 490/2 omitidas; Node Linux con init 256/7 omitidas; interop 88; lint/evals 0 errores; diet 0 pérdidas; vía rápida 6.023; evaluator 15.465 bytes LF.
+
+**fix3 (intento 3 de la Fase 3, gaps 1, 2, 4, 5, 7; 2026-11-23; Codex gpt-6.2-sol)**
+- RED: test_fix3_gap2_solo_un_cercado_valido_protege_encabezados falló con AssertionError (encabezado sin escapar) · 2026-11-23
+- RED: test_fix3_gap4_verificacion_con_blanco_cercado_conserva_dos_items falló con AssertionError (1 ítem en vez de 2) · 2026-11-23
+- RED: test_fix3_gap4_verificacion_real_graphiti_t08_conserva_cuatro_items falló con AssertionError (1 ítem en vez de 4) · 2026-11-23
+- RED: test_fix3_gap7_vista_documenta_cabecera_fase_intentos_y_rangos falló con AssertionError (faltan partes de la vista en la prosa) · 2026-11-23
+- RED `457e0e8` · GREEN `4369db5`. `pytest -k 'fix3_gap or fix2_gap1_cercados_y_reparto or fix2_gap5 or fix2_gap10'` → 57 passed. Graphiti T-08 recupera los 4 ítems de `d3720a9`. `--diet-check adversarial-review ea18413` → 0 párrafos perdidos.
+
+## Archivado 2026-11-24 — T-20 fix1 (Fase 3) (movido literal desde tasks.md por el tope de lectura del ledger, antes del fix5 de T-40; bytes sin cambios)
+
+SHA-256 del bloque: `69cb81219bf4f797db9b1917f132528ff144952dea8fb3a8351cb9b98d0350a4`.
+
+**fix1 (intento 1 de la Fase 3, gaps 3, 9 y 10; 2026-11-23; implementado por Codex gpt-6.2-sol)**
+- TDD n/a: prosa (diagramas).
+- RED: test_session_context_startup_indice_mas_roadmap_bajo_el_tope de la línea base falló en Linux con AssertionError (pedía Comandos: en Claude) · 2026-11-23
+- RED: test_fix1_solo_cabecera_rechaza_json falló con AssertionError (exit 0 y texto plano) · 2026-11-23
+- RED `31e26a7`; GREEN `f627de3`. `skill-index.py --solo-cabecera --json` rechaza la combinación con exit 2. Linux, archivo Git de GREEN y bind de solo lectura: `pytest -q tests/test_hooks_shell.py tests/test_session_context.py` → 137 passed, 1 skipped. Se verificaron la paridad .py/.sh y `sesion.indice`.
+
+## Archivado 2026-11-24 — T-20 fix2 (Fase 3) (movido literal desde tasks.md por el tope de lectura del ledger, antes del fix5 de T-40; bytes sin cambios)
+
+SHA-256 del bloque: `298156b1902a42c29c555fded774201597232197136744cc5d63cd97423daa35`.
+
+**fix2 (intento 2 de la Fase 3, gaps 2 y 9; 2026-11-23; Codex gpt-6.2-sol)**
+- Intento 1 gap 9: `test_intento1_gap9_flujos_documentan_el_indice_por_runtime` (ES/EN). Gap 8 adicional: `test_intento1_gap8_m_c_incluye_evals_reales_de_activacion` cubre el texto de M-C, pendiente de ejecución manual.
+- Changelog bilingüe por tarea (`test_fix2_gap9_changelogs_bilingues_en_changed_y_trazados_por_tarea`). RED `41cf29c` · GREEN `04d719b`.
