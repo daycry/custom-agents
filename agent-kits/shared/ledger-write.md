@@ -34,13 +34,16 @@ python3 "$SHAREDKIT/ledger-write.py" reconcile docs/roadmap/<iniciativa>/tasks.m
   `–`. Los rangos con `..`, ` a `, `–` o `-` incluyen hasta 500 tareas,
   incluidos los extremos. Un rango en la cabecera también menciona todas esas
   tareas. Cada ID se ajusta a la grafía del ledger si hay una sola tarea con ese
-  número. El linter señala los IDs desconocidos y su línea.
+  número. Un alias ambiguo bloquea a todas las candidatas. El linter indica la línea de cada alias ambiguo o desconocido.
   Una nota de contexto admite un único ID precedido por `origen`,
   `mensaje de`, `ver` o `cf.` (p. ej., `T-21 (origen T-03)` afecta a T-21).
   `todas` y `Fase N` aplican el gap a toda la sección. Si la nota es ambigua,
   también cuentan sus IDs. Una celda no reconocida, incluidos los rangos
   encadenados o demasiado largos, afecta a la unión de sus IDs con los de
-  la cabecera y las filas reconocidas. El linter avisa con el número de línea.
+  la cabecera y las filas reconocidas. Los tramos inversos y encadenados incluyen sus tareas
+  intermedias. Por encima del tope se consultan los IDs existentes en el catálogo.
+  Si faltan filas que expliquen un recuento Critical o Important de la cabecera,
+  toda tarea cubierta queda pendiente. El linter avisa con el número de línea.
   Un rechazo conserva el ledger byte a byte. Valida después con `ledger-lint.py`.
 - `usage-meter.py start/close` y `task-brief.py --dispatch` usan el mismo writer.
   `handoff` acepta el ledger y `--task`, o `--artifact` del medidor en el proyecto actual.

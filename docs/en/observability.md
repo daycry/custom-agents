@@ -64,13 +64,14 @@ spotting long sessions with little real token usage (pauses, reading), but it **
 flag, `close` uses the runtime stored in the marker. The environment variable is
 the fallback when both are absent. Claude Code is the default.
 
-- Codex reads `token_count` events from `~/.codex/sessions/YYYY/MM/DD/*.jsonl` or
-  `CODEX_HOME/sessions`. It searches the measurement dates with a one-day margin
-  on either side and opens files modified since the start. For the active session
-  identified by `CODEX_THREAD_ID`, it also checks the final event when the file
-  has an earlier `mtime`, which Windows can retain while the file stays open.
-  It matches the session's `cwd` to the project, skips repeated cumulative
-  snapshots, and sums deltas recorded between `start` and `close`.
+- Codex reads `token_count` events from `CODEX_HOME/sessions` (default
+  `~/.codex/sessions`). At start it saves an inventory of local file names, sizes
+  and file signatures beside the meter state. Close checks the active thread
+  (`CODEX_THREAD_ID`), the measurement dates, and new or changed files, including
+  older sessions that grow with an unchanged `mtime`. It counts events for the
+  project's `cwd` between start and close. Subsequent closes return cumulative
+  totals. The receipt reports partial coverage when historical activity cannot
+  be ruled out.
 - OpenCode reads the local version 2 SQLite database in read-only mode
   (`$XDG_DATA_HOME/opencode/opencode.db` or `~/.local/share/opencode/opencode.db`).
   It counts completed responses for the project directory within the window.

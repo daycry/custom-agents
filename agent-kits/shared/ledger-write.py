@@ -188,7 +188,7 @@ def verdict(text, parsed, known, tasks, args):
     sections = LINT.secciones_revision(text)
     latest = LINT.latest_reviews(sections)
     selected = [s for s in sections if s["intento"] == args.attempt
-                and LINT.ids_de_tarea(s["cabecera"]) == set(tasks)]
+                and s["ids_cabecera"] == set(tasks)]
     need(len(selected) == 1, "review_not_found_or_ambiguous", 1)
     section = selected[0]
     need(all(latest.get(task) is section for task in tasks), "superseded_review", 1)

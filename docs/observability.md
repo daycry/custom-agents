@@ -63,13 +63,14 @@ largas con poco token real (pausas, lectura) pero que **no** sustituye a `duraci
 flag, `close` toma el runtime del marcador. La variable global sirve de respaldo
 cuando ambos faltan. Claude Code es el valor predeterminado.
 
-- Codex lee los eventos `token_count` de `~/.codex/sessions/AAAA/MM/DD/*.jsonl`, o de
-  `CODEX_HOME/sessions`. Busca en los días de la ventana con un día de margen
-  por cada lado y abre archivos modificados desde el inicio. Si identifica la
-  sesión activa mediante `CODEX_THREAD_ID`, comprueba su último evento también
-  con un `mtime` anterior, que Windows puede conservar mientras el archivo sigue
-  abierto. Compara el `cwd` con el proyecto, descarta snapshots repetidos y suma
-  los deltas registrados entre `start` y `close`.
+- Codex lee los eventos `token_count` de `CODEX_HOME/sessions` (por defecto,
+  `~/.codex/sessions`). Al iniciar guarda junto al estado un inventario local de
+  nombres, tamaños y marcas de archivo. Al cerrar incluye el hilo activo
+  (`CODEX_THREAD_ID`), los días de la ventana y los archivos nuevos o cambiados,
+  incluso sesiones antiguas que crecen con el mismo `mtime`. Cuenta los eventos
+  del `cwd` del proyecto entre inicio y cierre. Los cierres sucesivos devuelven
+  totales acumulados. Si faltan datos para descartar sesiones históricas, el
+  recibo avisa de cobertura parcial.
 - OpenCode lee en modo de solo lectura la base SQLite local de la versión 2
   (`$XDG_DATA_HOME/opencode/opencode.db` o `~/.local/share/opencode/opencode.db`).
   Cuenta las respuestas completadas en la ventana para el directorio del proyecto.

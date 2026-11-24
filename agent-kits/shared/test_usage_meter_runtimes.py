@@ -107,7 +107,7 @@ def test_fix5_gap1_resumed_sessions(tmp_path, meter, monkeypatch, thread_env):
     opened = []
 
     def counted(path, *args, **kwargs):
-        if path.suffix == ".jsonl" and "r" in (args[0] if args else "r"):
+        if path.suffix == ".jsonl" and "r" in (args[0] if args else kwargs.get("mode", "r")):
             opened.append(path)
         return original(path, *args, **kwargs)
 
@@ -124,7 +124,39 @@ def test_fix5_gap1_resumed_sessions(tmp_path, meter, monkeypatch, thread_env):
     assert first["tokens_cobertura"] == "completa"
     again = meter("close", None, at=END)
     assert again["tokens_reales"] == first["tokens_reales"]
-    assert set(opened) == {old, current} and len(opened) <= 4
+    assert opened.count(old) == opened.count(current) == 1 and len(opened) == 2
+    # Appending the previous cumulative sample then one new sample crosses the cursor.
+    with old.open("a", encoding="utf-8") as stream:
+        for record in (event, codex_usage(END, 80, 0, 0, 5, 495)):
+            stream.write(json.dumps(record) + "\n")
+    extended = meter("close", None, at=END)
+    assert extended["tokens_reales"] == dict(entrada=280, salida=105, cache_creacion=0,
+                                             cache_lectura=400, respuestas=3)
+    assert opened.count(old) == 2 and opened.count(current) == 1
+
+
+def test_fix4_gap5_codex_limits_days_and_skips_stale_files(tmp_path, meter, monkeypatch):
+    sessions = tmp_path / "sessions"
+    day = datetime.fromisoformat(START).date()
+    stale = codex_usage("2026-11-20T09:00:00Z", 30, 0, 0, 5, 35)
+    for age in range(3, 65):
+        codex_log(sessions, str(day - timedelta(days=age)), "history", tmp_path, [stale])
+    meter("start", "codex", source=sessions)
+    # A new path outside the measurement dates can appear after start, even with old mtime.
+    active = codex_log(sessions, str(day - timedelta(days=7)), "resumed", tmp_path,
+                       [codex_usage(STAMP, 100, 0, 0, 10, 110)])
+    opened = []
+    original = Path.open
+
+    def counted(path, *args, **kwargs):
+        if path.suffix == ".jsonl":
+            opened.append(path)
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", counted)
+    receipt = meter("close", None, at=END)
+    assert opened == [active]
+    assert receipt["tokens_reales"]["respuestas"] == 1
 
 
 def test_fix5_gap1_cold_history_warns_and_includes_thread(tmp_path, meter, monkeypatch):

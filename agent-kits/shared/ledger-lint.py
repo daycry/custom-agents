@@ -299,10 +299,7 @@ def secciones_revision(texto):
         intento = int(m.group(1))
         resumen = (m.group(2) or "").strip()
         cabecera = m.group(0).strip()
-        ids_cabecera = ids_de_tarea(cabecera)
-        for rango in _RANGO_CABECERA_RE.finditer(cabecera):
-            ids_cabecera.update(ids_de_celda_tarea(rango[0]) or ())
-        ids_cabecera, desconocidos = _resolver_ids(ids_cabecera, por_numero)
+        ids_cabecera, desconocidos, alias = _resolver_ids(_ids_con_rangos(cabecera, por_numero), por_numero)
         k = _bisect_right(cabeceras, m.start())   # H-36: siguiente cabecera por bisección
         fin = cabeceras[k] if k < len(cabeceras) else len(limpio)
         cuerpo = limpio[m.end():fin]
@@ -332,18 +329,22 @@ def secciones_revision(texto):
             celda = fila["tarea"]
             if celda not in celdas_tarea:
                 ids = ids_de_celda_tarea(celda)
-                citados = ids_de_tarea(celda) if ids is None else ids
+                citados = _ids_con_rangos(celda, por_numero) if ids is None else ids
                 celdas_tarea[celda] = (ids is None, not ids, *_resolver_ids(citados, por_numero))
-            ambigua, global_, fila["ids_tarea"], desconocidos_fila = celdas_tarea[celda]
+            ambigua, global_, fila["ids_tarea"], desconocidos_fila, alias_fila = celdas_tarea[celda]
             if global_:
                 globales.append(fila)
                 if ambigua:
                     fila["linea_tarea_no_reconocida"] = linea
+            if alias_fila:
+                fila["alias_ambiguos"] = (linea, alias_fila)
             if desconocidos_fila:
                 fila["tareas_desconocidas"] = (linea, desconocidos_fila)
             filas.append(fila)
         section = {"intento": intento, "cabecera": cabecera, "resumen": resumen,
                    "filas": filas, "inicio": m.start(), "fin": fin, "ids_cabecera": ids_cabecera}
+        if alias:
+            section["alias_ambiguos"] = (linea_cuerpo, alias)
         if desconocidos:
             section["tareas_desconocidas"] = (linea_cuerpo, desconocidos)
         if globales:
@@ -361,7 +362,20 @@ def secciones_revision(texto):
             section["gaps_plugin"] = _resolver_ids(ids_de_tarea(verdict[2] or ""), por_numero)[0]
         if _OPEN_REVIEW in cuerpo.splitlines():
             section["abierta"] = True
+        # Count legible findings even after correction: the heading records findings
+        # at review time. Only a deficit of the same severity is unexplained.
+        for count, severity in re.findall(r"(?<![\w#.-])([0-9]+)\s+(Critical|Important)\b", cabecera, re.I):
+            read = sum(f["grado"].strip("*_` ").casefold() == severity.casefold() for f in filas)
+            if _orden_numero(count.lstrip("0") or "0") > _orden_numero(str(read)):
+                section["linea_recuento"] = linea_cuerpo
+                section.setdefault("recuentos_ilegibles", []).append((count, severity, read))
         out.append(section)
+    for section, scope in zip(out, _menciones_efectivas(out)):
+        for count, severity, read in section.get("recuentos_ilegibles", ()):
+            section["filas"].append({"num": "?", "grado": severity, "tarea": "todas", "recuento": True,
+                                     "ids_tarea": frozenset(section["ids_cabecera"] or scope), "correccion": "pendiente",
+                                     "gap": f"Recuento sin explicar: {count} {severity}, {read} filas legibles",
+                                     "evidencia": section["cabecera"]})
     return out
 
 
@@ -420,17 +434,40 @@ def _numero_tarea(tarea):
     return tarea[2:].lstrip("0") or "0"
 
 
+def _orden_numero(numero):
+    return len(numero), numero
+
+
+def _ids_con_rangos(texto, por_numero):
+    """Conserva cada tramo, incluso solapado o inverso, de una mención libre."""
+    ids = ids_de_tarea(texto)
+    for rango in _RANGO_CABECERA_RE.finditer(texto):
+        extremos = re.findall(r"T-[0-9]+", rango[0])
+        for primero, ultimo in zip(extremos, extremos[1:]):
+            a, b = sorted((_numero_tarea(primero), _numero_tarea(ultimo)), key=_orden_numero)
+            if len(b) <= 6 and int(b) - int(a) < _MAX_TAREAS_POR_RANGO:
+                ancho = min(len(primero) - 2, 6)
+                ids.update(f"T-{n:0{ancho}d}" for n in range(int(a) + 1, int(b)))
+            else:
+                # Sin materializar el rango: solo pueden bloquearse tareas reales.
+                for numero, candidatas in por_numero.items():
+                    if _orden_numero(a) <= _orden_numero(numero) <= _orden_numero(b):
+                        ids.update(candidatas)
+    return ids
+
+
 def _resolver_ids(ids, por_numero):
-    resueltos, desconocidos = set(), []
+    resueltos, desconocidos, ambiguos = set(), [], []
     for tarea in ids:
         candidatas = por_numero.get(_numero_tarea(tarea), ())
-        if len(candidatas) == 1:
+        if candidatas:
             resueltos.update(candidatas)
+            if len(candidatas) > 1:
+                ambiguos.append(f"{tarea} ({', '.join(sorted(candidatas))})")
         else:
             resueltos.add(tarea)
-            if not candidatas:
-                desconocidos.append(tarea)
-    return frozenset(resueltos), tuple(sorted(desconocidos))
+            desconocidos.append(tarea)
+    return frozenset(resueltos), tuple(sorted(desconocidos)), tuple(sorted(ambiguos))
 
 
 def tareas_de_fila(fila, por_defecto=()):
@@ -448,7 +485,8 @@ def menciones(seccion):
     otra fase tambien puede citar "T-04" sin ser SU tarea)."""
     ids = set(seccion["ids_cabecera"])
     for f in seccion["filas"]:
-        ids.update(tareas_de_fila(f))
+        if not f.get("recuento"):
+            ids.update(tareas_de_fila(f))
     return ids
 
 
@@ -511,7 +549,7 @@ def _menciones_efectivas(secciones):
     fin_previa = None
     for s in secciones:
         m = menciones(s)
-        anonima = not s["ids_cabecera"] and not s["filas"]
+        anonima = not s["ids_cabecera"] and not any(not f.get("recuento") for f in s["filas"])
         sin_frontera = fin_previa is not None and fin_previa == s["inicio"]
         eff = previa if (not m and anonima and sin_frontera) else m
         out.append(eff)
@@ -1081,7 +1119,13 @@ def lint(path, *, text=None, parsed=None, umbral_bytes=None, closed_measurements
     sections = secciones_revision(text) if "dos lentes" in text else []
     reviews = latest_reviews(sections)
     for section in sections:
+        if section.get("recuentos_ilegibles"):
+            linea = section["linea_recuento"]
+            warnings.append(f"línea {linea}: recuento de gaps sin filas legibles suficientes")
         for elemento in (section, *section["filas"]):
+            if "alias_ambiguos" in elemento:
+                linea, detalles = elemento["alias_ambiguos"]
+                warnings.append(f"línea {linea}: alias ambiguo de tarea: {', '.join(detalles)}")
             if "tareas_desconocidas" in elemento:
                 linea, ids = elemento["tareas_desconocidas"]
                 warnings.append(f"línea {linea}: ID de tarea desconocido: {', '.join(ids)}")

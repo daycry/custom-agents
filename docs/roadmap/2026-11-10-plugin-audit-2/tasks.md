@@ -796,6 +796,12 @@ RED: `test_transicion_reconcile_uses_latest_review_without_inventing_one` falló
 - **Interpretaciones**: k1: `--dispatch` explicita que se va a despachar; la consulta sigue siendo de lectura. k2: los eventos del ledger tienen su propio historial local acotado y conservan el opt-in de los hooks. Si falla publicar actividad, queda un aviso tras el cambio canónico. k3: `reconcile` reconoce revisiones históricas y conserva el estado de tareas sin veredicto. Se entrega T-40 en revisión.
 - **Fuera de Archivos inicial**: referencia de la consola (contrato de actividad); fixture de párrafos (reemplazos trazados); prueba de egreso (huella de fuente actualizada, escáner intacto).
 
+**Fix5** · RED `935c0a8`.
+RED: `test_fix5_gap1_resumed_sessions` falló con tokens nulos · 2026-11-24.
+RED: `test_fix5_gap2_unread_counts` falló con brief vacío · 2026-11-24.
+RED: `test_fix5_gap3_embedded_ranges` falló con tareas intermedias omitidas · 2026-11-24.
+RED: `test_fix5_gap4_ambiguous_alias` falló con candidatas sin bloquear · 2026-11-24.
+
 **Fix4** · RED `ca555fa` · GREEN `4f9b3ea`.
 
 RED: `test_fix4_gap1_ambiguous_cell_blocks_its_ids_and_section` falló con T-03 omitida · 2026-11-24.

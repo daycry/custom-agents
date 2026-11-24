@@ -667,22 +667,19 @@ def _codex_counts(usage):
     return entrada - creacion - lectura, salida, creacion, lectura
 
 
-def _read_codex_session(stream, stat, cwd, start, end, tokens, coverage):
+def _read_codex_session(stream, cwd, start, end, tokens, coverage, cursor):
     meta = json.loads(stream.readline())
     if meta.get("type") != "session_meta":
         raise ValueError("missing session metadata")
     if _project_path(meta["payload"].get("cwd")) != cwd:
-        return
-    if stat.st_mtime < start.timestamp():
-        # On Windows an open (possibly resumed) session may keep its old mtime.
-        offset = stream.tell()
-        last_record = _ts_previo(None, stat.st_size, fh=stream)
-        if last_record and last_record < start:
-            return
-        stream.seek(offset)
-    coverage["leidos"] += 1
-    last_total = None
+        return None
+    if cursor:
+        stream.seek(cursor["offset"])
+    last_total = cursor["last_total"] if cursor else None
+    cacheable = True
     for line in stream:
+        if not line.endswith(b"\n"):
+            cacheable = False
         try:
             record = json.loads(line)
             if record.get("type") != "event_msg":
@@ -691,41 +688,127 @@ def _read_codex_session(stream, stat, cwd, start, end, tokens, coverage):
             if payload.get("type") != "token_count" or not (info := payload.get("info")):
                 continue
             total = info["total_token_usage"]
+            total = hashlib.sha256(json.dumps(total, sort_keys=True).encode()).hexdigest()
             if total == last_total:
                 continue
             last_total = total
             stamp = _parse_iso(record.get("timestamp"))
             if stamp is None:
                 coverage["campos_malos"] += 1
-            elif start <= stamp <= end:
+            elif stamp > end:
+                cacheable = False
+            elif start <= stamp:
                 _native_add(tokens, _codex_counts(info["last_token_usage"]), coverage)
         except (AttributeError, KeyError, TypeError, ValueError):
             coverage["campos_malos"] += 1
 
+    if cacheable and not coverage["campos_malos"]:
+        return {"offset": stream.tell(), "last_total": last_total, "tokens": tokens}
+    return {}
 
-def _read_codex(store, cwd, start, end, tokens, coverage):
+
+def _codex_days(store):
+    # Enumerate directory names only. Historical day contents are listed again
+    # only if their directory changed; file growth need not change directory mtime.
+    for year in store.iterdir():
+        if re.fullmatch(r"[0-9]{4}", year.name) and year.is_dir():
+            for month in year.iterdir():
+                if re.fullmatch(r"[0-9]{2}", month.name) and month.is_dir():
+                    for day in month.iterdir():
+                        if re.fullmatch(r"[0-9]{2}", day.name) and day.is_dir():
+                            yield day
+
+
+def _codex_signature(stat):
+    return [stat.st_ino, stat.st_size, stat.st_mtime_ns]
+
+
+def _codex_inventory(store):
+    days = {}
+    if store.exists():
+        for day in _codex_days(store):
+            stamp = day.stat().st_mtime_ns
+            files = {path.name: _codex_signature(path.stat()) for path in day.iterdir()
+                     if path.suffix == ".jsonl"}
+            days[day.relative_to(store).as_posix()] = {"stamp": stamp, "files": files}
+    return days
+
+
+def _codex_index_path(args, cwd):
+    key = _project_id(cwd + "\0" + args.artefacto)
+    state = Path(args.state)
+    return state.with_name(f"{state.name}.{key}.codex-index.json")
+
+
+def _read_codex(store, cwd, start, end, tokens, coverage, marker, index_path):
     if not store.is_dir():
         return False
-    # Las carpetas del almacén pueden usar la fecha local. Un día por cada lado
-    # cubre el desfase respecto a UTC y una sesión abierta el día anterior.
-    day = start.astimezone(timezone.utc).date() - timedelta(days=1)
-    last_day = end.astimezone(timezone.utc).date() + timedelta(days=1)
-    start_time = start.timestamp()
+    index = _load_json(index_path) or {}
+    store_id = _project_id(_project_path(str(store.absolute())))
+    indexed = (isinstance(index, dict) and index.get("window") == marker.get("ventana_id")
+               and index.get("store") == store_id and isinstance(index.get("days"), dict))
+    baseline = index["days"] if indexed else {}
+    cache = marker.get("codex_cache", {})
+    previous_end = _parse_iso(marker.get("ultimoCierre"))
+    cursors = cache.get("files", {}) if cache.get("store") == store_id and previous_end and previous_end <= end else {}
+    updated = {}
+    first = (start.astimezone(timezone.utc).date() - timedelta(days=1)).strftime("%Y/%m/%d")
+    last = (end.astimezone(timezone.utc).date() + timedelta(days=1)).strftime("%Y/%m/%d")
     thread = os.environ.get("CODEX_THREAD_ID")
-    while day <= last_day:
-        directory = store / f"{day.year:04d}" / f"{day.month:02d}" / f"{day.day:02d}"
-        for path in directory.glob("*.jsonl"):
+    # The active thread can first appear after start in a historical directory.
+    # Locate it by name even when that directory retained an older timestamp.
+    thread_indexed = not thread or any(name.endswith(f"-{thread}.jsonl")
+                                       for entry in baseline.values() for name in entry["files"])
+    seen = set()
+    for day in _codex_days(store):
+        key = day.relative_to(store).as_posix()
+        nearby = first <= key <= last
+        prior = baseline.get(key, {})
+        files = prior.get("files", {})
+        # Names from a persisted inventory must stay inside this day.
+        if thread_indexed and not nearby and day.stat().st_mtime_ns == prior.get("stamp"):
+            names = (name for name in files if Path(name).name == name and name.endswith(".jsonl"))
+        else:
+            names = (p.name for p in day.iterdir() if p.suffix == ".jsonl")
+        for name in names:
+            path = day / name
+            relative = key + "/" + name
+            seen.add(relative)
             try:
-                stat = path.stat()
-                if stat.st_mtime < start_time and not (thread and path.name.endswith(f"-{thread}.jsonl")):
-                    continue
-                # Windows puede mantener un mtime antiguo mientras Codex escribe.
-                # Solo la sesión activa conocida puede saltar ese prefiltro.
-                with path.open("rb") as stream:
-                    _read_codex_session(stream, stat, cwd, start, end, tokens, coverage)
+                signature = _codex_signature(path.stat())
+                active = thread and name.endswith(f"-{thread}.jsonl")
+                if not nearby and not active:
+                    if indexed and files.get(name) == signature:
+                        continue
+                    if not indexed and signature[2] < start.timestamp() * 1e9:
+                        coverage["historico_sin_indice"] = True
+                        continue
+                old = cursors.get(relative)
+                counts = dict.fromkeys(tokens, 0)
+                if old and old["signature"] == signature:
+                    current = old
+                else:
+                    resume = old and old["signature"][0] == signature[0] and old["signature"][1] < signature[1]
+                    if resume:
+                        counts.update(old["tokens"])
+                    with path.open("rb") as stream:
+                        current = _read_codex_session(stream, cwd, start, end, counts, coverage,
+                                                      old if resume else None)
+                    if current is None:  # another project
+                        continue
+                    if current:
+                        current["signature"] = signature
+                coverage["leidos"] += 1
+                if current:
+                    updated[relative] = current
+                    counts = current["tokens"]
+                for field, value in counts.items():
+                    tokens[field] += value
             except (OSError, AttributeError, KeyError, TypeError, ValueError):
                 coverage["errores"] += 1
-        day += timedelta(days=1)
+    if set(cursors) - seen:
+        coverage["errores"] += 1
+    marker["codex_cache"] = {"store": store_id, "files": updated}
     return True
 
 
@@ -766,7 +849,7 @@ def _read_opencode(store, cwd, start, end, tokens, coverage):
     return True
 
 
-def _native_window(runtime, store, marker, end, coverage, avisos):
+def _native_window(runtime, store, marker, end, coverage, avisos, args):
     cwd = _project_path(os.getcwd())
     if marker.get("proyecto_id") not in (None, _project_id(cwd)):
         avisos.append(f"{runtime}: el proyecto actual no coincide con el marcador")
@@ -777,14 +860,18 @@ def _native_window(runtime, store, marker, end, coverage, avisos):
         return None, "estimado"
     tokens = dict.fromkeys((*_TOKEN_FIELDS, "respuestas"), 0)
     coverage.update(leidos=0, errores=0, campos_malos=0)
-    reader = _read_codex if runtime == "codex" else _read_opencode
     try:
-        available = reader(store, cwd, start, end, tokens, coverage)
-    except (ImportError, OSError, ValueError):
+        if runtime == "codex":
+            available = _read_codex(store, cwd, start, end, tokens, coverage, marker, _codex_index_path(args, cwd))
+        else:
+            available = _read_opencode(store, cwd, start, end, tokens, coverage)
+    except (ImportError, OSError, AttributeError, KeyError, TypeError, ValueError):
         available = False
     if not available:
         avisos.append(f"{runtime}: almacenamiento local no disponible o formato no reconocido")
         return None, "no-disponible" if runtime == "opencode" else "estimado"
+    if coverage.get("historico_sin_indice"):
+        avisos.append("codex: sesiones históricas sin índice inicial; cobertura parcial")
     if coverage["errores"] or coverage["campos_malos"]:
         avisos.append(f"{runtime}: sesiones o eventos de uso ilegibles; cobertura parcial")
     if not tokens["respuestas"]:
@@ -940,14 +1027,14 @@ def _procedencia(medido, cobertura, eur, sin_precio, rates):
     `generacion:` las pueda copiar tal cual: tokens medidos, coste estimado y coste incompleto van
     separados. `eur` es SIEMPRE una estimación (tokens × precioTokens de rates.json), nunca una factura."""
     if medido:
-        parcial = cobertura.get("errores", 0) or cobertura.get("campos_malos", 0)
+        parcial = cobertura.get("errores") or cobertura.get("campos_malos") or cobertura.get("historico_sin_indice")
         tokens = {"tokens_procedencia": "transcript",
                   "tokens_cobertura": "parcial" if parcial else "completa",
                   "transcripts_leidos": cobertura.get("leidos", 0),
                   "transcripts_subagente": cobertura.get("subagente", 0),
                   "transcripts_con_error": cobertura.get("errores", 0)}
     else:
-        tokens = {"tokens_procedencia": "sin_medida", "tokens_cobertura": "sin_medida",
+        tokens = {"tokens_procedencia": "sin_medida", "tokens_cobertura": "parcial" if cobertura.get("historico_sin_indice") else "sin_medida",
                   "transcripts_leidos": None, "transcripts_subagente": None, "transcripts_con_error": None}
     if eur is None:
         coste = {"coste_procedencia": "sin_coste", "coste_cobertura": "sin_coste", "coste_sin_precio": [],
@@ -988,6 +1075,12 @@ def cmd_start(args):
     runtime = _runtime(args)
     native = runtime in _NATIVE_RUNTIME
     tdir = args.transcript_dir or (_native_store(runtime) if native else _project_transcript_dir())
+    inventory = None
+    if runtime == "codex":
+        try:
+            inventory = _codex_inventory(Path(tdir))
+        except OSError:
+            avisos.append("codex: inventario inicial no disponible")
     inicio = _now_iso(native=True) if native else _now_iso()
     marcador = {"version": 2, "inicio": inicio, "transcriptDir": str(tdir) if tdir else None,
                 "offsets": {} if native else _snapshot_offsets(tdir), "ventana_id": "win-" + uuid.uuid4().hex,
@@ -1002,6 +1095,10 @@ def cmd_start(args):
     saved = False
     try:
         with _locked_state(args.state, avisos) as state:
+            if inventory is not None:
+                index = {"window": marcador["ventana_id"], "days": inventory,
+                         "store": _project_id(_project_path(marcador["transcriptDir"]))}
+                _save_state(_codex_index_path(args, _project_path(os.getcwd())), index, avisos)
             state[args.artefacto] = marcador
             _migrar_cerrados(state)
             saved = _save_state(args.state, state, avisos)
@@ -1050,6 +1147,8 @@ def _persist_close(args, marker, end, moved, measured, transcript_dir, avisos, r
             previous_end = _parse_iso(current.get("ultimoCierre"))
             if previous_end is None or previous_end <= _parse_iso(end):
                 current["ultimoCierre"] = end
+                if runtime == "codex" and "codex_cache" in marker:
+                    current["codex_cache"] = marker["codex_cache"]
             if moved:
                 current["ledgerClose"] = True
             if measured and runtime in _NATIVE_RUNTIME and not current.get("runtime"):
@@ -1099,7 +1198,7 @@ def cmd_close(args):
         # Marcadores anteriores a fix3 podían apuntar a Claude aunque start recibiera --runtime.
         saved_store = marcador.get("transcriptDir") if marcador.get("runtime") == runtime else None
         tdir = Path(args.transcript_dir or saved_store or _native_store(runtime))
-        tokens, sin_medida = _native_window(runtime, tdir, marcador, fin, cobertura, avisos)
+        tokens, sin_medida = _native_window(runtime, tdir, marcador, fin, cobertura, avisos, args)
     else:
         tdir = args.transcript_dir or marcador.get("transcriptDir")
         if tdir and Path(tdir).is_dir():
