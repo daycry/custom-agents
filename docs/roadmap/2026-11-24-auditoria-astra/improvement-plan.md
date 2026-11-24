@@ -36,7 +36,7 @@ rama: feat/plugin-audit-2
 | **Evaluación** | n/a: iniciativa de corrección nacida de auditoría |
 | **Diseño** | n/a (sin paso de diseño) |
 | **Origen** | Informe de la auditoría gpt-6.2-astra (22 hallazgos) y su verificación por Claude Opus sobre HEAD (`verif-1-11` y `verif-12-22`); informes de trabajo en el scratchpad de la sesión, no versionados |
-| **Ledger** | [`tasks.md`](tasks.md): 13 tareas en 5 fases |
+| **Ledger** | [`tasks.md`](tasks.md): 14 tareas en 5 fases (T-14 añadida el 2026-11-24) |
 
 ---
 
@@ -63,7 +63,7 @@ Las horas IA y los tokens son estimaciones aproximadas del planner (sin medició
 | 2 — Pérdida de datos y robustez (T-03 a T-05) | 20 | 1.800k / 280k | 1.011,77 |
 | 3 — Alcance y publicación (T-06, T-07) | 11 | 950k / 140k | 556,07 |
 | 4 — Rendimiento de la consola (T-08) | 7 | 650k / 100k | 354,23 |
-| 5 — Resto de Minor y deuda de pruebas (T-09 a T-13) | 24 | 2.200k / 310k | 1.213,81 |
+| 5 — Resto de Minor y deuda de pruebas (T-09 a T-14; T-14 suma 32 h, no incluida en las cifras de esta fila) | 24 | 2.200k / 310k | 1.213,81 |
 | **Total** | **73 h** | **6.700k / 990k** | **3.692,88 €** (sin margen) |
 
 El coste base es `horas × 50 €/h + tokens`. El margen de contingencia (+20 % sobre las horas humanas: 730 €) lo lleva el total del presupuesto.
@@ -157,7 +157,7 @@ El usuario la delegó en gpt-6.2-astra («lo que considere Astra»). Decisión: 
 | **A. Excepción explícita en la Constitución** | Añadir a `docs/CONSTITUTION.md` §4 una excepción para el log local de turnos (fichero, no versionado, retención de 30 días, opt-out) y una nota en los ADR | ~1 h, solo docs ES/EN | El comportamiento actual pasa a ser política; el texto crudo sigue en disco hasta 30 días |
 | **B. Borrar el log tras extraer el journal** | `SessionEnd` extrae `decisiones`/`pendientes` y elimina el log (o no lo persiste literal); toca `journal-prompt.py`, `journal.py` y los hooks | ~3 h, código + tests + `interop/` | Cumple la Constitución tal cual; se pierde la reextracción posterior desde el log |
 
-T-13 es la tarea condicionada: no arranca sin la decisión y se estima con la opción B (la más cara).
+T-13 ya no está condicionada (decisión del 2026-11-24, arriba).
 
 ---
 
@@ -230,7 +230,7 @@ T-13 es la tarea condicionada: no arranca sin la decisión y se estima con la op
 
 - **`plugin-audit-2` T-40 (en curso)** cambia `ledger-write.py`, `ledger-lint.py`, `usage-meter.py`, `task-brief.py` y `jira-flow.py`. Bloquea T-02, T-04, T-11 y T-12; rebasar sobre su cierre antes de empezarlas. Su fix5 corrige además el residuo del hallazgo 16.
 - T-12 depende de T-02 (mismo fichero de tests).
-- T-13 depende de la decisión del usuario.
+- T-13: decidida el 2026-11-24 (sin dependencia). T-14 depende de plugin-audit-2 T-40 cerrada y de T-02.
 - Orden recomendado: fase 1 (T-01 puede empezar ya; T-02 espera a T-40), fases 2, 3 y 4 en paralelo si no comparten fichero, fase 5 al final. T-03, T-05, T-06, T-07, T-08, T-09 y T-10 no dependen de T-40.
 - **Implementación:** Codex `gpt-6.2-sol` (esfuerzo alto) implementa; Claude Opus 5.5 (esfuerzo alto) revisa con `adversarial-review` (lentes A+B y las condicionales). Tope de 3 bucles revisor→implementador por tarea.
 
@@ -278,6 +278,7 @@ T-13 es la tarea condicionada: no arranca sin la decisión y se estima con la op
 |-------|--------|-------|
 | 2026-11-24 | Creación del plan: 13 tareas en 5 fases. Excluye el hallazgo 16 (descartado en HEAD; residuo en `plugin-audit-2` T-40). Hallazgo 4 pendiente de decisión del usuario | planner |
 | 2026-11-24 | Decisión del hallazgo 4 (T-13) delegada por el usuario en gpt-6.2-astra: no persistir el texto de los turnos, solo la extracción mínima hasta confirmar el journal. T-13 deja de estar condicionada | orquestador |
+| 2026-11-24 | T-14 añadida a la Fase 5 por decisión del usuario («Cerrar T-40 y tarea nueva»): registros estructurados de revisión, diseño de gpt-6.2-astra tras 6 intentos sin converger de la regla de recuentos de plugin-audit-2 T-40 (est. 32 h humanas / 8 h IA). Depende de T-40 cerrada y de T-02. Total: 14 tareas | orquestador |
 
 ---
 

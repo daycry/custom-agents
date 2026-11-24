@@ -41,8 +41,8 @@ changelog: Fixed
 | Fase 2 — Pérdida de datos y robustez | 0 | 3 | 0% | 0 / 20h | 0 / 4.9h | 0 / 1.22h | 0 / 2080k |
 | Fase 3 — Alcance y publicación | 0 | 2 | 0% | 0 / 11h | 0 / 2.6h | 0 / 0.65h | 0 / 1090k |
 | Fase 4 — Rendimiento de la consola | 0 | 1 | 0% | 0 / 7h | 0 / 1.8h | 0 / 0.45h | 0 / 750k |
-| Fase 5 — Resto de Minor y deuda de pruebas | 0 | 5 | 0% | 0 / 24h | 0 / 5.8h | 0 / 1.45h | 0 / 2510k |
-| **TOTAL** | **0** | **13** | **0%** | **0 / 73h** | **0 / 17.9h** | **0 / 4.47h** | **0 / 7690k** |
+| Fase 5 — Resto de Minor y deuda de pruebas | 0 | 6 | 0% | 0 / 56h | 0 / 13.8h | 0 / 3.45h | 0 / 5360k |
+| **TOTAL** | **0** | **14** | **0%** | **0 / 105h** | **0 / 25.9h** | **0 / 6.47h** | **0 / 10540k** |
 
 > Estimaciones BASE (el +20 % de contingencia está en el plan); horas IA y tokens son estimaciones aproximadas, a juicio del planner; tokens al precio de `.claude/rates.json` (Claude Opus 5.5; el precio de `gpt-6.2-sol` es ⚠️ verificar). Supervisión = 25 % de las horas IA.
 
@@ -531,3 +531,30 @@ changelog: Fixed
 - [ ] Docs ES/EN, ADR-010, `CLAUDE.md`; interop
 
 **Notas**: Grado reajustado: Minor. La estimación original (opción B) se conserva; la variante elegida puede costar algo más (revisar al empezar).
+
+### T-14 — Registros estructurados de revisión (rediseño propuesto por gpt-6.2-astra tras T-40 de plugin-audit-2)
+
+- **Descripción**: La regla de T-40 que compara los recuentos declarados en la cabecera de una revisión con las filas de su tabla no converge con texto libre (6 intentos: bloquea de más con filas reclasificadas o con una revisión posterior limpia, y falla abierto con recuentos en palabras). Diseño de astra: `ledger-write.py review/verdict` escriben en `tasks.md` un registro versionado por revisión (identificador, alcance explícito, resultado por tarea, IDs de hallazgos) del que se genera la tabla y sus totales; tres resultados por tarea (limpia, con hallazgos, indeterminada): una traza histórica incompleta impide aprobaciones nuevas sin cambiar el estado existente y se despeja con evidencia archivada verificable o una revisión posterior completa que cubra la tarea; `task-brief.py`, `jira-flow.py` y `reconcile` consumen esa decisión; `ledger-archive.py` conserva el resultado por tarea y un hash del detalle. Migración en seco tarea por tarea: nunca «fase cerrada ⇒ todas aprobadas».
+- **Changelog**: Las revisiones se registran de forma estructurada y la aprobación de cada tarea ya no depende de interpretar la prosa de la cabecera.
+- **Estado**: borrador
+- **Tiempo humano**: est. 32h · real —
+- **Tiempo IA (ejec.)**: est. 8h · real —
+- **Supervisión**: est. 2h (≈25 % IA) · real —
+- **Previsión IA**: 2500k in / 350k out tok · 16 €
+- **Dependencias**: plugin-audit-2 T-40 (cerrada con el fix6); T-02 de esta iniciativa (mismo `ledger-write.py`)
+- **Tipo**: scripts
+- **Archivos**: `agent-kits/shared/ledger-write.py`, `agent-kits/shared/ledger-lint.py`, `agent-kits/shared/ledger-archive.py`, `agent-kits/shared/task-brief.py`, `skills/jira-sync/scripts/jira-flow.py`, `agent-kits/shared/ledger-write.md`, `skills/adversarial-review/SKILL.md` (§6), tests de esos scripts, `docs/CONVENTIONS.md` + `docs/en/CONVENTIONS.md`, `interop/**` (regenerado)
+- **Runtimes**: Scripts de `agent-kits/shared/` que usan igual Claude Code, Codex y OpenCode; la prosa de `adversarial-review` se regenera a interop.
+- **Verificación**:
+  - `pytest -q agent-kits/shared/test_ledger_write*.py tests/test_ledger_lint.py skills/jira-sync/scripts/test_jira_flow.py -k "registro_estructurado or indeterminada or reclasificada"` → `passed` (rojo antes: la aprobación depende de la prosa de la cabecera)
+  - comparación en seco de la migración sobre todos los ledgers de `docs/roadmap/` → ninguna tarea pasa a aprobada sin evidencia identificable (salida pegada)
+  - puertas de runtimes y tokens → verde
+
+**Criterios de aceptación**
+
+- [ ] El veredicto por tarea sale del registro estructurado, no de la prosa: variar la redacción de la cabecera no cambia el resultado (test).
+- [ ] Una fila reclasificada de gravedad, una tabla parcial o un Critical cruzado de otra fase se tratan correctamente (tests).
+- [ ] Una traza histórica incompleta deja la tarea «indeterminada»: impide aprobaciones nuevas sin bloquear para siempre; una revisión posterior completa o evidencia archivada verificable la despeja.
+- [ ] writer, lint, brief y Jira dan la misma decisión con y sin kit (copias declaradas).
+- [ ] Migración en seco revisada antes de aplicar; ninguna aprobación recuperada sin evidencia.
+
