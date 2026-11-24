@@ -7,8 +7,8 @@ de los revisores. Los scripts de traspaso aplican los estados en todos los perfi
 ```bash
 python3 "$SHAREDKIT/ledger-write.py" state docs/roadmap/<iniciativa>/tasks.md --task T-01 --state en-progreso --json
 python3 "$SHAREDKIT/ledger-write.py" red docs/roadmap/<iniciativa>/tasks.md --task T-01 --test tests/test_x.py::test_x --error "resultado observado" --date AAAA-MM-DD --json
-python3 "$SHAREDKIT/ledger-write.py" review docs/roadmap/<iniciativa>/tasks.md --tasks T-01,T-02 --attempt 1 --summary "Fase actual" --json
-python3 "$SHAREDKIT/ledger-write.py" verdict docs/roadmap/<iniciativa>/tasks.md --tasks T-01,T-02 --attempt 1 --result gaps --gap-tasks T-02 --json
+python3 "$SHAREDKIT/ledger-write.py" review docs/roadmap/<iniciativa>/tasks.md --tasks T-01,T-02 --attempt 1 --summary "Fase actual" --runtime codex --json
+python3 "$SHAREDKIT/ledger-write.py" verdict docs/roadmap/<iniciativa>/tasks.md --tasks T-01,T-02 --attempt 1 --result gaps --gap-tasks T-02 --runtime codex --json
 python3 "$SHAREDKIT/ledger-write.py" reconcile docs/roadmap/<iniciativa>/tasks.md --tasks T-01,T-02 --dry-run --json
 ```
 
@@ -21,7 +21,8 @@ python3 "$SHAREDKIT/ledger-write.py" reconcile docs/roadmap/<iniciativa>/tasks.m
   fecha `AAAA-MM-DD`; rechaza secretos y caracteres que creen líneas nuevas.
   Registra el fallo observado antes del código; el script no ejecuta el test.
 - `review` abre la cabecera canónica, deja «sin veredicto» y mueve sus tareas a
-  `en-revision` en la misma escritura. Conserva tres intentos por ciclo y la secuencia
+  `en-revision` en la misma escritura. `--summary` admite solamente IDs ya declarados
+  en `--tasks` para que `verdict` identifique la misma cabecera. Conserva tres intentos por ciclo y la secuencia
   por tareas; no cambies sus IDs para reiniciar el contador. Tras el 3.º con gaps,
   «seguir» abre un ciclo nuevo solo con el OK del usuario citado:
   `review --attempt 4 --new-cycle-ok "<cita>"` (intentos 4-6; el 7 abre el último).
@@ -30,12 +31,17 @@ python3 "$SHAREDKIT/ledger-write.py" reconcile docs/roadmap/<iniciativa>/tasks.m
   `--gap-tasks`); `limpio` cierra con los criterios marcados y fecha `Cerrada`.
   Un rechazo conserva el ledger byte a byte. Valida después con `ledger-lint.py`.
 - `usage-meter.py start/close` y `task-brief.py --dispatch` usan el mismo writer.
-  Los inicios y cierres conservan tareas terminales. Los cambios efectivos generan
+  `handoff` acepta el ledger y `--task`, o `--artifact` del medidor en el proyecto actual.
+  Los inicios y cierres conservan tareas terminales. El inicio desde `en-revision`
+  requiere un veredicto `gaps` aplicable a esa tarea. Una revisión abierta devuelve
+  `review_open` y deja el estado intacto. Los cambios efectivos generan
   eventos de actividad. Indica `--runtime claude|codex|opencode` o configura
   `CUSTOM_AGENTS_RUNTIME` explícitamente; cualquier runtime sin identificar se
   registra como `unknown`.
 - `reconcile` aplica revisiones ya registradas sin fabricar un intento.
-  Las tareas sin veredicto histórico interpretable conservan su estado.
+  Las tareas sin veredicto histórico interpretable conservan su estado. Un gap
+  histórico que consta como corregido en un fix requiere una revisión posterior
+  de la misma tarea. Si hay un cierre, el writer registra `Cerrada`.
 - `--dry-run` calcula la salida y sus hashes sin crear estado ni escribir.
   `--expected-sha256 <hash>` rechaza una lectura obsoleta con exit3; tras ese
   conflicto, relee y revisa el cambio antes de preparar otra escritura.

@@ -7,6 +7,7 @@ Exit 0 success, 1 invalid ledger, 2 input/I/O, 3 conflict, 4 busy/timeout.
 """
 import argparse
 import datetime
+import functools
 import hashlib
 import importlib.util
 import json
@@ -25,6 +26,11 @@ sys.dont_write_bytecode = True
 HERE = Path(__file__).resolve().parent
 MAX_BYTES = 256 * 1024
 RUNTIMES = frozenset({"claude", "codex", "opencode", "unknown"})
+ERROR_DETAILS = {
+    "review_open": "La tarea tiene una revisión abierta sin veredicto.",
+    "review_not_reopened": "La revisión de la tarea requiere un veredicto con gaps para reabrirla.",
+    "summary_task_outside_tasks": "--summary solo admite IDs de tarea declarados en --tasks.",
+}
 
 
 def load(name):
@@ -87,16 +93,19 @@ def task_range(text, task, clean=None):
     return start, stop, clean
 
 
-def summarize(text, previous):
-    parsed = LINT.parse_ledger(text)
-    def phase_counts(document):
+def summarize(text, previous, changes):
+    def phase_counts(document, overrides):
         return {LINT.norm_fase(phase["nombre"]):
-                (sum(task["estado"] == "completado" for task in phase["tareas"]), len(phase["tareas"]))
+                (completed(phase["tareas"], overrides), len(phase["tareas"]))
                 for phase in document["fases"]}
-    counts, prior_counts = phase_counts(parsed), phase_counts(previous)
-    done = sum(task["estado"] == "completado" for task in parsed["tareas"])
-    total = len(parsed["tareas"])
-    prior_total = (sum(task["estado"] == "completado" for task in previous["tareas"]), len(previous["tareas"]))
+
+    def completed(tasks, overrides):
+        return sum(overrides.get(task["id"], task["estado"]) == "completado" for task in tasks)
+
+    counts, prior_counts = phase_counts(previous, changes), phase_counts(previous, {})
+    done = completed(previous["tareas"], changes)
+    total = len(previous["tareas"])
+    prior_total = (completed(previous["tareas"], {}), total)
     lines = _source_lines(text)
     clean = LINT.sin_vallas(text).split("\n")
     has_summary = any(line.strip() == "## Resumen de progreso" for line in clean)
@@ -125,14 +134,15 @@ def summarize(text, previous):
 
 
 def phase_state(tasks):
-    states = {task["estado"] for task in tasks}
-    if states <= {"completado", "cancelado"}:
-        return "completado" if "completado" in states else "cancelado"
-    if "en-progreso" in states:
-        return "en-progreso"
-    if "en-revision" in states:
+    states = {task["estado"] or "borrador" for task in tasks}
+    if not states or states == {"borrador"}:
+        return "borrador"
+    open_states = states - {"completado", "cancelado"}
+    if not open_states:
+        return "completado"
+    if open_states == {"en-revision"}:
         return "en-revision"
-    return "en-progreso" if "completado" in states else "borrador"
+    return "en-progreso"
 
 
 def set_states(text, parsed, changes, *, close=False):
@@ -166,7 +176,7 @@ def set_states(text, parsed, changes, *, close=False):
             lines[i] = re.sub(r"(^\s*\*\*Estado\*\*\s*:\s*)[^·\n]*?(?=\s*(?:·|$))",
                               lambda m: m[1] + phase, lines[i], count=1)
             phase = None
-    return summarize("".join(lines), parsed)
+    return summarize("".join(lines), parsed, actual)
 
 
 def verdict(text, parsed, known, tasks, args):
@@ -206,7 +216,7 @@ def verdict(text, parsed, known, tasks, args):
     if args.result == "limpio":
         changes = {task: "completado" for task in tasks if known[task]["estado"] != "cancelado"}
     text = text[:section["inicio"]] + body + text[section["fin"]:]
-    return set_states(text, LINT.parse_ledger(text), changes, close=True)
+    return set_states(text, parsed, changes, close=True)
 
 
 def reconcile(text, parsed, known, tasks):
@@ -221,25 +231,34 @@ def reconcile(text, parsed, known, tasks):
             changes[task] = "en-progreso"
         elif status in ("abierta", "gaps"):
             changes[task] = "en-revision"
+        elif status == "historica" and LINT.unverified_fix(section, task):
+            continue
         elif known[task]["checked"] and not known[task]["unchecked"]:
             changes[task] = "completado"
         else:
             changes[task] = "en-revision"
-    return set_states(text, parsed, changes)
+    return set_states(text, parsed, changes, close=True)
 
 
-def transform(text, args):
-    parsed = LINT.parse_ledger(text)
-    errors, _ = LINT.lint(args.path, text=text, parsed=parsed)
-    need(not errors, "invalid_ledger", 1)
+def transform(text, parsed, args):
     known = {task["id"]: task for task in parsed["tareas"]}
     if args.operation in ("state", "handoff", "red"):
         need(args.task in known, "unknown_task", 2)
         if args.operation == "state":
             return set_states(text, parsed, {args.task: args.state})
         if args.operation == "handoff":
-            if known[args.task]["estado"] in ("completado", "cancelado"):
+            current = known[args.task]["estado"]
+            if current in ("completado", "cancelado"):
                 return text
+            if args.state == "en-progreso":
+                section = LINT.latest_reviews(LINT.secciones_revision(text)).get(args.task)
+                status = LINT.review_status(section) if section else None
+                need(status != "abierta", "review_open", 1)
+                if current == "en-revision":
+                    need(status == "gaps" and LINT.blocking_tasks(section, {args.task}),
+                         "review_not_reopened", 1)
+                else:
+                    need(current in ("borrador", "en-progreso"), "invalid_handoff_state", 1)
             return set_states(text, parsed, {args.task: args.state})
         start, stop, clean = task_range(text, args.task)
         lines = _source_lines(text)
@@ -264,6 +283,7 @@ def transform(text, args):
     if args.operation == "reconcile":
         return reconcile(text, parsed, known, tasks)
     summary = single_line(args.summary, 512)
+    need(LINT.ids_de_tarea(summary) <= set(tasks), "summary_task_outside_tasks")
     # H-24: each review CYCLE has three attempts. «Seguir» after the third opens the next cycle
     # (attempts 4-6, then 7-9) only with the user's OK quoted in the header; inside a cycle the
     # sequence goes on without repeating it, and an OK anywhere else is rejected.
@@ -296,16 +316,23 @@ def prepare(raw, args):
     newline = "\r\n" if "\r\n" in decoded else "\n"
     text = decoded.replace("\r\n", "\n")
     need("\r" not in text and not (newline == "\r\n" and "\n" in decoded.replace("\r\n", "")), "mixed_newlines")
-    updated = transform(text, args)
-    errors, warnings = LINT.lint(args.path, text=updated)
-    need(not errors, "invalid_result", 1)
+    closed = functools.cache(lambda: LINT._closed_measurements(args.path))
+    parsed = LINT.parse_ledger(text)
+    errors, warnings = LINT.lint(args.path, text=text, parsed=parsed, closed_measurements=closed)
+    need(not errors, "invalid_ledger", 1)
+    updated = transform(text, parsed, args)
+    updated_parsed = parsed
+    if updated != text:
+        updated_parsed = LINT.parse_ledger(updated)
+        errors, warnings = LINT.lint(args.path, text=updated, parsed=updated_parsed, closed_measurements=closed)
+        need(not errors, "invalid_result", 1)
     output = bom + updated.replace("\n", newline).encode("utf-8")
     need(len(output) <= MAX_BYTES, "ledger_budget")
-    return output, warnings
+    return output, warnings, parsed, updated_parsed
 
 
-def states_from(raw):
-    return {task["id"]: task["estado"] for task in LINT.parse_ledger(raw.decode("utf-8-sig"))["tareas"]}
+def states_from(parsed):
+    return {task["id"]: task["estado"] for task in parsed["tareas"]}
 
 
 def _emit(path, before, after, args):
@@ -332,7 +359,7 @@ def write(args):
     raw, identity = IO.read(path, MAX_BYTES, changed_status="conflict")
     if args.expected_sha256:
         need(digest(raw) == args.expected_sha256, "conflict", 3)
-    output, warnings = prepare(raw, args)
+    output, warnings, before, after = prepare(raw, args)
     if not args.dry_run and output != raw:
         state = path.parent / ".ledger-write"
         state.mkdir(exist_ok=True)
@@ -343,15 +370,17 @@ def write(args):
                     handle.write(b"*\n")
             except FileExistsError:
                 pass  # An existing consumer policy is never overwritten.
-            raw, identity = IO.read(path, MAX_BYTES, changed_status="conflict")
+            locked_raw, identity = IO.read(path, MAX_BYTES, changed_status="conflict")
             if args.expected_sha256:
-                need(digest(raw) == args.expected_sha256, "conflict", 3)
-            output, warnings = prepare(raw, args)
+                need(digest(locked_raw) == args.expected_sha256, "conflict", 3)
+            if locked_raw != raw:
+                raw = locked_raw
+                output, warnings, before, after = prepare(raw, args)
             if output != raw:
                 mode = path.lstat().st_mode & 0o777 if os.name != "nt" else None
                 IO.write(path, output, deadline, expected=identity, mode=mode)
                 try:
-                    if _emit(path, raw, output, args) is False:
+                    if _emit(path, before, after, args) is False:
                         warnings.append("ledger: actividad de transición no disponible")
                 except (OSError, ValueError, ImportError, RuntimeError):
                     warnings.append("ledger: actividad de transición no disponible")
@@ -359,7 +388,7 @@ def write(args):
                "changed": output != raw, "dry_run": args.dry_run,
                "input_sha256": digest(raw), "output_sha256": digest(output), "warnings": warnings}
     if args.operation == "reconcile":
-        states = states_from(output)
+        states = states_from(after)
         receipt["states"] = {task: states[task] for task in args.tasks.split(",")}
     return receipt
 
@@ -381,23 +410,20 @@ def task_handoff(path, task, state, source, runtime=None):
         return False, "ledger: transición pendiente (writer no disponible)"
 
 
-def measurement_handoff(artifact, state, runtime):
+def measurement_target(artifact):
     match = LINT.TASK_ARTIFACT.fullmatch(artifact)
-    if not match:
-        return True, None
+    need(match, "invalid_artifact")
     slug, task = match.groups()
     root = Path.cwd()
     folder = slug
     if not LINT.INITIATIVE_FOLDER.fullmatch(slug):
         listing = READER.list_names(root, "docs/roadmap", max_entries=512)
-        if listing["status"] == "not_found":
-            return False, "ledger: transición pendiente (roadmap no disponible)"
+        need(listing["status"] != "not_found", "roadmap_unavailable")
         names = [name for name in listing["names"] if LINT.INITIATIVE_FOLDER.fullmatch(name)
                  and name[11:] == slug]
-        if not listing["complete"] or len(names) != 1:
-            return False, "ledger: transición pendiente (iniciativa ausente o ambigua)"
+        need(listing["complete"] and len(names) == 1, "initiative_missing_or_ambiguous")
         folder = names[0]
-    return task_handoff(root / "docs" / "roadmap" / folder / "tasks.md", task, state, "usage-meter", runtime)
+    return str(root / "docs" / "roadmap" / folder / "tasks.md"), task
 
 
 def main(argv=None):
@@ -405,7 +431,8 @@ def main(argv=None):
     subs = parser.add_subparsers(dest="operation", required=True)
     for name in ("state", "handoff", "red", "review", "verdict", "reconcile"):
         sub = subs.add_parser(name)
-        sub.add_argument("path", help="existing canonical tasks.md")
+        sub.add_argument("path", nargs="?" if name == "handoff" else None,
+                         help="existing canonical tasks.md")
         sub.add_argument("--expected-sha256")
         sub.add_argument("--dry-run", action="store_true")
         sub.add_argument("--json", action="store_true")
@@ -414,7 +441,7 @@ def main(argv=None):
         if name in ("review", "verdict", "reconcile"):
             sub.add_argument("--tasks", required=True, help="comma-separated task ids")
         else:
-            sub.add_argument("--task", required=True)
+            sub.add_argument("--task", required=name != "handoff")
         if name in ("review", "verdict"):
             sub.add_argument("--attempt", type=int, choices=range(1, 10), metavar="1-9", required=True)
         if name == "review":
@@ -423,6 +450,7 @@ def main(argv=None):
         if name == "state":
             sub.add_argument("--state", choices=sorted(LINT.ESTADOS), required=True)
         elif name == "handoff":
+            sub.add_argument("--artifact", help="usage-meter artifact key in the current project")
             sub.add_argument("--state", choices=("en-progreso", "en-revision"), required=True)
             sub.add_argument("--source", choices=("usage-meter", "task-brief"), required=True)
         elif name == "verdict":
@@ -433,15 +461,24 @@ def main(argv=None):
                 sub.add_argument(flag, required=True)
     args = parser.parse_args(argv)
     try:
+        if args.operation == "handoff":
+            if args.artifact is not None:
+                need(not args.path and not args.task and args.source == "usage-meter", "invalid_handoff_target")
+                args.path, args.task = measurement_target(args.artifact)
+            else:
+                need(args.path and args.task, "invalid_handoff_target")
         row, code = write(args), 0
     except WriteError as error:
         row, code = {"schema_version": 1, "status": error.status}, error.code
+        if error.status in ERROR_DETAILS:
+            row["message"] = ERROR_DETAILS[error.status]
     except (OSError, UnicodeError, ValueError):
         row, code = {"schema_version": 1, "status": "unavailable"}, 2
     if args.json:
         print(json.dumps(row, ensure_ascii=False, sort_keys=True))
     else:
-        print(row["status"] + (": changed" if row.get("changed") else ""), file=sys.stdout if not code else sys.stderr)
+        detail = row.get("message") or ("changed" if row.get("changed") else "")
+        print(row["status"] + (f": {detail}" if detail else ""), file=sys.stdout if not code else sys.stderr)
     return code
 
 

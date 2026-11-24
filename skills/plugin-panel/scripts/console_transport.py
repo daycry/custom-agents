@@ -200,10 +200,10 @@ class LineProcess:
 
 
 class JsonPeer:
-    def __init__(self,argv,cwd,on_message,on_exit=None):
+    def __init__(self,argv,cwd,on_message,on_exit=None,env=None):
         self.on_message=on_message;self.on_exit=on_exit or (lambda _:None)
         self.pending={};self.lock=threading.RLock();self.sequence=0
-        self.process=LineProcess(argv,cwd,self._receive,self._exit)
+        self.process=LineProcess(argv,cwd,self._receive,self._exit,env=env)
     def start(self):self.process.start()
     def send(self,message):self.process.send(message)
     def _receive(self,message):

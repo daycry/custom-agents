@@ -19,7 +19,7 @@ flowchart LR
 - Implementa cada tarea `T-XX` cumpliendo sus criterios de aceptación. Con `tdd: true`, sigue **RED-GREEN-REFACTOR** con la **evidencia del rojo** registrada en el ledger (`RED: <test> falló con <error> · <fecha>`); tareas sin código testeable se declaran `TDD n/a`.
 - **Regenera lo generado antes de cerrar la tarea** (arista E2 de [`CONTRACTS.md`](CONTRACTS.md)): si tocó `commands/`, `agents/` o `hooks/`, ejecuta `python3 scripts/export-interop.py` y pega la evidencia de `python3 scripts/export-interop.py --check` (exit 0) en el ledger. La Lente A corre ese mismo `--check` por su cuenta, así que llegar a la revisión con `interop/` desincronizado es un gap seguro. Y actualiza en la MISMA tarea las piezas que **describen** lo tocado (arista E3), que el `planner` ya dejó en `Archivos`.
 - **Mide cada tarea** con `usage-meter.py` (tokens reales → horas-IA `(medido)` en el ledger, que son las que se imputan a Jira).
-- Mantiene **`tasks.md` como ledger canónico**: marca cada tarea (checkbox + estado) y actualiza el resumen a medida que avanza. Al marcarla `completado` escribe además el campo opcional **`- **Cerrada**: AAAA-MM-DD`** (la fecha de cierre, mismo patrón que `Changelog`): lo lee el burndown de la página Plan del panel (`agent-kits/shared/ledger-view.py`) y `ledger-lint` valida solo su formato y que no sea anterior a la creación del ledger.
+- Registra en **tasks.md** los criterios comprobados y la evidencia. El despacho o **usage-meter start** mueve la tarea a `en-progreso` y **usage-meter close** la deja en `en-revision`. Un `ledger-write.py verdict` limpio marca `completado` con los criterios verificados y escribe `Cerrada` para el burndown. Un veredicto con gaps reabre las tareas afectadas. El writer recalcula la fase y el resumen.
 - Es el **dueño único de los commits** de tarea (`T-XX: …`) y de su procedimiento de selección exacta con `commit-selection.py` (P4 del prompt; [selección de commits](../COMMIT-SELECTION.md)). La Fase 6 de `/dev-cycle` solo lo verifica y lo reutiliza para los artefactos del orquestador.
 - Hace **handoff a `qa`** al terminar. La documentación (`documenter`) va después, solo si `qa` queda en verde.
 
@@ -49,8 +49,7 @@ secuenciales, TDD elegido, QA, cobertura y Knowledge Gate conservan sus puertas.
 ## A diferencia del resto
 
 Es el **único agente que modifica el código** del proyecto. Por eso trabaja sobre rama, respeta
-los guardrails del repo (p. ej. el local-only de `nemesis`) y no marca completado nada con tests
-fallando o criterios sin cumplir.
+los guardrails del repo y entrega a revisión la evidencia de las pruebas y los criterios.
 
 ## Guardrails deterministas (hook de guardia con alcance del agente)
 
@@ -281,4 +280,4 @@ criterios y gates del rol. Los recibos no sustituyen análisis, aprobación o te
 
 ### Autoridad de cierre
 
-El implementador actualiza tareas y fases en `tasks.md`. `/dev-cycle` coordina los estados del plan y la spec; también cuando la implementación se invoca por separado se entrega un handoff. QA aporta evidencia, y la spec sólo pasa a `implementada` con la puerta de retro en verde.
+El implementador registra criterios y evidencias en `tasks.md`. El plugin mueve tareas y recalcula la fase en cada traspaso. `/dev-cycle` coordina los estados del plan y la spec; también cuando la implementación se invoca por separado se entrega un handoff. QA aporta evidencia, y la spec sólo pasa a `implementada` con la puerta de retro en verde.

@@ -59,7 +59,7 @@ class Driver:
         C.need(type(session.get('id')) is str and SESSION.fullmatch(session['id']),'native_identity_missing',503)
     def _connect(self,timeout=30):
         if self.client is None:
-            env=dict(os.environ);env['OPENCODE_PASSWORD']=self.password;env['OPENCODE_SERVER_PASSWORD']=self.password
+            env=dict(os.environ,CUSTOM_AGENTS_RUNTIME='opencode');env['OPENCODE_PASSWORD']=self.password;env['OPENCODE_SERVER_PASSWORD']=self.password
             argv=TRANSPORT.executable('opencode',self.workspace.root)+['serve','--stdio','--hostname','127.0.0.1','--port','0']
             self.process=self.process_factory(argv,self.workspace.root,self._lease,self._exit,env=env)
             self.process.start();C.need(self.ready.wait(timeout) and self.client is not None and self.start_error is None,'native_start_timeout',503)

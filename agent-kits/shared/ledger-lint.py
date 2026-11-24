@@ -237,6 +237,8 @@ REVISION_HDR_RE = re.compile(REVISION_HDR_PATTERN, re.M)
 # funciones LITERALMENTE como respaldo local - DECLARADO en `agent-kits/shared/copias.json`
 # (bloque `secciones_revision`, ADR-016): hay test que compara las cadenas.
 _HDR_CUALQUIERA_RE = re.compile(r"^##[ \t]+.*$", re.M)
+_OPEN_REVIEW = "Pendiente de revisión; sin veredicto."
+_PLUGIN_VERDICT = re.compile(r"^\*\*Veredicto del plugin\*\*: (limpio|gaps)(?: \((T-\d+(?:, T-\d+)*)\))?$", re.M)
 from bisect import bisect_right as _bisect_right
 
 
@@ -312,16 +314,17 @@ def secciones_revision(texto):
 
 
 def ids_de_tarea(texto):
-    """IDs numéricos `T-N...` citados en `texto` (regex `\\bT-\\d+\\b`), fuente UNICA de "que tareas cita
-    una celda o una cabecera" (jira-review-comments T-03-fix2, gaps #14/#15/#17). Antes cada sitio
-    -`menciones()` aqui, el filtro de filas de `revision`/`gaps` y de `aprobado` en `jira-flow.py`,
-    `_gaps_pendientes_de_tarea` en `task-brief.py`- comparaba la celda `Tarea` con `==`/`in` sobre
-    el texto ENTERO, asi que una celda combinada `T-02/T-04` (una fila de gap que afecta a dos
-    tareas a la vez) no contaba para NINGUNA de las dos: `--task T-04` no encontraba su propia
-    fila. Con esta funcion, `T-02/T-04` cuenta para T-02 Y para T-04 en TODOS los sitios por
-    igual - nunca cuenta si el id aparece dentro de otra palabra mas larga (limite `\\b`) ni si
-    solo aparece en `Correccion`/`Evidencia` (esta funcion no las mira; ver `menciones()`)."""
+    """IDs de tarea citados en texto libre (p. ej., la cabecera de una revisión)."""
     return set(re.findall(r"\bT-\d+\b", texto))
+
+
+def ids_de_celda_tarea(texto):
+    """IDs principales de la celda `Tarea`, incluida una lista como `T-02/T-04`.
+
+    El resto de la celda es contexto: `T-21 (origen T-03)` solo afecta a T-21.
+    """
+    lista = re.match(r"^[`*_ \t]*T-\d+\b(?:[`*_ \t]*(?:[,/]|[ \t]+(?:y|and)[ \t]+)[`*_ \t]*T-\d+\b)*", texto)
+    return ids_de_tarea(lista[0]) if lista else set()
 
 
 def menciones(seccion):
@@ -334,7 +337,7 @@ def menciones(seccion):
     otra fase tambien puede citar "T-04" sin ser SU tarea)."""
     ids = ids_de_tarea(seccion["cabecera"])
     for f in seccion["filas"]:
-        ids |= ids_de_tarea(f["tarea"])
+        ids |= ids_de_celda_tarea(f["tarea"])
     return ids
 
 
@@ -366,7 +369,7 @@ def seleccionar_seccion(secciones, intento, tareas):
     if propias:
         return propias[-1], None
     ajenas = [s for s in candidatas
-              if any(ids_de_tarea(f["tarea"]) & tareas_set for f in s["filas"])]
+              if any(ids_de_celda_tarea(f["tarea"]) & tareas_set for f in s["filas"])]
     if ajenas:
         return ajenas[-1], None
     aviso = (f"el intento {intento} tiene {len(candidatas)} secciones «## Revisión de dos "
@@ -445,8 +448,47 @@ def gap_pendiente(fila):
     return bool(GAP_PENDIENTE_RE.match(correccion))
 
 
-_OPEN_REVIEW = "Pendiente de revisión; sin veredicto."
-_PLUGIN_VERDICT = re.compile(r"^\*\*Veredicto del plugin\*\*: (limpio|gaps)(?: \((T-\d+(?:, T-\d+)*)\))?$", re.M)
+def filas_pendientes_de_tarea(secciones, tarea):
+    """(intento, [filas]) — evidencia para DECIDIR sobre `tarea` (evento `aprobado`; gaps
+    pendientes del brief de `task-brief.py`; jira-review-comments T-03-fix3, gap #20).
+
+    Dos usos, dos reglas (arbitraje fix3, sustituye a (2) del fix2 para DECIDIR — PUBLICAR un
+    comentario de un intento concreto sigue siendo `seleccionar_seccion()`/`seccion_revision()`,
+    cabecera-primero, sin cambios):
+      - **Publicar un intento** (`revision`/`gaps`): UNA sección por intento, la dueña de la fase
+        (`seleccionar_seccion`).
+      - **Decidir sobre una tarea** (esta función): UNIÓN de TODAS las filas de TODAS las secciones
+        de revisión que MENCIONAN `tarea` EFECTIVAMENTE (`_menciones_efectivas()`: `menciones()` —
+        cabecera o columna `Tarea` — con herencia solo para cierres anónimos, igual que
+        `ultimo_intento_para`), en
+        CUALQUIER intento y CUALQUIER fase — no solo la sección "dueña". Antes `evidencia_aprobado`
+        miraba UNA sola sección por intento (cabecera-primero, vía `seccion_revision`): con la
+        sección propia de la fase limpia («Fase 2 (T-04, T-05) — sin gaps») y un Critical cruzado
+        `T-04/T-07` descubierto en la revisión de OTRA fase del MISMO intento, la regla
+        cabecera-primero elegía la limpia y `aprobado T-04` concedía Done sin ver el Critical.
+
+    Devuelve `(intento_reportado, filas)`: `intento_reportado` es el intento MÁS ALTO entre las
+    secciones que MENCIONAN `tarea`; `filas` son SOLO las PENDIENTES (`gap_pendiente()`) de esas
+    secciones, cada una anotada con `seccion` (su cabecera) e `intento` de origen, para que el
+    llamador cite fichero+sección al rechazar. `(None, [])` si NINGUNA sección menciona `tarea` —
+    sin evidencia, no se adivina."""
+    if not secciones:
+        return None, []
+    efectivas = _menciones_efectivas(secciones)
+    citantes = [s for s, eff in zip(secciones, efectivas) if tarea in eff]
+    if not citantes:
+        return None, []
+    intento = max(s["intento"] for s in citantes)
+    pendientes = []
+    for s in citantes:
+        for f in s["filas"]:
+            if tarea in ids_de_celda_tarea(f["tarea"]) and gap_pendiente(f):
+                pendientes.append(dict(f, seccion=s["cabecera"], intento=s["intento"]))
+    return intento, pendientes
+
+
+# --8<-- fin secciones_revision
+
 INITIATIVE_FOLDER = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9]+(?:-[a-z0-9]+)*")
 TASK_ARTIFACT = re.compile(r"([a-z0-9]+(?:-[a-z0-9]+)*)/(T-[0-9]+)(?:-fix[1-9][0-9]*)?")
 
@@ -471,10 +513,26 @@ def blocking_tasks(section, tasks):
     tasks = set(tasks)
     blocked = set(section.get("gaps_plugin", ())) & tasks
     for row in section["filas"]:
-        if row["grado"].strip("*_` ").casefold() in ("critical", "important") and gap_pendiente(row):
-            affected = ids_de_tarea(row["tarea"])
+        if _blocking_severity(row) and gap_pendiente(row):
+            affected = ids_de_celda_tarea(row["tarea"])
             blocked.update(tasks & affected if affected else tasks)
     return blocked
+
+
+def _blocking_severity(row):
+    return row["grado"].strip("*_` ").casefold() in ("critical", "important")
+
+
+def unverified_fix(section, task):
+    """A historical gap table records the correction, without a later review of it."""
+    for row in section["filas"]:
+        affected = ids_de_celda_tarea(row["tarea"])
+        correction = row["correccion"]
+        if (_blocking_severity(row) and (not affected or task in affected)
+                and not GAP_REBATIDO_RE.search(correction)
+                and re.search(r"\bcorregid[oa]s?\b.*\bfix\d+\b", correction, re.I)):
+            return True
+    return False
 
 
 def ledger_project(path):
@@ -513,48 +571,6 @@ def _closed_measurements(path):
         if task not in latest or observed > latest[task][0]:
             latest[task] = (observed, marker.get("ultimoCierre"))
     return {task for task, (_, closed) in latest.items() if isinstance(closed, str) and closed}
-
-
-def filas_pendientes_de_tarea(secciones, tarea):
-    """(intento, [filas]) — evidencia para DECIDIR sobre `tarea` (evento `aprobado`; gaps
-    pendientes del brief de `task-brief.py`; jira-review-comments T-03-fix3, gap #20).
-
-    Dos usos, dos reglas (arbitraje fix3, sustituye a (2) del fix2 para DECIDIR — PUBLICAR un
-    comentario de un intento concreto sigue siendo `seleccionar_seccion()`/`seccion_revision()`,
-    cabecera-primero, sin cambios):
-      - **Publicar un intento** (`revision`/`gaps`): UNA sección por intento, la dueña de la fase
-        (`seleccionar_seccion`).
-      - **Decidir sobre una tarea** (esta función): UNIÓN de TODAS las filas de TODAS las secciones
-        de revisión que MENCIONAN `tarea` EFECTIVAMENTE (`_menciones_efectivas()`: `menciones()` —
-        cabecera o columna `Tarea` — con herencia solo para cierres anónimos, igual que
-        `ultimo_intento_para`), en
-        CUALQUIER intento y CUALQUIER fase — no solo la sección "dueña". Antes `evidencia_aprobado`
-        miraba UNA sola sección por intento (cabecera-primero, vía `seccion_revision`): con la
-        sección propia de la fase limpia («Fase 2 (T-04, T-05) — sin gaps») y un Critical cruzado
-        `T-04/T-07` descubierto en la revisión de OTRA fase del MISMO intento, la regla
-        cabecera-primero elegía la limpia y `aprobado T-04` concedía Done sin ver el Critical.
-
-    Devuelve `(intento_reportado, filas)`: `intento_reportado` es el intento MÁS ALTO entre las
-    secciones que MENCIONAN `tarea`; `filas` son SOLO las PENDIENTES (`gap_pendiente()`) de esas
-    secciones, cada una anotada con `seccion` (su cabecera) e `intento` de origen, para que el
-    llamador cite fichero+sección al rechazar. `(None, [])` si NINGUNA sección menciona `tarea` —
-    sin evidencia, no se adivina."""
-    if not secciones:
-        return None, []
-    efectivas = _menciones_efectivas(secciones)
-    citantes = [s for s, eff in zip(secciones, efectivas) if tarea in eff]
-    if not citantes:
-        return None, []
-    intento = max(s["intento"] for s in citantes)
-    pendientes = []
-    for s in citantes:
-        for f in s["filas"]:
-            if tarea in ids_de_tarea(f["tarea"]) and gap_pendiente(f):
-                pendientes.append(dict(f, seccion=s["cabecera"], intento=s["intento"]))
-    return intento, pendientes
-
-
-# --8<-- fin secciones_revision
 
 def parse_verificacion(lines, i):
     """Parsea el campo Verificación que EMPIEZA en lines[i]. Devuelve (info, siguiente_i) o (None, i)
@@ -894,7 +910,7 @@ def _tdd_activo(path):
     return False
 
 
-def lint(path, *, text=None, parsed=None, umbral_bytes=None):
+def lint(path, *, text=None, parsed=None, umbral_bytes=None, closed_measurements=None):
     """Validate a ledger; a composing caller may supply matching text and its shared parse."""
     errors, warnings = [], []
     if text is None:
@@ -953,7 +969,9 @@ def lint(path, *, text=None, parsed=None, umbral_bytes=None):
 
     states = {t["id"]: t["estado"] for t in all_tasks}
     reviews = latest_reviews(secciones_revision(text)) if "dos lentes" in text else {}
-    closed = _closed_measurements(path) if path and "en-progreso" in states.values() else set()
+    closed = set()
+    if path and "en-progreso" in states.values():
+        closed = closed_measurements() if closed_measurements is not None else _closed_measurements(path)
     for task, state in states.items():
         section = reviews.get(task)
         status = review_status(section) if section else None

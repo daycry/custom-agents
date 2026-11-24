@@ -342,6 +342,7 @@ async function main() {
   if (!['--runtime=claude', '--runtime=codex', '--runtime=opencode'].includes(runtime)) {
     warn('unknown runtime'); return;
   }
+  env.CUSTOM_AGENTS_RUNTIME = runtime.slice('--runtime='.length);
   if (activity && !activityEnabled(join(env.CLAUDE_PROJECT_DIR || process.cwd(), '.claude', 'dev.json'))) {
     // Drain the payload so a large one never meets a closed pipe; the runtime closes stdin after writing.
     process.stdin.on('error', () => {});

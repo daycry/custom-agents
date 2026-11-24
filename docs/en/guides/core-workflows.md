@@ -178,14 +178,14 @@ flowchart TD
     F -->|Yes| G[Coordinator prepares closure]
 ```
 
-1. **Implement.** `implementer` starts the selected task and performs the change.
+1. **Implement.** Dispatch or measurement start moves the task to **In progress**. The implementer makes the change, records the verified criteria, and closes the measurement to move the task to **In review**.
    When the project enables TDD, the `tdd` skill requires an observed failing test
    before the implementation, followed by a passing check and refactoring. It
    does not add a test after the fact and claim that the earlier RED occurred.
 2. **Review.** `adversarial-review` coordinates the required fresh review lenses.
    `reviewer` checks the agreement and correctness, adding security/performance
    perspectives when selected. Findings have evidence and a disposition. The
-   implementer corrects valid gaps and records why a mistaken finding is rebutted.
+   implementer corrects valid gaps and records why a mistaken finding is rebutted. The plugin reopens tasks with Critical or Important gaps and completes tasks with a clean verdict and all criteria checked.
 3. **Verify.** `qa` runs the relevant checks and reports what passed, failed or could
    not run. `unit-tests` handles the project’s configured coverage rule. A run that
    cannot execute the required checks cannot be described as verified success.

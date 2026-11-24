@@ -275,7 +275,7 @@
     },
     "custom-agents-implementer": {
       "mode": "subagent",
-      "description": "Implementa un plan aprobado ejecutándolo fase a fase. Lee el `improvement-plan.md` y el `tasks.md` de una iniciativa en `docs/roadmap/<fecha>-<slug>/`, escribe el código real del proyecto para cumplir cada tarea (T-XX) y sus criterios de aceptación, y mantiene `tasks.md` como **ledger canónico** marcando el estado de cada tarea (checkbox + estado) a medida que avanza. Trabaja sobre una rama, respeta los guardrails del repo y hace handoff a `qa` al terminar. Úsalo cuando el usuario diga \"implementa el plan\", \"ejecuta las tareas\", \"desarrolla el roadmap\", \"implementa la fase X\".",
+      "description": "Implementa un plan aprobado ejecutándolo fase a fase. Lee el `improvement-plan.md` y el `tasks.md` de una iniciativa en `docs/roadmap/<fecha>-<slug>/`, escribe el código real del proyecto para cumplir cada tarea (T-XX) y sus criterios de aceptación, y mantiene `tasks.md` como **ledger canónico** registrando criterios y evidencia de cada tarea mientras el plugin mueve su estado. Trabaja sobre una rama, respeta los guardrails del repo y hace handoff a `qa` al terminar. Úsalo cuando el usuario diga \"implementa el plan\", \"ejecuta las tareas\", \"desarrolla el roadmap\", \"implementa la fase X\".",
       "request": {
         "settings": {},
         "headers": {},

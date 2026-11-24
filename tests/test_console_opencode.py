@@ -112,6 +112,7 @@ def test_external_inventory_owns_and_closes_lease_without_creating_session(tmp_p
     monkeypatch.setattr(module,'Client',lambda url,password:client)
     class Process:
         def __init__(self,argv,cwd,message,exit,env=None):
+            assert env['CUSTOM_AGENTS_RUNTIME']=='opencode'
             self.argv=argv;self.message=message;self.closed=False;processes.append(self)
         def start(self):self.message({'url':'http://127.0.0.1:12345'})
         def close(self):self.closed=True

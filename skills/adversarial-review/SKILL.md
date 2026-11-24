@@ -72,7 +72,7 @@ aviso + ambas `true` en `auto`). Contrato = constantes del script (`RUTA_RE`/`CO
 `references/lens-c-heuristics.md`/`lens-d-heuristics.md` si un motivo sorprende.
 ### 2. Despachar lentes → agente `reviewer` (solo lectura, contexto fresco)
 
-Con ledger, ejecuta `ledger-write.py review` antes de lanzar las lentes para publicar la cabecera y `en-revision` juntos. Pasa el `--runtime` de revisión si se conoce.
+Con ledger, ejecuta `ledger-write.py review` antes de lanzar las lentes para publicar la cabecera y `en-revision` juntos. Fija `--runtime claude|codex|opencode` según dónde se ejecuta la revisión.
 Abre la cabecera con el contrato `agent-kits/shared/ledger-write.md` (preferente, obligatorio en lite); `ledger-lint.py` exit 0 tras completar la tabla.
 
 Consume `reviewers` de `execution-profile.py`: `fresh_sequential` (siempre en lite) exige lentes secuenciales con contexto fresco propio; no suprimas lentes, intentos ni puertas. `fresh_parallel` conserva el despacho paralelo.
@@ -151,7 +151,7 @@ de la skill que lee el agente `reviewer`. Aplica también a la fusión.
   conserva la evidencia y las propuestas pendientes sin alterar el legado.
   Tras completar la tabla, ejecuta `ledger-write.py verdict` con los mismos IDs e intento y
   `--result gaps` (IDs con Critical/Important pendientes en `--gap-tasks`) o `--result limpio`.
-  Indica el runtime de revisión cuando se conozca. El writer aplica los estados y comprueba
+  Usa el mismo `--runtime` de la apertura. El writer aplica los estados y comprueba
   los criterios antes del cierre. Conserva `ledger-lint.py` exit 0. Si el writer no está
   disponible, informa del traspaso pendiente según `agent-kits/shared/ledger-write.md`.
 - **Proyección externa POR CADA intento (dueño: esta skill).** Después de registrar el veredicto en `tasks.md`, resuelve `review.completed` o `review.gaps` por `agent-kits/shared/project-integrations.md`, incluyendo intento, tareas, grados, evidencia y actor reviewer. El adaptador prepara comentarios firmados y, si su contrato y autorización lo permiten, reapertura por gaps. No publiques dos veces el mismo intento. Sin integración, la traza local basta; un fallo externo no bloquea la revisión. La cabecera local conserva `## Revisión de dos lentes — intento N: <Fase X (T-…)> — <resumen>` (es lo que casa `REVISION_HDR_PATTERN`). El worklog de revisión pertenece al orquestador; `task.done` solo al orquestador tras revisión sin gaps y QA verde.

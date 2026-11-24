@@ -14,7 +14,8 @@ def api():
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
 
 class Peer:
-    def __init__(self,argv,cwd,receive,on_exit=None):
+    def __init__(self,argv,cwd,receive,on_exit=None,env=None):
+        self.env=env
         self.cwd,self.receive=cwd,receive;self.calls=[];self.sent=[];self.closed=False;self.foreign=False
     def start(self):pass
     def call(self,method,params,timeout=15):
@@ -29,6 +30,7 @@ class Peer:
 
 def driver(tmp_path):
     out=[];d=api().Driver(SimpleNamespace(root=tmp_path,id='one'),out.append,peer_factory=Peer,command=['fake-native'])
+    assert d.peer.env['CUSTOM_AGENTS_RUNTIME']=='codex'
     return d,out
 
 
@@ -51,7 +53,7 @@ def test_discovery_lists_only_project_metadata_without_resuming_or_reading_turns
     assert row['title']=='Named conversation' and row['status']=='unconfirmed'
     assert row['source']=='native' and row['read_only'] is True
     assert not any(word in str(value) for word in ('PRIVATE','FOREIGN','turns','preview'))
-    assert peers[0].closed
+    assert peers[0].closed and peers[0].env['CUSTOM_AGENTS_RUNTIME']=='codex'
     calls=peers[0].calls
     assert {method for method,_ in calls}=={'initialize','thread/list'}
     assert all(p['cwd']==str(tmp_path) and p['useStateDbOnly'] is True for m,p in calls if m=='thread/list')
@@ -78,7 +80,7 @@ def test_discovery_is_paginated_bounded_and_closes_on_native_failure(tmp_path):
 def test_discovery_pages_roles_and_parents_without_duplicates_or_active_claims(tmp_path):
     module=api();peers=[]
     class Pages(Peer):
-        def __init__(self,*a):super().__init__(*a);peers.append(self)
+        def __init__(self,*a,**kw):super().__init__(*a,**kw);peers.append(self)
         def call(self,method,params,timeout=15):
             self.calls.append((method,params))
             if method=='initialize':return {}
@@ -103,7 +105,7 @@ def test_discovery_pages_roles_and_parents_without_duplicates_or_active_claims(t
 def test_discovery_rejects_malformed_native_inventory_and_closes(tmp_path,invalid):
     module=api();peers=[]
     class Broken(Peer):
-        def __init__(self,*a):super().__init__(*a);peers.append(self)
+        def __init__(self,*a,**kw):super().__init__(*a,**kw);peers.append(self)
         def call(self,method,params,timeout=15):
             if method=='initialize':return {}
             if isinstance(invalid,dict) and isinstance(invalid.get('data'),list):
@@ -118,7 +120,7 @@ def test_discovery_rejects_malformed_native_inventory_and_closes(tmp_path,invali
 def test_discovery_stops_at_page_budget_and_reports_incomplete_inventory(tmp_path):
     module=api();peers=[]
     class Many(Peer):
-        def __init__(self,*a):super().__init__(*a);peers.append(self);self.page=0
+        def __init__(self,*a,**kw):super().__init__(*a,**kw);peers.append(self);self.page=0
         def call(self,method,params,timeout=15):
             if method=='initialize':return {}
             self.page+=1

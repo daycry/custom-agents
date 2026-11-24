@@ -20,7 +20,8 @@ def discover(workspace,peer_factory=None,command=None):
         return peer.call(method,params,timeout=max(.01,min(4,deadline-time.monotonic())))
     try:
         factory=peer_factory or TRANSPORT.JsonPeer
-        peer=factory((command or TRANSPORT.executable('codex',workspace.root))+['app-server'],workspace.root,lambda _:None)
+        peer=factory((command or TRANSPORT.executable('codex',workspace.root))+['app-server'],workspace.root,
+                     lambda _:None,env=dict(os.environ,CUSTOM_AGENTS_RUNTIME='codex'))
         peer.start()
         call('initialize',{'clientInfo':{'name':'custom_agents_inventory','title':'custom-agents project inventory','version':'1.0.0'}})
         peer.send({'method':'initialized','params':{}})
@@ -76,7 +77,8 @@ class Driver:
         self.pending={};self.lock=threading.RLock();self.closing=False
         self.turn_revision=0
         factory=peer_factory or TRANSPORT.JsonPeer
-        self.peer=factory((command or TRANSPORT.executable('codex',self.workspace.root))+['app-server'],workspace.root,self.handle,self._exit)
+        self.peer=factory((command or TRANSPORT.executable('codex',self.workspace.root))+['app-server'],workspace.root,
+                          self.handle,self._exit,env=dict(os.environ,CUSTOM_AGENTS_RUNTIME='codex'))
     def _scope(self,thread):
         C.need(type(thread) is dict and type(thread.get('cwd')) is str,'native_scope_unverified',503)
         C.need(C.same_root(thread['cwd'],self.workspace.root),'native_scope_mismatch',403)

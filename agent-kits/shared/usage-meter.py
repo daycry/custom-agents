@@ -63,9 +63,11 @@ import hashlib
 import importlib.util
 import os
 import re
+import subprocess
 import sys
 import time
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -226,7 +228,7 @@ def _replace_state_file(source, target):
 
 
 def _save_state(path, state, avisos=None):
-    """Replace a whole snapshot; unique owned temporary, no merge or writer lock.
+    """Publish the snapshot using a unique owned temporary under the caller's lock.
 
     Failure preserves the previous state and remains visible without blocking.
     """
@@ -253,6 +255,33 @@ def _save_state(path, state, avisos=None):
             except OSError:
                 if avisos is not None:
                     avisos.append("no se pudo retirar el temporal propio del state")
+
+
+@contextmanager
+def _locked_state(path, avisos):
+    def load(name):
+        spec = importlib.util.spec_from_file_location("usage_" + name, Path(__file__).with_name(name + ".py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def need(condition, status):
+        if not condition:
+            raise OSError(status)
+
+    deadline = time.monotonic() + 3
+    reader, state_io = load("local-read"), load("local-state")
+    io = state_io.StateIO(reader, need, lambda limit: need(time.monotonic() < limit, "state_timeout"), maximum=0)
+    target = Path(path).absolute()
+    lock = target.with_name(target.name + ".lock.d")
+    lock.mkdir(parents=True, exist_ok=True)
+    with io.locked(lock, deadline, True, wait=2):
+        try:
+            with (lock / ".gitignore").open("x", encoding="utf-8") as handle:
+                handle.write("*\n")
+        except FileExistsError:
+            pass
+        yield _load_state(path, avisos, estricto=True)
 
 
 def _rel_key(f, tdir):
@@ -767,31 +796,37 @@ def _horas(tokens, ratio):
 def _task_handoff(args, target, avisos):
     if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*/T-[0-9]+(?:-fix[1-9][0-9]*)?", args.artefacto):
         return False
+    cmd = [sys.executable, str(Path(__file__).with_name("ledger-write.py")), "handoff",
+           "--artifact", args.artefacto, "--state", target, "--source", "usage-meter", "--json"]
+    if getattr(args, "runtime", None):
+        cmd += ["--runtime", args.runtime]
     try:
-        script = Path(__file__).with_name("ledger-write.py")
-        spec = importlib.util.spec_from_file_location("usage_task_writer", script)
-        writer = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(writer)
-        ok, warning = writer.measurement_handoff(args.artefacto, target, getattr(args, "runtime", None))
-    except (OSError, ImportError, ValueError):
-        ok, warning = False, "ledger: transición pendiente (writer no disponible)"
-    if warning:
-        avisos.append(warning)
-    return ok
+        result = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace", timeout=5)
+        row = json.loads(result.stdout)
+        if not result.returncode:
+            avisos.extend(message for message in row["warnings"] if message.startswith("ledger:"))
+            return True
+        avisos.append(f"ledger: transición pendiente ({row['status']})")
+    except (OSError, ValueError, KeyError, subprocess.TimeoutExpired):
+        avisos.append("ledger: transición pendiente (writer no disponible)")
+    return False
 
 
 def cmd_start(args):
     avisos = []
     tdir = args.transcript_dir or _project_transcript_dir()
-    state = _load_state(args.state, avisos, estricto=True)
     marcador = {"version": 2, "inicio": _now_iso(), "transcriptDir": str(tdir) if tdir else None,
                 "offsets": _snapshot_offsets(tdir), "ventana_id": "win-" + uuid.uuid4().hex,
                 "revision_medicion": 0}
     if not tdir:
         marcador["aviso"] = "transcripciones no localizadas; close degradará a fuente=estimado"
-    state[args.artefacto] = marcador
-    _migrar_cerrados(state)
-    _save_state(args.state, state, avisos)
+    try:
+        with _locked_state(args.state, avisos) as state:
+            state[args.artefacto] = marcador
+            _migrar_cerrados(state)
+            _save_state(args.state, state, avisos)
+    except (OSError, ImportError) as error:
+        avisos.append(f"no se pudo guardar el state: {error}")
     _task_handoff(args, "en-progreso", avisos)
     salida = {"ok": True, "artefacto": args.artefacto,
               "inicio": marcador["inicio"], "ficheros": len(marcador["offsets"])}
@@ -821,14 +856,37 @@ def _identidad_medicion(marcador, tdir, avisos):
             "revision_medicion": revision + 1}
 
 
+def _persist_close(args, marker, end, moved, measured, transcript_dir, avisos):
+    try:
+        with _locked_state(args.state, avisos) as state:
+            current = state.get(args.artefacto)
+            window = marker.get("ventana_id")
+            if (not current or current.get("inicio") != marker.get("inicio")
+                    or (window is not None and current.get("ventana_id") != window)):
+                avisos.append("el marcador cambió durante el cierre; se conserva la ventana actual")
+                return None, False
+            previous_end = current.get("ultimoCierre")
+            current["ultimoCierre"] = max(previous_end, end) if isinstance(previous_end, str) else end
+            if moved:
+                current["ledgerClose"] = True
+            _podar_offsets(current, args.transcript_dir or current.get("transcriptDir"))   # H-40
+            _migrar_cerrados(state)
+            identity = _identidad_medicion(current, transcript_dir, avisos) if measured else None
+            if identity:
+                current.update(identity)
+            return identity, _save_state(args.state, state, avisos)
+    except (OSError, ImportError) as error:
+        avisos.append(f"no se pudo guardar el state: {error}")
+        return None, False
+
+
 def cmd_close(args):
     avisos = []
-    state = _load_state(args.state, avisos, estricto=True)
-    marcador = state.get(args.artefacto)
+    marcador = _load_state(args.state, avisos, estricto=True).get(args.artefacto)
     fin = _now_iso()
     resultado = {"artefacto": args.artefacto,
                  "inicio": marcador.get("inicio") if marcador else None, "fin": fin}
-    tokens = None
+    tokens = tdir = None
     cobertura, sin_precio = {}, []
     if not marcador:
         avisos.append("sin marcador start para este artefacto")
@@ -905,21 +963,13 @@ def cmd_close(args):
     if not moved:
         moved = _task_handoff(args, "en-revision", avisos)
     if marcador:
-        marcador["ultimoCierre"] = fin  # el marcador se conserva: re-close = misma ventana actualizada
-        if moved:
-            marcador["ledgerClose"] = True
-        _podar_offsets(marcador, args.transcript_dir or marcador.get("transcriptDir"))   # H-40
-        _migrar_cerrados(state)
-        identidad = None
-        if resultado["fuente"] == "medido":
-            identidad = _identidad_medicion(marcador, tdir, avisos)
-            marcador.update(identidad)
-        persisted = _save_state(args.state, state, avisos)
-        if identidad:
+        measured = resultado["fuente"] == "medido"
+        identidad, persisted = _persist_close(args, marcador, fin, moved, measured, tdir, avisos)
+        if measured:
             resultado["medicion_persistida"] = persisted
         if identidad and persisted:
             resultado.update(identidad)
-        elif identidad:
+        elif measured:
             avisos.append("medición sin identidad persistida; no acredita deduplicación entre snapshots")
     if avisos:
         resultado["avisos"] = avisos

@@ -141,8 +141,8 @@ class Service:
         value['metrics']={'duration_seconds':value['run'].get('duracion_s'),'tokens':None,'cost':None,
                           'source':'project_hooks','usage_reason':'not_reported_by_hook'}
         return LEGACY._scrub_history(value,lambda text:C.scrub(text,workspace.root))
-    def native_peer(self,*args):
-        return self._owned_native(C.sibling('console_transport.py').JsonPeer,args,{})
+    def native_peer(self,*args,**kwargs):
+        return self._owned_native(C.sibling('console_transport.py').JsonPeer,args,kwargs)
     def native_command(self,*args,**kwargs):
         return self._owned_native(C.sibling('console_transport.py').JsonCommand,args,kwargs)
     def native_process(self,*args,**kwargs):

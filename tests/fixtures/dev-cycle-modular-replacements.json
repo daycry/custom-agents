@@ -5,9 +5,9 @@
     {
       "before_sha256": "0cb54a3904a6584fbda161ccc7c9f4af1e86c0837818bad258d0b5f0d88b794c",
       "before_file": "commands/dev-cycle.md",
-      "after_sha256": "e8c2408856f99410d4f98edd7d35b7e60d94d12c6537cb5645861301fbb12f63",
+      "after_sha256": "222466d211f784f8f0e620241bcb82c1de8e6e60a2fb68f0b5f3da49b7d5f1c5",
       "after_file": "commands/dev-cycle.md",
-      "reason": "Neutral measurement handoff; retains start/close, measured/estimated distinction, fix windows and reviewer allocation. Audit H-15: the light ledger declares `test-plan: n/a (sin UI)` when there is no UI and qa reads that marker from tasks.md in the quick path (no improvement-plan.md), so the quick path has an executable QA gate; the equivalent ledger and ADR remarks are condensed to keep the quick-path saving. Audit H-24/H-25: «seguir» after the 3rd attempt opens a new bounded cycle with the user's OK quoted by ledger-write.py --new-cycle-ok; the commit procedure has a single owner (implementer P4, where commit-selection.py now lives) and Phase 6 only verifies it and reuses it for the orchestrator's own artefacts. Audit minors (T-21): the review sentence names Lens D (performance) next to Lens C, as adversarial-review and CLAUDE.md already do; nothing else in the paragraph changes. T-40: task handoffs call the writer, preserving measurement, review and QA gates."
+      "reason": "Neutral measurement handoff; retains start/close, measured/estimated distinction, fix windows and reviewer allocation. Audit H-15: the light ledger declares `test-plan: n/a (sin UI)` when there is no UI and qa reads that marker from tasks.md in the quick path (no improvement-plan.md), so the quick path has an executable QA gate; the equivalent ledger and ADR remarks are condensed to keep the quick-path saving. Audit H-24/H-25: «seguir» after the 3rd attempt opens a new bounded cycle with the user's OK quoted by ledger-write.py --new-cycle-ok; the commit procedure has a single owner (implementer P4, where commit-selection.py now lives) and Phase 6 only verifies it and reuses it for the orchestrator's own artefacts. Audit minors (T-21): the review sentence names Lens D (performance) next to Lens C, as adversarial-review and CLAUDE.md already do; nothing else in the paragraph changes. T-40: task handoffs call the writer, preserving measurement, review and QA gates. T-40 fix1: pass the runtime explicitly at dispatch and review."
     },
     {
       "before_sha256": "35918c8063f7a49bfec19df53fc6644fa3fccb6f806bdaffd2c8ab96658c9a6c",
@@ -82,9 +82,9 @@
     {
       "before_sha256": "7c1d9803defe78ddcac981606263451619922a2c072121f82ee5d9263ced2d8a",
       "before_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
-      "after_sha256": "26401a46f2ba3a2ef0567364d841fd1a5bf5ae31caf3a015bb7e7964987763bc",
+      "after_sha256": "b673efb013d5cc56c518081d173327e9da9b7d783842e6f997313a40fe40aca8",
       "after_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
-      "reason": "Audit H-6/H-7: brief-only dispatch uses subagent_type = native implementer ID from native-roles.json with the brief as prompt, never a generic subagent (native-guardrail.py only protects that identity), with the bare `implementer` type when the bundle is copied into .claude/agents/; the fallback after the second attempt is a direct dispatch to the native implementer instead of the main context; return states, gates and parallel batch unchanged. plugin-audit-2 T-12: the parenthesis on tdd now says the brief carries the essential of the tdd skill (hard law, RED: format, what is not TDD) and the subagent opens the skill only when in doubt; the skill stays the single source. T-40: task handoffs call the writer, preserving measurement, review and QA gates."
+      "reason": "Audit H-6/H-7: brief-only dispatch uses subagent_type = native implementer ID from native-roles.json with the brief as prompt, never a generic subagent (native-guardrail.py only protects that identity), with the bare `implementer` type when the bundle is copied into .claude/agents/; the fallback after the second attempt is a direct dispatch to the native implementer instead of the main context; return states, gates and parallel batch unchanged. plugin-audit-2 T-12: the parenthesis on tdd now says the brief carries the essential of the tdd skill (hard law, RED: format, what is not TDD) and the subagent opens the skill only when in doubt; the skill stays the single source. T-40: task handoffs call the writer, preserving measurement, review and QA gates. T-40 fix1: pass the runtime explicitly at dispatch and review."
     },
     {
       "before_sha256": "ecde50b4e2ea57a0e19584b95d03682b2a705e3e45e639bf191c697bcb02d382",

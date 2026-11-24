@@ -196,7 +196,7 @@ flowchart TD
 
 ### Qué hacen los asistentes
 
-El implementador (`implementer`) marca el inicio de la tarea y realiza los cambios.
+El plugin pone la tarea **En marcha** al despacharla o iniciar la medición. El implementador realiza los cambios y registra qué criterios ha verificado. Al cerrar la medición, la tarea pasa a **En revisión**.
 Si el proyecto usa TDD, la skill `tdd` exige observar primero una prueba que falle por
 el comportamiento que falta. TDD significa desarrollar apoyándose en pruebas desde
 el principio; no significa escribir al final una prueba que siempre confirme el código.
@@ -204,7 +204,7 @@ el principio; no significa escribir al final una prueba que siempre confirme el 
 Después, `adversarial-review` organiza la revisión. Puede comparar el cambio con lo
 acordado y buscar errores de funcionamiento; añade miradas de seguridad o rendimiento
 cuando corresponden. El agente revisor (`reviewer`) devuelve hallazgos. El implementador
-corrige los que se confirman y la traza conserva los intentos, sin borrar el anterior.
+corrige los que se confirman. El plugin reabre las tareas afectadas por gaps Critical o Important, o marca **Completada** una tarea con veredicto limpio y todos sus criterios verificados. La traza conserva los intentos anteriores.
 
 QA (`qa`) ejecuta las pruebas aplicables y prepara su informe. La skill `unit-tests`
 utiliza el runner y el umbral del proyecto. Un runner es el programa que ejecuta

@@ -352,6 +352,8 @@ def sin_vallas(text):
 # funciones LITERALMENTE como respaldo local - DECLARADO en `agent-kits/shared/copias.json`
 # (bloque `secciones_revision`, ADR-016): hay test que compara las cadenas.
 _HDR_CUALQUIERA_RE = re.compile(r"^##[ \t]+.*$", re.M)
+_OPEN_REVIEW = "Pendiente de revisión; sin veredicto."
+_PLUGIN_VERDICT = re.compile(r"^\*\*Veredicto del plugin\*\*: (limpio|gaps)(?: \((T-\d+(?:, T-\d+)*)\))?$", re.M)
 from bisect import bisect_right as _bisect_right
 
 
@@ -414,22 +416,30 @@ def secciones_revision(texto):
                 continue
             filas.append({"num": celdas[0], "grado": celdas[1], "gap": celdas[2],
                           "tarea": celdas[3], "correccion": celdas[4], "evidencia": celdas[5]})
-        out.append({"intento": intento, "cabecera": m.group(0).strip(), "resumen": resumen,
-                     "filas": filas, "inicio": m.start(), "fin": fin})
+        section = {"intento": intento, "cabecera": m.group(0).strip(), "resumen": resumen,
+                   "filas": filas, "inicio": m.start(), "fin": fin}
+        verdict = _PLUGIN_VERDICT.search(cuerpo)
+        if verdict:
+            section["veredicto"] = verdict[1]
+            section["gaps_plugin"] = (verdict[2] or "").split(", ")
+        if _OPEN_REVIEW in cuerpo.splitlines():
+            section["abierta"] = True
+        out.append(section)
     return out
 
 
 def ids_de_tarea(texto):
-    """IDs numéricos `T-N...` citados en `texto` (regex `\\bT-\\d+\\b`), fuente UNICA de "que tareas cita
-    una celda o una cabecera" (jira-review-comments T-03-fix2, gaps #14/#15/#17). Antes cada sitio
-    -`menciones()` aqui, el filtro de filas de `revision`/`gaps` y de `aprobado` en `jira-flow.py`,
-    `_gaps_pendientes_de_tarea` en `task-brief.py`- comparaba la celda `Tarea` con `==`/`in` sobre
-    el texto ENTERO, asi que una celda combinada `T-02/T-04` (una fila de gap que afecta a dos
-    tareas a la vez) no contaba para NINGUNA de las dos: `--task T-04` no encontraba su propia
-    fila. Con esta funcion, `T-02/T-04` cuenta para T-02 Y para T-04 en TODOS los sitios por
-    igual - nunca cuenta si el id aparece dentro de otra palabra mas larga (limite `\\b`) ni si
-    solo aparece en `Correccion`/`Evidencia` (esta funcion no las mira; ver `menciones()`)."""
+    """IDs de tarea citados en texto libre (p. ej., la cabecera de una revisión)."""
     return set(re.findall(r"\bT-\d+\b", texto))
+
+
+def ids_de_celda_tarea(texto):
+    """IDs principales de la celda `Tarea`, incluida una lista como `T-02/T-04`.
+
+    El resto de la celda es contexto: `T-21 (origen T-03)` solo afecta a T-21.
+    """
+    lista = re.match(r"^[`*_ \t]*T-\d+\b(?:[`*_ \t]*(?:[,/]|[ \t]+(?:y|and)[ \t]+)[`*_ \t]*T-\d+\b)*", texto)
+    return ids_de_tarea(lista[0]) if lista else set()
 
 
 def menciones(seccion):
@@ -442,7 +452,7 @@ def menciones(seccion):
     otra fase tambien puede citar "T-04" sin ser SU tarea)."""
     ids = ids_de_tarea(seccion["cabecera"])
     for f in seccion["filas"]:
-        ids |= ids_de_tarea(f["tarea"])
+        ids |= ids_de_celda_tarea(f["tarea"])
     return ids
 
 
@@ -474,7 +484,7 @@ def seleccionar_seccion(secciones, intento, tareas):
     if propias:
         return propias[-1], None
     ajenas = [s for s in candidatas
-              if any(ids_de_tarea(f["tarea"]) & tareas_set for f in s["filas"])]
+              if any(ids_de_celda_tarea(f["tarea"]) & tareas_set for f in s["filas"])]
     if ajenas:
         return ajenas[-1], None
     aviso = (f"el intento {intento} tiene {len(candidatas)} secciones «## Revisión de dos "
@@ -587,7 +597,7 @@ def filas_pendientes_de_tarea(secciones, tarea):
     pendientes = []
     for s in citantes:
         for f in s["filas"]:
-            if tarea in ids_de_tarea(f["tarea"]) and gap_pendiente(f):
+            if tarea in ids_de_celda_tarea(f["tarea"]) and gap_pendiente(f):
                 pendientes.append(dict(f, seccion=s["cabecera"], intento=s["intento"]))
     return intento, pendientes
 
@@ -963,7 +973,7 @@ def construir_plan(args):
         if aviso_seccion:
             avisos.append(aviso_seccion)
         tareas_set = set(tareas)
-        filas_tarea = [f for f in filas if ids_de_tarea(f["tarea"]) & tareas_set]
+        filas_tarea = [f for f in filas if ids_de_celda_tarea(f["tarea"]) & tareas_set]
         if args.event == "gaps" and not filas_tarea:
             return None, [f"el intento {intento} no tiene gaps para {', '.join(tareas)} — usa `--event revision`"], 2
         if args.event == "revision" and filas_tarea:
