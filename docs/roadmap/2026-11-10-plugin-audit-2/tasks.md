@@ -40,11 +40,11 @@ changelog: Changed
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Defectos | 7 | 8 | 87.5% | 0 / 16h | 0 / 5.0h | 0 / 1.25h | 0 / 1090k |
 | Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev) | 4 | 4 | 100% | 0 / 32h | 0 / 7.9h | 0 / 1.98h | 0 / 2100k |
-| Fase 3 — Tokens | 5 | 12 | 41.7% | 0 / 36h | 1.1 / 9.7h | 0 / 2.42h | 0 / 2260k |
+| Fase 3 — Tokens | 6 | 12 | 50.0% | 0 / 36h | 1.1 / 9.7h | 0 / 2.42h | 0 / 2260k |
 | Fase 4 — Simplificación del código | 0 | 8 | 0.0% | 0 / 34.5h | 0 / 8.5h | 0 / 2.12h | 0 / 2470k |
 | Fase 5 — Alcance y entrenamiento | 0 | 5 | 0% | 0 / 26h | 0 / 6.5h | 0 / 1.62h | 0 / 1800k |
 | Fase 6 — Higiene del roadmap | 0 | 3 | 0% | 0 / 10h | 0 / 2.5h | 0 / 0.62h | 0 / 750k |
-| **TOTAL** | **16** | **40** | **40.0%** | **0 / 154.5h** | **0 / 40.1h** | **0 / 10.02h** | **0 / 10470k** |
+| **TOTAL** | **17** | **40** | **42.5%** | **0 / 154.5h** | **0 / 40.1h** | **0 / 10.02h** | **0 / 10470k** |
 
 Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +20 % está en el plan); tokens al precio de `.claude/rates.json`.
 
@@ -744,7 +744,8 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: Hoy el estado de las tareas solo se mueve si el agente se acuerda. `implementer.md` pasa de `en-progreso` a `completado` sin `en-revision`. `adversarial-review` dice en prosa que con gaps las tareas «vuelven a `en-progreso`», pero ningún script lo hace. `ledger-write.py review` abre la cabecera sin tocar estados. Cuando implementa otro proveedor (Codex u OpenCode, o uno implementa y otro revisa), nada mueve el estado: en esta misma iniciativa T-12..T-21 quedaron `completado` con gaps abiertos. El usuario pide que lo haga el PLUGIN, no el orquestador ni el agente de memoria, y que el dashboard muestre en vivo todo lo que pasa. Las transiciones se escriben dentro de los scripts que el flujo ya obliga a ejecutar en los traspasos, sea cual sea el runtime o el proveedor: inicio de tarea → `en-progreso`; fin de la implementación → `en-revision`; apertura de la revisión → `en-revision`; veredicto con Critical/Important → `en-progreso`; veredicto sin Critical/Important → `completado` (con criterios marcados). Cada transición emite además un evento de actividad (tarea, de→a, runtime, rol, fuente) que la consola muestra en vivo.
 - **Changelog**: Las tareas pasan solas por En marcha, En revisión y Completada en cualquier runtime, y el dashboard lo muestra en vivo.
-- **Estado**: en-revision
+- **Estado**: completado
+- **Cerrada**: 2026-11-25
 - **Tiempo humano**: est. 6h · real —
 - **Tiempo IA (ejec.)**: est. 1.5h · real —
 - **Archivos**: `agent-kits/shared/ledger-write.py`, `agent-kits/shared/ledger-write.md`, `agent-kits/shared/test_ledger_write*.py`, `agent-kits/shared/usage-meter.py`, `agent-kits/shared/test_usage_meter*.py`, `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/shared/ledger-lint.py`, `tests/test_ledger_lint.py`, `agent-kits/shared/agent-activity.py`, `agent-kits/shared/agent-activity-store.py`, `agent-kits/shared/test_agent_activity*.py`, `hooks/` (solo el aviso de incoherencia del hook posterior a la edición del ledger), `agents/implementer.md`, `commands/dev-cycle.md`, `agent-kits/dev-cycle/references/phase3-subagents.md`, `skills/adversarial-review/SKILL.md`, `skills/adversarial-review/references/lentes.md`, `skills/quick-implement/SKILL.md`, `skills/jira-sync/` (solo si el mapeo de eventos cambia), `skills/plugin-panel/scripts/*.py` y `skills/plugin-panel/assets/*.js` (actividad y tablero), `tests/test_plugin_panel*.py`, `tests/console-*.test.mjs`, `docs/CONVENTIONS.md` + `docs/en/CONVENTIONS.md` (regla 7), `docs/FLOWS.md` + `docs/en/FLOWS.md`, `docs/agents/ROLES.md`, `docs/agents/CONTRACTS.md`, `docs/observability.md` + `docs/en/observability.md`, `docs/roadmap/2026-11-10-plugin-audit-2/tasks.md` (reconciliación de esta iniciativa con la herramienta), `interop/**` (regenerado), `skills/plugin-panel/references/control-center.md`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/test_hook_network_egress.py` Fix1: `docs/agents/implementer.md`, `docs/guides/core-workflows.md`, `docs/en/guides/core-workflows.md`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `CLAUDE.md`, `agent-kits/shared/README.md` (contratos y guías del ciclo), `hooks/run-hook.mjs`, `tests/test_console_codex.py`, `tests/test_console_opencode.py`, `tests/fixtures/opencode-v2-agent-contract.json` (runtime en lanzadores existentes y verificación). Fix2: `skills/jira-sync/scripts/jira-flow.py` (paridad del parser de la columna Tarea). Fix3: `CHANGELOG.md` y `CHANGELOG.es.md` (notas de usuario). Fix4: `docs/TOKEN-EFFICIENCY.md` y `docs/en/TOKEN-EFFICIENCY.md` (cifras vigentes). Fix6: `.gitignore` (índices heredados de Codex). Fix7: `output/pdf/**` (tres ediciones y manifiestos regenerados).
@@ -1478,4 +1479,12 @@ Lentes A y B (Claude Opus 5.5, esfuerzo medio) sobre `89b4d6b..cbf88e6` (fix6 de
 
 ## Revisión de dos lentes — intento 8: Fase 3 (T-40) — verificación del fix7 (T-40)
 
-Pendiente de revisión; sin veredicto.
+**Veredicto del plugin**: limpio
+Lentes A y B (Claude Opus 5.5, esfuerzo medio) sobre `67cff01..3fa4f4d` (fix7 de Codex gpt-6.2-sol). Los cuatro gaps del intento 7 ✓ con test dedicado y rojo real (`eb4c04b`: 11 de 14 fallan); `check-handbook.py` exit 0; sin datos personales en `output/` (también en los flujos del PDF); `start`/`close` sin home guardan el marcador; tres copias idénticas; interop al día.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Minor | Un marcador de Codex abierto antes del fix6 (sin `ventana_id`) que se cierra tras actualizar ya no prueba el índice heredado: aviso engañoso de «caché privada no disponible» y cobertura `parcial`. Solo afecta a ventanas abiertas durante la actualización | T-40 | deuda aceptada por el usuario (2026-11-20, criterio de cierre) | `agent-kits/shared/usage-meter.py:933-940` |
+
+**T-40 cerrada (2026-11-25)** según el criterio del usuario: 0 Critical y 0 Important tras 8 intentos en tres ciclos. El rediseño del registro de revisiones va a T-14 de `docs/roadmap/2026-11-24-auditoria-astra/`.
+
