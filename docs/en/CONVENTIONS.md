@@ -146,6 +146,7 @@ agents do so when run standalone):
 - After **evaluating**: evaluation → `en-revision`. At the **go** gate: spec → `aprobada`, evaluation → `completado`. On **no-go**: evaluation → `cancelado` (spec → `obsoleta` if it is discarded).
 - When **creating the plan**: plan/tasks → `borrador`. On plan approval, the orchestrator sets the plan to `en-progreso`.
 - For each **task**, dispatch or `usage-meter.py start` sets `en-progreso`. Measurement close or review opening sets `en-revision`. `ledger-write.py verdict` reopens tasks with Critical/Important gaps or sets `completado` once all criteria are checked. The writer recalculates phase state and the progress table on each change.
+- Legible review rows determine which findings remain open. If the heading declares more Critical and Important findings in total than the legible rows of those grades, `ledger-lint.py` reports a warning with the line number. Later verdicts or legible rows covering all affected tasks suppress the warning.
 - In **`/dev-cycle` Phase 6**, the orchestrator moves plan/tasks to `completado` after review without gaps, green QA and documentation. The spec becomes `implementada` only with `retro-gate.py` exit 0; until retro is complete, it stays `aprobada` with pending closeout visible. QA returns its verdict and evidence, including standalone invocations; it does not declare the initiative closed.
 - **Cancellation** at any point: plan/evaluation → `cancelado` (spec → `obsoleta` if applicable).
 

@@ -362,20 +362,7 @@ def secciones_revision(texto):
             section["gaps_plugin"] = _resolver_ids(ids_de_tarea(verdict[2] or ""), por_numero)[0]
         if _OPEN_REVIEW in cuerpo.splitlines():
             section["abierta"] = True
-        # Count legible findings even after correction: the heading records findings
-        # at review time. Only a deficit of the same severity is unexplained.
-        for count, severity in re.findall(r"(?<![\w#.-])([0-9]+)\s+(Critical|Important)\b", cabecera, re.I):
-            read = sum(f["grado"].strip("*_` ").casefold() == severity.casefold() for f in filas)
-            if _orden_numero(count.lstrip("0") or "0") > _orden_numero(str(read)):
-                section["linea_recuento"] = linea_cuerpo
-                section.setdefault("recuentos_ilegibles", []).append((count, severity, read))
         out.append(section)
-    for section, scope in zip(out, _menciones_efectivas(out)):
-        for count, severity, read in section.get("recuentos_ilegibles", ()):
-            section["filas"].append({"num": "?", "grado": severity, "tarea": "todas", "recuento": True,
-                                     "ids_tarea": frozenset(section["ids_cabecera"] or scope), "correccion": "pendiente",
-                                     "gap": f"Recuento sin explicar: {count} {severity}, {read} filas legibles",
-                                     "evidencia": section["cabecera"]})
     return out
 
 
@@ -485,8 +472,7 @@ def menciones(seccion):
     otra fase tambien puede citar "T-04" sin ser SU tarea)."""
     ids = set(seccion["ids_cabecera"])
     for f in seccion["filas"]:
-        if not f.get("recuento"):
-            ids.update(tareas_de_fila(f))
+        ids.update(tareas_de_fila(f))
     return ids
 
 
@@ -549,7 +535,7 @@ def _menciones_efectivas(secciones):
     fin_previa = None
     for s in secciones:
         m = menciones(s)
-        anonima = not s["ids_cabecera"] and not any(not f.get("recuento") for f in s["filas"])
+        anonima = not s["ids_cabecera"] and not s["filas"]
         sin_frontera = fin_previa is not None and fin_previa == s["inicio"]
         eff = previa if (not m and anonima and sin_frontera) else m
         out.append(eff)
@@ -669,6 +655,32 @@ def blocking_tasks(section, tasks):
 
 def _blocking_severity(row):
     return row["grado"].strip("*_` ").casefold() in ("critical", "important")
+
+
+def _review_count_warnings(text, sections):
+    """Compare heading totals for diagnostics, using review order in the ledger."""
+    later_evidence = set()
+    offsets = []
+    for section, scope in reversed(list(zip(sections, _menciones_efectivas(sections)))):
+        if not scope or scope - later_evidence:
+            remaining = sum(_blocking_severity(row) for row in section["filas"])
+            for count in re.findall(r"(?<![\w#.-])([0-9]+)\s+(?:Critical|Important)\b",
+                                    section["cabecera"], re.I):
+                count = count.lstrip("0") or "0"
+                if _orden_numero(count) > _orden_numero(str(remaining)):
+                    offsets.append(section["inicio"])
+                    break
+                remaining -= int(count)
+        if section.get("veredicto") or section["filas"]:
+            later_evidence.update(scope)
+    if not offsets:
+        return
+    text = sin_vallas(text)
+    line, previous = 1, 0
+    for offset in reversed(offsets):
+        line += text.count("\n", previous, offset)
+        yield f"línea {line}: recuento de gaps sin filas legibles suficientes"
+        previous = offset
 
 
 def unverified_fix(section, task):
@@ -1118,10 +1130,8 @@ def lint(path, *, text=None, parsed=None, umbral_bytes=None, closed_measurements
     states = {t["id"]: t["estado"] for t in all_tasks}
     sections = secciones_revision(text) if "dos lentes" in text else []
     reviews = latest_reviews(sections)
+    warnings.extend(_review_count_warnings(text, sections))
     for section in sections:
-        if section.get("recuentos_ilegibles"):
-            linea = section["linea_recuento"]
-            warnings.append(f"línea {linea}: recuento de gaps sin filas legibles suficientes")
         for elemento in (section, *section["filas"]):
             if "alias_ambiguos" in elemento:
                 linea, detalles = elemento["alias_ambiguos"]

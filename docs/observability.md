@@ -64,8 +64,10 @@ flag, `close` toma el runtime del marcador. La variable global sirve de respaldo
 cuando ambos faltan. Claude Code es el valor predeterminado.
 
 - Codex lee los eventos `token_count` de `CODEX_HOME/sessions` (por defecto,
-  `~/.codex/sessions`). Al iniciar guarda junto al estado un inventario local de
-  nombres, tamaños y marcas de archivo. Al cerrar incluye el hilo activo
+  `~/.codex/sessions`). Al iniciar guarda el inventario de nombres, tamaños y
+  marcas de archivo en `~/.cache/custom-agents/codex-usage-index/`, fuera del
+  proyecto. Cada inicio poda los índices de ese medidor cuyo último cierre
+  data de hace más de 30 días. Al cerrar incluye el hilo activo
   (`CODEX_THREAD_ID`), los días de la ventana y los archivos nuevos o cambiados,
   incluso sesiones antiguas que crecen con el mismo `mtime`. Cuenta los eventos
   del `cwd` del proyecto entre inicio y cierre. Los cierres sucesivos devuelven

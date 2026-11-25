@@ -796,6 +796,13 @@ RED: `test_transicion_reconcile_uses_latest_review_without_inventing_one` falló
 - **Interpretaciones**: k1: `--dispatch` explicita que se va a despachar; la consulta sigue siendo de lectura. k2: los eventos del ledger tienen su propio historial local acotado y conservan el opt-in de los hooks. Si falla publicar actividad, queda un aviso tras el cambio canónico. k3: `reconcile` reconoce revisiones históricas y conserva el estado de tareas sin veredicto. Se entrega T-40 en revisión.
 - **Fuera de Archivos inicial**: referencia de la consola (contrato de actividad); fixture de párrafos (reemplazos trazados); prueba de egreso (huella de fuente actualizada, escáner intacto).
 
+**Fix6** ? RED `e93afb3` (13 fallos, 11 verdes).
+RED: `test_fix6_gap1_real_reclassified_counts`, `test_fix6_gap1_counts_only_warn` fall? con fila `#?` ? 2026-11-25.
+RED: `test_fix6_gap2_count_wording_preserves_rows`, `test_fix6_gap2_archived_attempt_no_synthetic_block` fall? con fila `#?` ? 2026-11-25.
+RED: `test_fix6_gap2_later_evidence_covers_warning` fall? con aviso tras revisi?n aplicable ? 2026-11-25.
+RED: `test_fix6_gap3_index_is_private_and_legacy_index_is_ignored`, `test_fix6_gap3_prunes_expired_closed_index_and_preserves_repeat` fall? con ?ndice en el proyecto ? 2026-11-25.
+RED: `test_fix6_gap4_attempt18_archived_task_results` fall? con nota ausente ? 2026-11-25.
+
 **Fix5** · RED `935c0a8` · GREEN `c37dfd1`.
 RED: `test_fix5_gap1_resumed_sessions` falló con tokens nulos · 2026-11-24.
 RED: `test_fix5_gap2_unread_counts` falló con brief vacío · 2026-11-24.
@@ -1228,7 +1235,17 @@ RED: `tests/test_suites_no_pytest.py::test_el_bucle_de_ci_solo_ejecuta_lo_que_py
 
 ## Revisión de dos lentes — intento 18: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix17: 4 Important, 13 Minor
 
+Resultado archivado por tarea ([traza del intento 18](testing/intento18-traza.md)). T-07 sin gaps. T-06, gaps 1 y 2 corregidos y gap 5 como límite conocido. T-23, gaps 3 y 4 corregidos.
+
 Lentes A+B+C+D sobre `e371259..ae56211`: 4 Important y 13 Minor, corregidos en fix18 (gap 5 = límite conocido; gap 13 rebatido). Cuerpo completo movido literal a [testing/intento18-traza.md](testing/intento18-traza.md) (2026-11-20, tope de lectura del ledger); superado por los intentos 19-21.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | Rama con nombre de ruta | T-06 | corregido en fix18 | [traza](testing/intento18-traza.md) |
+| 2 | Important | Operaciones forzadas sobre submódulos | T-06 | corregido en fix18 | [traza](testing/intento18-traza.md) |
+| 3 | Important | Barrido del árbol de procesos en Windows | T-23 | corregido en fix18 | [traza](testing/intento18-traza.md) |
+| 4 | Important | Pérdida de eventos en ráfaga | T-23 | corregido en fix18 | [traza](testing/intento18-traza.md) |
+| 5 | Important | Envoltorios encadenados | T-06 | límite conocido | [decisión del usuario en la traza](testing/intento18-traza.md) |
 
 ## Revisión de dos lentes — intento 19: Fase 1 (T-06, T-23) — 5 Important, 20 Minor (corrección: fix24)
 

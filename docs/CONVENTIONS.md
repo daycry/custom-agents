@@ -146,6 +146,7 @@ agentes al ejecutarse sueltos):
 - Tras **evaluar**: evaluación → `en-revision`. En la puerta **go**: spec → `aprobada`, evaluación → `completado`. En **no-go**: evaluación → `cancelado` (spec → `obsoleta` si se descarta).
 - Al **crear el plan**: plan/tasks → `borrador`. Con el OK del plan, el orquestador mueve el plan a `en-progreso`.
 - Por **tarea**, el despacho o `usage-meter.py start` registra `en-progreso`; `close` o la apertura de revisión registra `en-revision`. `ledger-write.py verdict` reabre las tareas con Critical/Important o las cierra como `completado` con todos sus criterios marcados. El writer recalcula la fase y el resumen al cambiar estados.
+- Las filas legibles de revisión determinan los gaps pendientes. Si la cabecera declara más Critical e Important en total que las filas legibles de esos grados, `ledger-lint.py` avisa con la línea. El aviso se omite cuando revisiones posteriores aportan veredicto o filas legibles para todas las tareas afectadas.
 - En la **Fase 6 de `/dev-cycle`**, el orquestador lleva plan/tasks a `completado` tras revisión sin gaps, QA verde y documentación. La spec pasa a `implementada` sólo con `retro-gate.py` en exit 0; mientras falte la retro, conserva `aprobada` y el cierre pendiente visible. QA entrega veredicto y evidencia, también cuando se invoca suelto; no declara el cierre de la iniciativa.
 - **Cancelación** en cualquier punto: plan/evaluación → `cancelado` (spec → `obsoleta` si aplica).
 

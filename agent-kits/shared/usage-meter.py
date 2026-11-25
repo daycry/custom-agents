@@ -63,6 +63,7 @@ import hashlib
 import importlib.util
 import os
 import re
+import stat
 import sys
 import time
 import uuid
@@ -734,10 +735,53 @@ def _codex_inventory(store):
     return days
 
 
-def _codex_index_path(args, cwd):
+_CODEX_INDEX_RETENTION = timedelta(days=30)
+_CODEX_WINDOW_RE = re.compile(r"win-[0-9a-f]{32}")
+
+
+def _legacy_codex_index_path(args, cwd):
     key = _project_id(cwd + "\0" + args.artefacto)
     state = Path(args.state)
     return state.with_name(f"{state.name}.{key}.codex-index.json")
+
+
+def _codex_index_path(args, cwd, window):
+    if not isinstance(window, str) or not _CODEX_WINDOW_RE.fullmatch(window):
+        return None
+    root = (Path.home() / ".cache" / "custom-agents" / "codex-usage-index").resolve()
+    if root.is_relative_to(Path(cwd).resolve()):
+        return None
+    key = _project_id(cwd + "\0" + _project_path(str(Path(args.state).resolve())))
+    return root / key / f"{window}.codex-index.json"
+
+
+def _closed_codex_index(path):
+    return path.with_name(path.name.replace(".codex-index.json", ".closed.codex-index.json"))
+
+
+def _prune_codex_indexes(directory, now):
+    cutoff = (now - _CODEX_INDEX_RETENTION).timestamp()
+    for path in directory.glob("*.closed.codex-index.json"):
+        if not _CODEX_WINDOW_RE.fullmatch(path.name.split(".", 1)[0]):
+            continue
+        info = path.lstat()
+        if stat.S_ISREG(info.st_mode) and info.st_mtime < cutoff:
+            path.unlink(missing_ok=True)
+
+
+def _mark_codex_index_closed(args, marker, end, avisos):
+    try:
+        path = _codex_index_path(args, _project_path(os.getcwd()), marker.get("ventana_id"))
+        if path is None:
+            return
+        closed = _closed_codex_index(path)
+        if path.is_file():
+            os.utime(path, (end.timestamp(), end.timestamp()))
+            _replace_state_file(path, closed)
+        elif closed.is_file() and closed.stat().st_mtime < end.timestamp():
+            os.utime(closed, (end.timestamp(), end.timestamp()))
+    except OSError:
+        avisos.append("codex: no se pudo actualizar la caducidad del índice")
 
 
 def _read_codex(store, cwd, start, end, tokens, coverage, marker, index_path):
@@ -777,7 +821,7 @@ def _read_codex(store, cwd, start, end, tokens, coverage, marker, index_path):
             try:
                 signature = _codex_signature(path.stat())
                 active = thread and name.endswith(f"-{thread}.jsonl")
-                if not nearby and not active:
+                if not nearby and not active and relative not in cursors:
                     if indexed and files.get(name) == signature:
                         continue
                     if not indexed and signature[2] < start.timestamp() * 1e9:
@@ -862,7 +906,12 @@ def _native_window(runtime, store, marker, end, coverage, avisos, args):
     coverage.update(leidos=0, errores=0, campos_malos=0)
     try:
         if runtime == "codex":
-            available = _read_codex(store, cwd, start, end, tokens, coverage, marker, _codex_index_path(args, cwd))
+            index = _codex_index_path(args, cwd, marker.get("ventana_id"))
+            if index is not None and not index.is_file():
+                index = _closed_codex_index(index)
+            if index is None or not index.is_file():
+                index = _legacy_codex_index_path(args, cwd)
+            available = _read_codex(store, cwd, start, end, tokens, coverage, marker, index)
         else:
             available = _read_opencode(store, cwd, start, end, tokens, coverage)
     except (ImportError, OSError, AttributeError, KeyError, TypeError, ValueError):
@@ -1098,7 +1147,16 @@ def cmd_start(args):
             if inventory is not None:
                 index = {"window": marcador["ventana_id"], "days": inventory,
                          "store": _project_id(_project_path(marcador["transcriptDir"]))}
-                _save_state(_codex_index_path(args, _project_path(os.getcwd())), index, avisos)
+                try:
+                    path = _codex_index_path(args, _project_path(os.getcwd()), marcador["ventana_id"])
+                    if path is None:
+                        avisos.append("codex: caché privada del índice no disponible")
+                    else:
+                        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                        _prune_codex_indexes(path.parent, _parse_iso(inicio))
+                        _save_state(path, index, avisos)
+                except OSError:
+                    avisos.append("codex: no se pudo preparar la caché privada del índice")
             state[args.artefacto] = marcador
             _migrar_cerrados(state)
             saved = _save_state(args.state, state, avisos)
@@ -1160,7 +1218,10 @@ def _persist_close(args, marker, end, moved, measured, transcript_dir, avisos, r
             identity = _identidad_medicion(current, transcript_dir, avisos) if measured else None
             if identity:
                 current.update(identity)
-            return identity, _save_state(args.state, state, avisos)
+            saved = _save_state(args.state, state, avisos)
+            if saved and runtime == "codex":
+                _mark_codex_index_closed(args, current, _parse_iso(end), avisos)
+            return identity, saved
     except (OSError, ImportError) as error:
         avisos.append(f"no se pudo guardar el state: {error}")
         return None, False

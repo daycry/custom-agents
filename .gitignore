@@ -54,6 +54,7 @@ desktop.ini
 # comiteado rompe los tests que suponen «sin dev.json» (task-brief cae al dev.json del cwd).
 .claude/dev.json
 .claude/usage-state.json
+**/.claude/usage-state.json.*.codex-index.json
 .claude/jira-state.json
 .claude/confluence-state.json
 # Cola de outbox de la captura durable de SessionEnd (session-end-durable-capture, `journal.py

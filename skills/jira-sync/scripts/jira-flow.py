@@ -477,20 +477,7 @@ def secciones_revision(texto):
             section["gaps_plugin"] = _resolver_ids(ids_de_tarea(verdict[2] or ""), por_numero)[0]
         if _OPEN_REVIEW in cuerpo.splitlines():
             section["abierta"] = True
-        # Count legible findings even after correction: the heading records findings
-        # at review time. Only a deficit of the same severity is unexplained.
-        for count, severity in re.findall(r"(?<![\w#.-])([0-9]+)\s+(Critical|Important)\b", cabecera, re.I):
-            read = sum(f["grado"].strip("*_` ").casefold() == severity.casefold() for f in filas)
-            if _orden_numero(count.lstrip("0") or "0") > _orden_numero(str(read)):
-                section["linea_recuento"] = linea_cuerpo
-                section.setdefault("recuentos_ilegibles", []).append((count, severity, read))
         out.append(section)
-    for section, scope in zip(out, _menciones_efectivas(out)):
-        for count, severity, read in section.get("recuentos_ilegibles", ()):
-            section["filas"].append({"num": "?", "grado": severity, "tarea": "todas", "recuento": True,
-                                     "ids_tarea": frozenset(section["ids_cabecera"] or scope), "correccion": "pendiente",
-                                     "gap": f"Recuento sin explicar: {count} {severity}, {read} filas legibles",
-                                     "evidencia": section["cabecera"]})
     return out
 
 
@@ -600,8 +587,7 @@ def menciones(seccion):
     otra fase tambien puede citar "T-04" sin ser SU tarea)."""
     ids = set(seccion["ids_cabecera"])
     for f in seccion["filas"]:
-        if not f.get("recuento"):
-            ids.update(tareas_de_fila(f))
+        ids.update(tareas_de_fila(f))
     return ids
 
 
@@ -664,7 +650,7 @@ def _menciones_efectivas(secciones):
     fin_previa = None
     for s in secciones:
         m = menciones(s)
-        anonima = not s["ids_cabecera"] and not any(not f.get("recuento") for f in s["filas"])
+        anonima = not s["ids_cabecera"] and not s["filas"]
         sin_frontera = fin_previa is not None and fin_previa == s["inicio"]
         eff = previa if (not m and anonima and sin_frontera) else m
         out.append(eff)

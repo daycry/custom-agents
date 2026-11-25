@@ -630,7 +630,7 @@ def test_fix6_gap4_attempt18_archived_task_results():
         ("3", "T-23", "corregido en fix18"), ("4", "T-23", "corregido en fix18"),
         ("5", "T-06", "límite conocido"),
     ]
-    line = text[:attempt["inicio"]].count("\n") + 1
+    line = next(i for i, line in enumerate(text.splitlines(), 1) if line == attempt["cabecera"])
     assert not any(w.startswith((f"línea {line}:", "T-07:")) for w in lint.lint(ledger)[1])
 
 

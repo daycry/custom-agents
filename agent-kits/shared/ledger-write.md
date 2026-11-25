@@ -42,8 +42,11 @@ python3 "$SHAREDKIT/ledger-write.py" reconcile docs/roadmap/<iniciativa>/tasks.m
   encadenados o demasiado largos, afecta a la unión de sus IDs con los de
   la cabecera y las filas reconocidas. Los tramos inversos y encadenados incluyen sus tareas
   intermedias. Por encima del tope se consultan los IDs existentes en el catálogo.
-  Si faltan filas que expliquen un recuento Critical o Important de la cabecera,
-  toda tarea cubierta queda pendiente. El linter avisa con el número de línea.
+  Las decisiones usan las filas legibles y conservan los requisitos explícitos
+  de cada operación. Si el total numérico de Critical e Important en la cabecera
+  supera el número de filas legibles de esos grados, `ledger-lint.py` emite un
+  aviso con la línea. El aviso se omite si revisiones posteriores cubren todas
+  las tareas afectadas con un veredicto o filas legibles.
   Un rechazo conserva el ledger byte a byte. Valida después con `ledger-lint.py`.
 - `usage-meter.py start/close` y `task-brief.py --dispatch` usan el mismo writer.
   `handoff` acepta el ledger y `--task`, o `--artifact` del medidor en el proyecto actual.
