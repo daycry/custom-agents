@@ -597,7 +597,8 @@ def test_fix6_gap2_count_wording_preserves_rows(heading, correction, monkeypatch
     ("(T-01)\n\n**Veredicto del plugin**: limpio\n", True),
     ("(T-01..T-02)\n\n**Veredicto del plugin**: limpio\n", False),
     ("(T-01..T-02)\n\nPendiente de revisión; sin veredicto.\n", True),
-    ("(T-01)\n" + review_table("T-01,T-02", "pendiente"), False),
+    ("(T-01)\n" + review_table("T-01,T-02", "pendiente"), True),
+    ("(T-01..T-02) — 0 Critical, 0 Important, 1 Minor\n", False),
 ])
 def test_fix6_gap2_later_evidence_covers_warning(ledger, later, warns):
     text = BASE + "\n## Revisión de dos lentes — intento 9: (T-01..T-02) — 2 Important\n"
@@ -606,6 +607,15 @@ def test_fix6_gap2_later_evidence_covers_warning(ledger, later, warns):
     lint = load_script(KIT / "ledger-lint.py")
     warnings = lint.lint(ledger, text=text)[1]
     assert (f"línea {header_line}: recuento de gaps sin filas legibles suficientes" in warnings) == warns
+
+
+def test_fix7_gap3_minor_rows_without_verdict_cannot_hide_warning(ledger):
+    text = (BASE + "\n## Revisión de dos lentes — intento 1: (T-01) — 1 Critical, 1 Minor\n"
+            "\n- C1 (Critical): borra datos en a.py:3 — pendiente\n"
+            "\n## Revisión de dos lentes — intento 2: (T-01) — 1 Minor\n"
+            + review_table("T-01", "corregido").replace("| Important |", "| Minor |"))
+    lint = load_script(KIT / "ledger-lint.py")
+    assert any("recuento de gaps" in warning for warning in lint.lint(ledger, text=text)[1])
 
 
 def test_fix6_gap2_archived_attempt_no_synthetic_block():

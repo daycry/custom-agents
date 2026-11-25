@@ -161,20 +161,80 @@ def test_fix6_gap3_prunes_expired_closed_index_and_preserves_repeat(tmp_path, me
     old = codex_log(sessions, "2026-11-20", "resumed", tmp_path,
                     [codex_usage("2026-11-20T09:00:00Z", 1, 0, 0, 1, 2)])
     meter("start", "codex", source=sessions)
-    meter("start", "codex", source=sessions, artifact="open")
-    assert len(list(cache.rglob("*.codex-index.json"))) == 2
     stat = old.stat()
     with old.open("a", encoding="utf-8") as stream:
         stream.write(json.dumps(codex_usage(STAMP, 100, 0, 0, 10, 112)) + "\n")
     os.utime(old, ns=(stat.st_atime_ns, stat.st_mtime_ns))
     first = meter("close", None, at=END)
     assert first["tokens_reales"]["respuestas"] == 1
+    meter("start", "codex", source=sessions, artifact="open", at="2026-12-01T12:00:00Z")
+    opened, = (path for path in cache.rglob("*.codex-index.json") if ".closed." not in path.name)
+    recent = datetime.fromisoformat("2026-12-01T12:00:00Z").timestamp()
+    os.utime(opened, (recent, recent))
     meter("start", "codex", source=sessions, artifact="different", at="2026-12-25T12:00:00Z")
     assert len(list(cache.rglob("*.closed.codex-index.json"))) == 0
     assert len(list(cache.rglob("*.codex-index.json"))) == 2  # still open + newest
     repeat = meter("close", None, at=END)
     assert repeat["tokens_reales"] == first["tokens_reales"]
     assert repeat["ventana_id"] == first["ventana_id"]
+
+
+@pytest.mark.parametrize("error", [RuntimeError, OSError, KeyError])
+@pytest.mark.parametrize("with_store", [True, False])
+def test_fix7_gap2_no_home_keeps_start_and_close_markers(tmp_path, meter, monkeypatch, error, with_store):
+    def no_home(cls):
+        raise error("home unavailable")
+
+    monkeypatch.setattr(Path, "home", classmethod(no_home))
+    monkeypatch.delenv("CODEX_HOME", raising=False)
+    sessions = tmp_path / "sessions" if with_store else None
+    if sessions:
+        codex_log(sessions, "2026-11-24", "current", tmp_path, [codex_usage(STAMP, 10, 0, 0, 5, 15)])
+    started = meter("start", "codex", source=sessions)
+    assert started["marker_saved"]
+    assert any("caché privada" in warning for warning in started["avisos"])
+    receipt = meter("close", "codex", at=END)
+    assert receipt["tokens_cobertura"] == "parcial"
+    assert any("caché privada" in warning for warning in receipt["avisos"])
+    if with_store:
+        assert receipt["tokens_reales"]["respuestas"] == 1
+    marker = json.loads((tmp_path / "state.json").read_text(encoding="utf-8"))["fixture"]
+    assert marker["ultimoCierre"] == END
+
+
+def test_fix7_gap4_prune_race_does_not_discard_new_index(tmp_path, meter, private_cache, monkeypatch):
+    sessions = tmp_path / "sessions"
+    meter("start", "codex", source=sessions)
+    meter("close", "codex", at=END)
+    stale, = private_cache.rglob("*.closed.codex-index.json")
+    original = Path.lstat
+
+    def concurrent_unlink(path):
+        if path == stale:
+            path.unlink()
+        return original(path)
+
+    monkeypatch.setattr(Path, "lstat", concurrent_unlink)
+    started = meter("start", "codex", source=sessions, at="2026-12-26T12:00:00Z")
+    marker = json.loads((tmp_path / "state.json").read_text(encoding="utf-8"))["fixture"]
+    assert started["marker_saved"]
+    assert [path.name for path in private_cache.rglob("*.codex-index.json")] == [
+        f'{marker["ventana_id"]}.codex-index.json']
+
+
+def test_fix7_gap4_prunes_abandoned_open_index(tmp_path, meter, private_cache):
+    sessions = tmp_path / "sessions"
+    meter("start", "codex", source=sessions, artifact="abandoned")
+    stale, = private_cache.rglob("*.codex-index.json")
+    old = datetime.fromisoformat(START).timestamp()
+    os.utime(stale, (old, old))
+    meter("start", "codex", source=sessions, artifact="recent", at="2026-12-24T12:00:00Z")
+    recent, = set(private_cache.rglob("*.codex-index.json")) - {stale}
+    boundary = datetime.fromisoformat("2026-11-25T12:00:00Z").timestamp()
+    os.utime(recent, (boundary, boundary))
+    meter("start", "codex", source=sessions, at="2026-12-25T12:00:00Z")
+    assert not stale.exists()
+    assert recent.is_file()
 
 
 def test_fix4_gap5_codex_limits_days_and_skips_stale_files(tmp_path, meter, monkeypatch):
