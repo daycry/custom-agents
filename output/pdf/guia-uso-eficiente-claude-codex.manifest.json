@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "edition": "2026-11-19",
+  "edition": "2026-11-25",
   "language": "es",
   "pdf": "output/pdf/guia-uso-eficiente-claude-codex.pdf",
-  "pdf_sha256": "a285973b73f4427a1ef27fdb1974f84624d9bd1fa9c05c73ec5e14f36958782a",
+  "pdf_sha256": "ec355532632d19cbc5df62c423d1cb976619366bd92fb13fe544e689eee49eef",
   "source_hash_method": "sha256-utf8-lf",
   "sources": {
     "docs/guides/subscription-efficiency.md": "9e565bf942b6ada29018df2699c802cfc2929b85ea35fd6baec4740b66994817"
@@ -14,19 +14,19 @@
       "source": "docs/guides/subscription-efficiency.md",
       "index": 1,
       "sha256": "54c8c57b635fcecf07d6d226040441527b9183e218bc195da23da7f17728ca1a",
-      "png_sha256": "408c3fc1d2a8a11ae0d929d743a01a82c0d720da9de2767cf54c895718761de3"
+      "png_sha256": "837c413c887a16c3b1691a29836f9b70382d4b9fd4f0267a8d378631f534d49e"
     },
     {
       "source": "docs/guides/subscription-efficiency.md",
       "index": 2,
       "sha256": "a4a10499700b930d3f1bbc2e5c28d250470e33ae3821f157886e59338b9314e0",
-      "png_sha256": "870aaf1ce5c375e0a27e03f3bcf48fca84609f9324b9aa25ce87d91727dc36cc"
+      "png_sha256": "052503cfaf3f19d6c44b07b3d1dd7e68741b6f1912680ac1bea58082a1d51624"
     },
     {
       "source": "docs/guides/subscription-efficiency.md",
       "index": 3,
       "sha256": "2f8d51ea294c092619ea35083ad71bac949eec093d51c031c377a4334ec4b001",
-      "png_sha256": "d761bae4fd5154bdf4cb70cebaea5168581f3d7fa21f77ff3e87c791c641d634"
+      "png_sha256": "05f052c82e0123c6d967441f859789949afa288b7e0ce15ecf659085c5d333e8"
     }
   ],
   "renderer": "Chromium; offline resources; pre-rendered Mermaid PNG; final JavaScript disabled"

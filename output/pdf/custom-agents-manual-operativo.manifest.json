@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "edition": "2026-11-19",
+  "edition": "2026-11-25",
   "language": "es",
   "pdf": "output/pdf/custom-agents-manual-operativo.pdf",
-  "pdf_sha256": "ff678cccb7a4b99b8347d97e0b56e9cda722ca82940d5e0df66d85a17aa2a89d",
+  "pdf_sha256": "6ee4c5620a013e374ffe74d883cff2488b6ddf96cb7214c16387c76c1fe00a64",
   "source_hash_method": "sha256-utf8-lf",
   "sources": {
     "docs/CUSTOMIZATION.md": "e98884bc155e2d9296caa002d3a7c100081c131a4a7c785c2c5b104f00d9cb1f",
     "docs/guides/product.md": "e79e74e409d28d560aee948b1189ec607877d56a5852f096bccb5441319fa9b0",
-    "docs/guides/core-workflows.md": "2bf2562636f43b3456d500b622e2f82763d6e5ee49c30a2b8e54ffbab77629ef",
+    "docs/guides/core-workflows.md": "9f88ae005e3b64b6ba4e50f4c16831c8d148a40ed29b55857c534328b42b3af1",
     "docs/guides/atlassian.md": "b267b4d3ad5966bf635e8c3162f88d1c3478c869b404e8f5a2c4549f30305c15",
     "docs/guides/redmine.md": "becc6f4a77ee095909081a62e409df337e861c70bf274b5df8ff740beac32580",
     "docs/guides/customization.md": "cbcdfd40642f3db953f1fcfa19ed7693361c8c52c0405b902c8e527abaaaef94",
@@ -39,199 +39,199 @@
       "source": "docs/CUSTOMIZATION.md",
       "index": 1,
       "sha256": "17ea1fad923ea5451ca5ce258be7324a4711276d9d2be126f1483ea82057dbdd",
-      "png_sha256": "33791a81d75706b6e6e4649afea541a73249ff18596ae46023c00fb3b3c547e1"
+      "png_sha256": "db8d4695ffba0597a3a59739942e70efbe7be6df67d60beaf12545668b039324"
     },
     {
       "source": "docs/guides/product.md",
       "index": 1,
       "sha256": "74afc43488c8e2891e72fd006fca8be3db0520cb6acad3584c2ec75f93298524",
-      "png_sha256": "f3c44265741cb57277331b9c686414e5b1eb17e479e05a11ebfae6c49e2bfd1c"
+      "png_sha256": "160e2c572636e324800b74b18b56a036cb04882fc4de1027fbd02cca430da28c"
     },
     {
       "source": "docs/guides/product.md",
       "index": 2,
       "sha256": "8e6f5f673e91959fae8b7b63d574b73af9084e776f59de4611e27c05fcb2e3d0",
-      "png_sha256": "85262b3371d98e0f5958da26422a8cdb9eb840f8cf8bfd4c33b3d0b6b6744ca4"
+      "png_sha256": "6085870cada686fe56950617552ad4a265d00a9280cfe1d42095b0f1fd782e67"
     },
     {
       "source": "docs/guides/core-workflows.md",
       "index": 1,
       "sha256": "b1589860238271729a9222dd1c7ba123f4859e918c6fcb52920da42827f5b66f",
-      "png_sha256": "3f35122c4961a46159bc15a72e6e21cf8a08430ecd339050c70b50af73ca12ef"
+      "png_sha256": "61674af4ed951c80d4c00f28664a417889184cb1b0ea3c3fa28a955470fc0deb"
     },
     {
       "source": "docs/guides/core-workflows.md",
       "index": 2,
       "sha256": "3849e8ab736ddd41787239a95412931603b75e7cbbc88ee74f2537d029628830",
-      "png_sha256": "e7d79cc163d3dde8cb04f5228943e31183df565fa79823e6dcb05c346cb0429f"
+      "png_sha256": "ef6beb74679cc1154ffdf0e1088ba6d694d414a587e2dbefb0cbbb8532e78f6c"
     },
     {
       "source": "docs/guides/core-workflows.md",
       "index": 3,
       "sha256": "5a681e8d5c3272096d6191f0dda12669e5d77cf6dac2a10209a0ed0bf45efa93",
-      "png_sha256": "fd4eb3eb8fbea724535cc74cbd5f738c7e6ed1b278ac1a8e82512afdc32ce0c6"
+      "png_sha256": "694b998ea33f7e920e9e0285833bb65017111924fd611619f6e67f1a9f2cae10"
     },
     {
       "source": "docs/guides/core-workflows.md",
       "index": 4,
       "sha256": "13d3ee2a9111f78e441f4ede8d69c77327bfb55d239bc61e6ee2504b53d49e9d",
-      "png_sha256": "c67a4eb863bfbcf379f4976e70ca525ed0788f4ce93bb70b5d67805dade5eb93"
+      "png_sha256": "3d58866189b19522c987b26852a8262c3d6149a48292f575ad979e1fcc771aaf"
     },
     {
       "source": "docs/guides/core-workflows.md",
       "index": 5,
       "sha256": "04a4749c4991d338edd16740367e692e797861190d9884a5b0fe39f582a2c2e1",
-      "png_sha256": "f9b5fe42405f459ba056fa80bf70015f22efcff579c5f147fdf31d79c866072b"
+      "png_sha256": "7cf1be5e1bc2717e6dad68580cf7694c493414985032a6083689beab364b118c"
     },
     {
       "source": "docs/guides/core-workflows.md",
       "index": 6,
       "sha256": "35d844aa55dc2d9a268ca0db489307ff629dccb12fa7b1d78898390ab80e30b0",
-      "png_sha256": "bf00918f9122a01e5cc4e14fe52f1f5f77b4639e9e4f78916abc2245ddf3e605"
+      "png_sha256": "d1c1735e5775008151a7fd734d119c5e5199d4a3cb5cfa0b1f28a726540ef759"
     },
     {
       "source": "docs/guides/core-workflows.md",
       "index": 7,
       "sha256": "977c08e7e249889caa98338a30fdb0720910d425c6d2eccefe7f372bfb8dc92b",
-      "png_sha256": "8d08b4264d88eeaa559fd2a694b663c2e471d2bdd9125304fdb333dc40931bc1"
+      "png_sha256": "0538c59d0acf22f15aefa0f43aeee8f447f0b72582dd5d0e04b95ec1240ae343"
     },
     {
       "source": "docs/guides/atlassian.md",
       "index": 1,
       "sha256": "6c2b1bd34d30b702d4222a909a759a85b2632d3cb964b0ee085ce1f1fd13677b",
-      "png_sha256": "867041f4048e22a084899018a52f6b01bf805461788af221a19f6fb7a26364fd"
+      "png_sha256": "7c73d1040ab3cc02878fef34a6b52a02778f9f0900f0364aec28f2937d249346"
     },
     {
       "source": "docs/guides/atlassian.md",
       "index": 2,
       "sha256": "027edddf1fb0237723b9d404178ff0eb247b0757fae635aade6296b39a17da94",
-      "png_sha256": "3a6f01a18db0b44ec4ff17e89862dead01f7f02d0de2ce82b2cc1de5b1f46d99"
+      "png_sha256": "3b68616ac8ccdcc81aa83c3af757a09e63b2bf6950bceae328e1254f9d202021"
     },
     {
       "source": "docs/guides/atlassian.md",
       "index": 3,
       "sha256": "1b3526d1d65d1e919cbfdf9f28483fe7ac03b237de600fe6b126c294c63c25b8",
-      "png_sha256": "a78d05492239f87d90237438998a8718ecf5ff227f06d179738823bfb773f531"
+      "png_sha256": "5f0b87e52c8c05928eceaf55363e376df3fcbeb16c89778756b1e3cdadeb7185"
     },
     {
       "source": "docs/guides/atlassian.md",
       "index": 4,
       "sha256": "13db389bf40b64dba5d356308f81c7bbba82b4cbbc9b938542b7c2e962ce6049",
-      "png_sha256": "6317e6b526783175215f00d726b8275d21eb0a5e561507d2d8aee8c0b83bad7c"
+      "png_sha256": "8a835b03f3cb138e36102e4291a81b098f48d0417982a7623d340a4297c5464e"
     },
     {
       "source": "docs/guides/atlassian.md",
       "index": 5,
       "sha256": "e0299da4c9a9d272d10ece54ce994405de2b8d947b0e440f64da41a1d5f35381",
-      "png_sha256": "7353fbaab912d164b2d9d0a2b36489d97f8a51784ede679718cc8b399a00b030"
+      "png_sha256": "974bdf4b842b06482f5c8e3213cc1684e99577ce16dd1725d03d90d47d52de28"
     },
     {
       "source": "docs/guides/redmine.md",
       "index": 1,
       "sha256": "0d5ef40b896f54f8045e8c3174ab9f7b1eeb121a74837ba83f7c39fe1a855c63",
-      "png_sha256": "25877011222ed419bd22ba98e0e61c169221808b277525b5df03a41a7385e90d"
+      "png_sha256": "424c20789f5a70698927e16bd4297d00568b5315600874002efceb8ce4a0df91"
     },
     {
       "source": "docs/guides/redmine.md",
       "index": 2,
       "sha256": "fb2774afb05d51a65ce1ad982e71c9c427c3ce7ee6cb713bc7a9a4b87d942fbe",
-      "png_sha256": "21630546516d022772371bd2cd056c69112cd0d19afee420be5091361dbe5d63"
+      "png_sha256": "12e3d6d430dc499bca92d4a2cb9c403d0b063a3d8557c0d9cb15ce8a3b57b4a3"
     },
     {
       "source": "docs/guides/redmine.md",
       "index": 3,
       "sha256": "ea507bb87f82bfb78ab3af7b58c3b36d5a8c454f2e52070422b5ff73cb5aba62",
-      "png_sha256": "80ab41158bc85c7590f7cca89316c48bf6a3aa4f4329a91646c8c6c706b24133"
+      "png_sha256": "7692007bfa222be72ba638a5ca42fb68ef5c92bf97ac962ebebc22ca986e7c35"
     },
     {
       "source": "docs/guides/customization.md",
       "index": 1,
       "sha256": "878629d9391640f1d145a86fbf41c7dd1b7ead70402c2705f77a9c3f4ec5997e",
-      "png_sha256": "afb04cde8734d7be4cb4c37550cf33bce87e9608e9afafb39f3da70f2af0d19f"
+      "png_sha256": "4d268cbf5886b50cb8357fbeaf38c2f9f0b22784d1ae0c3c7217b98402148691"
     },
     {
       "source": "docs/guides/customization.md",
       "index": 2,
       "sha256": "4f60403a8bf59fb3fc07391a54625dbdc4adea77512917f855909f0b87d89e6d",
-      "png_sha256": "049ae8a5efea04aab7e15323c18c247318254b1c529a73c601706947bb94296a"
+      "png_sha256": "5ae61f26e2c4bce2f78cb8c7ad9a79b141e6321950b5c33aaf3c1c325f979620"
     },
     {
       "source": "docs/guides/operations.md",
       "index": 1,
       "sha256": "b14e4b7c8ef6e336a8c9e6673f4f0227c9b29dd7cbe47c70d3e2b5bfd10459b2",
-      "png_sha256": "278606799de540d94b0cd7eb30d04d2fc7716fa590e6fe4e237066fd2e3042ba"
+      "png_sha256": "132cce2bcc5a21e71e8d3e131172bb0bad9fa4511be8529d53abea27ab737143"
     },
     {
       "source": "docs/guides/memory.md",
       "index": 1,
       "sha256": "3619bb932191395e54c1391acd2f0140510040f7c637391a65f15914104e9772",
-      "png_sha256": "f7a6c9fbc25f95616cd875880208ffb3276a0cf9279abd8e0a6466de0617b5ba"
+      "png_sha256": "f147e9e950ddd867906e4d9cb36d4b4eb8c3b86e9bf48c0aa0ccc9bad6291d9c"
     },
     {
       "source": "docs/guides/memory.md",
       "index": 2,
       "sha256": "2eaa51e2bae53ffa67be81959386130884151c11b0180e7d06a6cfde8307d7ca",
-      "png_sha256": "36aabb97174871e150728103970133d3647b5dbcef003f5e41072d361174fffd"
+      "png_sha256": "bca30ebe8233755ae231e4acc60a5b4da2975c4003bf9a6b6189acc47985ee25"
     },
     {
       "source": "docs/guides/memory.md",
       "index": 3,
       "sha256": "3f59615d14ada5b9eead435118d488cd0e4992088e2b9dc07dbe9b91d73d083b",
-      "png_sha256": "2d89a90ea903afa5e522e2f6fc9790bfc634b89700173e0e2a8a315624d153a5"
+      "png_sha256": "5fb5a88e1c7ac282a595055324a37f749c9d544233c63fe0cb4a90b7973d836a"
     },
     {
       "source": "docs/guides/memory.md",
       "index": 4,
       "sha256": "5976af719cdfd568067bacecf976f94aef0bbf01ec861748331073495739aa8d",
-      "png_sha256": "8c5dea4950cde0e1bfc99d600347aa4676743de292c95eed65d4de922fabe716"
+      "png_sha256": "27af17e962c41f081783aef50395e74704b19de1791a28f9052fb13ff3e5afe0"
     },
     {
       "source": "docs/guides/dashboard.md",
       "index": 1,
       "sha256": "eaa507c2e8e447a94b4057fe05db8cdfcf42ffda9f6c1b28a3a77f2e6cd35638",
-      "png_sha256": "bb1892a1aeef46fe5efe937e9921c5bb9596f54a925e2614c22418ff53361b74"
+      "png_sha256": "07aee19403300c40b9a872d6bc57096e115bf36b9fa1386e91cc247d414ab38f"
     },
     {
       "source": "docs/guides/dashboard.md",
       "index": 2,
       "sha256": "d4ec87a53e18acda6e0b88753f9d23d9518a2d78f60d498adf2d8bb78b04415f",
-      "png_sha256": "62bb48bd13d903a3d1ef143a8794378d151bc51dae1b25d1bb3a68afea708de4"
+      "png_sha256": "66e566f0f71dc8e6451529600f2cf7e368df521e35bc9aa36ccb120dd1033cfe"
     },
     {
       "source": "docs/guides/dashboard.md",
       "index": 3,
       "sha256": "94c2c1ce8dd13d70d412a45e8ac4848fe287f620cde272441bafc3277f13c678",
-      "png_sha256": "7e79945b1652fbd1508fe25665125fbc701a67f034e457561474d2eca1cc8410"
+      "png_sha256": "0c0aaabf0d0482e9c7f5c2bcb0092d27600d6c56077107ea178f7e6c37fbd080"
     },
     {
       "source": "docs/guides/dashboard.md",
       "index": 4,
       "sha256": "0155ab393bb0af4abeea502cbd9296e62a955e18ded10e3f69a3d1fb88c22c18",
-      "png_sha256": "c8413c1a69ce5462aa3afedb53f2195adbb7f7bfdd864254f17b96fe464564e8"
+      "png_sha256": "67c54f0b38b399dd87f5579c5f2cb9c4a984cc934c7ff86c60e7e8898142c26f"
     },
     {
       "source": "docs/guides/dashboard.md",
       "index": 5,
       "sha256": "b8fc0af43d8553ca40eaf6bee5168bcaf199688d9f420d603fb9f0438905d6fe",
-      "png_sha256": "4208129be7297dd593255707658834257cacbdf9a65b8e7aab977b708a421a07"
+      "png_sha256": "3260fa1ab770604c2ccbc2b32b86e1519d14efcd5c54d473fbe430dae6738ad4"
     },
     {
       "source": "docs/guides/dashboard.md",
       "index": 6,
       "sha256": "f73704c8a364e3b77d6d85c05244a785178701bd03e5c8f012f88d177990dd27",
-      "png_sha256": "a4a0dc9001aefeffe30259bdace54cbefa3cadf26d2e89ad6259c736db3e84d5"
+      "png_sha256": "66cde84c5176222bb7c0ca8948c1c0f3820459b7af1fd0c9f6647febd6121717"
     },
     {
       "source": "docs/guides/knowledge-categories.md",
       "index": 1,
       "sha256": "96127334af5182baefa53cd2582961d6b539b4c7e77ee7a8546154898695c65b",
-      "png_sha256": "afec2826df6bab5b06ffeb9f04b55e6ae476b4e3546773add14e5e8c15a96714"
+      "png_sha256": "e3c2454ab2b0722a99a01247b2d9cbaa6e73130e7eebc28334e35e6b9fc5a215"
     },
     {
       "source": "docs/guides/knowledge-categories.md",
       "index": 2,
       "sha256": "148713d9cebd9dbd9929ff2c0cca29cefd3241de40606ac3ad9e28e7d68fdcaa",
-      "png_sha256": "9b13eb3333e7ff3cce0c55670eb0dc2dcc490643d3599bd4710c59035260de7e"
+      "png_sha256": "0a1abc906ac823bc8c7101489664b72521586d462e5ed05e34f1d2fdbe052c39"
     }
   ],
   "renderer": "Chromium; offline resources; pre-rendered Mermaid PNG; final JavaScript disabled"

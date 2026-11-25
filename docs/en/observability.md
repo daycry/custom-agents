@@ -67,8 +67,10 @@ the fallback when both are absent. Claude Code is the default.
 - Codex reads `token_count` events from `CODEX_HOME/sessions` (default
   `~/.codex/sessions`). At start it saves the inventory of local file names,
   sizes and signatures under `~/.cache/custom-agents/codex-usage-index/`,
-  outside the project. Each start prunes that meter's indexes whose last close
-  was more than 30 days ago. Close checks the active thread
+  outside the project. Each start prunes that meter's indexes for windows left
+  open for more than 30 days or last closed more than 30 days ago. If the
+  private cache is unavailable, the meter saves the markers and reports
+  partial coverage. Close checks the active thread
   (`CODEX_THREAD_ID`), the measurement dates, and new or changed files, including
   older sessions that grow with an unchanged `mtime`. It counts events for the
   project's `cwd` between start and close. Subsequent closes return cumulative

@@ -46,7 +46,7 @@ python3 "$SHAREDKIT/ledger-write.py" reconcile docs/roadmap/<iniciativa>/tasks.m
   de cada operación. Si el total numérico de Critical e Important en la cabecera
   supera el número de filas legibles de esos grados, `ledger-lint.py` emite un
   aviso con la línea. El aviso se omite si revisiones posteriores cubren todas
-  las tareas afectadas con un veredicto o filas legibles.
+  las tareas afectadas con un veredicto legible o el marcador `**Veredicto del plugin**`.
   Un rechazo conserva el ledger byte a byte. Valida después con `ledger-lint.py`.
 - `usage-meter.py start/close` y `task-brief.py --dispatch` usan el mismo writer.
   `handoff` acepta el ledger y `--task`, o `--artifact` del medidor en el proyecto actual.

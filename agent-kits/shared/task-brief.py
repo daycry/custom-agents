@@ -836,6 +836,8 @@ def secciones_revision(texto):
             section["gaps_plugin"] = _resolver_ids(ids_de_tarea(verdict[2] or ""), por_numero)[0]
         if _OPEN_REVIEW in cuerpo.splitlines():
             section["abierta"] = True
+        elif re.search(r"\b0\s+Critical\b.*\b0\s+Important\b|\bsin gaps\b", resumen, re.I):
+            section["veredicto_historico"] = True
         out.append(section)
     return out
 

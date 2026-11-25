@@ -158,11 +158,21 @@ def _encode_cwd(cwd):
     return re.sub(r"[^A-Za-z0-9]", "-", cwd)
 
 
+def _user_home():
+    try:
+        return Path.home()
+    except (RuntimeError, OSError, KeyError):
+        return None
+
+
 def _project_transcript_dir():
     """Carpeta de transcripciones del proyecto actual (~/.claude/projects/<cwd codificado>)."""
     encoded = _encode_cwd(os.getcwd())
-    for base in (Path.home() / ".claude" / "projects",
-                 Path("/root/.claude/projects")):
+    home = _user_home()
+    bases = [Path("/root/.claude/projects")]
+    if home is not None:
+        bases.insert(0, home / ".claude" / "projects")
+    for base in bases:
         cand = base / encoded
         try:
             if cand.is_dir():
@@ -630,9 +640,12 @@ def _runtime(args, marker=None):
 
 
 def _native_store(runtime):
-    if runtime == "codex":
-        return Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex") / "sessions"
-    return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "opencode"
+    override, default, name = (("CODEX_HOME", ".codex", "sessions") if runtime == "codex"
+                               else ("XDG_DATA_HOME", ".local/share", "opencode"))
+    if value := os.environ.get(override):
+        return Path(value) / name
+    home = _user_home()
+    return None if home is None else home / default / name
 
 
 def _project_path(path):
@@ -735,8 +748,10 @@ def _codex_inventory(store):
     return days
 
 
-_CODEX_INDEX_RETENTION = timedelta(days=30)
+_CODEX_INDEX_RETENTION = timedelta(days=30)  # From creation (open) or last close (closed).
 _CODEX_WINDOW_RE = re.compile(r"win-[0-9a-f]{32}")
+_CODEX_INDEX_RE = re.compile(r"win-[0-9a-f]{32}(?:\.closed)?\.codex-index\.json")
+_CODEX_PRIVATE_CACHE_WARNING = "codex: caché privada del índice no disponible; cobertura parcial"
 
 
 def _legacy_codex_index_path(args, cwd):
@@ -748,10 +763,16 @@ def _legacy_codex_index_path(args, cwd):
 def _codex_index_path(args, cwd, window):
     if not isinstance(window, str) or not _CODEX_WINDOW_RE.fullmatch(window):
         return None
-    root = (Path.home() / ".cache" / "custom-agents" / "codex-usage-index").resolve()
-    if root.is_relative_to(Path(cwd).resolve()):
+    home = _user_home()
+    if home is None:
         return None
-    key = _project_id(cwd + "\0" + _project_path(str(Path(args.state).resolve())))
+    try:
+        root = (home / ".cache" / "custom-agents" / "codex-usage-index").resolve()
+        if root.is_relative_to(Path(cwd).resolve()):
+            return None
+        key = _project_id(cwd + "\0" + _project_path(str(Path(args.state).resolve())))
+    except (RuntimeError, OSError):
+        return None
     return root / key / f"{window}.codex-index.json"
 
 
@@ -761,12 +782,15 @@ def _closed_codex_index(path):
 
 def _prune_codex_indexes(directory, now):
     cutoff = (now - _CODEX_INDEX_RETENTION).timestamp()
-    for path in directory.glob("*.closed.codex-index.json"):
-        if not _CODEX_WINDOW_RE.fullmatch(path.name.split(".", 1)[0]):
+    for path in directory.glob("*.codex-index.json"):
+        if not _CODEX_INDEX_RE.fullmatch(path.name):
             continue
-        info = path.lstat()
-        if stat.S_ISREG(info.st_mode) and info.st_mtime < cutoff:
-            path.unlink(missing_ok=True)
+        try:
+            info = path.lstat()
+            if stat.S_ISREG(info.st_mode) and info.st_mtime < cutoff:
+                path.unlink(missing_ok=True)
+        except FileNotFoundError:
+            continue  # Another process closed or pruned this window.
 
 
 def _mark_codex_index_closed(args, marker, end, avisos):
@@ -785,9 +809,9 @@ def _mark_codex_index_closed(args, marker, end, avisos):
 
 
 def _read_codex(store, cwd, start, end, tokens, coverage, marker, index_path):
-    if not store.is_dir():
+    if store is None or not store.is_dir():
         return False
-    index = _load_json(index_path) or {}
+    index = (_load_json(index_path) or {}) if index_path is not None else {}
     store_id = _project_id(_project_path(str(store.absolute())))
     indexed = (isinstance(index, dict) and index.get("window") == marker.get("ventana_id")
                and index.get("store") == store_id and isinstance(index.get("days"), dict))
@@ -907,13 +931,16 @@ def _native_window(runtime, store, marker, end, coverage, avisos, args):
     try:
         if runtime == "codex":
             index = _codex_index_path(args, cwd, marker.get("ventana_id"))
-            if index is not None and not index.is_file():
+            if index is None:
+                coverage["cache_privada_no_disponible"] = True
+                avisos.append(_CODEX_PRIVATE_CACHE_WARNING)
+            elif not index.is_file():
                 index = _closed_codex_index(index)
-            if index is None or not index.is_file():
-                index = _legacy_codex_index_path(args, cwd)
+                if not index.is_file():
+                    index = _legacy_codex_index_path(args, cwd)
             available = _read_codex(store, cwd, start, end, tokens, coverage, marker, index)
         else:
-            available = _read_opencode(store, cwd, start, end, tokens, coverage)
+            available = store is not None and _read_opencode(store, cwd, start, end, tokens, coverage)
     except (ImportError, OSError, AttributeError, KeyError, TypeError, ValueError):
         available = False
     if not available:
@@ -934,7 +961,11 @@ def _native_window(runtime, store, marker, end, coverage, avisos, args):
 def _find_rates(explicit):
     if explicit:
         return _load_json(explicit)
-    for base in (Path.cwd() / ".claude", Path.home() / ".claude"):
+    bases = [Path.cwd() / ".claude"]
+    home = _user_home()
+    if home is not None:
+        bases.append(home / ".claude")
+    for base in bases:
         cand = base / "rates.json"
         if cand.is_file():
             return _load_json(cand)
@@ -1075,15 +1106,16 @@ def _procedencia(medido, cobertura, eur, sin_precio, rates):
     """Contrato de procedencia y cobertura (D-086), en claves PLANAS aditivas para que el bloque
     `generacion:` las pueda copiar tal cual: tokens medidos, coste estimado y coste incompleto van
     separados. `eur` es SIEMPRE una estimación (tokens × precioTokens de rates.json), nunca una factura."""
+    indice_incompleto = cobertura.get("historico_sin_indice") or cobertura.get("cache_privada_no_disponible")
     if medido:
-        parcial = cobertura.get("errores") or cobertura.get("campos_malos") or cobertura.get("historico_sin_indice")
+        parcial = cobertura.get("errores") or cobertura.get("campos_malos") or indice_incompleto
         tokens = {"tokens_procedencia": "transcript",
                   "tokens_cobertura": "parcial" if parcial else "completa",
                   "transcripts_leidos": cobertura.get("leidos", 0),
                   "transcripts_subagente": cobertura.get("subagente", 0),
                   "transcripts_con_error": cobertura.get("errores", 0)}
     else:
-        tokens = {"tokens_procedencia": "sin_medida", "tokens_cobertura": "parcial" if cobertura.get("historico_sin_indice") else "sin_medida",
+        tokens = {"tokens_procedencia": "sin_medida", "tokens_cobertura": "parcial" if indice_incompleto else "sin_medida",
                   "transcripts_leidos": None, "transcripts_subagente": None, "transcripts_con_error": None}
     if eur is None:
         coste = {"coste_procedencia": "sin_coste", "coste_cobertura": "sin_coste", "coste_sin_precio": [],
@@ -1125,7 +1157,7 @@ def cmd_start(args):
     native = runtime in _NATIVE_RUNTIME
     tdir = args.transcript_dir or (_native_store(runtime) if native else _project_transcript_dir())
     inventory = None
-    if runtime == "codex":
+    if runtime == "codex" and tdir:
         try:
             inventory = _codex_inventory(Path(tdir))
         except OSError:
@@ -1136,7 +1168,7 @@ def cmd_start(args):
                 "revision_medicion": 0}
     if native:
         marcador.update(runtime=runtime, proyecto_id=_project_id(_project_path(os.getcwd())),
-                        transcriptDir=str(Path(tdir).absolute()))
+                        transcriptDir=str(Path(tdir).absolute()) if tdir else None)
     elif runtime == "claude" and (getattr(args, "runtime", None) or os.environ.get("CUSTOM_AGENTS_RUNTIME")):
         marcador["runtime"] = runtime
     if not tdir:
@@ -1144,19 +1176,23 @@ def cmd_start(args):
     saved = False
     try:
         with _locked_state(args.state, avisos) as state:
-            if inventory is not None:
-                index = {"window": marcador["ventana_id"], "days": inventory,
-                         "store": _project_id(_project_path(marcador["transcriptDir"]))}
-                try:
-                    path = _codex_index_path(args, _project_path(os.getcwd()), marcador["ventana_id"])
-                    if path is None:
-                        avisos.append("codex: caché privada del índice no disponible")
-                    else:
+            if runtime == "codex":
+                path = _codex_index_path(args, _project_path(os.getcwd()), marcador["ventana_id"])
+                if path is None:
+                    avisos.append(_CODEX_PRIVATE_CACHE_WARNING)
+                elif inventory is not None:
+                    index = {"window": marcador["ventana_id"], "days": inventory,
+                             "store": _project_id(_project_path(marcador["transcriptDir"]))}
+                    try:
                         path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-                        _prune_codex_indexes(path.parent, _parse_iso(inicio))
+                    except OSError:
+                        avisos.append(_CODEX_PRIVATE_CACHE_WARNING)
+                    else:
+                        try:
+                            _prune_codex_indexes(path.parent, _parse_iso(inicio))
+                        except OSError:
+                            avisos.append("codex: no se pudo podar la caché privada del índice")
                         _save_state(path, index, avisos)
-                except OSError:
-                    avisos.append("codex: no se pudo preparar la caché privada del índice")
             state[args.artefacto] = marcador
             _migrar_cerrados(state)
             saved = _save_state(args.state, state, avisos)
@@ -1258,7 +1294,8 @@ def cmd_close(args):
     elif runtime in _NATIVE_RUNTIME:
         # Marcadores anteriores a fix3 podían apuntar a Claude aunque start recibiera --runtime.
         saved_store = marcador.get("transcriptDir") if marcador.get("runtime") == runtime else None
-        tdir = Path(args.transcript_dir or saved_store or _native_store(runtime))
+        store = args.transcript_dir or saved_store or _native_store(runtime)
+        tdir = Path(store) if store else None
         tokens, sin_medida = _native_window(runtime, tdir, marcador, fin, cobertura, avisos, args)
     else:
         tdir = args.transcript_dir or marcador.get("transcriptDir")

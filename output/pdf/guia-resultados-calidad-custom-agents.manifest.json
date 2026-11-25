@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "edition": "2026-11-19",
+  "edition": "2026-11-25",
   "language": "es",
   "pdf": "output/pdf/guia-resultados-calidad-custom-agents.pdf",
-  "pdf_sha256": "ac1a6890a2ec79501e96bd5af0fcc99043bf88397404be78343ee8d18fe8098e",
+  "pdf_sha256": "56cc81dba8f31555553638866370effd4c509e0cd82735905d732642ed5820c1",
   "source_hash_method": "sha256-utf8-lf",
   "sources": {
     "docs/guides/quality-playbook.md": "2bc287e6ffb93e56d56ad4fca0849f58266298905712d9a4f27f9cc737e9f6a3"
@@ -14,31 +14,31 @@
       "source": "docs/guides/quality-playbook.md",
       "index": 1,
       "sha256": "29263d91cc8bf167ee249b64b30ddcd0e0548ede190431b498f398e5f9e3d63d",
-      "png_sha256": "f292b7af7c980973258ea442da109e6f1471fce7a121f475ea8c6fd0bd568a9f"
+      "png_sha256": "3ea846a2cd3e36c859cf2e5cf00e61a04e6af2611fab6ffa6eb6fbb9ef1ae06a"
     },
     {
       "source": "docs/guides/quality-playbook.md",
       "index": 2,
       "sha256": "2045145ee8f7e24dc8dcd3dfc466b0e8f7ca72fb49e374af9d3217c3071894a1",
-      "png_sha256": "f8ccaab87922af0aae184d2269ca34445fc14e84e6a9efd32b640288eed6f915"
+      "png_sha256": "0bbed3b988d12439b46b4919cf95655d1dc30bda055472ba925a23ed8954c808"
     },
     {
       "source": "docs/guides/quality-playbook.md",
       "index": 3,
       "sha256": "ac09b53b09df89a4958fb0a547214b1a2aa54d5204203bf109b55e601c14ab22",
-      "png_sha256": "a788571ba2acda545bcf7a70e9254ca8cf99dd81ae118f9a8bd8e6357a6afcbe"
+      "png_sha256": "b28b4eab6e58d7bf715ac7f9fc2d24642bd188b8a724748f73a15b41b7e66211"
     },
     {
       "source": "docs/guides/quality-playbook.md",
       "index": 4,
       "sha256": "c210643bfc7b09e3148d7db4cb1ecc6ee98669b7ef3ccebc3bd594e957e7846d",
-      "png_sha256": "3f46cc5e9d5031a776a1898cfd5075c820f5ead8cee1219fc8e4d8cd26cef248"
+      "png_sha256": "d58c17dfe3a05660da5d8f48a54f1bf1f4ff13913b7a97bff0f1c98b4a329f3d"
     },
     {
       "source": "docs/guides/quality-playbook.md",
       "index": 5,
       "sha256": "bba850af863a3dc27d35c3981372bad952b3652d994bcc6f6d759162201edf4a",
-      "png_sha256": "1bc146c41b42259c019f970414ea8e915c63afee26ce05ca4a36853e257e1c6f"
+      "png_sha256": "0ecc4637c026b379d49c5911c8ddc1890f2155727218c3b7f8159e6d78387bc8"
     }
   ],
   "renderer": "Chromium; offline resources; pre-rendered Mermaid PNG; final JavaScript disabled"
