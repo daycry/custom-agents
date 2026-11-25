@@ -534,15 +534,33 @@ def test_fix2_gap4_phase_state_respects_cancellation(states, expected):
     assert module.phase_state([{"estado": state} for state in states]) == expected
 
 
-@pytest.mark.parametrize("heading,rows,blocked", [
+def test_fix6_gap1_real_reclassified_counts(monkeypatch):
+    roadmap = KIT.parents[1] / "docs/roadmap"
+    jira = load_script(KIT.parents[1] / "skills/jira-sync/scripts/jira-flow.py")
+    brief = load_script(KIT / "task-brief.py")
+    monkeypatch.setattr(jira, "_cargar_ledger_lint", lambda: None)
+    for slug, tasks in (
+        ("2026-09-03-windows-console", ["T-04"]),
+        ("2026-11-09-plugin-audit-remediation", [f"T-{n:02}" for n in range(17, 22)]),
+    ):
+        text = source(roadmap / slug / "tasks.md")
+        sections = brief.secciones_revision(text)
+        for task in tasks:
+            assert not brief.filas_pendientes_de_tarea(sections, task)[1], (slug, task)
+            assert jira.evidencia_aprobado(text, [task], qa_verde=True)[0] is not None, (slug, task)
+            assert jira.evidencia_aprobado(text, [task], qa_verde=False)[0] is None
+
+
+@pytest.mark.parametrize("heading,rows,warns", [
     ("2 Important, 1 Minor", [("Important", "pendiente")], True),
     ("1 Important", [("Minor", "pendiente")], True),
     ("1 Critical", [], True),
     ("1 Important", [("Important", "corregido")], False),
     ("1 Important", [("Important", "pendiente")], False),
     ("0 Critical, 1 Minor", [], False),
+    ("1 Critical, 1 Important", [("Critical", "corregido")] * 2, False),
 ])
-def test_fix5_gap2_unread_counts(ledger, heading, rows, blocked):
+def test_fix6_gap1_counts_only_warn(ledger, heading, rows, warns):
     text = BASE.replace("- [ ] Pending.", "- [x] Verified.")
     text += f"\n## Revisión de dos lentes — intento 1: (T-01..T-02) — {heading}\n"
     header_line = len(text.splitlines())
@@ -552,12 +570,68 @@ def test_fix5_gap2_unread_counts(ledger, heading, rows, blocked):
     lint = load_script(KIT / "ledger-lint.py")
     brief = load_script(KIT / "task-brief.py")
     jira = load_script(KIT.parents[1] / "skills/jira-sync/scripts/jira-flow.py")
-    assert bool(brief.filas_pendientes_de_tarea(brief.secciones_revision(text), "T-02")[1]) == blocked
-    assert (jira.evidencia_aprobado(text, ["T-02"], qa_verde=True)[0] is None) == blocked
-    assert any(f"línea {header_line}:" in w and "recuento" in w for w in lint.lint(ledger)[1]) == blocked
+    assert not brief.filas_pendientes_de_tarea(brief.secciones_revision(text), "T-02")[1]
+    assert jira.evidencia_aprobado(text, ["T-02"], qa_verde=True)[0] is not None
+    assert any(f"línea {header_line}:" in w and "recuento" in w for w in lint.lint(ledger)[1]) == warns
+    blocked = ("Important", "pendiente") in rows
+    result = writer(ledger, "verdict", "--tasks", "T-01,T-02", "--attempt", "1", "--result", "limpio")
+    assert (result.returncode != 0) == blocked, result.stdout + result.stderr
     if blocked:
-        result = writer(ledger, "verdict", "--tasks", "T-01,T-02", "--attempt", "1", "--result", "limpio")
         assert json.loads(result.stdout)["status"] == "blocking_gaps" and source(ledger) == text
+
+
+@pytest.mark.parametrize("heading", ["2 Important", "dos Important", "2 Importantes", "Important: 2"])
+@pytest.mark.parametrize("correction", ["pendiente", "corregido"])
+def test_fix6_gap2_count_wording_preserves_rows(heading, correction, monkeypatch):
+    brief = load_script(KIT / "task-brief.py")
+    jira = load_script(KIT.parents[1] / "skills/jira-sync/scripts/jira-flow.py")
+    monkeypatch.setattr(jira, "_cargar_ledger_lint", lambda: None)
+    text = BASE + f"\n## Revisión de dos lentes — intento 1: (T-01) — {heading}\n"
+    text += review_table("T-01", correction)
+    rows = brief.filas_pendientes_de_tarea(brief.secciones_revision(text), "T-01")[1]
+    assert [row["num"] for row in rows] == (["1"] if correction == "pendiente" else [])
+    assert (jira.evidencia_aprobado(text, ["T-01"], qa_verde=True)[0] is None) == bool(rows)
+
+
+@pytest.mark.parametrize("later, warns", [
+    ("(T-01)\n\n**Veredicto del plugin**: limpio\n", True),
+    ("(T-01..T-02)\n\n**Veredicto del plugin**: limpio\n", False),
+    ("(T-01..T-02)\n\nPendiente de revisión; sin veredicto.\n", True),
+    ("(T-01)\n" + review_table("T-01,T-02", "pendiente"), False),
+])
+def test_fix6_gap2_later_evidence_covers_warning(ledger, later, warns):
+    text = BASE + "\n## Revisión de dos lentes — intento 9: (T-01..T-02) — 2 Important\n"
+    header_line = len(text.splitlines())
+    text += f"\n## Revisión de dos lentes — intento 1: {later}"
+    lint = load_script(KIT / "ledger-lint.py")
+    warnings = lint.lint(ledger, text=text)[1]
+    assert (f"línea {header_line}: recuento de gaps sin filas legibles suficientes" in warnings) == warns
+
+
+def test_fix6_gap2_archived_attempt_no_synthetic_block():
+    ledger = KIT.parents[1] / "docs/roadmap/2026-11-10-plugin-audit-2/tasks.md"
+    lint = load_script(KIT / "ledger-lint.py")
+    sections = lint.secciones_revision(source(ledger))
+    archived = next(s for s in sections if s["intento"] == 18)
+    for task in ("T-06", "T-07", "T-23"):
+        assert not lint.blocking_tasks(archived, {task})
+        assert all(row["intento"] != 18 for row in lint.filas_pendientes_de_tarea(sections, task)[1])
+
+
+def test_fix6_gap4_attempt18_archived_task_results():
+    ledger = KIT.parents[1] / "docs/roadmap/2026-11-10-plugin-audit-2/tasks.md"
+    lint = load_script(KIT / "ledger-lint.py")
+    text = source(ledger)
+    attempt = next(s for s in lint.secciones_revision(text) if s["intento"] == 18)
+    assert "Resultado archivado por tarea" in attempt["resumen"]
+    assert "T-07 sin gaps" in attempt["resumen"]
+    assert [(r["num"], r["tarea"], r["correccion"]) for r in attempt["filas"]] == [
+        ("1", "T-06", "corregido en fix18"), ("2", "T-06", "corregido en fix18"),
+        ("3", "T-23", "corregido en fix18"), ("4", "T-23", "corregido en fix18"),
+        ("5", "T-06", "límite conocido"),
+    ]
+    line = text[:attempt["inicio"]].count("\n") + 1
+    assert not any(w.startswith((f"línea {line}:", "T-07:")) for w in lint.lint(ledger)[1])
 
 
 @pytest.mark.parametrize("cell", ["T-05..T-01", "T-01–T-03–T-05", "nota T-01..T-05",

@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import os
 from pathlib import Path
 import sqlite3
+import subprocess
 
 import pytest
 
@@ -16,7 +17,14 @@ STAMP = "2026-11-24T12:05:00Z"
 
 
 @pytest.fixture
-def meter(tmp_path, monkeypatch, capsys):
+def private_cache(tmp_path_factory, monkeypatch):
+    home = tmp_path_factory.mktemp("meter-home")
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: home))
+    return home
+
+
+@pytest.fixture
+def meter(tmp_path, monkeypatch, capsys, private_cache):
     monkeypatch.chdir(tmp_path)
     path = Path(__file__).with_name("usage-meter.py")
     spec = importlib.util.spec_from_file_location("runtime_meter", path)
@@ -25,9 +33,9 @@ def meter(tmp_path, monkeypatch, capsys):
     monkeypatch.delenv("CUSTOM_AGENTS_RUNTIME", raising=False)
     monkeypatch.delenv("CODEX_THREAD_ID", raising=False)
 
-    def run(command, runtime, *, at=START, source=None):
+    def run(command, runtime, *, at=START, source=None, artifact="fixture"):
         monkeypatch.setattr(mod, "_now_iso", lambda **_: at)
-        args = [command, "--artefacto", "fixture", "--state", str(tmp_path / "state.json")]
+        args = [command, "--artefacto", artifact, "--state", str(tmp_path / "state.json")]
         if runtime:
             args.extend(["--runtime", runtime])
         if source:
@@ -133,6 +141,40 @@ def test_fix5_gap1_resumed_sessions(tmp_path, meter, monkeypatch, thread_env):
     assert extended["tokens_reales"] == dict(entrada=280, salida=105, cache_creacion=0,
                                              cache_lectura=400, respuestas=3)
     assert opened.count(old) == 2 and opened.count(current) == 1
+
+
+def test_fix6_gap3_index_is_private_and_legacy_index_is_ignored(tmp_path, meter, private_cache):
+    meter("start", "codex", source=tmp_path / "sessions")
+    assert not list(tmp_path.rglob("*.codex-index.json"))
+    assert len(list(private_cache.rglob("*.codex-index.json"))) == 1
+    repo = Path(__file__).resolve().parents[2]
+    result = subprocess.run(
+        ["git", "check-ignore", "nested/.claude/usage-state.json.legacy.codex-index.json"],
+        cwd=repo, capture_output=True, check=False,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_fix6_gap3_prunes_expired_closed_index_and_preserves_repeat(tmp_path, meter, private_cache):
+    sessions = tmp_path / "sessions"
+    cache = private_cache
+    old = codex_log(sessions, "2026-11-20", "resumed", tmp_path,
+                    [codex_usage("2026-11-20T09:00:00Z", 1, 0, 0, 1, 2)])
+    meter("start", "codex", source=sessions)
+    meter("start", "codex", source=sessions, artifact="open")
+    assert len(list(cache.rglob("*.codex-index.json"))) == 2
+    stat = old.stat()
+    with old.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(codex_usage(STAMP, 100, 0, 0, 10, 112)) + "\n")
+    os.utime(old, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+    first = meter("close", None, at=END)
+    assert first["tokens_reales"]["respuestas"] == 1
+    meter("start", "codex", source=sessions, artifact="different", at="2026-12-25T12:00:00Z")
+    assert len(list(cache.rglob("*.closed.codex-index.json"))) == 0
+    assert len(list(cache.rglob("*.codex-index.json"))) == 2  # still open + newest
+    repeat = meter("close", None, at=END)
+    assert repeat["tokens_reales"] == first["tokens_reales"]
+    assert repeat["ventana_id"] == first["ventana_id"]
 
 
 def test_fix4_gap5_codex_limits_days_and_skips_stale_files(tmp_path, meter, monkeypatch):
