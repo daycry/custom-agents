@@ -1475,3 +1475,7 @@ Lentes A y B (Claude Opus 5.5, esfuerzo medio) sobre `89b4d6b..cbf88e6` (fix6 de
 | 3 | Minor | «Cubierto por una revisión posterior» acepta una sección posterior con filas pero sin veredicto: apaga el aviso de un Critical ilegible | T-40 | corregido (fix7, 92bd141; test test_fix7_gap3_minor_rows_without_verdict_cannot_hide_warning) | `ledger-lint.py:671`; `scratchpad/r7/hide.py` |
 | 4 | Minor | Poda y guardado del índice en el mismo `try` (una carrera con `unlink` pierde el índice); índices abiertos de ventanas abandonadas nunca se podan | T-40 | corregido (fix7, 92bd141; test test_fix7_gap4_prune_race_does_not_discard_new_index, test_fix7_gap4_prunes_abandoned_open_index) | `usage-meter.py:766-769,1156-1158` |
 
+
+## Revisión de dos lentes — intento 8: Fase 3 (T-40) — verificación del fix7 (T-40)
+
+Pendiente de revisión; sin veredicto.
