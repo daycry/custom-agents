@@ -1453,3 +1453,7 @@ Lentes A y B (Claude Opus 5.5, esfuerzo alto) sobre `25d5b80..566761e` (fix5 de 
 | 4 | Minor | Los avisos nuevos de este ledger (línea 1229 y T-07) vienen del intento 18 archivado a mano (cabecera con «4 Important» y cuerpo en `testing/`): problema de registro, no de código; no constan en la Verificación del fix5 | T-40 | corregido (fix6, dc240d7; test test_fix6_gap4_attempt18_archived_task_results) | `tasks.md:1229` |
 
 Decisión del usuario (2026-11-24), textual: «Cerrar T-40 y tarea nueva». Revisión externa de gpt-6.2-astra (`scratchpad/t40-astra-review.md`): confirma los 4 gaps y propone retirar la comparación de recuentos como puerta y registrar las revisiones de forma estructurada (3-5 jornadas). Ciclo nuevo (intento 7) con un fix6 corto: la comparación de recuentos queda como aviso de `ledger-lint` sin fila sintética ni bloqueo, el índice de Codex sale del repo y entra en `.gitignore`, y se arregla el registro del intento 18. El rediseño va a la tarea T-14 de `docs/roadmap/2026-11-24-auditoria-astra/`.
+
+## Revisión de dos lentes — intento 7: Fase 3 (T-40) — verificación del fix6 — ciclo 3, abierto con OK del usuario: «Cerrar T‑40 y tarea nueva» (T-40)
+
+Pendiente de revisión; sin veredicto.
