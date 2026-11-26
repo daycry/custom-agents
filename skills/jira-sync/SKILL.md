@@ -16,11 +16,6 @@ Aplica `agent-kits/shared/project-integrations.md` desde la raíz explícita del
 Antes de usar tools, lee `references/transport-contract.md`: versión real del conector,
 permisos, settings, recibos y resultado incierto. Sin capacidad, continúa localmente.
 
-## Alcance y activación
-
-Vuelca un plan (tasks.md de docs/roadmap/<fecha>-<slug>/) a Jira creando issues, vía el conector oficial de Atlassian (Rovo MCP). Se ofrece al CREAR el plan (opt-in). Asistente guiado para elegir destino: en Cowork/escritorio abre un ARTEFACTO interactivo (buscar proyecto / buscar issue padre por clave, texto o JQL); en CLI o VS Code hace lo mismo de forma CONVERSACIONAL (por texto, eligiendo por número). Determina el tipo de issue según la jerarquía del padre (no lo hardcodea), comprueba campos obligatorios, PREVISUALIZA y pide confirmación antes de crear nada, es idempotente (no duplica) y escribe las claves Jira de vuelta en tasks.md.
-
-
 Convierte las tareas de un plan (`docs/roadmap/<fecha>-<slug>/tasks.md`) en **issues de Jira**,
 usando el **conector oficial de Atlassian (Rovo MCP)** — sin integración propia. Se ofrece **al
 crear el plan** y es **opt-in**: si el usuario no quiere, no se hace nada.

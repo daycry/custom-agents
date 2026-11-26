@@ -539,22 +539,29 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: Párrafos que repiten la description antigua dentro del cuerpo (25 ocurrencias de «Alcance y activación» en `agents/`, `commands/` y `skills/`; el análisis contó 21: se clasifica pieza a pieza). Se borran los que duplican la description y se conserva lo que aporta un guardarraíl. Ahorro estimado ≈15 KB.
 - **Changelog**: Los cuerpos de agentes, comandos y skills ya no repiten su propia description.
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 2h · real —
 - **Tiempo IA (ejec.)**: est. 0.6h · real —
 - **Dependencias**: T-12, T-13, T-11
-- **Archivos**: `agents/*.md`, `commands/*.md`, `skills/*/SKILL.md` (solo los párrafos «Alcance y activación»), `agent-kits/shared/test_source_snapshot.py` (líneas base de párrafos, con motivo), `docs/{,en/}TOKEN-EFFICIENCY.md`, `interop/**` (regenerado)
+- **Archivos**: `agents/*.md`, `commands/*.md`, `skills/*/SKILL.md` (solo los párrafos «Alcance y activación»), `agent-kits/shared/test_source_snapshot.py` (líneas base de párrafos, con motivo), `docs/{,en/}TOKEN-EFFICIENCY.md`, `interop/**` (regenerado), `tests/test_skill_size.py` (nota: test RED/GREEN de la lista de conservados), `tests/fixtures/opencode-v2-agent-contract.json` y `tests/fixtures/dev-cycle-modular-replacements.json` (nota: son las líneas base reales de esos párrafos; `test_source_snapshot.py` no fija ninguno y no cambia)
 - **Runtimes**: Los cuerpos se copian a los agentes generados de Codex y OpenCode: se regenera y los evals de description siguen casando.
+- RED: tests/test_skill_size.py::test_alcance_y_activacion_solo_donde_aporta_una_regla falló con AssertionError (25 piezas con la sección frente a 5 conservadas) (commit `16170b0`) · 2026-11-26
+- **Evidencia** (estimación caracteres/4, no consumo facturado):
+  - Clasificación: 19 borrados (analyst, architect, documenter, knowledge-curator, setup y 14 skills): cada regla está en la description o en el cuerpo (p. ej. curator `:45,:167,:171`, tdd `:117-118`, quick-implement tabla de idoneidad). Reducidos a su guardarraíl: `doctor` (sin red salvo capacidades opt-in, locales, tope total) y `reviewer` (la petición directa va a la skill). Intactos: `evaluator` (único puntero a `scope.md`), `knowledge-services` y `project-extensions` (cuerpo real), `plugin-panel/references/static-panel.md` (referencia, fuera de `Archivos`).
+  - `context-footprint.py --project .`: 509.586 → 495.189 caracteres (−14.397; −14.753 bytes). Vía rápida 6.157 → 6.385; `agents/evaluator.md` 15.465 bytes LF.
+  - Líneas base con motivo: `opencode-v2-agent-contract.json` sin `description_body` en 4 agentes y la del reviewer = su guardarraíl; `dev-cycle-modular-replacements.json` +2 filas de quick-implement con `reason`.
+  - **k1**: `--diet-check` de las 14 skills da exactamente 1 párrafo perdido cada una, el borrado a propósito; ninguno más. **k2**: «criterio ausente de la description» se lee como ausente de la description Y del cuerpo; lo que solo estaba en el párrafo se conserva (doctor, reviewer).
 - **Verificación**:
   - `grep -rn "Alcance y activaci" agents commands skills --include=*.md` → solo los párrafos que aportan una regla que la description no tiene
   - `python agent-kits/shared/context-footprint.py --project .` antes y después → ≈15 KB menos, en `testing/tokens.md`
   - puertas de runtimes (cabecera) → verde
+- **Verificación ejecutada** (2026-11-26): `grep` → 5 piezas (evaluator, reviewer, doctor, knowledge-services, project-extensions) + `static-panel.md`; footprint −14.397; `export-interop.py --check` → `88 ficheros al día`; `evals/check.py` → `0 errores`; `lint_plugin.py` → `0 errores · 16 avisos`; pytest de runtimes + `test_source_snapshot`, `test_context_footprint`, `test_f4fix2_misc`, `test_dev_cycle_split`, `test_skill_size`, `test_ledger_write_transitions`, `test_phase3_review_contract` → verde; `check-handbook.py` → exit 0.
 
 **Criterios de aceptación**
-- [ ] Ningún párrafo borrado contiene un criterio ausente de la description (revisión pieza a pieza).
-- [ ] `python evals/check.py` sigue casando.
-- [ ] Los reemplazos en líneas base llevan motivo.
-- [ ] Medido: `context-footprint.py --project .` baja ≥ 12 KB (estimado 15 KB).
+- [x] Ningún párrafo borrado contiene un criterio ausente de la description (revisión pieza a pieza).
+- [x] `python evals/check.py` sigue casando.
+- [x] Los reemplazos en líneas base llevan motivo.
+- [x] Medido: `context-footprint.py --project .` baja ≥ 12 KB (estimado 15 KB).
 
 ### T-16 — Cierre de /dev-cycle bajo demanda (2.11)
 

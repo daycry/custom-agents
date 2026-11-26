@@ -152,13 +152,16 @@ cuando hace falta.
 | Freno del ledger: `ledger-lint` avisa a 60.000 bytes (`--umbral-bytes N`) y nombra `ledger-archive.py`; la Lente A recibe `task-brief.py <carpeta> --fase <N>` (T-14) | aviso a 183.500 bytes; Lente A con el ledger entero: 100.414 (prueba de 4 fases) · 189.819 (ledger de plugin-audit-2) | aviso a 60.000; Lente A 25.253 (−75 %) · 21.232 para la fase 3 (−89 %); por debajo del umbral, el ledger entero |
 | Cabecera «ORQUESTA agentes» y mapa de roles solo en los comandos exportados que despachan un rol (T-21) | 15 comandos por runtime con cabecera | 5 la conservan; 10 pierden 696 (Codex) y 658 (OpenCode) caracteres: −6.960 y −6.580 |
 | Bloque de `SessionStart` en Claude Code: solo la cabecera del índice, porque Claude ya enseña su listado nativo de skills (T-20) | índice de 3.378 | cabecera de 331 (−3.047 por arranque y compactación); Codex (3.349) y OpenCode (3.499) sin cambio |
+| Párrafos «Alcance y activación» que copiaban la description antigua en el cuerpo (T-15) | 25 párrafos; informe completo de entrada: 509.586 | 495.189 (−14.397): se borran 19 y se reducen 2 a su guardarraíl (`commands/doctor.md` 5.245, sin red salvo capacidades opt-in; `agents/reviewer.md` 8.200, la petición directa va a la skill); quedan los de `evaluator`, `knowledge-services`, `project-extensions` y la referencia de `plugin-panel` |
 
 T-14 introdujo la lectura por fase de la Lente A. Su fix3 llevó
 `skills/adversarial-review/SKILL.md` a 17.046 caracteres. Con los traspasos de
 estado de T-40, la medición actual con `context-footprint.py` da 17.691
 caracteres para esa skill, 29.077 para `agents/implementer.md`, 28.499 para
 `commands/dev-cycle.md` y 7.135 para `skills/quick-implement/SKILL.md`.
-El ahorro estimado de la vía rápida es de 6.157 tokens.
+El ahorro estimado de la vía rápida es de 6.157 tokens. Tras T-15, la skill
+queda en 16.949 caracteres, `skills/quick-implement/SKILL.md` en 6.224 y el
+ahorro de la vía rápida sube a 6.385 tokens.
 
 ## Evitar contexto de poco valor durante la ejecución
 

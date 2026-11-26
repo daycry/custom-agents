@@ -10,11 +10,6 @@ description: >
 
 # training-data-services — casos versionados y dataset Gold, sin saber nada del dominio
 
-## Alcance y activación
-
-Captura DETERMINISTA de casos (petición, contexto, trayectoria chat/SFT sin chain-of-thought, métricas opacas del proyecto, validación) en un case store versionado FUERA de Git y de `docs/knowledge/`, y ensamblado de dataset solo con casos Gold aprobados por un humano. Opt-in por proyecto con `.claude/knowledge-services/training.json`; sin él, cero impacto. El plugin valida FORMA, nunca dominio: no calcula métricas, no marca Gold solo, no entrena ni sirve modelos. `scripts/case_schema.py` valida `training.json` y el esquema del caso (vocabularios cerrados de `validation.status` y `outcome`, mapeo declarado desde `useful|dead_end|corrected`). `dataset-assembler.py` ensambla el dataset; `propose-from-case.py` propone, nunca aprueba.
-
-
 Algunos proyectos repiten tareas con una forma objetiva de medir el éxito y quieren conservar cada
 intento para entrenar después un modelo local más barato. Esta skill da el **mecanismo genérico**:
 esquema del caso, recorder determinista, puerta humana para Gold y ensamblador de dataset. Todo lo

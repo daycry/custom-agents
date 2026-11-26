@@ -10,11 +10,6 @@ description: >
 
 # code-health — medir la salud del código antes de opinar sobre ella
 
-## Alcance y activación
-
-Informe DETERMINISTA y agnóstico de lenguaje de la salud de un árbol de código, con el script `code-health.py` (sin modelo, con tests): (1) duplicados por shingles de tokens normalizados entre ficheros con pares `fichero:línea`, (2) tamaño y complejidad aproximada (líneas, anidamiento, funciones largas), (3) hotspots — ficheros grandes Y que cambian mucho según `git log` — y (4) TODO/FIXME/HACK con su antigüedad por `git blame`. Lo usa `evaluator` para ajustar riesgo/complejidad de una spec y `planner` para abrir tareas de deuda; `/roadmap-brief` puede incluir el resumen. NO refactoriza (eso es `quick-implement`/`implementer`) ni busca vulnerabilidades (eso es `nemesis`/`cybersecurity`).
-
-
 Cuatro medidas **deterministas** (regex y tokens, sin modelo) sobre un árbol de código, para que
 `evaluator` fundamente complejidad y riesgo con números y `planner` abra deuda con `fichero:línea`,
 en vez de «el código está sucio». Todas son **heurísticas honestas**: sirven para ordenar y comparar

@@ -162,6 +162,20 @@
       "after_sha256": "6211a0cb43936ba6b8414658b4c1633a594c4f9b79414898f818a496e4169895",
       "after_file": "commands/dev-cycle.md",
       "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates."
+    },
+    {
+      "before_sha256": "60dc7ba69f3646db5fb050a57ed1a2dbae9e3fb3b3c01fb76b267d5272e17304",
+      "before_file": "skills/quick-implement/SKILL.md",
+      "after_sha256": "50a69c9711ec4a709d8fb332109f8b19e3b6e4d261a74408dff16fedb0afd70c",
+      "after_file": "skills/quick-implement/SKILL.md",
+      "reason": "plugin-audit-2 T-15: the «Alcance y activación» heading only introduced the old description; the suitability filter paragraph opens the body."
+    },
+    {
+      "before_sha256": "f18e24922ee389643ff1b0d9d204826864a2ec9fb3fdc2cd3b3b1b1fd9360d79",
+      "before_file": "skills/quick-implement/SKILL.md",
+      "after_sha256": "29e62396c02a94307ca7d0503e8f27caadba9decb7f7206663631f626fec719a",
+      "after_file": "skills/quick-implement/SKILL.md",
+      "reason": "plugin-audit-2 T-15: old description copied into the body; its do-not-use cases (unknowns, phases, budget, typed /dev-cycle, one-line change, ask when unsure) live in the description and the suitability table."
     }
   ]
 }

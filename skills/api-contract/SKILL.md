@@ -10,11 +10,6 @@ description: >
 
 # api-contract — el contrato manda; el código se adapta
 
-## Alcance y activación
-
-Flujo CONTRACT-FIRST para APIs con `scripts/openapi-lint.py` (SIN dependencias externas): valida la estructura MÍNIMA de una spec OpenAPI 3.x (`operationId` único, `responses` con 2xx y 4xx/5xx, `$ref` internos resueltos, parámetros con schema/content) y, con `--diff <old> <new>`, detecta cambios ROMPEDORES — path u operación eliminada, parámetro obligatorio nuevo, campo de respuesta eliminado, tipo cambiado, enum que pierde valores — frente a cambios compatibles informativos (path o campo opcional nuevo). Regla: el CONTRATO manda, el código se adapta. `planner` abre tareas de contrato cuando la spec toca una API; la Lente A de `adversarial-review` ejecuta `--diff` si el diff toca la spec. NO documenta la API para humanos (`documenter`) ni audita su seguridad (`nemesis`).
-
-
 Resolución de rutas (regla 5 de CONVENTIONS — nunca rutas fijas):
 ```bash
 R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$PWD/$M" ] && R="$PWD"; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SKILL="${R:+$R/skills/api-contract}"

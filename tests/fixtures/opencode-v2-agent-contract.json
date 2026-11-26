@@ -77,8 +77,7 @@
           "resource": "*",
           "effect": "allow"
         }
-      ],
-      "description_body": "Convierte la petición en una spec verificable y aprobada por el usuario. El formato, las ocho dimensiones y los límites del rol se detallan a continuación."
+      ]
     },
     "custom-agents-architect": {
       "mode": "subagent",
@@ -141,8 +140,7 @@
           "resource": "*",
           "effect": "allow"
         }
-      ],
-      "description_body": "Compara opciones a partir de una spec aprobada y documenta la elegida por el usuario. La entrada, los límites de escritura y los modos de validación están en §0 y P3."
+      ]
     },
     "custom-agents-documenter": {
       "mode": "subagent",
@@ -205,8 +203,7 @@
           "resource": "*",
           "effect": "allow"
         }
-      ],
-      "description_body": "Genera y mantiene la documentación técnica y de producto de un proyecto, de forma estructurada y detallada, dentro de `docs/`. Explora el repositorio (código, config, dependencias) y produce una taxonomía completa — índice, RAG-INDEX, arquitectura, stack técnico, módulos/componentes, guías de desarrollo y documentación de producto/usuario — con Markdown correcto, tablas y ejemplos reales del código. Idempotente: crea lo que falta, actualiza lo existente y mantiene el índice y la fecha. Al cerrar, si detecta una decisión/patrón/gotcha/lección con evidencia real, propone (nunca aprueba) un candidato mediante `knowledge-curation.py` en `docs/knowledge/candidates/pending/` — el juez es `knowledge-curator`. Al escribir en `docs/`, permite proyección externa mediante las integraciones de documentación elegidas por el proyecto."
+      ]
     },
     "custom-agents-evaluator": {
       "mode": "subagent",
@@ -397,8 +394,7 @@
           "resource": "*",
           "effect": "allow"
         }
-      ],
-      "description_body": "Único agente que aprueba, rechaza o pide cambios sobre conocimiento propuesto bajo `docs/knowledge/candidates/`; persiste sus decisiones exclusivamente mediante el servicio compartido `knowledge-curation.py` (ADR-018, `knowledge-services`). Valida cada candidato contra la taxonomía del proyecto (`.claude/knowledge-services/taxonomy.json`, o el default del plugin): categoría declarada, evidencia mínima exigida por esa categoría exacta, fuentes, tags `clave:valor` y lista negra (`curator-gate.py`, determinista). Pide confirmación al usuario ante contradicciones con conocimiento existente o candidatos de alto impacto. No exporta a ningún backend externo ni toca `docs/roadmap/`."
+      ]
     },
     "custom-agents-nemesis": {
       "mode": "subagent",
@@ -651,7 +647,7 @@
           "effect": "allow"
         }
       ],
-      "description_body": "Revisor ADVERSARIAL de solo lectura y contexto fresco para las lentes de la skill adversarial-review — recibe UNA lente (A conformidad con spec/plan/constitución · B robustez/corrección · C seguridad del diff · D rendimiento del diff), el diff o rango y los artefactos contra los que revisar, y devuelve la salida ESTRUCTURADA que la skill fusiona (tabla por criterio ✓/✗ con fichero:línea, gaps graduados Critical/Important/Minor con escenario concreto, evidencia ejecutada; «sin defectos» es una salida válida). No escribe ni corrige nada (Write/Edit no están en sus tools; Bash solo para ejecutar tests/scripts como evidencia). Lo invoca la skill adversarial-review por nombre (/dev-cycle Fase 3, quick-implement); una petición directa del usuario de revisar el diff entero con las dos lentes fusionadas va a la skill (fuente única del método), no a este agente. Úsalo cuando la skill adversarial-review despache una lente, o cuando el usuario diga \"actúa como revisor de la lente A/B/C/D\", \"revisor de contexto fresco sobre este diff\", \"hazme solo la lente de seguridad del diff\"."
+      "description_body": "Una petición directa del usuario de revisar el diff entero con las lentes fusionadas va a la skill `adversarial-review` (fuente única del método), no a este agente."
     }
   }
 }

@@ -30,11 +30,6 @@ Para explorar o reutilizar hallazgos, aplica `agent-kits/shared/read-discipline.
 
 # Agente: Documenter (documentación estructurada del proyecto)
 
-## Alcance y activación
-
-Genera y mantiene la documentación técnica y de producto de un proyecto, de forma estructurada y detallada, dentro de `docs/`. Explora el repositorio (código, config, dependencias) y produce una taxonomía completa — índice, RAG-INDEX, arquitectura, stack técnico, módulos/componentes, guías de desarrollo y documentación de producto/usuario — con Markdown correcto, tablas y ejemplos reales del código. Idempotente: crea lo que falta, actualiza lo existente y mantiene el índice y la fecha. Al cerrar, si detecta una decisión/patrón/gotcha/lección con evidencia real, propone (nunca aprueba) un candidato mediante `knowledge-curation.py` en `docs/knowledge/candidates/pending/` — el juez es `knowledge-curator`. Al escribir en `docs/`, permite proyección externa mediante las integraciones de documentación elegidas por el proyecto.
-
-
 ## Rol
 Eres un **redactor técnico**. Conviertes un repositorio en **documentación clara, estructurada y
 detallada** dentro de `docs/`: técnica (para desarrolladores) y de producto/usuario (qué hace y

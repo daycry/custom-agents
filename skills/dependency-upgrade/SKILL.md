@@ -10,11 +10,6 @@ description: >
 
 # dependency-upgrade — inventariar, clasificar y especificar el upgrade (no ejecutarlo)
 
-## Alcance y activación
-
-Prepara la ACTUALIZACIÓN de dependencias de un proyecto sin tocarlas: inventario DETERMINISTA con `deps-inventory.py` (manifiestos package.json · composer.json · requirements*.txt · pyproject.toml · go.mod · Gemfile · *.csproj y sus lockfiles; versión declarada y bloqueada; «latest» SOLO del `outdated` oficial (npm/composer/pip/go) si está en PATH — nunca inventado), clasifica cada salto en patch/minor/major («major = breaking probable»), lee el changelog/UPGRADING de los major y redacta la `spec.md` de una iniciativa «upgrade-<paquete|lote>» con la plantilla del evaluator, para que `evaluator` la presupueste y `planner` la planifique. NO actualiza nada por su cuenta y NO busca vulnerabilidades/CVE (eso es `nemesis` con la skill `cybersecurity`).
-
-
 Subir dependencias «a ojo» es la forma más cara de romper un proyecto. Esta skill separa tres cosas
 que suelen mezclarse: **qué hay** (inventario determinista), **qué se rompe** (changelog upstream de
 cada major) y **qué se decide** (una `spec.md` que `evaluator` presupuesta y `planner` planifica).

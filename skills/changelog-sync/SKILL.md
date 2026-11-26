@@ -9,11 +9,6 @@ description: >
 
 # changelog-sync — el CHANGELOG sale del ledger, no de la memoria
 
-## Alcance y activación
-
-Genera las entradas `[Unreleased]` (EN) y `[Sin publicar]` (ES) del CHANGELOG a partir de los ledgers CERRADOS del roadmap (`docs/roadmap/*/tasks.md` con `estado: completado`), de forma DETERMINISTA e idempotente: un bullet por tarea `T-XX` con su título, un resumen de UNA o DOS frases y sus ficheros clave, con la categoría `Added|Changed|Fixed` deducida (o declarada en el frontmatter). El resumen sale de una ESCALERA: el campo `- **Changelog**:` de la tarea si está (la vía buena, lo escribe quien la cerró) → la primera frase de la `Descripción` si cabe en el tope → su oración principal → solo el título con puntero al ledger. Nunca trunca una frase con `…`. No crea la sección de versión (eso es el script de release del proyecto) ni inventa alcance.
-
-
 Al cerrar una iniciativa hay que dejar constancia en el CHANGELOG. Escribirlo «de memoria» al
 final del día es justo cuando se olvidan tareas y se inventa alcance (pasó en la v1.15.0: las
 notas se redactaron a mano cuatro veces — `LES-012`, del registro de desarrollo del plugin, que no se distribuye). Aquí la
