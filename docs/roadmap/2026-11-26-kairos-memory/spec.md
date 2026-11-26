@@ -8,15 +8,15 @@ evaluacion: pendiente
 design: n/a
 plan: pendiente
 generacion:
-  inicio: 2026-11-26T11:56:46Z
-  fin: 2026-11-26T11:59:26Z
+  inicio: 2026-11-26T12:20:28Z
+  fin: 2026-11-26T12:24:15Z
   fuente: medido
   fuente_id: src-d2ceb5c719af848b4c213bb2d521d0f003976923acb613d7512912ccbeb6a09e
-  ventana_id: win-c1a477eaca734b1e8e8c44819e8b0111
+  ventana_id: win-7c373393869d42529484c4668043d6d2
   revision_medicion: 1
   medicion_persistida: true
-  tokens_reales: { entrada: 18, salida: 21114, cache_creacion: 38691, cache_lectura: 1314721 }
-  eur: 0.81
+  tokens_reales: { entrada: 8, salida: 25411, cache_creacion: 30625, cache_lectura: 595687 }
+  eur: 0.72
   horas_ia: 0.11
   duracion: 7m
   ratio_usado: 531798.5
@@ -31,10 +31,11 @@ generacion:
 > - **Kairos**: servidor de memoria del usuario (repo knowledge-graphs). Habla MCP por *streamable HTTP* en exactamente `<base>/mcp/` (con barra final), con credencial `Authorization: Bearer`. Contrato: repo knowledge-graphs, `docs/contracts/kairos-mcp.json` (MCP 0.4.1, 34 herramientas, contrato estrictamente aditivo).
 > - **Adaptador**: fichero `backends/<type>.py` del marco `knowledge-services` con las 6 funciones `health/plan/apply/verify/rebuild/revoke` (+ opcionales `puede_leer`/`consultar`).
 > - **Cliente MCP genérico**: módulo Python del plugin que abre sesión MCP por HTTP, envía `Bearer` y llama herramientas por nombre. No sabe nada de Kairos.
-> - **Capacidad**: grupo de operaciones del adaptador (lectura, publicación, revocación, reconciliación, captura) que se habilita o degrada por separado según las herramientas que anuncie `tools/list`.
+> - **Capacidad**: grupo de operaciones del adaptador (lectura, publicación, revocación, reconciliación, captura) que se habilita o degrada por separado. Que exista se ve en `tools/list`; que funcione, solo con una llamada real.
 > - **Publicación documental**: envío de `docs/knowledge/approved/` con `publish_document`/`revoke_document`.
 > - **Memoria episódica**: eventos con `remember` (resumen de sesión del journal, hitos del ledger).
 > - **Generación documental**: sufijo que entra en el UUIDv5 del `document_id`; cambia solo cuando una entrada revocada (lápida) vuelve a `approved/`.
+> - **Ocurrencia de hito**: número de veces que un mismo hito (p. ej. «T-07 cerrada») ha sucedido en el ledger; reabrir y volver a cerrar una tarea da la ocurrencia 2.
 > - **Captura del cliente kairos**: hooks que instala `kairos install --capture summary|full` (fuera del plugin). Envía metadatos de ciclo de vida (`category: agent-activity`), **nunca** `session-summary.v1`. El plugin no la detecta ni depende de ella.
 
 ## Contexto y objetivo
@@ -56,8 +57,8 @@ Objetivo: que un proyecto que lo pida pueda usar Kairos como memoria de sus agen
 - **Sin bloquear nunca el ciclo**: si Kairos cae, se degrada con aviso y la outbox reintenta.
 
 Coordinación: la sesión de Claude que mantiene Kairos (sesión «kairos», dueña del repo
-knowledge-graphs) validó este diseño contra el servidor y el contrato 0.4.1 el 2026-11-26
-(rama `feat/access-control`). Este plugin no escribe en ese repo.
+knowledge-graphs) validó este diseño dos veces contra el servidor y el contrato 0.4.1 el
+2026-11-26 (rama `feat/access-control`). Este plugin no escribe en ese repo.
 
 ## Decisiones de diseño
 
@@ -78,13 +79,17 @@ Decisiones del usuario (2026-11-17/18 y 2026-11-26). Son requisitos, no se reabr
 | Host | **Local/privado por defecto**; cloud con opt-in `allow_remote` (`https`, sin redirecciones, sin IMDS ni enlace local) | `docs/CONSTITUTION.md:37` |
 | Runtimes | **Claude Code, Codex y OpenCode** sin código por runtime; traduce `export-interop.py` | Requisito del proyecto (multi-runtime) |
 
-Decisiones técnicas de este análisis, validadas por la sesión kairos:
+Decisiones técnicas (análisis y orquestador), validadas por la sesión kairos:
 
 | Decisión | Elección | Motivo |
 |---|---|---|
-| Identidad documental | **UUIDv5** de (`project_id`, ID local, generación). La generación empieza en 1 y **sube obligatoriamente** cuando una entrada con lápida vuelve a `approved/`. El ID local y la generación viajan en `source.uri`/`source.label` | El servidor no permite republicar un ID borrado (`Conflict`). Con el ID local en `source`, la generación se reconstruye desde `document_manifest` aunque se pierda el estado local |
-| Salud | **Por capacidad, desde `tools/list`**; nunca por `serverInfo.version` | El contrato es aditivo; el MCP interno en desuso devuelve la versión del SDK |
-| Errores | **Por texto del mensaje** de `isError` (lista cerrada abajo); 401 es de toda la petición | Por MCP no llegan códigos ni cabeceras |
+| Identidad documental | **UUIDv5** de (`project_id`, ID local, generación). La generación empieza en 1 y **sube obligatoriamente** cuando una entrada con lápida vuelve a `approved/`. `source.uri` = `custom-agents:<project_id>/<id_local>#g<n>` (sin espacios, ≤ 2.000 caracteres, sin aspecto de secreto) | El servidor no permite republicar un ID borrado. `document_manifest` devuelve `source` sin transformar, así que la generación se reconstruye aunque se pierda el estado local |
+| Identidad de hitos | **`item_id` nuevo por ocurrencia** = UUIDv5(`project_id`, slug, tarea, estado, nº de ocurrencia), siempre con **`version: 1`**; `event_id` también estable por ocurrencia | No exige conocer la versión remota; reabrir una tarea no choca con `Conflicting event or version` |
+| Estado de validación de eventos | **`validation_status: observed`** en journal e hitos | Con `validated`, `remember` exigiría scope `validate` y evidencia |
+| Evidencia de publicación | `validation` = `{status: "validated", evidence: [≥ 1], validated_by}`; la **evidencia sale de la aprobación de `knowledge-curator`** (ID de la decisión del curator y sus fuentes) | El servidor rechaza un documento sin evidencia; la aprobación local es la que da autoridad |
+| Salud | **Por capacidad, con una llamada real de solo lectura**; `tools/list` solo dice si la herramienta existe; nunca `serverInfo.version` | `tools/list` es estático (lista las 34 a cualquier `Bearer`) y no valida la clave si la API no responde |
+| Errores | **Regex anclada sobre el mensaje entero** de `isError` (`^Error executing tool \S+: <mensaje>$`), nunca subcadena; los errores HTTP (400, 401, 403, 406, 413, 421) son de toda la petición | Por MCP no llegan códigos; el texto es el contrato |
+| Redacción | **Antes de calcular el hash y antes de encolar**; la outbox guarda el evento ya redactado y no se vuelve a redactar | Re-redactar con patrones nuevos cambia el contenido y da `Conflicting event or version` |
 | Outbox | **Dos colas separadas** (documental y episódica) sobre `agent-kits/shared/outbox.py` | Lo exige el contrato de Kairos («Dos flujos de escritura separados») |
 | Nombres | Nada nuevo se llama como los backends retirados; el cliente MCP se reescribe genérico | Petición del usuario (2026-11-26) |
 
@@ -106,32 +111,36 @@ Todo vive en `.claude/knowledge-services/taxonomy.json` (local del proyecto), ba
 | Routing por categoría | `categories.<cat>.routing.<id>` | ausente = no se envía | `true` o `"summary"` por categoría |
 | Journal | `config.journal` | `false` | `true`: envía `session-summary.v1` si `capture_allowed: true` |
 | Hitos del ledger | `config.hitos` | `false` | `true`: envía hitos si `capture_allowed: true` |
-| Plazos | `config.timeout_ms` | 5.000 | Respeta el tope de `/doctor` |
+| Plazo de lectura y diagnóstico | `config.timeout_ms` | 5.000 | Respeta el tope de `/doctor` |
+| Plazo de escritura | `config.write_timeout_ms` | 30.000 | Por petición de escritura (el servidor da 30 s por petición y 120 s por herramienta); un plazo menor crea entregas inciertas falsas |
+| Tope del cuerpo enviado | constante del cliente | 262.144 bytes | Se comprueba antes de enviar, con JSON serializado `ensure_ascii=False` |
+| Tope de la respuesta leída | constante del cliente | 1 MiB | Mayor que el recorte del servidor (262.144 bytes con marca) |
+| Página del manifiesto | constante del adaptador | 50 | `limit` ≤ 50: con 100 la respuesta puede pasar del recorte y perder `structuredContent` |
 
 ## Arquitectura y componentes
 
 | Pieza | Nueva / reutilizada | Papel |
 |---|---|---|
-| Cliente MCP genérico (Python, sin dependencias) | **Nueva** (reescritura genérica, sin reutilizar nombres retirados) | `initialize`, `tools/list`, `tools/call` contra `<base>/mcp/`; `Bearer`; guardarraíl de host (local/privado por defecto, sin redirecciones, sin proxy del entorno); clasifica errores por texto; extrae `retry_after=N` del texto de `isError`; backoff propio ante `Memory service temporarily unavailable`; tope de bytes; acepta el sobre `untrusted`/`warning` y campos opcionales de más; marca todo resultado como dato no confiable |
-| Adaptador `kairos` (`skills/knowledge-services/backends/kairos.py`) | **Nuevo, incluido en el plugin** | Las 6 funciones + `puede_leer`/`consultar`. Salud por capacidad. Mapea a `projects`, `search`, `details`, `context`, `publish_document`, `document_status`, `document_manifest`, `revoke_document` |
-| Envío episódico (journal e hitos) | **Nuevo** (script determinista con tests) | `capture_policy` → `remember` → `event_status`; identidad estable por evento; validación local con los esquemas `session-summary.v1` y `observation.v1` |
+| Cliente MCP genérico (Python, sin dependencias) | **Nueva** (reescritura genérica, sin reutilizar nombres retirados) | `initialize`, `tools/list`, `tools/call` contra `<base>/mcp/` con `Authorization: Bearer`, `Content-Type: application/json` y `Accept: application/json, text/event-stream`, **sin** cabecera `Origin`; guardarraíl de host (local/privado por defecto, sin redirecciones, sin proxy del entorno); topes de cuerpo y respuesta; plazos separados de lectura y escritura; clasificación de errores por regex anclada; extrae `code=`/`retry_after=` del texto; acepta `Retry-After` en un HTTP 429 de un proxy; backoff propio cuando no hay plazo; aviso si la respuesta trae `Deprecation: true`; acepta el sobre `untrusted`/`warning` y campos opcionales de más; marca todo resultado como dato no confiable |
+| Adaptador `kairos` (`skills/knowledge-services/backends/kairos.py`) | **Nuevo, incluido en el plugin** | Las 6 funciones + `puede_leer`/`consultar`. Salud por capacidad. Mapea a `capture_policy`, `search`, `details`, `context`, `publish_document`, `document_status`, `document_manifest`, `revoke_document` |
+| Envío episódico (journal e hitos) | **Nuevo** (script determinista con tests) | `capture_policy` → `remember` → `event_status`; identidad estable por evento y ocurrencia; validación local con `session-summary.v1` y `observation.v1` |
 | `skills/knowledge-services/scripts/knowledge-sync.py` | Reutilizado sin cambios de núcleo | Carga por `type`, routing fail-closed, outbox, `--check/--dry-run/--rebuild` |
-| `agent-kits/shared/outbox.py` | Reutilizado | Dos colas: documental y episódica |
+| `agent-kits/shared/outbox.py` | Reutilizado | Dos colas (documental y episódica) con el envío ya redactado y serializado |
 | `agent-kits/shared/knowledge-find.py --intent` | Reutilizado | Router de lectura con respaldo local y motivo |
-| `agent-kits/shared/redact.py` | Ampliado | Todo texto enviado pasa por aquí; patrones alineados con los de la redacción del hito B de Kairos |
-| `agent-kits/shared/capabilities.py`, `commands/setup.md`, `agent-kits/shared/doctor.py` | Ampliados | Paso guiado de configuración y fila de diagnóstico por capacidad |
+| `agent-kits/shared/redact.py` | Ampliado | Todo texto enviado pasa por aquí antes de hashear y encolar; cubre los patrones actuales del servidor y los del hito B de Kairos |
+| `agent-kits/shared/capabilities.py`, `commands/setup.md`, `agent-kits/shared/doctor.py` | Ampliados | Paso guiado de configuración y fila de diagnóstico por capacidad, con remedio |
 | `commands/dev-cycle.md` (Fase 6), `commands/retro.md` | Ampliados | Paso explícito de envío episódico (journal e hitos) |
 | `hooks/` | **Sin cambios de red** | El journal se sigue escribiendo en local; el envío ocurre fuera de los hooks |
 
-**Mínimo de herramientas por capacidad** (lo que `health()` busca en `tools/list`):
+**Capacidades: herramientas que deben existir y llamada real que las comprueba**
 
-| Capacidad | Herramientas requeridas | Clave |
-|---|---|---|
-| Lectura | `projects`, `search`, `details`, `context` | lectura |
-| Publicación | `publish_document`, `document_status` | escritura |
-| Revocación | `revoke_document` | escritura |
-| Reconciliación | `document_manifest` + `event_status` con propiedad `project_id` en su esquema | escritura |
-| Captura (journal e hitos) | `capture_policy`, `remember`, `event_status` | escritura con `write` |
+| Capacidad | Herramientas en `tools/list` | Comprobación real (solo lectura) | Clave |
+|---|---|---|---|
+| Lectura | `capture_policy`, `search`, `details`, `context` (`projects` opcional) | `capture_policy(project_id)` responde sin error (más fiable que buscar el proyecto en `projects`, que corta a 100) | lectura |
+| Publicación | `publish_document`, `document_status` | `capture_policy(project_id)` con la clave de escritura; `publish`/`validate` **no verificables sin publicar** | escritura |
+| Revocación | `revoke_document` | Igual que publicación | escritura |
+| Reconciliación | `document_manifest` + `event_status` con propiedad `project_id` en su esquema | `document_manifest(project_id, limit: 1)` | escritura |
+| Captura (journal e hitos) | `capture_policy`, `remember`, `event_status` | `capture_policy`: `capture_mode` y `capture_allowed` | escritura con `write` |
 
 La lectura no depende de la escritura: si falta una capacidad de escritura, la lectura sigue sana.
 
@@ -143,8 +152,13 @@ La lectura no depende de la escritura: si falta una capacidad de escritura, la l
 3. Escribe `backends.<id>` en `taxonomy.json` y propone `/doctor` para la comprobación en vivo.
 
 **Diagnóstico (`/doctor`)**
-4. `health()` con la clave de lectura: `initialize` + `tools/list`; veredicto por capacidad según la tabla de mínimos; `projects` debe incluir el `project_id`. Con la clave de escritura: `tools/list` + `capture_policy`. No mira `serverInfo.version`. Nunca escribe.
-5. Los scopes `publish`/`validate` no se pueden verificar sin escribir: `/doctor` lo dice («no verificable sin publicar») y no lo da por bueno. Si `capture_allowed: false` y el journal o los hitos están activados, avisa: «la captura del proyecto está en `off` o la clave no tiene `write`; un admin debe activar la captura en Kairos».
+4. Con la clave de lectura: `initialize` + `tools/list` (existencia) y `capture_policy(project_id)` (funciona). Con la de escritura: `capture_policy` y `document_manifest(limit: 1)`. Veredicto por capacidad. No mira `serverInfo.version`. Nunca escribe.
+5. Avisos con remedio:
+   - `publish`/`validate` no se verifican sin publicar: «no verificable sin publicar».
+   - `capture_mode == "off"` con journal o hitos activos: «la captura del proyecto está apagada; un admin debe activarla en Kairos».
+   - `capture_mode != "off"` y `capture_allowed: false`: «a la clave de escritura le falta el scope `write`».
+   - HTTP 421: «el servidor no admite este host; el operador debe añadirlo a `KAIROS_ALLOWED_ORIGINS`». HTTP 403 por origen: mismo remedio.
+   - Respuesta con `Deprecation: true`: «`base_url` apunta al MCP interno heredado (se retira en Kairos 0.5.0); usa la entrada `/mcp/` de kairos-mcp».
 
 **Lectura (agentes)**
 6. Un agente llama `knowledge-find.py --intent <intent> "<texto>"`. Si el intent está autorizado y `puede_leer` da `true`, el adaptador llama `search`/`context` con la clave de lectura y el `project_id`.
@@ -152,16 +166,23 @@ La lectura no depende de la escritura: si falta una capacidad de escritura, la l
 
 **Publicación de lo aprobado**
 8. `knowledge-sync.py --backend <id> --dry-run` muestra qué se publicará (solo `approved/` con routing).
-9. Sin `--dry-run`: drena la outbox documental y llama `publish_document` con `document_id` = UUIDv5(`project_id`, ID local, generación), versión secuencial, `source.sha256` de los bytes UTF-8 exactos de `content`, ID local y generación en `source.uri`/`source.label` y tags como lista. La aceptación no es el fin: `document_status` hasta confirmar versión, hash y trabajos.
-10. Una entrada que sale de `approved/`: primero `document_status`. Si devuelve `Resource not found` o `deleted: true`, no hace nada. Si no, `revoke_document` con la versión siguiente.
-11. Una entrada con lápida que vuelve a `approved/` se publica con la generación siguiente (ID nuevo) y se avisa en el informe. El ID revocado nunca se republica.
-12. `--check`: `document_manifest` paginado contra el estado local; nombra el remedio sin reenviar a ciegas. Si se perdió el estado local, la generación se reconstruye desde `source.uri`/`source.label` del manifiesto.
+9. Sin `--dry-run`, drena la outbox documental y construye cada documento así:
+   - `content` redactado **antes** de calcular el hash; `source.sha256` = SHA-256 de esos bytes UTF-8 exactos.
+   - `document_id` = UUIDv5(`project_id`, ID local, generación); `source.uri` = `custom-agents:<project_id>/<id_local>#g<n>`.
+   - `title` obligatorio; `tags` como lista; versión secuencial.
+   - `validation` = `{status: "validated", evidence: [≥ 1], validated_by}`; la evidencia sale de la aprobación de `knowledge-curator`. Sin evidencia no se envía.
+   - Serializa con `ensure_ascii=False` y comprueba el tope de 262.144 bytes; si no cabe, fallo permanente de esa entrada.
+   - El documento completo queda guardado en la outbox: un reenvío idempotente exige el documento **entero** idéntico (título, categoría, tags, `source`, `validation`) y la **misma clave de escritura** (el servidor fija `validated_by` al actor de la clave).
+10. La aceptación no es el fin: `document_status` hasta confirmar versión, hash y trabajos. `failed` o recibo `superseded` son terminales: se reporta su `error_code` y no se reencola.
+11. Una entrada que sale de `approved/`: primero `document_status`. `deleted: true` → no hace nada. `Resource not found` → «nada que revocar» **solo** si en la misma ejecución, con la misma clave, otra llamada sobre ese proyecto ya funcionó; si no, es un error de configuración (clave sin el proyecto o sin permisos). En otro caso, `revoke_document` con la versión siguiente.
+12. Una entrada con lápida que vuelve a `approved/` se publica con la generación siguiente (ID nuevo) y se avisa en el informe. El ID revocado nunca se republica.
+13. `--check`: `document_manifest` con `limit` ≤ 50, pasando `next_cursor` como `cursor` hasta agotar; compara `source_sha256` (nunca `canonical_hash`, que es interno y depende del actor), versión y lápidas (el manifiesto también las devuelve); nombra el remedio sin reenviar a ciegas. Si se perdió el estado local, la generación se reconstruye desde `source.uri`.
 
 **Journal e hitos (memoria episódica)**
-13. Momentos de envío: paso explícito en la Fase 6 de `/dev-cycle`, en `/retro` y con una orden manual. Cada envío drena lo que `SessionEnd` dejó en local.
-14. Antes de enviar, `capture_policy` con la clave de escritura. Con `capture_allowed: false`, nada sale: journal e hitos se quedan en local y `/doctor` lo avisa.
-15. Con `capture_allowed: true` y `config.journal: true`: un `remember` por sesión con `event_type: summary`, `generate: false` y `payload.structured` `session-summary.v1`. No lleva el campo `capture` ni etiquetas `capture:*`.
-16. Con `config.hitos: true`, cada hito nuevo del ledger es un `remember`:
+14. Momentos de envío: paso explícito en la Fase 6 de `/dev-cycle`, en `/retro` y con una orden manual. Cada envío drena lo que `SessionEnd` dejó en local.
+15. Antes de enviar, `capture_policy` con la clave de escritura. Con `capture_allowed: false`, nada nuevo sale: journal e hitos se quedan en local y `/doctor` lo avisa. Los eventos ya encolados de antes sí se pueden conciliar con `event_status` (no depende de la política).
+16. Con `capture_allowed: true` y `config.journal: true`: un `remember` por sesión con `event_type: summary`, `generate: false`, `validation_status: observed`, `payload.title` (≤ 500, p. ej. «Sesión <fecha> · <slug>»), `payload.content` (≤ 100.000, el resumen en texto), `session_id` (el `session_id` del journal) y `agent_id` (`custom-agents`), ambos ≤ 200 y sin aspecto de secreto, y `payload.structured` `session-summary.v1`. Sin campo `capture` ni etiquetas `capture:*`.
+17. Con `config.hitos: true`, cada hito nuevo del ledger es un `remember` con `validation_status: observed`:
 
     | Hito | `event_type` | `observation.v1.type` |
     |---|---|---|
@@ -169,24 +190,29 @@ La lectura no depende de la escritura: si falta una capacidad de escritura, la l
     | Veredicto de revisión o decisión | `note` | `decision` |
     | Retro | `learning` | `discovery` |
 
-    Sin `category: agent-activity` y sin etiquetas `capture:*`. Cada `facts[].evidence_quote` es una cita literal del contenido enviado. La identidad sale de slug + ID + estado + **número de ocurrencia** (o revisión del ledger), para que reabrir y volver a cerrar una tarea dé un evento nuevo y no un `Conflicting event or version`.
-17. `event_status` (con `project_id`) hasta `complete`. Pendiente o incierto → se queda en la outbox episódica.
+    - Identidad: `item_id` = UUIDv5(`project_id`, slug, tarea, estado, nº de ocurrencia) con `version: 1`; `event_id` estable por ocurrencia.
+    - Sin `category: agent-activity` y sin etiquetas `capture:*`.
+    - `payload.structured.facts[]` (`observation.v1`: `statement`, `evidence_quote` ≤ 2.000): el plugin comprueba que cada cita aparece literal en `narrative` (el servidor no lo comprueba).
+    - Si se usan `payload.facts[]` (`subject`, `predicate`, `object`, `evidence_quote` ≤ 4.000, máximo 30): cada cita debe aparecer literal en `content`, `problem` o `correction` (el servidor lo exige).
+    - Límites de `structured`: 1.000 nodos como máximo, profundidad ≤ 8, `concepts` y `files_*` sin repetidos.
+18. Cada evento se redacta y serializa **una vez**, antes de encolarlo. El reintento reenvía ese mismo evento entero, sin volver a redactar.
+19. `event_status` (con `project_id`) hasta `complete`. `failed` o recibo `superseded` son terminales (se reporta `error_code`, no se reencola). Pendiente o incierto → se queda en la outbox episódica. En `event_status`, `Resource not found` significa proyecto no accesible, no evento ausente; la ausencia es solo `{found: false}`.
 
 ## Alcance
 
 - **Dentro (esta iteración):**
-  - Cliente MCP genérico en Python (HTTP *streamable*, `Bearer`, guardarraíl de host, errores por texto con `retry_after`, backoff propio, tope de bytes), sin dependencias externas, con servidor MCP falso para los tests.
-  - Adaptador `kairos` incluido en el plugin, con las 6 funciones del contrato, `puede_leer`/`consultar` y salud por capacidad.
-  - Publicación de `approved/` (con modo `resumen`), revocación con lápida y comprobación previa, generaciones documentales, reconciliación por `document_manifest`, `--rebuild`.
+  - Cliente MCP genérico en Python (HTTP *streamable*, cabeceras requeridas, `Bearer`, guardarraíl de host, topes de cuerpo y respuesta, plazos de lectura y escritura, errores por regex anclada, `retry_after`, backoff propio, aviso de `Deprecation`), sin dependencias externas, con servidor MCP falso para los tests.
+  - Adaptador `kairos` incluido en el plugin, con las 6 funciones del contrato, `puede_leer`/`consultar` y salud por capacidad con llamada real.
+  - Publicación de `approved/` (con modo `resumen`) con evidencia del curator, revocación con lápida y comprobación previa, generaciones documentales, reconciliación por `document_manifest`, `--rebuild`, jobs terminales.
   - Lectura vía `knowledge-find.py --intent` con respaldo local y marca de dato no confiable.
   - Envío de journal (`session-summary.v1`) e hitos del ledger (`observation.v1`) cuando `capture_allowed: true`.
   - Dos outbox separadas, idempotencia estricta y reconciliación tras entrega incierta.
-  - Redacción previa (`redact.py`) alineada con los patrones del hito B de Kairos.
+  - Redacción previa (`redact.py`) con los patrones actuales del servidor y los del hito B de Kairos.
   - `/setup` (paso guiado), `/doctor` (fila por capacidad con veredicto y remedio), `capabilities.py`, paso de envío en `/dev-cycle` Fase 6 y `/retro`.
   - Documentación: `skills/knowledge-services/references/` (cómo activar Kairos y cómo añadir otro MCP de memoria), `backends/README.md` y `SKILL.md` (ya hay un adaptador incluido), CHANGELOG EN/ES, regeneración de `interop/`.
 - **Fuera (siguientes specs):**
   - Cambios en el servidor Kairos o en su cliente `kairos` (repo knowledge-graphs).
-  - Instalar el cliente `kairos`, crear claves, cambiar la política de captura o reindexar: son acciones del usuario o de un admin. El plugin las **nombra**, no las ejecuta.
+  - Instalar el cliente `kairos`, crear claves, cambiar la política de captura, añadir orígenes permitidos o reindexar: son acciones del usuario, de un admin o del operador. El plugin las **nombra**, no las ejecuta.
   - REST `/v1` (incluido `GET /v1/auth/me` para leer scopes), sesión del portal, contraseña de admin o `bootstrap_password`.
   - Detectar la instalación del cliente kairos (`.kairos/installation.json` no es contrato).
   - Enviar candidatas, el ledger entero, transcripciones o prompts.
@@ -197,29 +223,41 @@ La lectura no depende de la escritura: si falta una capacidad de escritura, la l
 
 ## Manejo de errores
 
-Por MCP no llegan códigos ni cabeceras (kairos-mcp descarta `Retry-After`): el cliente clasifica
-por el texto `Error executing tool <x>: <mensaje>` de `isError`, salvo el 401, que es HTTP.
+Dos familias. **Errores HTTP de toda la petición** (no llegan como `isError`): 400, 401, 403, 406,
+413, 421 y, si hay un proxy delante, 429. **Errores de herramienta**: `isError` con el texto
+`Error executing tool <x>: <mensaje>`; el cliente compara con una regex **anclada sobre el mensaje
+entero** (`^Error executing tool \S+: …$`), nunca por subcadena. Los errores de validación de
+entrada llegan **sin** ese prefijo, como `Input validation error: …`.
 
-| Caso (texto o señal) | Comportamiento |
-|---|---|
-| HTTP 401 de toda la petición MCP (clave inválida, revocada, caducada o rotada; no se distinguen) | `error` «clave rechazada» con el remedio (renovar en el portal); nunca imprime la clave; escritura reencola |
-| `Rate limit exceeded [code=rate_limited retry_after=N]` | No reintenta antes de N s; si N excede el plazo, reencola |
-| `Daily write quota exceeded …` / `Too many activity streams …` | Escritura reencola con backoff largo y aviso; la lectura sigue (la cuota no afecta a lecturas) |
-| `Memory service temporarily unavailable` (5xx, caída o plazo; sin `retry_after`) | Backoff propio; lectura degrada a local con motivo; escritura reencola. El ciclo nunca se bloquea |
-| Conexión rechazada o timeout de red | Igual que la fila anterior |
-| `Conflicting event or version` en `publish_document` | `document_status`: si `deleted: true`, es una lápida → generación siguiente (paso 11); si no, conflicto real de contenido → se reporta y se detiene esa entrada, sin subir la versión para esquivarlo |
-| `Conflicting event or version` en `remember` | Conflicto de identidad: se reporta; nunca se genera un UUID nuevo para el mismo evento |
-| `Resource not found` | Ausencia confirmada solo para la consulta de estado de esa identidad (p. ej. `document_status` antes de revocar → nada que revocar) |
-| `Operation not permitted` | Falta scope o proyecto: `error` con el scope que la operación necesita |
-| `Capture is disabled for this project` | Journal e hitos se quedan en local; aviso en `/doctor` (un admin debe activar la captura) |
-| `Structured observation does not match its schema: …` | Fallo permanente de ese evento con la ruta del error; no se reintenta igual (se valida en local antes de enviar para evitarlo) |
-| `Sensitive capture metadata requires privacy review` / `Approved sources require privacy review before publication` | Fallo permanente con motivo; se revisa la redacción previa; no se reenvía igual |
-| `isError` con cualquier otro texto | Fallo de esa operación, **no** ausencia (un error no confirma que algo no exista) |
-| Entrega incierta (timeout tras enviar) | `document_status`/`event_status`; solo una ausencia confirmada (`found: false`) permite repetir el mismo envío, con la misma identidad y contenido |
-| Host no permitido o redirección | Se rechaza antes de conectar; no se siguen redirecciones |
-| Respuesta recortada por el tope de bytes o no-JSON | Se descarta con motivo; nunca se inventa contenido |
-| Herramienta ausente en `tools/list` | Solo esa capacidad pasa a `degradado`, nombrando la herramienta; las demás siguen |
-| Clave de solo lectura | No se llama a ninguna herramienta de escritura; «sin clave de escritura» |
+| Caso (texto o señal) | Clase | Comportamiento |
+|---|---|---|
+| HTTP 401 (clave inválida, revocada, caducada o rotada; no se distinguen) | Configuración | «Clave rechazada» con el remedio (renovar en el portal); nunca imprime la clave; escritura reencola |
+| HTTP 400 / 406 (faltan `Content-Type` o `Accept`) | Defecto del cliente | Fallo permanente; no debería ocurrir (CA-03) |
+| HTTP 413 (cuerpo > 262.144 bytes) | Permanente | Fallo de esa entrada; no se reintenta igual |
+| HTTP 421 (host no admitido) / 403 (`Origin` no admitido) | Configuración | Remedio al operador en `/doctor` (`KAIROS_ALLOWED_ORIGINS`) |
+| HTTP 429 con `Retry-After` (proxy) | Reintentable | Espera el plazo; si supera el de escritura, reencola |
+| `Rate limit exceeded [code=rate_limited retry_after=N]` | Reintentable | Regex `^Error executing tool \S+: Rate limit exceeded \[code=rate_limited retry_after=(\d+)\]$`; no reintenta antes de N s; si N supera el plazo, reencola |
+| Mensaje que empieza por `Daily write quota exceeded` | Reintentable (escrituras) | Reconoce por prefijo; extrae `code=`/`retry_after=` con regex tolerante si aparecen; sin plazo, backoff largo o hasta el cambio de día UTC. La lectura sigue |
+| Mensaje que empieza por `Too many activity streams` | Reintentable | Igual que la cuota (por MCP no debería llegar: ninguna herramienta abre SSE) |
+| `Memory service temporarily unavailable`, `The store is busy; retry shortly`, `The store took too long to answer; retry shortly`, `Semantic query exceeded its time budget` | Reintentable | Backoff propio; lectura degrada a local con motivo; escritura reencola. El ciclo nunca se bloquea |
+| Conexión rechazada o timeout de red | Reintentable / incierto | Igual que la fila anterior; tras enviar una escritura, es entrega incierta |
+| `Conflicting event or version` en `publish_document` | Según estado | `document_status`: `deleted: true` → lápida → generación siguiente; si no, conflicto de contenido → se reporta, se detiene esa entrada, sin subir la versión |
+| `Conflicting event or version` en `remember` | Permanente | Conflicto de identidad: se reporta; nunca un UUID nuevo para el mismo evento |
+| `Resource not found` | Según contexto | En `document_status`: ausencia del documento solo si otra llamada con la misma clave sobre el proyecto ya funcionó (paso 11); si no, configuración. En `event_status`: proyecto no accesible (configuración) |
+| `Operation not permitted` | Configuración | Falta scope o proyecto: se nombra el scope que la operación necesita |
+| `Capture is disabled for this project` | Configuración | Journal e hitos se quedan en local; aviso en `/doctor` |
+| `Unknown tool: <x>` | Configuración | La capacidad pasa a `degradado` nombrando la herramienta |
+| `Input validation error: …`, `Request does not match the API contract`, `Timezone is required` | Permanente | Defecto del cliente: fallo de esa operación con el mensaje |
+| `Structured observation does not match its schema: …`, `Fact evidence must quote its source literally`, `Invalid grounded fact`, `At most 30 grounded facts are permitted` | Permanente | Fallo de ese evento con el mensaje; se valida en local antes de enviar para evitarlo |
+| `Source SHA-256 must match the exact UTF-8 content`, `Published documents require source hash and validation evidence`, `Published content must be valid UTF-8 text` | Permanente | Fallo de esa entrada; indica un defecto del adaptador |
+| Mensajes de privacidad que terminan en `require privacy review` o `requires privacy review`, `Private blocks must use balanced private tags`, `Private key blocks must be complete before redaction`, `Privacy input exceeds its supported bound` | Permanente | Fallo con motivo; se revisa la redacción previa; no se reenvía igual |
+| Recibo de `remember` con `redacted: true` | Aviso | El envío se aceptó, pero la redacción local se quedó corta: aviso con el ID |
+| Job `failed` o recibo `superseded` | Terminal | Se reporta `error_code`; no se reencola |
+| `isError` con cualquier otro texto | Fallo | Fallo de esa operación, **no** ausencia |
+| Respuesta con `Deprecation: true` | Aviso | `/doctor` avisa de endpoint heredado |
+| Respuesta recortada (marca de tope) o no-JSON | Fallo | Se descarta con motivo; nunca se inventa contenido |
+| Host no permitido o redirección | Configuración | Se rechaza antes de conectar; no se siguen redirecciones |
+| Clave de solo lectura | Configuración | No se llama a ninguna herramienta de escritura; «sin clave de escritura» |
 
 ## Criterios de aceptación
 
@@ -228,43 +266,52 @@ que se indique «integración real».
 
 - [ ] [GWT] CA-01 — Dado un proyecto sin `backends.<id>` de tipo `kairos`, Cuando se ejecutan `/doctor`, `knowledge-find.py` y los hooks, Entonces no se abre ninguna conexión de red y la capacidad sale «desactivada» (no error). *Comprobación:* test con socket espía + `tests/test_hook_network_egress.py` en verde.
 - [ ] [GWT] CA-02 — Dado `/setup` con un `project_id` inválido, un host público sin `allow_remote`, un host remoto con `http` o una ruta de clave dentro del proyecto, Cuando se valida la config, Entonces se rechaza con un mensaje que nombra el campo y no se escribe `taxonomy.json`. *Comprobación:* test del validador con los cuatro casos.
-- [ ] [GWT] CA-03 — Dado el servidor falso que exige `Bearer`, Cuando el cliente MCP genérico llama `initialize`, `tools/list` y `tools/call`, Entonces todas las peticiones van a `<base>/mcp/` con barra final y llevan `Authorization: Bearer <clave>`, la clave no aparece en salidas, logs ni outbox, y no se siguen redirecciones. *Comprobación:* test del cliente + búsqueda del valor de la clave en todo lo escrito.
-- [ ] [GWT] CA-04 — Dado Kairos caído o respondiendo `Memory service temporarily unavailable`, Cuando se ejecutan `/doctor`, una lectura con `--intent` y `knowledge-sync.py`, Entonces `/doctor` marca ⚠️ con el remedio, la lectura devuelve los aciertos locales con el motivo y el sync reencola con backoff propio sin dead-letter; todos acaban dentro del tope de tiempo y con exit 0 donde el ciclo lo exige. *Comprobación:* test con servidor apagado y con el error 5xx.
+- [ ] [GWT] CA-03 — Dado el servidor falso que exige `Bearer`, Cuando el cliente MCP genérico llama `initialize`, `tools/list` y `tools/call`, Entonces todas las peticiones van a `<base>/mcp/` con barra final y llevan `Authorization: Bearer <clave>`, `Content-Type: application/json` y `Accept: application/json, text/event-stream`, ninguna lleva `Origin`, la clave no aparece en salidas, logs ni outbox, y no se siguen redirecciones. *Comprobación:* test del cliente que inspecciona cabeceras + búsqueda del valor de la clave en todo lo escrito.
+- [ ] [GWT] CA-04 — Dado Kairos caído o respondiendo `Memory service temporarily unavailable`, `The store is busy; retry shortly`, `The store took too long to answer; retry shortly` o `Semantic query exceeded its time budget`, Cuando se ejecutan `/doctor`, una lectura con `--intent` y `knowledge-sync.py`, Entonces `/doctor` marca ⚠️ con el remedio, la lectura devuelve los aciertos locales con el motivo y el sync reencola con backoff propio sin dead-letter; todos acaban dentro de su plazo y con exit 0 donde el ciclo lo exige. *Comprobación:* test con servidor apagado y uno por mensaje.
 - [ ] [GWT] CA-05 — Dado `approved/` con 3 entradas (una sin routing) y `candidates/` con 2, Cuando se publica, Entonces solo llegan 2 `publish_document` (las enrutadas) y ninguna candidata. *Comprobación:* registro de llamadas del servidor falso.
-- [ ] [GWT] CA-06 — Dada una entrada publicada, Cuando se inspecciona la llamada, Entonces `source.sha256` es el SHA-256 hex minúsculo de los bytes UTF-8 exactos de `content`, `tags` es una lista (comas, comillas y acentos intactos), `source.uri`/`source.label` llevan el ID local y la generación, y `document_id` = UUIDv5(`project_id`, ID local, generación) es estable entre ejecuciones; tras borrar el estado local, `--check` reconstruye la generación desde `document_manifest` y obtiene el mismo `document_id`. *Comprobación:* test que recalcula hash e ID, borra el estado y reconcilia.
-- [ ] [GWT] CA-07 — Dado un timeout tras `publish_document`, Cuando se reintenta, Entonces se consulta `document_status` antes de reenviar y el reenvío usa el mismo ID, versión y contenido; el servidor falso registra un solo documento. *Comprobación:* test de entrega incierta.
-- [ ] [GWT] CA-08 — Dada una entrada que sale de `approved/`, Cuando se sincroniza, Entonces se consulta `document_status` primero; con `Resource not found` o `deleted: true` no se llama a `revoke_document`; en otro caso se llama con la versión siguiente. *Comprobación:* test con los tres estados remotos.
-- [ ] [GWT] CA-09 — Dado un desfase entre local y remoto (documento ausente, versión distinta, hash distinto), Cuando se ejecuta `knowledge-sync.py --check`, Entonces recorre `document_manifest` con cursor hasta `has_more=false`, sale ≠ 0 con un `desfase` que nombra la identidad y el remedio, y no publica nada. *Comprobación:* test con manifiesto de varias páginas.
+- [ ] [GWT] CA-06 — Dada una entrada publicada, Cuando se inspecciona la llamada, Entonces `source.sha256` es el SHA-256 hex minúsculo de los bytes UTF-8 exactos de `content` ya redactado, `tags` es una lista (comas, comillas y acentos intactos), `source.uri` es `custom-agents:<project_id>/<id_local>#g<n>`, y `document_id` = UUIDv5(`project_id`, ID local, generación) es estable entre ejecuciones; tras borrar el estado local, `--check` reconstruye la generación desde `document_manifest` y obtiene el mismo `document_id`. *Comprobación:* test que recalcula hash e ID, borra el estado y reconcilia.
+- [ ] [GWT] CA-07 — Dado un timeout tras `publish_document`, Cuando se reintenta, Entonces se consulta `document_status` antes de reenviar (`Resource not found` es la ausencia del documento; `found: false` no existe aquí), y el reenvío es el documento **entero** guardado en la outbox (mismo ID, versión, título, categoría, tags, `source` y `validation`) con la misma clave de escritura; el servidor falso registra un solo documento. Dado un reenvío con otra clave de escritura, Entonces se reporta el riesgo de conflicto (el servidor fija `validated_by` al actor). *Comprobación:* test de entrega incierta que compara el cuerpo byte a byte.
+- [ ] [GWT] CA-08 — Dada una entrada que sale de `approved/`, Cuando se sincroniza, Entonces se consulta `document_status` primero: con `deleted: true` no se llama a `revoke_document`; con `Resource not found` tampoco, solo si otra llamada con la misma clave sobre el proyecto ya funcionó en esa ejecución; si es la primera llamada, se informa como error de configuración (clave sin el proyecto o sin permisos); en otro caso se llama con la versión siguiente. *Comprobación:* test con los cuatro estados.
+- [ ] [GWT] CA-09 — Dado un desfase entre local y remoto (documento ausente, versión distinta, `source_sha256` distinto, lápida inesperada), Cuando se ejecuta `knowledge-sync.py --check`, Entonces pide páginas con `limit` ≤ 50, pasa cada `next_cursor` como `cursor` hasta agotar, compara con `source_sha256` (nunca `canonical_hash`), sale ≠ 0 con un `desfase` que nombra la identidad y el remedio, y no publica nada. *Comprobación:* test con manifiesto de varias páginas que incluye lápidas y un `canonical_hash` distinto que no debe dar desfase.
 - [ ] [GWT] CA-10 — Dado un intent autorizado y Kairos sano, Cuando un agente ejecuta `knowledge-find.py --intent <intent>`, Entonces usa solo la clave de lectura, cada acierto trae `id`, `estado`, `evidencia`, `ruta` y la marca de dato no confiable, y un texto recuperado con forma de instrucción no cambia la salida del script (se presenta como dato). *Comprobación:* test con respuesta envenenada del servidor falso.
 - [ ] [GWT] CA-11 — Dada solo una clave de lectura, Cuando se intenta publicar, revocar o enviar journal e hitos, Entonces no se llama a ninguna herramienta de escritura, se informa «sin clave de escritura» y la lectura sigue sana. *Comprobación:* test que verifica cero llamadas de escritura.
-- [ ] [GWT] CA-12 — Dados `config.journal: true` y `capture_policy` con `capture_allowed: true` (con o sin cliente kairos instalado), Cuando llega un momento de envío, Entonces se envía un único `remember` por sesión con `event_type: summary`, `generate: false`, `payload.structured` válido contra `session-summary.v1` y sin campo `capture` ni etiquetas `capture:*`. Dado `capture_allowed: false`, Entonces no se llama a `remember`, el resumen queda en local y `/doctor` avisa de que un admin debe activar la captura. *Comprobación:* test de las dos ramas + validación con el esquema; el test no lee `.kairos/`.
-- [ ] [GWT] CA-13 — Dado un evento episódico (journal o hito) enviado con timeout, Cuando se reintenta, Entonces reusa `event_id`, `item_id`, `version` y `occurred_at`; solo repite tras `event_status` con `found: false`; un `isError` no cuenta como ausencia. *Comprobación:* test de entrega incierta episódica.
-- [ ] [GWT] CA-14 — Dado `config.hitos: true` y un ledger con una tarea cerrada, un veredicto de revisión y una retro, Cuando se envían los hitos, Entonces llegan exactamente 3 eventos con el mapeo `note`+`change`, `note`+`decision` y `learning`+`discovery`, nada más del ledger, y repetir el envío no crea eventos nuevos. Dada después la misma tarea reabierta y cerrada otra vez, Entonces llega un evento nuevo con otro `event_id` (número de ocurrencia) y ningún `Conflicting event or version`. *Comprobación:* test sobre un ledger de fixture con reapertura.
-- [ ] [GWT] CA-15 — Dado un servidor que responde `isError` con `Rate limit exceeded [code=rate_limited retry_after=2]`, Cuando el cliente reintenta, Entonces no vuelve a llamar antes de 2 s y, si 2 s superan su plazo, reencola. *Comprobación:* test con reloj inyectado.
+- [ ] [GWT] CA-12 — Dados `config.journal: true` y `capture_policy` con `capture_allowed: true` (con o sin cliente kairos instalado), Cuando llega un momento de envío, Entonces se envía un único `remember` por sesión con `event_type: summary`, `generate: false`, `validation_status: observed`, `payload.title` (≤ 500), `payload.content` (≤ 100.000), `session_id` y `agent_id` (≤ 200), `payload.structured` válido contra `session-summary.v1` y sin campo `capture` ni etiquetas `capture:*`. Dado `capture_mode: "off"`, Entonces no se llama a `remember`, el resumen queda en local y `/doctor` dice que la captura del proyecto está apagada; dado `capture_mode` distinto de `off` con `capture_allowed: false`, Entonces `/doctor` dice que a la clave le falta `write`. *Comprobación:* test de las tres ramas + validación con el esquema; el test no lee `.kairos/`.
+- [ ] [GWT] CA-13 — Dado un evento episódico (journal o hito) enviado con timeout, Cuando se reintenta, Entonces reenvía el evento **entero** tal como quedó en la outbox, ya redactado (mismos `event_id`, `item_id`, `version`, `occurred_at` y payload), aunque `redact.py` haya cambiado de patrones; solo repite tras `event_status` con `{found: false}`; `Resource not found` en `event_status` es proyecto no accesible (configuración), y ningún `isError` cuenta como ausencia. *Comprobación:* test de entrega incierta episódica que cambia los patrones de redacción entre el envío y el reintento.
+- [ ] [GWT] CA-14 — Dado `config.hitos: true` y un ledger con una tarea cerrada, un veredicto de revisión y una retro, Cuando se envían los hitos, Entonces llegan exactamente 3 eventos con el mapeo `note`+`change`, `note`+`decision` y `learning`+`discovery`, todos con `version: 1` y `validation_status: observed`, nada más del ledger, y repetir el envío no crea eventos nuevos. Dada después la misma tarea reabierta y cerrada otra vez, Entonces llega un evento con otro `item_id` (UUIDv5 con ocurrencia 2), `version: 1`, y ningún `Conflicting event or version`. *Comprobación:* test sobre un ledger de fixture con reapertura; el servidor falso aplica la regla «versión = actual + 1 o conflicto».
+- [ ] [GWT] CA-15 — Dado un servidor que responde `isError` con `Rate limit exceeded [code=rate_limited retry_after=2]`, o un HTTP 429 con `Retry-After: 2` de un proxy, Cuando el cliente reintenta, Entonces no vuelve a llamar antes de 2 s y, si 2 s superan su plazo, reencola; un mensaje con texto añadido después del corchete no casa la regex anclada y se trata como fallo. Dado un mensaje que empieza por `Daily write quota exceeded` con o sin `[code=… retry_after=N]`, Entonces reconoce la cuota, usa N si aparece o backoff largo si no, y las lecturas siguen. *Comprobación:* test con reloj inyectado.
 - [ ] [GWT] CA-16 — Dado un adaptador de fixture `type: "mcp-fixture"` que reutiliza el cliente MCP genérico con otro mapa de herramientas, Cuando se carga por `--backends-dir`, Entonces publica y lee sin tocar `knowledge-sync.py`, `backends/__init__.py` ni el cliente genérico. *Comprobación:* test de carga y diff vacío del núcleo.
 - [ ] CA-17 — Ningún fichero nuevo o modificado nombra los backends retirados (salvo el antecedente histórico de `testing/retirada.md` y los CHANGELOG ya publicados). *Comprobación:* `git diff --name-only master...` filtrado con `grep -il` por los dos nombres retirados que lista `testing/retirada.md` → vacío.
 - [ ] CA-18 — Funciona igual en Claude Code, Codex y OpenCode: ninguna pieza nueva tiene lógica por runtime y `python scripts/export-interop.py --check` sale 0. *Comprobación:* comando y `python scripts/lint_plugin.py` en verde.
-- [ ] CA-19 — Todo texto enviado (documentos, journal, hitos, incluido `payload.structured`, que el servidor no redacta) pasa por `agent-kits/shared/redact.py`, que cubre al menos los patrones del hito B de Kairos (`mp_`, `sk_live_`, `glpat-`, `hf_`, `npm_`, `*_KEY`, `*_PASS`, `curl -u`, `Authorization: Basic`, cadenas de alta entropía). *Comprobación:* test con un ejemplo de cada patrón en una entrada aprobada y en un hito, que no aparece en la llamada.
+- [ ] CA-19 — Todo texto enviado (documentos, journal, hitos, incluido `payload.structured`, que el servidor no redacta) pasa por `agent-kits/shared/redact.py` **antes** de calcular el hash y de encolar. Cubre los patrones actuales del servidor (`sk-`, `AKIA`, `Bearer`, `gh*_`, `github_pat_`, `xox*`, `AIza`, JWT, DSN con credenciales, PEM, `<private>`, nombres de secreto) y los del hito B (`mp_`, `sk_live_`, `sk_test_`, `rk_live_`, `glpat-`, `hf_`, `npm_`, `*_KEY`, `*_PASS`, `curl -u`, `curl --user`, `Authorization: Basic`, cadenas de alta entropía). Un recibo con `redacted: true` produce un aviso. *Comprobación:* test con un ejemplo de cada patrón en una entrada aprobada y en un hito, que no aparece en la llamada; el hash enviado es el del texto redactado.
 - [ ] CA-20 — Integración real (la ejecuta la sesión kairos o el usuario contra su servidor): la lista de «Criterios de aceptación para el equipo consumidor» del repo knowledge-graphs (`docs/integration.md`) pasa, con versiones, IDs de prueba y resultados adjuntos en `testing/` sin claves. *Comprobación:* informe en `docs/roadmap/2026-11-26-kairos-memory/testing/`.
-- [ ] [GWT] CA-21 — Dado un servidor cuyo `tools/list` no anuncia `revoke_document` y cuyo `serverInfo.version` es `0.0.0`, Cuando se ejecuta `/doctor`, Entonces solo la capacidad de revocación sale ⚠️ nombrando la herramienta; lectura, publicación, reconciliación y captura salen según sus mínimos; la versión no influye; las herramientas y campos de más (`extraction`, `redacted`, `capture_hash`, sobre `untrusted`/`warning`) se ignoran sin error. *Comprobación:* test con tres `tools/list` (completo, sin una herramienta, con herramientas extra).
+- [ ] [GWT] CA-21 — Dado un servidor cuyo `tools/list` no anuncia `revoke_document` y cuyo `serverInfo.version` es `0.0.0`, Cuando se ejecuta `/doctor`, Entonces solo la capacidad de revocación sale ⚠️ nombrando la herramienta y la versión no influye. Dado un `tools/list` completo pero `capture_policy(project_id)` con error, Entonces la lectura sale ⚠️ aunque `tools/list` respondiera (la salud exige la llamada real). Las herramientas y campos de más (`extraction`, `redacted`, `capture_hash`, sobre `untrusted`/`warning`) se ignoran sin error. *Comprobación:* test con cuatro escenarios (completo, sin una herramienta, con herramientas extra, `tools/list` sano con llamada real fallida).
 - [ ] [GWT] CA-22 — Dada una entrada con lápida en Kairos que vuelve a `approved/`, Cuando se publica, Entonces se usa la generación siguiente (nuevo `document_id`), el informe lo avisa y el ID revocado no se envía. Dado un `Conflicting event or version` con `document_status.deleted: false`, Entonces se reporta como conflicto de contenido y no se sube la versión. *Comprobación:* test de las dos ramas del conflicto.
-- [ ] [GWT] CA-23 — Dado cada uno de los mensajes de la tabla «Manejo de errores» (401 HTTP, `rate_limited`, `Daily write quota exceeded`, `Too many activity streams`, `Memory service temporarily unavailable`, `Conflicting event or version`, `Resource not found`, `Operation not permitted`, `Capture is disabled for this project`, `Structured observation does not match its schema`, los dos de privacy review y un texto desconocido), Cuando el cliente los recibe, Entonces los clasifica como dice la tabla (reintentable, permanente, ausencia confirmada o fallo) y ninguno se trata como éxito. *Comprobación:* test parametrizado con un caso por mensaje.
-- [ ] [GWT] CA-24 — Dado un hito con `facts`, Cuando se construye el evento, Entonces valida en local contra `observation.v1` (8 campos, `type` del enum, límites), cada `evidence_quote` aparece literal en el contenido, no lleva `category: agent-activity` ni etiquetas `capture:*`; un documento inválido no se envía y queda como fallo permanente con la ruta del error. *Comprobación:* test con ejemplos válidos e inválidos del esquema.
+- [ ] [GWT] CA-23 — Dado cada uno de los errores de la tabla «Manejo de errores» (los HTTP 400, 401, 403, 406, 413, 421 y 429, y cada mensaje de herramienta listado, incluidos `Input validation error: …` sin prefijo, `Unknown tool: <x>`, los de hechos, los de publicación, los de privacidad y un texto desconocido), Cuando el cliente los recibe, Entonces los clasifica como dice la columna «Clase» con regex anclada sobre el mensaje entero, un mensaje conocido con texto extra antes o después no casa con su clase, y ninguno se trata como éxito. *Comprobación:* test parametrizado con un caso por error y uno con texto añadido por clase.
+- [ ] [GWT] CA-24 — Dado un hito con `observation.v1`, Cuando se construye el evento, Entonces valida en local (8 campos, `type` del enum, longitudes, `evidence_quote` ≤ 2.000, máximo 1.000 nodos, profundidad ≤ 8, `concepts` y `files_*` sin repetidos), el plugin comprueba que cada `evidence_quote` aparece literal en `narrative`, y no lleva `category: agent-activity` ni etiquetas `capture:*`. Dados `payload.facts` (`subject`, `predicate`, `object`, `evidence_quote` ≤ 4.000, máximo 30), Entonces cada cita aparece literal en `content`, `problem` o `correction`. Un evento inválido no se envía y queda como fallo permanente con la ruta del error. *Comprobación:* test con los ejemplos válidos e inválidos del esquema y casos de cada límite.
+- [ ] [GWT] CA-25 — Dada una entrada aprobada cuyo JSON serializado con `ensure_ascii=False` supera 262.144 bytes (por ejemplo, por texto no ASCII), Cuando se publica, Entonces no se envía y se marca fallo permanente de esa entrada; dado un HTTP 413, Entonces se trata igual. Dada una respuesta de más de 1 MiB, Entonces el cliente la corta, la descarta con motivo y no la interpreta. *Comprobación:* test con contenido multibyte justo por encima y por debajo del tope.
+- [ ] [GWT] CA-26 — Dado un job `failed` o un recibo `superseded` en `document_status` o `event_status`, Cuando se concilia, Entonces se reporta su `error_code`, la entrada sale de la outbox sin reencolarse y no se espera `complete`. *Comprobación:* test con los dos estados terminales en cada flujo.
+- [ ] [GWT] CA-27 — Dado un servidor que responde HTTP 421, HTTP 403 por origen o cualquier respuesta con `Deprecation: true`, Cuando se ejecuta `/doctor`, Entonces la fila sale ⚠️ con el remedio: añadir el host a `KAIROS_ALLOWED_ORIGINS` (421/403) o cambiar `base_url` a la entrada `/mcp/` de kairos-mcp (`Deprecation`). *Comprobación:* test con los tres casos en el servidor falso.
+- [ ] [GWT] CA-28 — Dada una entrada de `approved/`, Cuando se construye su publicación, Entonces lleva `title` y `validation` = `{status: "validated", evidence: [≥ 1], validated_by}` con la evidencia tomada de la aprobación de `knowledge-curator`; una entrada sin aprobación trazable no se envía y se informa. Una escritura usa el plazo de 30 s y un timeout por debajo de él no se da como entrega incierta. *Comprobación:* test con una entrada con aprobación y otra sin ella; test de plazos con reloj inyectado.
 
 ## Pruebas
 
-- Unitarias con TDD (Constitución): cliente MCP genérico, adaptador `kairos`, envío episódico, validador de config, clasificador de errores. Servidor MCP falso en proceso que reproduce `tools/list` variable, `Bearer`, 401, `isError` con los mensajes reales, `retry_after` en el texto, recorte de bytes, paginación y lápidas.
-- Las `[GWT]` (CA-01..CA-16 y CA-21..CA-24) se traducen 1:1 a tests del repo (no E2E de navegador).
+- Unitarias con TDD (Constitución): cliente MCP genérico, adaptador `kairos`, envío episódico, validador de config, clasificador de errores. Servidor MCP falso en proceso que reproduce `tools/list` variable, cabeceras requeridas (400/406), `Bearer` (401), host/origen (421/403), cuerpo grande (413), `isError` con los mensajes reales, `retry_after` en el texto y en un 429 de proxy, recorte de bytes, `Deprecation`, paginación con lápidas, jobs terminales y la regla de versiones de `remember`.
+- Las `[GWT]` (CA-01..CA-16 y CA-21..CA-28) se traducen 1:1 a tests del repo (no E2E de navegador).
 - Suites existentes que deben seguir en verde: `tests/test_hook_network_egress.py`, `tests/test_sync_write_gate.py`, suites de `skills/knowledge-services/scripts/`, `evals/check.py`, `scripts/lint_plugin.py`, `export-interop.py --check`.
 - CA-20 es una prueba de integración manual contra el servidor real; no la sustituyen `/doctor`, un HTTP 200 ni las unitarias.
 
 ## Referencias
 
-- Repo knowledge-graphs, `docs/contracts/kairos-mcp.json` (contrato MCP 0.4.1, 34 herramientas).
+- Repo knowledge-graphs, `docs/contracts/kairos-mcp.json` (contrato MCP 0.4.1, 34 herramientas; `$defs/Source` de `publish_document`).
 - Repo knowledge-graphs, `docs/integration.md`: «Conectar con kairos-mcp», «Dos flujos de escritura separados», «Capturar memoria con identidad estable», «Observaciones estructuradas con esquema versionado», «Publicar conocimiento aprobado», «Conciliar antes de reenviar», «Criterios de aceptación para el equipo consumidor».
 - Repo knowledge-graphs, `docs/contracts/session-summary.v1.schema.json` y `docs/contracts/observation.v1.schema.json` (con ejemplos en `docs/contracts/examples/`).
 - Repo knowledge-graphs, `docs/install.md` (captura `--capture off|summary|full`) y `client/lib/lifecycle-config.mjs:7-16` (configuración interna de la captura del cliente; no es contrato).
-- Validación de la sesión kairos del 2026-11-26 (servidor y contrato 0.4.1, rama `feat/access-control`): repo knowledge-graphs, `server/memory_platform/store_auth.py:163-174` (`capture_allowed`), `server/memory_platform/store_ingest.py:164-165` (captura `off` rechaza `remember`), `server/memory_platform/store_documents.py:112-113` (sin republicación tras lápida).
+- Validaciones de la sesión kairos del 2026-11-26 (servidor y contrato 0.4.1, rama `feat/access-control`), en el repo knowledge-graphs:
+  - `server/memory_platform/store_auth.py:84-85` (`Resource not found` también por falta de acceso) y `:163-174` (`capture_allowed`).
+  - `server/memory_platform/store_ingest.py:146,157-159` (reenvío idéntico), `:164-165` (captura `off` rechaza `remember`) y `:175-176` (versión = actual + 1).
+  - `server/memory_platform/store_documents.py:91` (hash en la comprobación de contenido), `:95-96,109-111` (`validated_by` = actor), `:112-113` (sin republicación tras lápida), `:114` y `:295` (`source` sin transformar), `:264-271` (`event_status` sin mirar la política).
+  - `server/memory_platform/errors.py:113-114`, `store_vectors.py:341`, `privacy.py:15-27`, `schemas.py:21,25,113-137`.
+  - `mcp/kairos_mcp/config.py:6` (tope de cuerpo), `mcp/kairos_mcp/app.py:28-35` (host/origen) y `:51-57` (`tools/list` sin validar clave), `translate.py:165-171` (recorte y pérdida de `structuredContent`).
 - `skills/knowledge-services/backends/README.md` (contrato de 6 funciones y opcionales `puede_leer`/`consultar`).
 - `skills/knowledge-services/references/add-backend.md` y `references/project-integration.md`.
 - `docs/CONSTITUTION.md`, líneas 20 (sin red en hooks), 34 (`redact.py`, sin secretos) y 37 (red opt-in, local/privada por defecto, solo lo aprobado).
@@ -290,7 +337,7 @@ que se indique «integración real».
 3. **Kairos puede estar en un servidor cloud.** El host remoto se admite con opt-in explícito en `/setup` (`allow_remote: true` + URL): exige `https`, sin redirecciones automáticas y bloqueando direcciones de metadatos (IMDS) y enlaces locales. Sin el opt-in, solo hosts locales/privados (`docs/CONSTITUTION.md:37`).
 4. **Momentos de envío del journal y de los hitos**: paso explícito en la Fase 6 de `/dev-cycle` y en `/retro`, y una orden manual en cualquier momento; ambos drenan lo que `SessionEnd` dejó en local. Los hooks siguen sin red. (La frase original «si el cliente kairos captura las sesiones, el plugin no envía el journal» queda **sustituida** por la decisión 5.)
 5. **El plugin envía siempre su resumen de sesión y los hitos cuando `capture_policy` (con la clave de escritura) da `capture_allowed: true`**, esté o no instalado el cliente kairos: su captura nunca envía resúmenes, así que no hay duplicado. Resumen: `session-summary.v1`, `event_type: summary`, `generate: false`. Si la captura del proyecto está en `off`, journal e hitos se quedan en local y `/doctor` avisa de que un admin debe activar la captura en Kairos. Sustituye a la decisión 3 del 2026-11-18 y a la parte afectada de la decisión 4 de hoy.
-6. **Entrada revocada que vuelve a `approved/`** (cerrada con la validación de kairos): nuevo `document_id` con la generación siguiente (obligatorio: el servidor no permite republicar un ID con lápida), aviso en el informe de sync, y el ID local y la generación en `source.uri`/`source.label` para reconstruirla desde `document_manifest`.
+6. **Entrada revocada que vuelve a `approved/`** (cerrada con la validación de kairos): nuevo `document_id` con la generación siguiente (obligatorio: el servidor no permite republicar un ID con lápida), aviso en el informe de sync, y el ID local y la generación en `source.uri` (`custom-agents:<project_id>/<id_local>#g<n>`) para reconstruirla desde `document_manifest`.
 
 ## Preguntas abiertas
 
@@ -303,21 +350,24 @@ Ninguna.
 - **Hecho técnico:** la red está vetada en hooks y toda capacidad con red es opt-in y local/privada por defecto — `docs/CONSTITUTION.md:20` y `:37`.
 - **Hecho técnico:** el router de lectura exige `puede_leer` con `puede: true` antes de consultar — `agent-kits/shared/knowledge-find.py:1722`.
 - **Hecho técnico (validado por kairos):** los scopes de una clave no se pueden conocer por MCP. `projects` no los devuelve; `capture_policy` exige `read` y da `capture_allowed: true` solo con `write` y política distinta de `off`. `publish`/`validate` no se pueden verificar sin escribir — repo knowledge-graphs, `server/memory_platform/store_auth.py:163-174`.
-- **Hecho técnico (validado por kairos):** con la captura en `off`, `remember` rechaza todo `event_type` salvo `delete` con `Capture is disabled for this project`, sea envío explícito o automático; solo un admin cambia la política por `/v1` — repo knowledge-graphs, `server/memory_platform/store_ingest.py:164-165`.
-- **Hecho técnico (validado por kairos):** tras una lápida no hay versión que permita republicar el mismo ID (`Conflicting event or version`); se distingue con `document_status.deleted` — repo knowledge-graphs, `server/memory_platform/store_documents.py:112-113`.
+- **Hecho técnico (validado por kairos):** `tools/list` es estático (lista las 34 herramientas a cualquier `Bearer` sin mirar scopes) e `initialize`/`tools/list` no validan la clave si la API no responde — repo knowledge-graphs, `mcp/kairos_mcp/app.py:51-57`.
+- **Hecho técnico (validado por kairos):** con la captura en `off`, `remember` rechaza todo `event_type` salvo `delete` con `Capture is disabled for this project`; `event_status` con `project_id` no mira la política (exige `read`+`write`) — repo knowledge-graphs, `server/memory_platform/store_ingest.py:164-165` y `store_documents.py:264-271`.
+- **Hecho técnico (validado por kairos):** tras una lápida no hay versión que permita republicar el mismo ID; se distingue con `document_status.deleted`. El reenvío idempotente exige el documento entero idéntico y el mismo actor (`validated_by` lo fija el servidor) — repo knowledge-graphs, `store_documents.py:95-96,109-113`.
+- **Hecho técnico (validado por kairos):** en `remember`, una versión distinta de la actual + 1, o un ítem borrado, da `Conflicting event or version`; un reenvío con contenido distinto (también por redactar con otros patrones) también — repo knowledge-graphs, `store_ingest.py:146,157-159,175-176`.
+- **Hecho técnico (validado por kairos):** `source.uri` es obligatorio (≤ 2.000), `label` opcional (≤ 300) y `sha256` opcional (64 hex, entra en la comprobación de contenido); `document_manifest` devuelve `source` sin transformar — repo knowledge-graphs, `store_documents.py:91,114,295`.
 - **Hecho técnico (validado por kairos):** el servidor acepta cualquier versión de UUID como `document_id` y lo normaliza a minúsculas con guiones; la clave primaria es (`project_id`, `id`).
 - **Hecho técnico (validado por kairos):** la captura del cliente kairos nunca envía `session-summary.v1`; en modo `summary` envía metadatos de ciclo de vida con `category: agent-activity` — repo knowledge-graphs, `client/lib/capture.mjs:64-78`. Su configuración (`.kairos/installation.json`, esquema en `client/lib/lifecycle-config.mjs:7-16`) es interna y no forma parte del contrato.
-- **Hecho técnico (validado por kairos):** por MCP no llegan códigos ni cabecera `Retry-After`; los límites llegan como texto `… [code=rate_limited retry_after=N]` y el 5xx como `Memory service temporarily unavailable` sin plazo. Una clave inválida, revocada o caducada da HTTP 401 a toda la petición.
-- **Hecho técnico (validado por kairos):** el contrato MCP es estrictamente aditivo (34 herramientas en el mismo orden; solo se añaden campos opcionales) y `serverInfo.version` no es fiable (el MCP interno en desuso devuelve la del SDK; falta de `mcp/VERSION` → `0.0.0`).
-- **Hecho técnico:** el servidor no redacta `payload.structured`: un secreto ahí da 422 y rechaza el evento entero; el resto del evento sí se redacta (`redacted: true` en el recibo) — repo knowledge-graphs, `docs/integration.md` («Observaciones estructuradas con esquema versionado»).
+- **Hecho técnico (validado por kairos):** por MCP no llegan códigos ni la cabecera `Retry-After` (kairos-mcp descarta cabeceras); solo el texto del error. Son HTTP de toda la petición: 400/406 (cabeceras), 401 (clave), 403 (origen), 413 (cuerpo > 262.144 bytes, `mcp/kairos_mcp/config.py:6`) y 421 (host, `mcp/kairos_mcp/app.py:28-35`).
+- **Hecho técnico (validado por kairos):** el servidor no redacta `payload.structured` (un secreto ahí da 422 y rechaza el evento entero) y `publish_document` **rechaza**, no redacta, los secretos — repo knowledge-graphs, `privacy.py:15-27` y `docs/integration.md` («Observaciones estructuradas con esquema versionado»).
 - **Hecho técnico:** el cliente MCP retirado no enviaba `Bearer` — `docs/roadmap/2026-11-10-plugin-audit-2/testing/retirada.md`.
+- **Supuesto hasta confirmar:** los mensajes de cuota (`Daily write quota exceeded`) y de flujos (`Too many activity streams`) solo tienen fijado el prefijo; el sufijo `[code=quota_exceeded retry_after=N]` / `[code=too_many_streams retry_after=N]` es intención de Kairos, no contrato. Lo confirmaría la sesión kairos al cerrar T-55..T-58.
 - **Riesgo / supuesto de calendario:** Kairos tiene en curso tres hitos sin fechas (van por la fase 3 de 18). El contrato MCP no cambia en toda esa iniciativa, pero el comportamiento sí:
 
-  | Hito | Qué llega | Efecto en esta spec |
-  |---|---|---|
-  | A (fases 4-5) | `last_used_at`, rotación `replaced_by` (24 h de gracia; luego 401); 429 del login HTTP por IP | El 401 tras rotación debe dar el remedio correcto; el login HTTP no lo usa el plugin |
-  | B (fases 8-11) | Redacción ampliada (patrones de CA-19); tasa por clave, cuota diaria de escritura, tope de flujos, y su paso por kairos-mcp | CA-15, CA-19 y CA-23 se prueban contra el servidor falso hasta que B exista; CA-20 los reconfirmará en real |
-  | C (fase 13) | `capabilities` en `/v1/auth/me` | Fuera de alcance (es `/v1`); una spec futura podría usarlo para verificar scopes |
+  | Hito | Fases | Qué llega | Efecto en esta spec |
+  |---|---|---|---|
+  | A | 3-6 (rotación en la 4) | `last_used_at`, rotación `replaced_by` (24 h de gracia; luego 401); 429 del login HTTP por IP | El 401 tras rotación debe dar el remedio correcto; el login HTTP no lo usa el plugin |
+  | B | 7-12 (redacción 8-9, límites 10-11) | Redacción ampliada (patrones de CA-19); tasa por clave, cuota diaria de escritura, tope de flujos, y su paso por kairos-mcp (T-55, T-61, T-63) | Hoy no hay límite de tasa en herramientas: CA-15, CA-19 y CA-23 se prueban contra el servidor falso hasta que B exista; CA-20 los reconfirmará en real |
+  | C | 13 | `capabilities` en `/v1/auth/me` | Fuera de alcance (es `/v1`); una spec futura podría usarlo para verificar scopes |
 
-  Lo confirmaría la sesión kairos al cerrar cada hito.
+  También hay un proxy previsto (Iniciativa 5 de Kairos) que puede responder HTTP 429 con `Retry-After`; el cliente ya lo contempla. Lo confirmaría la sesión kairos al cerrar cada hito.
 - **Incógnita:** el presupuesto y plazo no se han fijado; los dará `evaluator`.
