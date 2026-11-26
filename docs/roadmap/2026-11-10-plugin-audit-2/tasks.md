@@ -39,12 +39,12 @@ changelog: Changed
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Defectos | 7 | 8 | 87.5% | 0 / 16h | 0 / 5.0h | 0 / 1.25h | 0 / 1090k |
-| Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev) | 4 | 4 | 100% | 0 / 32h | 0 / 7.9h | 0 / 1.98h | 0 / 2100k |
+| Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev) | 4 | 5 | 80.0% | 0 / 32h | 0 / 7.9h | 0 / 1.98h | 0 / 2100k |
 | Fase 3 — Tokens | 6 | 12 | 50.0% | 0 / 36h | 1.1 / 9.7h | 0 / 2.42h | 0 / 2260k |
 | Fase 4 — Simplificación del código | 0 | 8 | 0.0% | 0 / 34.5h | 0 / 8.5h | 0 / 2.12h | 0 / 2470k |
 | Fase 5 — Alcance y entrenamiento | 0 | 5 | 0% | 0 / 26h | 0 / 6.5h | 0 / 1.62h | 0 / 1800k |
 | Fase 6 — Higiene del roadmap | 0 | 3 | 0% | 0 / 10h | 0 / 2.5h | 0 / 0.62h | 0 / 750k |
-| **TOTAL** | **17** | **40** | **42.5%** | **0 / 154.5h** | **0 / 40.1h** | **0 / 10.02h** | **0 / 10470k** |
+| **TOTAL** | **17** | **41** | **41.5%** | **0 / 154.5h** | **0 / 40.1h** | **0 / 10.02h** | **0 / 10470k** |
 
 Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +20 % está en el plan); tokens al precio de `.claude/rates.json`.
 
@@ -427,6 +427,26 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 **Puerta de runtimes de la fase 2** — archivado LITERALMENTE (bytes sin cambios: RED, GREEN, gaps corregidos y verificaciones) en [execution-history.md](execution-history.md), sección «Archivado 2026-11-24 — Puerta de runtimes de la fase 2» · SHA-256 `e0692797dfc9ddb3771a97948d6c1c4ddaa938a187678b70df9fc241120e4762`. Tarea cerrada; se movió el 2026-11-24 por el tope de lectura de 256 KiB.
 
+### T-41 — Borrar los restos de Kwipu y Graphiti del código vivo (decidido por el usuario el 2026-11-26)
+
+- **Descripción**: T-08 y T-09 retiraron los adaptadores, pero el código vivo aún los nombra. El cargador de `knowledge-services` mantiene `RETIRADOS = ("kwipu", "graphiti", "markdown-export")` con un mensaje propio de «retirado», el panel (`panel_data.py`) lee esa constante, y unos 15 tests y fixtures los citan (asserts sueltos de «no aparece», plantillas 3.x con esos `type`, un test que lee el ledger histórico `2026-09-15-graphiti-memory`). El usuario decide (2026-11-26) que todo lo relacionado con Graphiti y Kwipu se elimina porque ya no existen: un `type` desconocido recibe el mismo mensaje que cualquier adaptador ausente, sin lista de retirados. Quedan como se escribieron los registros fechados (`docs/roadmap/**`, `docs/knowledge/**`, secciones publicadas del CHANGELOG) y la entrada `[Unreleased]`/`[Sin publicar]` que anuncia la retirada a quien actualice. Los asserts dispersos se sustituyen por UN test de no regresión que recorre el árbol vivo con una lista blanca de esas rutas históricas (es el único sitio que puede nombrarlos). El test que lee el ledger histórico pasa a una fixture copiada, sin el nombre en el test.
+- **Changelog**: El cargador de backends de memoria ya no conserva una lista de backends retirados: un `type` sin adaptador recibe siempre el mismo aviso.
+- **Estado**: borrador
+- **Tiempo humano**: est. 2h · real —
+- **Tiempo IA (ejec.)**: est. 0.6h · real —
+- **Archivos**: `skills/knowledge-services/backends/__init__.py`, `skills/knowledge-services/backends/README.md`, `skills/knowledge-services/scripts/test_knowledge_sync.py`, `skills/plugin-panel/scripts/panel_data.py`, `tests/test_panel_data.py`, `agent-kits/shared/test_capabilities.py`, `agent-kits/shared/test_doctor.py`, `agent-kits/shared/test_knowledge_schema.py`, `agent-kits/shared/test_knowledge_portability.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/shared/fixtures/**`, `skills/training-data-services/scripts/test_case_schema.py`, `tests/test_knowledge_router.py`, `tests/test_knowledge_router_read.py`, `tests/test_hook_network_egress.py`, `tests/test_sync_write_gate.py`, `tests/test_doctor_notes_in_docs.py`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/test_retired_backends_absent.py`, `CHANGELOG.md`, `CHANGELOG.es.md`
+- **Verificación**:
+  - `pytest -q -p no:xdist tests/test_retired_backends_absent.py` → `passed` (rojo antes: lista las rutas vivas que aún nombran kwipu, graphiti o markdown-export)
+  - `git grep -ilE "kwipu|graphiti|markdown-export" -- . ':!docs/roadmap' ':!docs/knowledge' ':!CHANGELOG*' ':!.claude' ':!tests/test_retired_backends_absent.py'` → vacío
+  - `python agent-kits/shared/ledger-lint.py docs/roadmap/2026-11-10-plugin-audit-2/tasks.md` → `0 incoherencias`
+
+**Criterios de aceptación**
+- [ ] Ningún fichero vivo (fuera de `docs/roadmap/**`, `docs/knowledge/**`, los CHANGELOG y el propio test de no regresión) nombra Kwipu, Graphiti ni `markdown-export`.
+- [ ] El cargador no tiene lista de retirados: un `type` sin adaptador da el aviso genérico de adaptador ausente, con test; el panel deja de leer `RETIRADOS` y sigue mostrando los backends declarados.
+- [ ] Un único test de no regresión recorre el árbol vivo con lista blanca explícita de las rutas históricas; los asserts sueltos de «no aparece» desaparecen.
+- [ ] El test que leía `docs/roadmap/2026-09-15-graphiti-memory/tasks.md` lee una fixture copiada (bytes iguales, SHA-256 en la Evidencia), con la misma aserción.
+- [ ] La entrada `[Unreleased]`/`[Sin publicar]` del CHANGELOG sigue anunciando la retirada y suma esta línea.
+
 ## Fase 3 — Tokens
 
 **Estado**: en-progreso · **Est.**: 30h humanas · **Real**: — · 1500 € · 2260k tokens
@@ -568,7 +588,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: `dev-cycle.md` (29,5 KB) carga la Fase 6 y la tabla de transiciones desde el primer turno (≈10 KB). Pasan a `references/phase6-close.md` con «léelo solo al llegar a la Fase 6». El paso Kwipu/Graphiti de `/setup` (2.10) NO se mueve: T-08 lo borra. Mejora el margen de la vía rápida.
 - **Changelog**: dev-cycle carga el cierre solo cuando llega a esa fase.
-- **Estado**: en-revision
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 2h · real —
 - **Tiempo IA (ejec.)**: est. 0.5h · real 0.16h (medido, `plugin-audit-2/T-16`; la preparación del RED y la espera de `node --test` cayeron en las ventanas de T-15 y T-17)
 - **Dependencias**: T-15
@@ -598,7 +618,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: La receta que localiza el kit aparece 19 veces en 9 agentes y 14 en 9 comandos (verificado con `grep -c`). Una por pieza que derive todas las variables (`PLANKIT`, `DEVKIT`…) en vez de repetirla por paso. Ahorro medido −7,5 KB.
 - **Changelog**: Cada agente y comando resuelve el kit una sola vez.
-- **Estado**: en-revision
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 3h · real —
 - **Tiempo IA (ejec.)**: est. 0.7h · real 0.23h (medido, `plugin-audit-2/T-17`; incluye el fix de T-15 `61453ef` y la espera de las suites)
 - **Dependencias**: T-15, T-16
@@ -1353,3 +1373,22 @@ Lentes A y B (Claude Opus 5.5, esfuerzo medio) sobre `67cff01..3fa4f4d` (fix7 de
 
 **T-40 cerrada (2026-11-25)** según el criterio del usuario: 0 Critical y 0 Important tras 8 intentos en tres ciclos. El rediseño del registro de revisiones va a T-14 de `docs/roadmap/2026-11-24-auditoria-astra/`.
 
+
+## Revisión de dos lentes — intento 1: Fase 3 (T-15, T-16, T-17) — tanda B1 (T-15, T-16, T-17)
+
+**Veredicto del plugin**: gaps (T-16, T-17)
+
+Lentes: A+B (Opus, contexto fresco); C y D no aplican (`review-lens-select.py --base f5a15d1`: sin motivos). `scope-check.py --base f5a15d1` → exit 0. Diff `f5a15d1..54d3cd6`. Resultado: 4 Important, 6 Minor.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | Criterio «Medido» incumplido: `commands/dev-cycle.md` queda en 22,6 KB y el criterio pedía ≤ 20 KB (la Fase 6 medía 6,9 KB, no los ~10 KB del plan) | T-16 | pendiente (fix1): el usuario decide el 2026-11-26 «Ajustar a ≤ 23 KB»; el criterio cambia con este motivo | `tasks.md` criterio Medido de T-16; `improvement-plan.md:49,209` |
+| 2 | Important | Criterio «Medido» incumplido: −5,4 KB frente a ≥ 7 KB; ya queda una receta por pieza y `reviewer`/`/retro` necesitaban la suya | T-17 | pendiente (fix1): el usuario decide el 2026-11-26 «Ajustar a ≥ 5 KB»; el criterio cambia con este motivo | `tasks.md` criterio Medido de T-17 |
+| 3 | Important | Assert debilitado: `required - hashes <= closing` deja salir del núcleo cualquier párrafo obligatorio presente en `phase6-close.md`, no solo los que la fixture declara con `after_file`; mover «Bucle de corrección de qa ACOTADO» a la referencia seguiría en verde | T-16 | pendiente (fix1) | `tests/test_dev_cycle_split.py:87` |
+| 4 | Important | Enlace roto tras el traslado literal: `../docs/COMMIT-SELECTION.md` desde `agent-kits/dev-cycle/references/` no existe (el real es `docs/COMMIT-SELECTION.md`); el linter de rutas no mira `agent-kits/` | T-16 | pendiente (fix1) | `agent-kits/dev-cycle/references/phase6-close.md:9` |
+| 5 | Minor | Condiciones de lectura contradictorias: «léelo solo al llegar a la Fase 6» frente a abrir la tabla de transiciones en la primera puerta de un artefacto | T-16 | pendiente (fix1) | `commands/dev-cycle.md:192` frente a `:56`, `:204` |
+| 6 | Minor | Bloques bash que usan `$SHAREDKIT`/`$QAKIT` sin receta propia en piezas que no avisan de reutilizar la ruta absoluta entre llamadas | T-17 | pendiente (fix1) | `agents/analyst.md:104`; `agents/qa.md:301-303` |
+| 7 | Minor | Rojo previo a la tanda (presente en `f5a15d1`): `tests/test_f4fix1_15*` por frases de más de 40 palabras en la tabla de la Fase 3 de TOKEN-EFFICIENCY; la tanda las alarga | T-16, T-17 | pendiente (fix1): ningún rojo se acepta en la CI | `docs/TOKEN-EFFICIENCY.md:164-166` (+ espejo EN) |
+| 8 | Minor | Frases largas (docs-style regla 1) | T-16 | pendiente (fix1) | `commands/dev-cycle.md:192-195` |
+| 9 | Minor | El RED de T-16 falla por `FileNotFoundError` antes de cualquier aserción | T-16 | deuda aceptada (criterio de cierre del usuario, 2026-11-20) | `tests/test_dev_cycle_split.py:163-164` en `3e0c1f3` |
+| 10 | Minor | Las medidas no se registraron en `testing/tokens.md` | T-15, T-16 | corregido por el orquestador tras el fix1 (el implementer no puede escribir ese fichero) | `testing/tokens.md` |
