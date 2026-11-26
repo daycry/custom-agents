@@ -43,8 +43,8 @@ changelog: Changed
 | Fase 3 — Tokens | 6 | 12 | 50.0% | 0 / 36h | 1.1 / 9.7h | 0 / 2.42h | 0 / 2260k |
 | Fase 4 — Simplificación del código | 0 | 8 | 0.0% | 0 / 34.5h | 0 / 8.5h | 0 / 2.12h | 0 / 2470k |
 | Fase 5 — Alcance y entrenamiento | 0 | 5 | 0% | 0 / 26h | 0 / 6.5h | 0 / 1.62h | 0 / 1800k |
-| Fase 6 — Higiene del roadmap | 0 | 3 | 0% | 0 / 10h | 0 / 2.5h | 0 / 0.62h | 0 / 750k |
-| **TOTAL** | **17** | **41** | **41.5%** | **0 / 154.5h** | **0 / 40.1h** | **0 / 10.02h** | **0 / 10470k** |
+| Fase 6 — Higiene del roadmap | 0 | 4 | 0% | 0 / 10h | 0 / 2.5h | 0 / 0.62h | 0 / 750k |
+| **TOTAL** | **17** | **42** | **40.5%** | **0 / 154.5h** | **0 / 40.1h** | **0 / 10.02h** | **0 / 10470k** |
 
 Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +20 % está en el plan); tokens al precio de `.claude/rates.json`.
 
@@ -595,7 +595,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - **Archivos**: `commands/dev-cycle.md`, `agent-kits/dev-cycle/references/phase6-close.md` (nuevo), `tests/test_dev_cycle_split.py`, `docs/{,en/}FLOWS.md`, `docs/agents/ROLES.md`, `interop/**` (regenerado), `tests/fixtures/dev-cycle-modular-replacements.json` (nota: 6 filas cuyo párrafo destino se mudó literal a la referencia), `tests/installer.test.mjs` y `tests/test_review_cycle_owner.py` (nota: leen la Fase 6 en su sitio nuevo), `docs/{,en/}TOKEN-EFFICIENCY.md` (nota: `test_f4fix2_misc` fija el ahorro de la vía rápida publicado)
 - **Runtimes**: `dev-cycle` es command-skill en Codex y comando en OpenCode; `phase6-close.md` viaja en `agent-kits/` (`install/providers.mjs:30,34`) y se lee con la 
 - **Verificación**:
-  - `context-footprint.py --project . --file commands/dev-cycle.md` antes y después → ≈10 KB menos (en `testing/tokens.md`)
+  - `context-footprint.py --project . --file commands/dev-cycle.md` antes y después → ≤ 23.000 bytes LF tras el traslado (criterio ajustado por el usuario el 2026-11-26; medido 28.499 → 22.639 caracteres, 22.999 bytes LF; en `testing/tokens.md`)
   - `python scripts/lint_plugin.py --diet-check` → 0 párrafos perdidos
   - puertas de runtimes (cabecera) → verde
 
@@ -641,7 +641,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - **Verificación ejecutada** (2026-11-26): `pytest -q tests/test_recipe_once.py` → `76 passed`; `grep -c` → 1 por fichero (20); `export-interop.py --check` → `88 ficheros al día`; `lint_plugin.py` → `0 errores · 16 avisos`; `evals/check.py` → `0 errores`; `check-handbook.py` → exit 0; los 62 ficheros de tests que leen `agents/` o `commands/` + `test_recipe_once.py` (`-n 3`) → `3274 passed, 3 failed, 5 skipped`: `test_agent_tools_skill[reviewer.md]` (fix T-15 `61453ef`, verde), `test_f4fix1_15` (rojo ya en `f5a15d1`: la tabla de la fase 3 de `TOKEN-EFFICIENCY.md` cuenta como frases de 104 y 164 palabras) y `test_session_context_con_el_tope…` (verde aislado); `node --test` de la cabecera → `263 tests: 256 pass, 1 fail, 6 skipped`, con el único rojo (`SessionEnd timeout terminates its child tree`, plazo con la máquina cargada por el pytest anterior) → `pass` aislado.
 - RED (fix1): tests/test_recipe_once.py::test_fix1_gap6_la_receta_avisa_de_reutilizar_la_ruta_si_hay_usos_en_otras_llamadas falló con AssertionError en 11 piezas (analyst, architect, documenter, evaluator, knowledge-curator, nemesis, planner, qa, reviewer, /retro, /setup) (commit `647c9c0`) · 2026-11-26; `test_f4fix1_15` (rojo previo) es el RED del gap 7.
 - TDD n/a (gap 2): decisión del usuario sobre una cifra.
-- **Fix1** (GREEN `a77c2f5`): las 11 piezas dicen junto a su receta que las variables no sobreviven entre llamadas de Bash. Coste +666: el ahorro neto de T-17 baja de −5.483 a **−4.817** (informe de entrada 489.352 → 484.575, sin los +40 de T-16 en `dev-cycle`). `agents/evaluator.md` 15.461 bytes LF. **k5**: el criterio ajustado «≥ 5 KB» no se alcanza por 183 caracteres; queda abierto para la revisión.
+- **Fix1** (GREEN `a77c2f5`): las 11 piezas dicen junto a su receta que las variables no sobreviven entre llamadas de Bash. Coste +666: el ahorro neto de T-17 baja de −5.483 a **−4.817** (informe de entrada 489.352 → 484.575, sin los +40 de T-16 en `dev-cycle`). `agents/evaluator.md` 15.461 bytes LF. **k5**: el criterio «≥ 5 KB» no se alcanzaba por 183 caracteres; el usuario lo ajustó a «≥ 4,5 KB» el 2026-11-26 (`9f8af4a`) y se cumple. La revisión intento 2 midió +628 por el aviso (no +666): los 38 restantes no son del aviso; el neto −4.817 cuadra con `context-footprint.py`.
 
 **Criterios de aceptación**
 - [x] Cada pieza tiene una receta que define todas las variables que usa y solo acepta un `SHAREDKIT` absoluto.
@@ -1196,6 +1196,27 @@ RED: `tests/test_suites_no_pytest.py::test_el_bucle_de_ci_solo_ejecuta_lo_que_py
 - [ ] Si no se puede capturar, el siguiente SessionStart lo dice en la línea del journal.
 - [ ] El plazo de producción solo cambia con una decisión escrita del usuario.
 
+### T-42 — El plugin mantiene el roadmap al día por sí mismo (decidido por el usuario el 2026-11-26)
+
+- **Descripción**: El usuario exige que el roadmap esté siempre al día y que lo haga el propio plugin, no el orquestador a mano. Hoy solo los ESTADOS DE TAREA los mueven scripts (T-40). El estado del ledger, del plan, de la spec y la fila del índice `docs/roadmap/README.md` dependen de que el orquestador los cambie en prosa (Fase 6 de `/dev-cycle`, `/retro`, puerta de `/pm-cycle`). Fallan: 3 ledgers al 100 % siguen `en-progreso` (`kwipu-metadata`, `session-visibility`, `knowledge-verification`), `catalog-capabilities` tiene el plan `en-progreso` con el ledger `completado`, `audit-remediation` tiene la spec `aprobada` con todo cerrado, y 7 iniciativas `completado` no tienen retro. El panel también muestra datos rancios: `build_dashboard.py` `_scan_fase` deduce la fase por los ficheros que existen («en pruebas» si hay `testing/`, «planificada» si hay plan), no por los estados ni por el progreso del ledger; `_scan_leer_eval` no lee coste ni esfuerzo de 6 evaluaciones, porque no reconoce las etiquetas que escribe el propio `evaluator`; y `progress-report.py` da como «pendiente de cierre /retro X» una iniciativa que ya tiene `retro.md` y su fila en `CALIBRATION.md` (caso de knowledge-graphs `three-components`), porque mira solo el estado del ledger. Corrección: (1) un script determinista, `roadmap-sync.py` o un subcomando `sync-initiative` de `ledger-write.py` (elegir uno, sin duplicar), que deriva el estado de la iniciativa de su ledger y de sus artefactos según la tabla de transiciones de `phase6-close.md`/CONVENTIONS: ledger al 100 % → `tasks.md` `completado`; con `retro.md` + fila en CALIBRATION → plan `completado` y spec `implementada`; fila del índice regenerada. Es idempotente, con `--dry-run` y `--check` (exit 1 si hay desfase). (2) Lo disparan el plugin y no el orquestador: `ledger-write.py verdict` (último limpio), `retro-gate.py`/`/retro` al escribir la retro, la puerta de `/pm-cycle` (spec/evaluación) y el hook de `SessionStart`, que solo AVISA del desfase (los hooks informan, no escriben fuera de su contrato; decide la constitución). (3) El panel deriva la fase de los estados y del progreso del ledger; lee las etiquetas reales de la plantilla del evaluator; y «pendiente de cierre» excluye las iniciativas con retro hecha, que el script cierra. (4) Con la herramienta se ponen al día las iniciativas rancias actuales (absorbe la parte de estados de T-36).
+- **Changelog**: El plugin mantiene al día el estado de cada iniciativa (ledger, plan, spec e índice) y el panel muestra la fase real.
+- **Estado**: borrador
+- **Tiempo humano**: est. 8h · real —
+- **Tiempo IA (ejec.)**: est. 2h · real —
+- **Archivos**: `agent-kits/shared/ledger-write.py` o `agent-kits/shared/roadmap-sync.py` (+ test), `agent-kits/shared/retro-gate.py`, `agent-kits/shared/progress-report.py`, `agent-kits/shared/test_progress_report.py`, `skills/roadmap-dashboard/scripts/build_dashboard.py` (+ tests), `agent-kits/dev-cycle/references/phase6-close.md`, `commands/retro.md`, `commands/pm-cycle.md`, `hooks/**` (solo aviso), `docs/CONVENTIONS.md` + `docs/en/CONVENTIONS.md`, `docs/FLOWS.md` + `docs/en/FLOWS.md`, `docs/roadmap/README.md` y los artefactos rancios de las iniciativas listadas, `interop/**`
+- **Verificación**:
+  - `python agent-kits/shared/roadmap-sync.py docs/roadmap --check` → exit 0 tras la puesta al día (rojo antes: lista los desfases citados)
+  - `python skills/roadmap-dashboard/scripts/build_dashboard.py --root docs/roadmap --strict` → sin avisos de «no se leyeron esfuerzo»
+  - `pytest -q` de los tests nuevos → `passed`
+
+**Criterios de aceptación**
+- [ ] Ningún orquestador cambia a mano el estado del ledger, del plan, de la spec ni la fila del índice: lo hace el script, disparado por `verdict`, `retro-gate`/`/retro` y la puerta de `/pm-cycle`, con test por disparador.
+- [ ] `--check` detecta los 5 tipos de desfase citados y sale 1; la puesta al día los deja en 0.
+- [ ] El panel deriva la fase del estado y del progreso (completada · en curso N/M · planificada · evaluada · solo spec) y lee coste y esfuerzo de las 6 evaluaciones que hoy avisan.
+- [ ] «Pendiente de cierre» no lista iniciativas con `retro.md` y su fila en CALIBRATION.
+- [ ] `SessionStart` avisa del desfase sin escribir (hooks informan).
+- [ ] Funciona en Claude Code, Codex y OpenCode (`export-interop.py --check` exit 0).
+
 ## Historial archivado
 
 - 2026-11-17 · «Revisión de dos lentes — intento 1: Fase 1 (T-23, T-02..T-07) — 1 Critical, 6 Important, 11 Minor» → [execution-history.md](execution-history.md) · SHA-256 `96dd10df525bcf05591f40a2f518295f00dbb8645e91754ea554b1d6f810fd06`
@@ -1398,3 +1419,7 @@ Lentes: A+B (Opus, contexto fresco); C y D no aplican (`review-lens-select.py --
 | 8 | Minor | Frases largas (docs-style regla 1) | T-16 | corregido (fix1, `a77c2f5`; test test_fix1_gap8_phase6_and_transition_sentences_are_short) | `commands/dev-cycle.md:192-195` |
 | 9 | Minor | El RED de T-16 falla por `FileNotFoundError` antes de cualquier aserción | T-16 | deuda aceptada (criterio de cierre del usuario, 2026-11-20) | `tests/test_dev_cycle_split.py:163-164` en `3e0c1f3` |
 | 10 | Minor | Las medidas no se registraron en `testing/tokens.md` | T-15, T-16 | corregido por el orquestador tras el fix1 (el implementer no puede escribir ese fichero) | `testing/tokens.md` |
+
+## Revisión de dos lentes — intento 2: Fase 3 (T-15, T-16, T-17) — tanda B1, verificación del fix1 (T-15, T-16, T-17)
+
+Pendiente de revisión; sin veredicto.

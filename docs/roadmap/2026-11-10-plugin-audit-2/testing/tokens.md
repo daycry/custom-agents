@@ -36,4 +36,48 @@ Nota T-20: la cifra del ledger (≈ 3,4 KB / 844 tokens) era el índice entero; 
 hace que el ahorro neto sea 3.047 caracteres (3.243 bytes). El bloque completo de SessionStart depende
 del roadmap y la memoria del proyecto; lo que cambia es solo el índice.
 
-Volcado por el orquestador desde el informe del implementer (2026-11-20). La tanda B (T-15..T-19, T-22) se añadirá aquí.
+Volcado por el orquestador desde el informe del implementer (2026-11-20). La tanda B2 (T-18, T-19, T-22) se añadirá aquí.
+
+## Tanda B1 (T-15, T-16, T-17)
+
+Método: `agent-kits/shared/context-footprint.py` (caracteres UTF-8 normalizados a LF; tokens = caracteres/4, sin tokenizer). Tamaño, no consumo observado ni facturado. Medido el 2026-11-26 sobre la rama `feat/plugin-audit-2`.
+
+| Tarea | Qué se mide | Antes | Después | Diferencia |
+|---|---|---|---|---|
+| T-15 | `context-footprint.py --project .` (entrada: agentes, comandos y `SKILL.md`) | 509.586 | 495.189 | −14.397 (−14.753 bytes) |
+| T-15 | `commands/doctor.md` | 5.807 | 5.245 | −562 |
+| T-15 | `agents/reviewer.md` | 9.121 | 8.200 | −921 |
+| T-15 | `skills/adversarial-review/SKILL.md` | 17.691 | 16.949 | −742 |
+| T-15 | `skills/quick-implement/SKILL.md` | 7.135 | 6.224 | −911 |
+| T-16 | `commands/dev-cycle.md` | 28.499 (28.987 bytes LF) | 22.662 (23.024 bytes LF) | −5.837 |
+| T-16 | `agent-kits/dev-cycle/references/phase6-close.md` (solo en la Fase 6) | — | 7.088 | +7.088 bajo demanda |
+| T-17 | Agentes + comandos (`--project .`) | 489.352 | 483.869 | −5.483 (−6.390 de recetas repetidas; +907 por las recetas que faltaban en `reviewer` y `/retro`) |
+| T-17 | `agents/implementer.md` | 29.077 | 28.268 | −809 |
+| T-17 | `commands/setup.md` | 19.040 | 18.020 | −1.020 |
+
+Puertas de tokens (tras cada tarea):
+
+| Puerta | T-15 | T-16 | T-17 |
+|---|---|---|---|
+| Ahorro estimado de la vía rápida (≥ 6.000) | 6.385 | 7.844 | 7.860 |
+| `agents/evaluator.md` en bytes LF (≤ 15.513) | 15.465 | 15.465 | 15.434 |
+| `--diet-check` | 14 skills: 1 párrafo perdido cada una, el «Alcance y activación» borrado a propósito | n/a (paridad de `dev-cycle` por `test_dev_cycle_split.py`) | n/a (no toca skills) |
+
+Recetas del kit (`grep -c "M=agent-kits/shared/ledger-lint.py" agents/*.md commands/*.md`): 33 en 18 piezas → 20, una por pieza (se añade la que faltaba en `agents/reviewer.md` y `commands/retro.md`).
+
+### Fix1 de la revisión intento 1 (T-16, T-17)
+
+Método: `agent-kits/shared/context-footprint.py --project .` (caracteres UTF-8 con LF; tokens = caracteres/4). Estimación de tamaño, no consumo facturado.
+
+| Medida | Antes (HEAD `7422d4a`) | Después (fix1) | Nota |
+|---|---|---|---|
+| `commands/dev-cycle.md` caracteres | 22.599 | 22.639 (+40) | T-16 tras T-17; criterio ajustado ≤ 23 KB |
+| `commands/dev-cycle.md` bytes LF | 22.959 | 22.999 | ≤ 23.000 |
+| Ahorro de la vía rápida (tokens estimados) | 7.860 | 7.850 | ≥ 6.000 |
+| `agents/evaluator.md` bytes LF | 15.434 | 15.461 | tope 15.513 |
+| Informe completo de entrada (total) | 483.869 (cierre T-17) | 484.575 | inicio T-17: 489.352 |
+| Ahorro neto de T-17 entre agentes y comandos | −5.483 | −4.817 | +666 por el aviso «las variables no sobreviven entre llamadas de Bash» en 11 piezas (gap 6); sin la parte de T-16 en `dev-cycle` (+40) |
+| `phase6-close.md` caracteres | 7.088 | 7.139 (+51) | enlace a `../../../docs/COMMIT-SELECTION.md` (+6) y cabecera con una sola condición de lectura |
+
+Nota de la revisión intento 2: el aviso del gap 6 mide +628 en las 11 piezas, no +666; el neto −4.817 cuadra con `context-footprint.py`. Volcado por el orquestador el 2026-11-26.
+
