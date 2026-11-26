@@ -53,7 +53,7 @@ Este paso no inicia servicios ni genera piezas de proyecto.
 ## Fase 1 — Evaluar (agente `evaluator`)
 Invoca **`evaluator`** con el objetivo. El agente:
 - Crea/lee `spec.md` y produce `evaluation.md` (coste €, esfuerzo en horas, previsión de tokens, complejidad, riesgos, veredicto) con sus plantillas.
-- Enlaza spec↔evaluación (bidireccional) y mantiene el índice `docs/roadmap/README.md`.
+- Enlaza spec↔evaluación (bidireccional); la fila del índice `docs/roadmap/README.md` la escribe `roadmap-sync.py`.
 - Al terminar de evaluar, deja la evaluación en `en-revision`.
 
 > **Medición del coste de generación (usage-meter) — regla de no-solape.** Cada agente de la

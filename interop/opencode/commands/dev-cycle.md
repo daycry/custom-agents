@@ -207,8 +207,9 @@ Los artefactos nacen en `borrador` y cada puerta actualiza su estado en el mismo
 aplica las transiciones de tarea**: `usage-meter.py start` → `en-progreso`, `close`/`ledger-write.py
 review` → `en-revision`, `verdict` limpio → `completado` (con gaps, `en-progreso`). Fase y resumen
 los deriva el writer. Tú reabres el rojo de QA con `ledger-write.py state`. Las puertas de
-artefactos (go/no-go, OK del plan, cierre) las aplicas con la tabla de `phase6-close.md`, que
-consultas en cada puerta de artefacto.
+artefactos las aplica `roadmap-sync.py`: go/no-go con `roadmap-sync.py gate <carpeta> --decision go|no-go`
+(Fase 1, como `/pm-cycle`) y el cierre del ledger con `roadmap-sync.py <carpeta> --cerrar` (Fase 6, tras
+qa verde); el OK del plan es tuyo. La tabla completa está en `phase6-close.md`.
 
 ## Reglas del orquestador
 - **Invoca a los agentes por nombre**; no dependas de la auto-delegación.

@@ -44,7 +44,7 @@ Los supuestos (tarifa, modelo, precio de tokens, tipo de cambio USD→EUR) queda
 3-bis. **Alcance completo en `Archivos`** — el campo no lista solo lo que se edita a mano: si la tarea toca `commands/`, `agents/` o `hooks/` lleva el patrón `interop/**` (lo **generado**, que `implementer` regenera con `scripts/export-interop.py` y la Lente A comprueba con `--check`), y lleva las piezas que **describen** a lo tocado, copiadas de la columna «Piezas que describen» de [`CONTRACTS.md`](CONTRACTS.md) en vez de improvisarse por tarea. Son las aristas E2 y E3 de esa matriz, y quien las salta se las encuentra como gap de alcance en `scope-check.py`.
 4. **Estimación** — tiempo, tokens y coste por tarea/fase, con método declarado.
 5. **Redacción** — rellena las dos plantillas (sustituye placeholders, elimina comentarios guía).
-6. **Cierre** — escribe los ficheros, actualiza `docs/roadmap/README.md` y resume ruta, tiempo, coste, tokens y nº de tareas.
+6. **Cierre** — escribe los ficheros (la fila de `docs/roadmap/README.md` la escribe `roadmap-sync.py`, dueño único) y resume ruta, tiempo, coste, tokens y nº de tareas.
 
 ---
 

@@ -39,8 +39,8 @@ def test_t42_fix1_gap5_la_puerta_go_de_dev_cycle_usa_la_herramienta():
 
 
 def test_t42_fix1_gap12_la_marca_es_la_fuente_del_indice():
-    assert "la marca es la fuente" in plain("docs/CONVENTIONS.md")
-    assert "the marker is the source" in plain("docs/en/CONVENTIONS.md")
+    assert "la marca es la fuente" in plain("docs/CONVENTIONS.md").lower()
+    assert "the marker is the source" in plain("docs/en/CONVENTIONS.md").lower()
 
 
 def test_t42_fix1_gap13_un_solo_dueno_de_la_fila_del_indice():
@@ -50,7 +50,8 @@ def test_t42_fix1_gap13_un_solo_dueno_de_la_fila_del_indice():
         assert not re.search(r"Mantén el índice", text), rel
         assert "roadmap-sync" in text, rel
     for rel in ("docs/CONVENTIONS.md", "docs/en/CONVENTIONS.md"):
-        assert "roadmap-sync" in plain(rel) and ("dueño único" in plain(rel) or "single owner" in plain(rel)), rel
+        text = plain(rel).replace("**", "")
+        assert "roadmap-sync" in text and ("dueña única" in text or "single owner" in text), rel
 
 
 def test_t42_fix1_gap16_arista_ledger_write_roadmap_sync_en_contracts():

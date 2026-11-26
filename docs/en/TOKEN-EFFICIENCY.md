@@ -159,7 +159,8 @@ handoffs, `context-footprint.py` now measures 17,691 characters for that skill,
 7,135 for `skills/quick-implement/SKILL.md`. The estimated quick-path saving
 is 6,157 tokens. After T-15, the skill is at 16,949 characters and
 `skills/quick-implement/SKILL.md` at 6,224. The quick-path saving rises to
-6,385 tokens; with T-16, to 7,844; with T-17, to 7,860. With both fix1s it is 7,850.
+6,385 tokens; with T-16, to 7,844; with T-17, to 7,860. With both fix1s it is 7,850; with the T-42 fix1 (Phase 1 and Phase 6 of `/dev-cycle`
+name `roadmap-sync.py gate` and `--cerrar`), 7,810.
 
 ## Tool results and handoffs
 

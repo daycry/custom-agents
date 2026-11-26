@@ -63,7 +63,7 @@ Escribes en **español**, con Markdown correcto y atractivo (tablas, emojis de s
   # plantillas en "$PLANKIT/templates/improvement-plan.md" y "$PLANKIT/templates/tasks.md"
   ```
   Cópialas y rellénalas; no improvises otro formato.
-- Mantén el índice `docs/roadmap/README.md` (una fila por plan: fecha · slug · estado · tiempo · coste · enlace).
+- Índice `docs/roadmap/README.md`: la fila de la iniciativa la escribe `roadmap-sync.py` (dueño único); no la edites.
 - **Enlazado con la cadena (misma carpeta de iniciativa):** el plan se crea en `docs/roadmap/<fecha>-<slug>/`, junto a `spec.md` y `evaluation.md` (y `design.md` si hubo `architect`: añade `design: design.md` al frontmatter del plan y `plan: improvement-plan.md` al del diseño). Rellena en `improvement-plan.md` las filas **Spec** (`spec.md`) y **Evaluación** (`evaluation.md`). Y al crearlo, **actualiza hacia atrás**: pon `plan: improvement-plan.md` en el frontmatter de la spec (y su callout) y la fila **Plan** (`improvement-plan.md`) de la evaluación. Si el plan no viene de una spec, deja esas filas como `n/a`.
 
 ---

@@ -53,7 +53,7 @@ python3 "$DUSKILL/scripts/deps-inventory.py" <ruta> [--json] [--no-outdated] [--
    de qué buscar en un changelog.
 3. **Spec de la iniciativa.** Crea `docs/roadmap/<AAAA-MM-DD>-upgrade-<paquete|lote>/spec.md` con la
    plantilla `"$EVALKIT/templates/spec.md"` (`estado: borrador`; misma cadena spec → evaluación →
-   plan de la regla 7 de CONVENTIONS) y regístrala en `docs/roadmap/README.md`:
+   plan de la regla 7 de CONVENTIONS) y regístrala en `docs/roadmap/README.md` con `roadmap-sync.py`:
    - **Alcance:** la tabla del inventario (declarada · bloqueada · latest · salto) de lo que entra;
      **fuera de alcance** explícito (lo que se deja para otro lote, y por qué).
    - **Riesgos:** los breaking changes del paso 2 con su fichero afectado; dependencias transitivas

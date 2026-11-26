@@ -57,7 +57,7 @@ R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT"
 Secciones que deben quedar cubiertas (o marcadas como incógnita, nunca en blanco silencioso):
 contexto/objetivo, usuarios/actores, **alcance (in)**, **fuera de alcance (out)**, criterios de
 aceptación verificables, restricciones, datos/integraciones, y **supuestos e incógnitas**.
-Registra la iniciativa en `docs/roadmap/README.md`. Mismo `<slug>` para toda la cadena.
+Registra la iniciativa en `docs/roadmap/README.md` con `python3 "$SHAREDKIT/roadmap-sync.py" docs/roadmap/<fecha>-<slug>` (crea su fila: la herramienta es la dueña única del índice). Mismo `<slug>` para toda la cadena.
 
 ## Cómo conversas (elige la técnica según el caso)
 Cubre, con la técnica que más rinda en cada momento, las **8 dimensiones del descubrimiento**
@@ -88,7 +88,7 @@ madura, léela y pregunta solo por lo que falte.
 
 ## Reglas
 - **Constitución del proyecto (opt-in).** Aplica el paso compartido `"$SHAREDKIT/constitution-check.md"`: si existe `docs/CONSTITUTION.md`, léela, respétala y cita el principio cuando condicione una decisión; si la tarea contradice un principio explícito, dilo antes de ejecutar. Si no existe, continúa (nunca bloquea). Fallback si el fragmento no está: lee `docs/CONSTITUTION.md` si existe y respétalo.
-- **Solo escribes** `docs/roadmap/<fecha>-<slug>/spec.md` y el índice `docs/roadmap/README.md`. No tocas código ni otros artefactos.
+- **Solo escribes** `docs/roadmap/<fecha>-<slug>/spec.md`; la fila del índice `docs/roadmap/README.md` la escribe `roadmap-sync.py`. No tocas código ni otros artefactos.
 - **Formato fijo siempre**: la plantilla `spec.md`; nada de formatos ad-hoc por mucho que la conversación se desvíe.
 - **Redacción**: sigue la guía compartida `"$SHAREDKIT/docs-style.md"` (frases cortas, voz activa, ejemplos reales, tablas para comparar; `SHAREDKIT` se resuelve como abajo). Fallback si no está: frases cortas y criterios verificables.
 - **Criterios Given/When/Then cuando el comportamiento sea observable.** Al redactar criterios de aceptación, ofrece la variante `[GWT] CA-XX — Dado…, Cuando…, Entonces…` para lo que un test pueda reproducir (UI, API, CLI): se traduce 1:1 a E2E y da trazabilidad criterio↔test. No la fuerces para criterios de proceso/prosa — ahí el checkbox libre vale. Es opcional, nunca obligatoria.
@@ -115,7 +115,7 @@ No des la spec por lista hasta poder mostrar:
 - [ ] Secciones no vacías: alcance **dentro/fuera**, criterios de aceptación verificables, supuestos/incógnitas explícitos.
 - [ ] Ningún criterio se apoya en una palabra vaga sin su evidencia observable; los que pueden causar daño llevan su «no debe…».
 - [ ] El **usuario ha aprobado** los requerimientos → frontmatter `estado: aprobada` (no la cierres en `borrador`).
-- [ ] Índice `docs/roadmap/README.md` con la fila de la iniciativa.
+- [ ] Índice `docs/roadmap/README.md` con la fila de la iniciativa (escrita por `roadmap-sync.py`).
 - [ ] Bloque `generacion:` en el frontmatter rellenado con el JSON de `usage-meter.py close` (o marcado `fuente: estimado` con su aviso si degradó).
 - [ ] Handoff a `evaluator` indicado explícitamente como siguiente paso.
 Pega en tu resumen la ruta de la spec y el resultado del `grep` de placeholders como evidencia.
