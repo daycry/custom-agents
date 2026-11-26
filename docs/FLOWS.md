@@ -337,9 +337,9 @@ flowchart TD
     GV -->|sí| CS["skill changelog-sync<br/>[Unreleased] EN + [Sin publicar] ES<br/>desde el ledger cerrado"]
     GV -.->|no| CE["informar discrepancia<br/>sin reescribir el commit"]
     CS --> K["opcional: nemesis<br/>auditoría"]
-    K --> RG["paso 8: /retro + retro-gate.py<br/>retro.md + fila en CALIBRATION.md<br/>(puerta: exit 0)"]
+    K --> RG["paso 8: /retro + retro-gate.py --sync<br/>retro.md + fila en CALIBRATION.md<br/>(puerta: exit 0)"]
     RG -.->|"propuesta nueva: servicio propose"| RH["handoff al Curator<br/>o ruta/ID pendiente visible"]
-    RG -->|"exit 0"| L(["cierre: plan completado · retro<br/>spec implementada"])
+    RG -->|"exit 0"| L(["cierre: roadmap-sync.py escribe<br/>plan completado · spec implementada<br/>fila del índice cerrada"])
     RG -.->|"exit 1"| P(["cierre pendiente de retro<br/>spec aprobada · plan completado"])
     style X fill:#fdecea,stroke:#ef9a9a
     style L fill:#e8f5e9,stroke:#81c784

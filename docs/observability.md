@@ -317,7 +317,7 @@ instalar o actualizar el plugin, en tres pasos (anota el resultado real, no el e
 2. **Contexto de sesión.** reanuda la sesión (`claude --resume`, `/clear` o espera a una compactación; el matcher es `startup|resume|clear|compact`, como en Codex; el journal solo se cita en `startup|resume`) → entran como contexto el
    índice de piezas (`Plugin custom-agents — índice de piezas…`, bloques Comandos/Skills/Agentes; en Claude Code solo
    la cabecera, `Plugin custom-agents — sus comandos, skills y agentes ya están en el listado nativo…`) y el bloque de
-   `progress-report.py session` (iniciativas activas, tarea en curso, «retoma desde…»; las que están al 100 % van en una línea «N al 100 % pendientes de cierre: /retro <slug>»); con nada activo solo entra el
+   `progress-report.py session` (iniciativas activas, tarea en curso, «retoma desde…»; las que están al 100 % van en una línea «N al 100 % pendientes de cierre: /retro <slug>»; si ya tienen retro, «… desfase: ejecuta roadmap-sync.py docs/roadmap», y si el roadmap va atrasado, «Roadmap desfasado: …» — solo aviso, el hook no escribe); con nada activo solo entra el
    índice, y con `dev.json` `sesion.indice: false` solo el roadmap. Prueba de activación: pide algo que case con una
    skill sin nombrarla («revísame este diff») y comprueba que la invoca.
 3. **Hook de guardia del implementer.** Como `implementer` (p. ej. `@implementer …`), intenta escribir

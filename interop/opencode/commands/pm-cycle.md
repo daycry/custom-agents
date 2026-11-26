@@ -68,7 +68,7 @@ Invoca **`evaluator`** con el objetivo. El agente:
 ## Fase 2 — Puerta go/no-go y CIERRE
 Muestra el veredicto y pregunta si se aprueba. Este es el **final del ciclo PM** en cualquier caso:
 
-- **Go (aprobada):** aplica spec → `aprobada` y evaluación → `completado`. **Cierra** con un
+- **Go (aprobada):** `python3 "$SHAREDKIT/roadmap-sync.py" gate docs/roadmap/<fecha>-<slug> --decision go` aplica spec → `aprobada` y evaluación → `completado`, y pone al día la fila del índice. **Cierra** con un
   resumen (iniciativa, coste €, esfuerzo, tokens, nº de características, veredicto y ruta de los
   artefactos) y **ofrece el handoff** en una línea, sin ejecutarlo:
 
@@ -77,8 +77,8 @@ Muestra el veredicto y pregunta si se aprueba. Este es el **final del ciclo PM**
   > (y el `design.md` **aprobado**, si hiciste el paso de diseño), así que arrancará directo en la
   > planificación (`planner`).
 
-- **No-go (se descarta):** aplica evaluación → `cancelado` (spec → `obsoleta` si se descarta la
-  idea). Cierra explicando por qué no conviene y qué haría falta para reconsiderarla.
+- **No-go (se descarta):** `roadmap-sync.py gate … --decision no-go` aplica evaluación → `cancelado`
+  (añade `--descartar` si se descarta la idea: spec → `obsoleta`). Cierra explicando por qué no conviene y qué haría falta para reconsiderarla.
 
 - **A revisar:** si el usuario pide ajustar la spec, itera con `evaluator` (spec sigue `borrador`
   / evaluación `en-revision`) y vuelve a esta puerta.
@@ -130,8 +130,9 @@ en-revision · completado · cancelado`. En pm-cycle solo se tocan **spec** y **
 | Puerta **go** (Fase 2) | `aprobada` | `completado` |
 | Puerta **no-go** | (`obsoleta` si se descarta) | `cancelado` |
 
-Aplica la transición **en el mismo paso** en que se cruza la puerta y mantén coherente el índice
-`docs/roadmap/README.md`. La transición final de la spec a `implementada` **no** ocurre aquí:
+Aplica la transición **en el mismo paso** en que se cruza la puerta con `roadmap-sync.py gate` (T-42):
+escribe spec, evaluación y la fila del índice `docs/roadmap/README.md`; no los edites a mano. Una
+decisión ya tomada no se reabre (exit 1). La transición final de la spec a `implementada` **no** ocurre aquí:
 la aplica `/dev-cycle` al cerrar el desarrollo.
 
 ## Reglas del orquestador
