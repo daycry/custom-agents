@@ -40,9 +40,9 @@
     {
       "before_sha256": "3e536f113782a604a9ee984eb92eb9a561de5fe28f69616b53b13dbe61aca6fb",
       "before_file": "commands/dev-cycle.md",
-      "after_sha256": "426870b8e78f34b4623785c4dd524e6de277c49a30b106ed7ba97e0b14b96437",
+      "after_sha256": "f1617fedbc65c526cdc460f0074436ed6f049f4a04b4627184653e33d660e416",
       "after_file": "commands/dev-cycle.md",
-      "reason": "Plugin-root resolution fix: ${CLAUDE_PLUGIN_ROOT} first (own repo first where master preferred it), then the real-bundle marker agent-kits/shared/ledger-lint.py root by root (project, this plugin's marketplace caches, user) bounded to the install layout (-maxdepth 5, jobs/ and worktrees/ excluded per root), highest version within a cache, stop at the first hit, empty when nothing matches; same lookup target and gate."
+      "reason": "Plugin-root resolution fix: ${CLAUDE_PLUGIN_ROOT} first (own repo first where master preferred it), then the real-bundle marker agent-kits/shared/ledger-lint.py root by root (project, this plugin's marketplace caches, user) bounded to the install layout (-maxdepth 5, jobs/ and worktrees/ excluded per root), highest version within a cache, stop at the first hit, empty when nothing matches; same lookup target and gate. plugin-audit-2 T-17: SHAREDKIT comes from the single kit recipe; the per-step reassignment goes."
     },
     {
       "before_sha256": "cf0c8bae43b2fde085b10c67e8ed1407c07aa31c899e6733a4202353ce55286f",

@@ -13,6 +13,10 @@ Una conversación corta y el proyecto queda configurado. **Idempotente**: si ya 
 los valores actuales y ofrece cambiarlos.
 
 ## Pasos (una pregunta cada vez, en llano)
+Resuelve el kit una vez y reutiliza las rutas absolutas en los pasos siguientes:
+```bash
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SL="${R:+$R/statusline/roadmap-statusline.sh}" SHAREDKIT="${R:+$R/agent-kits/shared}" KSYNC="${R:+$R/skills/knowledge-services/scripts/knowledge-sync.py}"
+```
 0. **¿Ya había configuración? → ofrece `/doctor` primero.** Si existe alguna de `.claude/rates.json`, `.claude/dev.json`, `.claude/integrations.json`, este proyecto ya pasó por aquí: ofrece ejecutar **`/doctor`** (solo lectura; red acotada únicamente para capacidades opcionales activadas) y parte de sus acciones prioritarias y del informe completo — así reconfiguras solo lo que sale ⚠️/❌ en vez de repreguntar todo. Si no hay ninguna config, salta al paso 1 sin mencionar `/doctor`.
 1. **Presupuesto — `.claude/rates.json`.** Si no existe, créalo desde la plantilla (`agent-kits/evaluator/templates/rates.example.json`) confirmando con el usuario: tarifa €/h, jornada (8/7), ratio de supervisión, margen. Para el **precio de tokens**, ofrece ejecutar la skill **`rates-verify`** (consulta la doc oficial y lo escribe con fecha) en vez de dejarlo a 0; si el usuario no quiere ahora, déjalo a 0 = "a verificar". Si existe, resume valores y ofrece ajustar (y relanzar `rates-verify` si el precio es antiguo o está a 0).
 2. **Integraciones por función — `.claude/integrations.json`.** Pregunta si necesita seguimiento de tareas, publicación de documentación u otra función, o ninguna. No elijas proveedor por defecto. Ejemplos: Atlassian (Jira/Confluence), Redmine, GitHub/GitLab, una wiki propia; la lista es abierta. Lee `agent-kits/shared/project-integrations.md`. Si el usuario declina, guarda `{"version":1,"bindings":[]}`; si elige una función, prepara bindings con la skill/herramienta real del proyecto o sesión, eventos y capacidades concretas. Nunca inventes nombres de tools. Valida con `integration-route.py --project <raíz> --check` antes de dar la configuración por válida. Configurado no significa conectado ni autorizado.
@@ -30,10 +34,7 @@ los valores actuales y ofrece cambiarlos.
 5-perfil. **Perfil de ejecución (opt-in, normal por defecto).** Ofrece `normal` o `lite`, conservando la elección ya guardada. `lite` reduce contexto y despacha cada tarea en secuencia, sin paralelismo, al `implementer` nativo (su guardia no aplica al hilo principal); mantiene revisores frescos secuenciales, TDD elegido, revisión, QA y cobertura. Mergea solo `"perfil": "normal|lite"` en `.claude/dev.json`; no cambies los toggles anteriores: al volver a normal recuperan su efecto. Muestra `execution-profile.py --project <raíz del proyecto> --json` del shared del mismo bundle: es la fuente de flags efectivos. En lite el brief tiene techo de 6.000 caracteres y requiere writer operativo; un mínimo obligatorio que no cabe o writer ausente impide el despacho, con diagnóstico para dividir la tarea o restaurar el bundle. No prometas un contexto efectivo del modelo ni capacidad de edición por elegir este perfil.
 5-bis. **Statusline (opt-in, default No).** Pregunta: "¿Mostrar el progreso del roadmap y el coste de la sesión en la barra de estado de Claude Code? [No]".
    - **No** → persiste `"statusline": false` en `.claude/dev.json` y no toca `settings.json`.
-   - **Sí** → resuelve la ruta del script **en tiempo de setup** y escríbela **ABSOLUTA** (la doc oficial de `statusLine` solo documenta `~` en `command`, no `${CLAUDE_PLUGIN_ROOT}`, y el `settings.json` de un plugin no admite la clave `statusLine`; verificado 2026-09-02):
-     ```bash
-     R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SL="${R:+$R/statusline/roadmap-statusline.sh}"
-     ```
+   - **Sí** → resuelve la ruta del script **en tiempo de setup** y escríbela **ABSOLUTA** (la doc oficial de `statusLine` solo documenta `~` en `command`, no `${CLAUDE_PLUGIN_ROOT}`, y el `settings.json` de un plugin no admite la clave `statusLine`; verificado 2026-09-02): la de `$SL`, de la receta del kit.
      (La búsqueda excluye `jobs/` y `worktrees/` bajo cada raíz: las copias temporales y los worktrees no se eligen nunca; gana el plugin instalado o el proyecto. Si `$SL` queda vacío, no hay instalación válida.) Luego **mergea** (sin pisar otras claves) en `.claude/settings.json` del proyecto el bloque oficial:
      ```json
      { "statusLine": { "type": "command", "command": "<ruta absoluta de $SL>" } }
@@ -49,7 +50,6 @@ los valores actuales y ofrece cambiarlos.
    - Idempotente: si `revision.lenteSeguridad` o `revision.lenteRendimiento` ya existen, resume el valor actual de cada una y ofrece cambiarlo por separado.
 5-quater. **Modelos por agente (opcional, default = frontmatter).** Muestra la tabla efectiva con el script determinista y pregunta: "¿Quieres cambiar el modelo de algún agente para este proyecto? [No]".
    ```bash
-   R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="${R:+$R/agent-kits/shared}"
    python3 "$SHAREDKIT/model-tier.py" --all      # tabla: agente · model · effort · fuente (frontmatter / dev.json)
    ```
    - **No** → no escribas la clave (ausente = tiering del frontmatter, tabla de `docs/CONVENTIONS.md`).
@@ -62,7 +62,6 @@ los valores actuales y ofrece cambiarlos.
    - Idempotente: si `tests.coberturaMinima` ya existe, muestra el valor y ofrece cambiarlo o quitarlo.
 5-sexies. **Capacidades opcionales del plugin (registro `capabilities.py`, CA-14).** Lista las capacidades registradas (hoy el Knowledge Gate, siempre activo, y la captura de casos `training`; un backend de `knowledge-services` lo enchufa el proyecto declarándolo en `taxonomy.json`: el plugin no incluye backends ni adaptadores; si el usuario quiere uno, remítelo a `skills/knowledge-services/references/add-backend.md`) en un único paso, sin preguntar por cada una a mano:
    ```bash
-   R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="${R:+$R/agent-kits/shared}"
    python3 "$SHAREDKIT/capabilities.py" --root .      # una línea por capacidad: id, enabled, health, doctor
    ```
    - Si no existe `.claude/knowledge-services/taxonomy.json`, ofrece crearlo desde la plantilla del plugin (`agent-kits/shared/templates/taxonomy.json`) — la plantilla no declara ningún backend (el Knowledge Gate funciona igual con la plantilla en memoria, sin escribir nada, si el usuario prefiere no crearlo).
@@ -73,7 +72,6 @@ los valores actuales y ofrece cambiarlos.
      Muestra tal cual los `avisos` del JSON, si los hay: nunca bloquean.
    - **Antes de la primera sincronización de un backend enchufado**, si su adaptador implementa `estado_grupo`, comprueba si el destino ya trae contenido de otro origen. Primero mira el estado local; la consulta al servidor es opt-in (solo loopback) y, si no responde, dice «no verificado». Es un aviso: nunca bloquea (exit 0):
      ```bash
-     R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; KSYNC="${R:+$R/skills/knowledge-services/scripts/knowledge-sync.py}"
      python3 "$KSYNC" --avisos-grupo [--consultar-servidor]   # sin --backend: recorre los backends cuyo adaptador avisa (el id lo elige el proyecto); exit 0 siempre
      ```
    - Por cada capacidad desactivada que el usuario quiera activar, sigue el `setup_step` que ella misma declara (p. ej. para un backend: `backends.<id>.enabled: true` + su `config` propia en `taxonomy.json`) — este paso **no** conecta nada por su cuenta (nada de auto-discovery de red); solo declara la config.

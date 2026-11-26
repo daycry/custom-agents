@@ -57,7 +57,7 @@ Escribes en **español**, con Markdown correcto (tablas, checkboxes reales). Cad
 - **Salida:** `docs/roadmap/<YYYY-MM-DD>-<slug>/evaluation.md` (crea `docs/` y `docs/roadmap/` si faltan). Usa **el mismo `<slug>`** que la spec para que la cadena sea trazable.
 - **Plantillas (formato FIJO):** localiza el kit sin depender del scope (proyecto/usuario/plugin) y lee de ahí:
   ```bash
-  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; EVALKIT="${R:+$R/agent-kits/evaluator}"
+  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; EVALKIT="${R:+$R/agent-kits/evaluator}" SHAREDKIT="${R:+$R/agent-kits/shared}"
   # spec       en "$EVALKIT/templates/spec.md"
   # evaluación en "$EVALKIT/templates/evaluation.md"
   ```
@@ -72,10 +72,7 @@ Escribes en **español**, con Markdown correcto (tablas, checkboxes reales). Cad
 
 Los parámetros (tarifa, precio de tokens, supervisión, margen, FTE…) y la regla de la config compartida `.claude/rates.json` viven en el **fragmento compartido** — única fuente de verdad para `evaluator`, `planner` y los adaptadores de seguimiento. Léelo y aplícalo:
 
-```bash
-SHAREDKIT="${R:+$R/agent-kits/shared}"   # la misma raíz R que EVALKIT (reasígnala)
-# parámetros en "$SHAREDKIT/estimation-defaults.md"
-```
+Parámetros en `"$SHAREDKIT/estimation-defaults.md"` (receta del kit de arriba).
 
 Fallback si el fragmento no está (instalación parcial): tarifa `50 €/h`, supervisión `~25 %` de las horas IA, margen `+20 %` sobre horas base, FTE `160 h/mes`, precio de tokens `⚠️ verificar`. Registra los valores usados en el bloque **Supuestos económicos** de la evaluación.
 

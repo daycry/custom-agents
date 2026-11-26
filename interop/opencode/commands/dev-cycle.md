@@ -37,7 +37,7 @@ Contrasta la procedencia con el núcleo antes de leer. Las variables no sobreviv
 entre bloques de shell: reasigna la ruta observada en cada uno.
 
 ```bash
-R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$PWD/$M" ] && R="$PWD"; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DEVKIT="${R:+$R/agent-kits/dev-cycle}"
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$PWD/$M" ] && R="$PWD"; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DEVKIT="${R:+$R/agent-kits/dev-cycle}" SHAREDKIT="${R:+$R/agent-kits/shared}"
 ```
 
 ```powershell
@@ -132,7 +132,6 @@ una contradicción nueva se comunica y resuelve antes del trabajo afectado.
 > **Modelo del agente (tiering configurable, capa 2).** Antes de despachar CUALQUIER agente por nombre (`evaluator`, `architect`, `planner`, `implementer`, `qa`, `documenter`, `nemesis`), resuelve su tier efectivo y pasa `model` en el parámetro `model` del Agent tool (contrato oficial sub-agents.md, verificado 2026-09-03: el parámetro por invocación tiene prioridad sobre el frontmatter):
 >
 > ```bash
-> SHAREDKIT="${R:+$R/agent-kits/shared}"   # R: la raíz observada al resolver DEVKIT, reasignada aquí
 > python3 "$SHAREDKIT/model-tier.py" <agente> --json     # {"model": "...", "effort": "...", "fuente": {"model": "frontmatter|dev.json", ...}}
 > ```
 >

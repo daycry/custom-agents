@@ -6,6 +6,7 @@ variables de kit que la pieza usa (`SHAREDKIT`, `EVALKIT`, `DEVKIT`…); si cons
 heredado, solo lo acepta absoluto. La ejecución real sin `CLAUDE_PLUGIN_ROOT` (raíces `.codex` y
 `.opencode` falsas) vive en tests/test_plugin_root_resolution.py.
 """
+import functools
 import pathlib
 import re
 
@@ -21,13 +22,14 @@ def piezas():
     return sorted(p for d in ('agents', 'commands') for p in (ROOT / d).glob('*.md'))
 
 
+@functools.lru_cache(maxsize=None)
 def variables_de_kit():
     """Nombres que alguna receta del repo asigna con `${R:+$R/…}` (SHAREDKIT, EVALKIT, DASH…)."""
     nombres = set()
     for d in ('agents', 'commands', 'skills'):
         for p in (ROOT / d).rglob('*.md'):
             nombres |= set(ASIGNA.findall(p.read_text(encoding='utf-8')))
-    return nombres
+    return frozenset(nombres)
 
 
 def receta(texto):

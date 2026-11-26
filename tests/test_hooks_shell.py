@@ -1327,7 +1327,8 @@ def test_fix1_12_todo_find_de_setup_excluye_los_temporales_de_jobs():
     `~/.claude/jobs` (el de `KPA` en 5-sexies reintroducía el patrón que corrige T-06)."""
     md = open(os.path.join(ROOT, "commands", "setup.md"), encoding="utf-8").read()
     finds = [l.strip() for l in md.splitlines() if 'find "$PWD/.claude"' in l or 'for r in "$PWD"/.{claude,' in l]
-    assert len(finds) >= 4, finds
+    # plugin-audit-2 T-17: /setup resuelve el kit con UNA receta (antes, una por paso: 4).
+    assert len(finds) >= 1, finds
     sin = [l for l in finds if "! -path '*/.claude/jobs/*'" not in l and '! -path "$r/jobs/*"' not in l]
     assert not sin, sin
 

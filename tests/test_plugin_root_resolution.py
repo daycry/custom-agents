@@ -238,7 +238,8 @@ def test_toda_resolucion_del_plugin_usa_la_raiz_por_marcador():
                     vistas += 1
                     if not all(c in linea for c in CONTRATO):
                         malas.append(f"{p.relative_to(ROOT)}:{n} (bucle sin el contrato completo)")
-    assert vistas >= 60, f"solo {vistas} resoluciones reconocidas: ¿cambió la forma y el test mira en vacío?"
+    # plugin-audit-2 T-17: una receta por agente/comando (eran 33 en 18 piezas) deja 51 resoluciones.
+    assert vistas >= 45, f"solo {vistas} resoluciones reconocidas: ¿cambió la forma y el test mira en vacío?"
     assert not malas, malas
 
 
@@ -313,8 +314,9 @@ def test_receta_unica_de_cada_pieza_resuelve_sin_claude_plugin_root(tmp_path, ru
         script.append(f'( unset SHAREDKIT; {cuerpo}\nprintf "%s|%s\\n" "{nombre}" {eco} )')
     env = _env(home)
     env.pop("SHAREDKIT", None)
-    r = subprocess.run([BASH, "-c", "\n".join(script)], capture_output=True, text=True, encoding="utf-8",
-                       errors="replace", cwd=str(proj), env=env, timeout=300)
+    # Por stdin: en Windows, un `-c` con ~20 recetas llega troceado a bash (línea de órdenes de MSYS).
+    r = subprocess.run([BASH, "-s"], input="\n".join(script) + "\n", capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", cwd=str(proj), env=env, timeout=300)
     assert r.stderr == "", r.stderr
     vistas = {}
     for fila in r.stdout.replace("\\", "/").splitlines():
