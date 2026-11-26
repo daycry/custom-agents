@@ -588,7 +588,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: `dev-cycle.md` (29,5 KB) carga la Fase 6 y la tabla de transiciones desde el primer turno (≈10 KB). Pasan a `references/phase6-close.md` con «léelo solo al llegar a la Fase 6». El paso Kwipu/Graphiti de `/setup` (2.10) NO se mueve: T-08 lo borra. Mejora el margen de la vía rápida.
 - **Changelog**: dev-cycle carga el cierre solo cuando llega a esa fase.
-- **Estado**: en-progreso
+- **Estado**: en-revision
 - **Tiempo humano**: est. 2h · real —
 - **Tiempo IA (ejec.)**: est. 0.5h · real 0.16h (medido, `plugin-audit-2/T-16`; la preparación del RED y la espera de `node --test` cayeron en las ventanas de T-15 y T-17)
 - **Dependencias**: T-15
@@ -606,19 +606,22 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
   - Codex/OpenCode: `test_native_adapters_keep_core_and_references_deferred` exige `phase6-close.md` en ambos comandos exportados; `installer.test.mjs` exige que el bundle instalado la traiga.
   - **k3**: el criterio «≤ 20 KB» no se alcanza: la Fase 6 y la tabla medían 6.894 caracteres, no ≈10 KB como estimaba el plan; mover más (Ledger grande, tiering) sacaría reglas que se usan antes del cierre. Queda abierto para la revisión; T-17 quitará la receta duplicada del núcleo.
 - **Verificación ejecutada** (2026-11-26): footprint arriba; diet-check n/a (no toca skills: la paridad de párrafos de `dev-cycle` la cubre `test_dev_cycle_split.py`, 12 passed); `export-interop.py --check` → `88 ficheros al día`; `lint_plugin.py` → `0 errores · 16 avisos`; `evals/check.py` → `0 errores`; `check-handbook.py` → exit 0; pytest de runtimes, `test_dev_cycle_split`, `test_review_*`, `test_phase3_review_contract`, `test_ledger_write_transitions`, `test_f4fix2_misc`, `test_source_snapshot`, `test_context_footprint` y los que leen `dev-cycle.md` → `449 passed, 1 skipped` y `778 passed, 15 skipped` (antes de ajustar 3); `node --test` de la cabecera (con `installer.test.mjs` exigiendo `phase6-close.md`) → `263 tests: 257 pass, 0 fail, 6 skipped`.
+- RED (fix1): tests/test_dev_cycle_split.py::test_fix1_gap4_relative_links_in_kit_references_resolve falló con AssertionError (`phase6-close.md -> ../docs/COMMIT-SELECTION.md`), ::test_fix1_gap5_one_reading_condition_for_phase6_close («la primera puerta de estado») y ::test_fix1_gap8_phase6_and_transition_sentences_are_short (41 palabras); ::test_fix1_gap3_only_paragraphs_declared_with_after_file_phase6_leave_the_core falló con AssertionError sobre el mutante que mueve «Bucle de corrección de qa ACOTADO» a `phase6-close.md`, que el assert viejo dejaba en verde (commit `647c9c0`) · 2026-11-26
+- TDD n/a (gap 1): decisión del usuario sobre una cifra.
+- **Fix1** (GREEN `a77c2f5`): `dev-cycle.md` 22.599 → **22.639** caracteres (22.999 bytes LF ≤ 23 KB); vía rápida 7.860 → **7.850**; `phase6-close.md` 7.139. El núcleo da una sola condición: ritual solo en la Fase 6, tabla de transiciones en cada puerta de artefacto. El plan no fija la cifra (`improvement-plan.md:49,209` son genéricas): sin nota allí. Medición del fix1 de T-16 y T-17 (`plugin-audit-2/T-16-fix1`): 2.62h IA (medido; reloj 1h49m, con las suites y el corte por límite de uso). Suites: 63 ficheros que leen `agents/`/`commands/` → `3163 passed, 5 failed` por carga (`test_lite_profile` ×4, `test_project_pieces` ×1: `8 passed` aislados).
 
 **Criterios de aceptación**
 - [x] El ahorro de la vía rápida sigue ≥ 6.000 (idealmente mayor).
 - [x] Los pasos movidos dicen cuándo leerlos; `retro-gate.py` y la tabla de transiciones se leen en el cierre.
 - [x] Ninguna puerta del cierre se pierde (`--diet-check`).
 - [x] Los comandos exportados a Codex/OpenCode resuelven las referencias nuevas.
-- [ ] Medido: `dev-cycle.md` baja de 29,5 KB a ≤ 20 KB y el ahorro de la vía rápida sigue ≥ 6.000.
+- [x] Medido: `dev-cycle.md` baja de 29,5 KB a ≤ 23 KB (cifra ajustada por decisión del usuario el 2026-11-26: la Fase 6 medía 6,9 KB, no ~10 KB; revisión intento 1, gap 1) y el ahorro de la vía rápida sigue ≥ 6.000.
 
 ### T-17 — Una receta del kit por pieza (2.6)
 
 - **Descripción**: La receta que localiza el kit aparece 19 veces en 9 agentes y 14 en 9 comandos (verificado con `grep -c`). Una por pieza que derive todas las variables (`PLANKIT`, `DEVKIT`…) en vez de repetirla por paso. Ahorro medido −7,5 KB.
 - **Changelog**: Cada agente y comando resuelve el kit una sola vez.
-- **Estado**: en-progreso
+- **Estado**: en-revision
 - **Tiempo humano**: est. 3h · real —
 - **Tiempo IA (ejec.)**: est. 0.7h · real 0.23h (medido, `plugin-audit-2/T-17`; incluye el fix de T-15 `61453ef` y la espera de las suites)
 - **Dependencias**: T-15, T-16
@@ -636,11 +639,14 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
   - `test_receta_unica_de_cada_pieza_resuelve_sin_claude_plugin_root[codex|opencode]`: las 20 recetas, sin `CLAUDE_PLUGIN_ROOT` ni `SHAREDKIT` y con `.codex`/`.config/opencode` falsas, resuelven todas sus variables al bundle esperado (caracteriza; el rojo es de `test_recipe_once.py`).
   - **k4**: «Medido ≥ 7 KB» no se alcanza (−5,5 KB): el plan contó las recetas repetidas sin las dos que faltaban; sin ellas serían −6,4 KB. Queda abierto para la revisión.
 - **Verificación ejecutada** (2026-11-26): `pytest -q tests/test_recipe_once.py` → `76 passed`; `grep -c` → 1 por fichero (20); `export-interop.py --check` → `88 ficheros al día`; `lint_plugin.py` → `0 errores · 16 avisos`; `evals/check.py` → `0 errores`; `check-handbook.py` → exit 0; los 62 ficheros de tests que leen `agents/` o `commands/` + `test_recipe_once.py` (`-n 3`) → `3274 passed, 3 failed, 5 skipped`: `test_agent_tools_skill[reviewer.md]` (fix T-15 `61453ef`, verde), `test_f4fix1_15` (rojo ya en `f5a15d1`: la tabla de la fase 3 de `TOKEN-EFFICIENCY.md` cuenta como frases de 104 y 164 palabras) y `test_session_context_con_el_tope…` (verde aislado); `node --test` de la cabecera → `263 tests: 256 pass, 1 fail, 6 skipped`, con el único rojo (`SessionEnd timeout terminates its child tree`, plazo con la máquina cargada por el pytest anterior) → `pass` aislado.
+- RED (fix1): tests/test_recipe_once.py::test_fix1_gap6_la_receta_avisa_de_reutilizar_la_ruta_si_hay_usos_en_otras_llamadas falló con AssertionError en 11 piezas (analyst, architect, documenter, evaluator, knowledge-curator, nemesis, planner, qa, reviewer, /retro, /setup) (commit `647c9c0`) · 2026-11-26; `test_f4fix1_15` (rojo previo) es el RED del gap 7.
+- TDD n/a (gap 2): decisión del usuario sobre una cifra.
+- **Fix1** (GREEN `a77c2f5`): las 11 piezas dicen junto a su receta que las variables no sobreviven entre llamadas de Bash. Coste +666: el ahorro neto de T-17 baja de −5.483 a **−4.817** (informe de entrada 489.352 → 484.575, sin los +40 de T-16 en `dev-cycle`). `agents/evaluator.md` 15.461 bytes LF. **k5**: el criterio ajustado «≥ 5 KB» no se alcanza por 183 caracteres; queda abierto para la revisión.
 
 **Criterios de aceptación**
 - [x] Cada pieza tiene una receta que define todas las variables que usa y solo acepta un `SHAREDKIT` absoluto.
 - [x] Resuelve SIN `CLAUDE_PLUGIN_ROOT` (variable solo de Claude Code): el test la deja sin definir y usa raíces `.codex` y `.opencode` falsas (`tests/test_plugin_root_resolution.py`).
-- [ ] Medido: ≥ 7 KB menos entre agentes y comandos; ≤ 1 receta por pieza (`grep -c`).
+- [ ] Medido: ≥ 5 KB menos entre agentes y comandos (cifra ajustada por decisión del usuario el 2026-11-26: ya queda una receta por pieza y `reviewer` y `/retro` necesitaban la suya; revisión intento 1, gap 2); ≤ 1 receta por pieza (`grep -c`).
 
 ### T-18 — Fragmentos solo si hay aciertos y capability-check mínimo (2.3, 2.12)
 
@@ -1382,13 +1388,13 @@ Lentes: A+B (Opus, contexto fresco); C y D no aplican (`review-lens-select.py --
 
 | # | Grado | Gap | Tarea | Corrección | Evidencia |
 |---|---|---|---|---|---|
-| 1 | Important | Criterio «Medido» incumplido: `commands/dev-cycle.md` queda en 22,6 KB y el criterio pedía ≤ 20 KB (la Fase 6 medía 6,9 KB, no los ~10 KB del plan) | T-16 | pendiente (fix1): el usuario decide el 2026-11-26 «Ajustar a ≤ 23 KB»; el criterio cambia con este motivo | `tasks.md` criterio Medido de T-16; `improvement-plan.md:49,209` |
-| 2 | Important | Criterio «Medido» incumplido: −5,4 KB frente a ≥ 7 KB; ya queda una receta por pieza y `reviewer`/`/retro` necesitaban la suya | T-17 | pendiente (fix1): el usuario decide el 2026-11-26 «Ajustar a ≥ 5 KB»; el criterio cambia con este motivo | `tasks.md` criterio Medido de T-17 |
-| 3 | Important | Assert debilitado: `required - hashes <= closing` deja salir del núcleo cualquier párrafo obligatorio presente en `phase6-close.md`, no solo los que la fixture declara con `after_file`; mover «Bucle de corrección de qa ACOTADO» a la referencia seguiría en verde | T-16 | pendiente (fix1) | `tests/test_dev_cycle_split.py:87` |
-| 4 | Important | Enlace roto tras el traslado literal: `../docs/COMMIT-SELECTION.md` desde `agent-kits/dev-cycle/references/` no existe (el real es `docs/COMMIT-SELECTION.md`); el linter de rutas no mira `agent-kits/` | T-16 | pendiente (fix1) | `agent-kits/dev-cycle/references/phase6-close.md:9` |
-| 5 | Minor | Condiciones de lectura contradictorias: «léelo solo al llegar a la Fase 6» frente a abrir la tabla de transiciones en la primera puerta de un artefacto | T-16 | pendiente (fix1) | `commands/dev-cycle.md:192` frente a `:56`, `:204` |
-| 6 | Minor | Bloques bash que usan `$SHAREDKIT`/`$QAKIT` sin receta propia en piezas que no avisan de reutilizar la ruta absoluta entre llamadas | T-17 | pendiente (fix1) | `agents/analyst.md:104`; `agents/qa.md:301-303` |
-| 7 | Minor | Rojo previo a la tanda (presente en `f5a15d1`): `tests/test_f4fix1_15*` por frases de más de 40 palabras en la tabla de la Fase 3 de TOKEN-EFFICIENCY; la tanda las alarga | T-16, T-17 | pendiente (fix1): ningún rojo se acepta en la CI | `docs/TOKEN-EFFICIENCY.md:164-166` (+ espejo EN) |
-| 8 | Minor | Frases largas (docs-style regla 1) | T-16 | pendiente (fix1) | `commands/dev-cycle.md:192-195` |
+| 1 | Important | Criterio «Medido» incumplido: `commands/dev-cycle.md` queda en 22,6 KB y el criterio pedía ≤ 20 KB (la Fase 6 medía 6,9 KB, no los ~10 KB del plan) | T-16 | corregido (fix1, `a77c2f5`; decisión del usuario del 2026-11-26 «Ajustar a ≤ 23 KB»: criterio cambiado y cumplido, 22.639 caracteres / 22.999 bytes LF; TDD n/a: cifra) | `tasks.md` criterio Medido de T-16; `improvement-plan.md:49,209` |
+| 2 | Important | Criterio «Medido» incumplido: −5,4 KB frente a ≥ 7 KB; ya queda una receta por pieza y `reviewer`/`/retro` necesitaban la suya | T-17 | criterio cambiado a «≥ 5 KB» (fix1, decisión del usuario del 2026-11-26; TDD n/a: cifra), pero NO cumplido: −4.817 tras el aviso del gap 6 (+666); abierto para la revisión | `tasks.md` criterio Medido de T-17 |
+| 3 | Important | Assert debilitado: `required - hashes <= closing` deja salir del núcleo cualquier párrafo obligatorio presente en `phase6-close.md`, no solo los que la fixture declara con `after_file`; mover «Bucle de corrección de qa ACOTADO» a la referencia seguiría en verde | T-16 | corregido (fix1, `a77c2f5`; test test_fix1_gap3_only_paragraphs_declared_with_after_file_phase6_leave_the_core) | `tests/test_dev_cycle_split.py:87` |
+| 4 | Important | Enlace roto tras el traslado literal: `../docs/COMMIT-SELECTION.md` desde `agent-kits/dev-cycle/references/` no existe (el real es `docs/COMMIT-SELECTION.md`); el linter de rutas no mira `agent-kits/` | T-16 | corregido (fix1, `a77c2f5`; test test_fix1_gap4_relative_links_in_kit_references_resolve) | `agent-kits/dev-cycle/references/phase6-close.md:9` |
+| 5 | Minor | Condiciones de lectura contradictorias: «léelo solo al llegar a la Fase 6» frente a abrir la tabla de transiciones en la primera puerta de un artefacto | T-16 | corregido (fix1, `a77c2f5`; test test_fix1_gap5_one_reading_condition_for_phase6_close) | `commands/dev-cycle.md:192` frente a `:56`, `:204` |
+| 6 | Minor | Bloques bash que usan `$SHAREDKIT`/`$QAKIT` sin receta propia en piezas que no avisan de reutilizar la ruta absoluta entre llamadas | T-17 | corregido (fix1, `a77c2f5`; test test_fix1_gap6_la_receta_avisa_de_reutilizar_la_ruta_si_hay_usos_en_otras_llamadas, 11 piezas) | `agents/analyst.md:104`; `agents/qa.md:301-303` |
+| 7 | Minor | Rojo previo a la tanda (presente en `f5a15d1`): `tests/test_f4fix1_15*` por frases de más de 40 palabras en la tabla de la Fase 3 de TOKEN-EFFICIENCY; la tanda las alarga | T-16, T-17 | corregido (fix1, `a77c2f5`; test test_f4fix1_15_the_declared_growth_is_not_one_long_nested_sentence en verde, tabla en frases cortas) | `docs/TOKEN-EFFICIENCY.md:164-166` (+ espejo EN) |
+| 8 | Minor | Frases largas (docs-style regla 1) | T-16 | corregido (fix1, `a77c2f5`; test test_fix1_gap8_phase6_and_transition_sentences_are_short) | `commands/dev-cycle.md:192-195` |
 | 9 | Minor | El RED de T-16 falla por `FileNotFoundError` antes de cualquier aserción | T-16 | deuda aceptada (criterio de cierre del usuario, 2026-11-20) | `tests/test_dev_cycle_split.py:163-164` en `3e0c1f3` |
 | 10 | Minor | Las medidas no se registraron en `testing/tokens.md` | T-15, T-16 | corregido por el orquestador tras el fix1 (el implementer no puede escribir ese fichero) | `testing/tokens.md` |
