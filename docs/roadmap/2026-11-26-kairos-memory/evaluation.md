@@ -21,7 +21,8 @@ generacion:
 | | |
 |---|---|
 | **Fecha** | 2026-11-26 |
-| **Estado** | completado (go del usuario, 2026-11-26: diseño ya; implementación tras fusionar plugin-audit-2) |
+| **Estado** | completado |
+| **Decisión** | go del usuario (2026-11-26): diseño ya con `architect`; implementación cuando plugin-audit-2 esté fusionado |
 | **Prioridad global** | Alta |
 | **Solicitante** | Usuario (dueño del plugin), con la sesión «kairos» como validadora del contrato |
 | **Spec** | [`spec.md`](spec.md) (estado `aprobada`, 29 criterios) |
