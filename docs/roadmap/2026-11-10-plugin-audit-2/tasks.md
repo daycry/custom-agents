@@ -1145,7 +1145,7 @@ RED: `tests/test_suites_no_pytest.py::test_el_bucle_de_ci_solo_ejecuta_lo_que_py
 
 ## Fase 6 — Higiene del roadmap
 
-**Estado**: borrador · **Est.**: 10h humanas · **Real**: — · 500 € · 750k tokens
+**Estado**: en-progreso · **Est.**: 10h humanas · **Real**: — · 500 € · 750k tokens
 
 ### T-36 — Cierres de iniciativas y estados rancios
 
@@ -1203,22 +1203,32 @@ RED: `tests/test_suites_no_pytest.py::test_el_bucle_de_ci_solo_ejecuta_lo_que_py
 
 - **Descripción**: El usuario exige que el roadmap esté siempre al día y que lo haga el propio plugin, no el orquestador a mano. Hoy solo los ESTADOS DE TAREA los mueven scripts (T-40). El estado del ledger, del plan, de la spec y la fila del índice `docs/roadmap/README.md` dependen de que el orquestador los cambie en prosa (Fase 6 de `/dev-cycle`, `/retro`, puerta de `/pm-cycle`). Fallan: 3 ledgers al 100 % siguen `en-progreso` (`kwipu-metadata`, `session-visibility`, `knowledge-verification`), `catalog-capabilities` tiene el plan `en-progreso` con el ledger `completado`, `audit-remediation` tiene la spec `aprobada` con todo cerrado, y 7 iniciativas `completado` no tienen retro. El panel también muestra datos rancios: `build_dashboard.py` `_scan_fase` deduce la fase por los ficheros que existen («en pruebas» si hay `testing/`, «planificada» si hay plan), no por los estados ni por el progreso del ledger; `_scan_leer_eval` no lee coste ni esfuerzo de 6 evaluaciones, porque no reconoce las etiquetas que escribe el propio `evaluator`; y `progress-report.py` da como «pendiente de cierre /retro X» una iniciativa que ya tiene `retro.md` y su fila en `CALIBRATION.md` (caso de knowledge-graphs `three-components`), porque mira solo el estado del ledger. Corrección: (1) un script determinista, `roadmap-sync.py` o un subcomando `sync-initiative` de `ledger-write.py` (elegir uno, sin duplicar), que deriva el estado de la iniciativa de su ledger y de sus artefactos según la tabla de transiciones de `phase6-close.md`/CONVENTIONS: ledger al 100 % → `tasks.md` `completado`; con `retro.md` + fila en CALIBRATION → plan `completado` y spec `implementada`; fila del índice regenerada. Es idempotente, con `--dry-run` y `--check` (exit 1 si hay desfase). (2) Lo disparan el plugin y no el orquestador: `ledger-write.py verdict` (último limpio), `retro-gate.py`/`/retro` al escribir la retro, la puerta de `/pm-cycle` (spec/evaluación) y el hook de `SessionStart`, que solo AVISA del desfase (los hooks informan, no escriben fuera de su contrato; decide la constitución). (3) El panel deriva la fase de los estados y del progreso del ledger; lee las etiquetas reales de la plantilla del evaluator; y «pendiente de cierre» excluye las iniciativas con retro hecha, que el script cierra. (4) Con la herramienta se ponen al día las iniciativas rancias actuales (absorbe la parte de estados de T-36).
 - **Changelog**: El plugin mantiene al día el estado de cada iniciativa (ledger, plan, spec e índice) y el panel muestra la fase real.
-- **Estado**: borrador
+- **Estado**: en-revision
 - **Tiempo humano**: est. 8h · real —
 - **Tiempo IA (ejec.)**: est. 2h · real —
-- **Archivos**: `agent-kits/shared/ledger-write.py` o `agent-kits/shared/roadmap-sync.py` (+ test), `agent-kits/shared/retro-gate.py`, `agent-kits/shared/progress-report.py`, `agent-kits/shared/test_progress_report.py`, `skills/roadmap-dashboard/scripts/build_dashboard.py` (+ tests), `agent-kits/dev-cycle/references/phase6-close.md`, `commands/retro.md`, `commands/pm-cycle.md`, `hooks/**` (solo aviso), `docs/CONVENTIONS.md` + `docs/en/CONVENTIONS.md`, `docs/FLOWS.md` + `docs/en/FLOWS.md`, `docs/roadmap/README.md` y los artefactos rancios de las iniciativas listadas, `interop/**`
+- **Archivos**: `agent-kits/shared/ledger-write.py` o `agent-kits/shared/roadmap-sync.py` (+ test), `agent-kits/shared/retro-gate.py`, `agent-kits/shared/progress-report.py`, `agent-kits/shared/test_progress_report.py`, `skills/roadmap-dashboard/scripts/build_dashboard.py` (+ tests), `agent-kits/dev-cycle/references/phase6-close.md`, `commands/retro.md`, `commands/pm-cycle.md`, `hooks/**` (solo aviso), `docs/CONVENTIONS.md` + `docs/en/CONVENTIONS.md`, `docs/FLOWS.md` + `docs/en/FLOWS.md`, `docs/roadmap/README.md` y los artefactos rancios de las iniciativas listadas, `interop/**`. Añadidos (nota del implementer): `agent-kits/shared/test_roadmap_sync.py`, `tests/test_dashboard_estado.py`, `tests/test_dashboard.py` y `tests/fixtures/panel-redesign/golden/dashboard.{json,md}` (la fase cambia de regla), `agent-kits/shared/README.md` (fila del script nuevo), `docs/observability.md` + `docs/en/observability.md` (bloque de sesión), `docs/roadmap/2026-08-12-sdd-hardening/evaluation.md`, `docs/roadmap/2026-10-15-panel-redesign/{evaluation,improvement-plan}.md`, `docs/roadmap/2026-09-09-brief-budget/spec.md`, `docs/roadmap/2026-09-09-project-specialization/improvement-plan.md`, `docs/roadmap/2026-10-31-control-center/improvement-plan.md`, `docs/roadmap/2026-10-27-opencode-reader-fixes/tasks.md` (desfases que la herramienta encontró además de los citados)
 - **Verificación**:
   - `python agent-kits/shared/roadmap-sync.py docs/roadmap --check` → exit 0 tras la puesta al día (rojo antes: lista los desfases citados)
   - `python skills/roadmap-dashboard/scripts/build_dashboard.py --root docs/roadmap --strict` → sin avisos de «no se leyeron esfuerzo»
   - `pytest -q` de los tests nuevos → `passed`
+- **Evidencia** (2026-11-26): diseño = script `roadmap-sync.py` (la Verificación lo nombra) que importa `ledger-write.py` (lectura acotada, `decode`, escritura atómica, cerrojo `.ledger-write`, parser) y `retro-gate.py`; sin lógica duplicada. Antes: `--check` exit 1 con 82 desfases (11 de estado: 3 ledgers al 100 %, `opencode-reader-fixes` en-revision, planes de `project-specialization`/`catalog-capabilities`/`panel-redesign`/`control-center`, spec de `brief-budget`, evaluaciones de `sdd-hardening`/`panel-redesign`; 71 filas del índice). `python agent-kits/shared/roadmap-sync.py docs/roadmap` los aplicó (`ac32b0e`); después `--check` → «0 desfase(s) · 36 retro(s) pendiente(s) · 0 aviso(s) más · 71 iniciativa(s)», exit 0. `audit-remediation` y las demás sin retro quedan con ledger `completado` y aviso `retro-pendiente` (T-36). `build_dashboard --strict`: 0 avisos «no se leyeron» (antes 7; quedan 4 ajenos a T-42). pytest de los 7 ficheros tocados: 266 passed; `test_source_snapshot`, `test_context_footprint`, `test_f4fix2_misc`, `test_phase3_review_contract`, `test_export_interop`, `test_plugin_root_resolution`: 187 passed, 1 skipped. `export-interop --check`: 88 al día. `lint_plugin`: 0 errores; `evals/check`: 0 errores. Tokens (bytes de fuente): `commands/pm-cycle.md` 10.809→11.118, `commands/retro.md` 8.847→9.337, `phase6-close.md` 7.277→8.235. `progress-report session` sobre el repo: 1,8 s (la comprobación añade ~1 s). Commits: RED `cab640a`, GREEN `83a0357`, puesta al día `ac32b0e`, docs `56a7bd0`.
 
 **Criterios de aceptación**
-- [ ] Ningún orquestador cambia a mano el estado del ledger, del plan, de la spec ni la fila del índice: lo hace el script, disparado por `verdict`, `retro-gate`/`/retro` y la puerta de `/pm-cycle`, con test por disparador.
-- [ ] `--check` detecta los 5 tipos de desfase citados y sale 1; la puesta al día los deja en 0.
-- [ ] El panel deriva la fase del estado y del progreso (completada · en curso N/M · planificada · evaluada · solo spec) y lee coste y esfuerzo de las 6 evaluaciones que hoy avisan.
-- [ ] «Pendiente de cierre» no lista iniciativas con `retro.md` y su fila en CALIBRATION.
-- [ ] `SessionStart` avisa del desfase sin escribir (hooks informan).
-- [ ] Funciona en Claude Code, Codex y OpenCode (`export-interop.py --check` exit 0).
+- [x] Ningún orquestador cambia a mano el estado del ledger, del plan, de la spec ni la fila del índice: lo hace el script, disparado por `verdict`, `retro-gate`/`/retro` y la puerta de `/pm-cycle`, con test por disparador.
+- [x] `--check` detecta los 5 tipos de desfase citados y sale 1; la puesta al día los deja en 0.
+- [x] El panel deriva la fase del estado y del progreso (completada · en curso N/M · planificada · evaluada · solo spec) y lee coste y esfuerzo de las 6 evaluaciones que hoy avisan.
+- [x] «Pendiente de cierre» no lista iniciativas con `retro.md` y su fila en CALIBRATION.
+- [x] `SessionStart` avisa del desfase sin escribir (hooks informan).
+- [x] Funciona en Claude Code, Codex y OpenCode (`export-interop.py --check` exit 0).
+
+
+RED: `agent-kits/shared/test_roadmap_sync.py::test_check_detecta_los_cinco_tipos_y_la_puesta_al_dia_los_deja_en_cero` falló con AssertionError (roadmap-sync.py no existía: --check sin salida) · 2026-11-26.
+
+
+RED: `tests/test_dashboard_estado.py::test_fase_derivada_de_estados_y_progreso` falló con AssertionError: assert 'en pruebas' == 'en curso 1/2' · 2026-11-26.
+
+
+RED: `agent-kits/shared/test_progress_report.py::test_t42_pendiente_de_cierre_excluye_las_que_tienen_retro` falló con AssertionError: '/retro con-retro' in la línea de pendientes de cierre · 2026-11-26.
 
 ## Historial archivado
 
