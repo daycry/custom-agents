@@ -16,8 +16,9 @@ vivió—: automatiza EXIGIRLA. Informa (ℹ️) si el ledger no está `completa
 
 Uso:
   retro-gate.py <docs/roadmap/<fecha>-<slug> | <fecha>-<slug> | slug> [--root DIR] [--json] [--sync]
-`--sync` (plugin-audit-2 T-42): con la puerta ABIERTA, aplica el cierre con `roadmap-sync.py` (ledger y plan
-`completado`, spec `implementada`, fila del índice); con la puerta cerrada no escribe nada. Sin `--sync`, solo lee.
+`--sync` (plugin-audit-2 T-42): con la puerta ABIERTA, aplica el cierre con `roadmap-sync.py` (plan `completado`,
+spec `implementada` y fila del índice, sobre un ledger ya `completado` por la Fase 6 —`roadmap-sync.py --cerrar`—);
+con la puerta cerrada no escribe nada. Sin `--sync`, solo lee.
 Exit: 0 puerta abierta · 1 cerrada (imprime qué falta y el comando exacto `/retro docs/roadmap/<carpeta>`) ·
 2 error de uso (carpeta no encontrada o ambigua).
 """

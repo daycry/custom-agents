@@ -1079,8 +1079,16 @@ def cmd_active(args):
     return 0
 
 
-def _retro_hecha(root, r):
-    """Puerta de retro abierta (retro.md + fila en CALIBRATION.md) para la iniciativa de `r` (T-42)."""
+PLAZO_COMPROBACION = 2.0   # T-42 fix1 (gap 6): plazo de la comprobación de desfases del bloque de sesión
+
+
+def _retro_hecha(root, r, informe=None):
+    """Puerta de retro abierta (retro.md + fila en CALIBRATION.md) para la iniciativa de `r` (T-42). fix1
+    (gap 15): reutiliza el veredicto que ya calculó la comprobación (`retro_abiertas`) y solo consulta
+    `retro-gate.py` para una iniciativa que la comprobación no analizó (recorte o plazo)."""
+    carpeta = os.path.basename(os.path.dirname(os.path.abspath(r["path"])))
+    if informe is not None and carpeta in informe.get("analizadas", ()):
+        return carpeta in informe.get("retro_abiertas", ())
     try:
         rg = _load_module("session_retro_gate", "retro-gate.py")
         return bool(rg.veredicto(os.path.abspath(str(root)), os.path.dirname(os.path.abspath(r["path"])))["abierta"])
@@ -1089,25 +1097,33 @@ def _retro_hecha(root, r):
 
 
 def _aviso_desfase(root):
-    """T-42: una línea si el roadmap está desfasado (`roadmap-sync.py`, SOLO lectura: el hook avisa, no escribe).
-    Las retros pendientes no cuentan: son trabajo de /retro, no un desfase."""
+    """T-42: (líneas, informe) — una línea si el roadmap está desfasado (`roadmap-sync.py comprobar`, SOLO
+    lectura: el hook avisa, no escribe). Las retros pendientes no cuentan: son trabajo de /retro. fix1 (gap 6):
+    acotada (caché por firma, 128 carpetas, plazo); con el plazo vencido lo dice y el bloque sigue."""
     try:
         if not os.path.isdir(os.path.join(str(root), "docs", "roadmap")):
-            return []
-        informe = _load_module("session_roadmap_sync", "roadmap-sync.py").comprobar(root)
+            return [], None
+        informe = _load_module("session_roadmap_sync", "roadmap-sync.py").comprobar(
+            root, deadline=time.monotonic() + PLAZO_COMPROBACION)
     except Exception:  # noqa: BLE001 — sin comprobación no hay aviso; el bloque sigue
-        return []
+        return [], None
+    lineas = []
     desfases = informe["desfases"]
-    if not desfases:
-        return []
-    n = len({d["iniciativa"] for d in desfases})
-    return [f"Roadmap desfasado: {len(desfases)} desfase(s) en {n} iniciativa(s) — ejecuta roadmap-sync.py docs/roadmap"]
+    if desfases:
+        n = len({d["iniciativa"] for d in desfases})
+        reabiertas = sum(d.get("motivo") == "reabierta" for d in desfases)
+        lineas.append(f"Roadmap desfasado: {len(desfases)} desfase(s) en {n} iniciativa(s)"
+                      + (f", {reabiertas} con tarea reabierta" if reabiertas else "")
+                      + " — ejecuta roadmap-sync.py docs/roadmap")
+    if informe.get("omitida"):
+        lineas.append("Roadmap: comprobación de desfases omitida por plazo — roadmap-sync.py docs/roadmap --check")
+    return lineas, informe
 
 
 def cmd_session(args):
     snap = instantanea(args.root)   # fix2 B-M3: misma instantánea acotada que el journal
     rs = snap["activas"]
-    desfase = _aviso_desfase(args.root)
+    desfase, informe = _aviso_desfase(args.root)
     if not rs:
         print("\n".join([LINEA_NEUTRA] + snap["avisos"][:3] + desfase))
         return 0
@@ -1120,14 +1136,14 @@ def cmd_session(args):
         for t in r["en_progreso"]:
             out.append(f"  · en-progreso: {t['id']} {t['titulo']}".rstrip())
     # T-42: con retro.md y su fila en CALIBRATION ya no falta /retro: falta la sincronización (roadmap-sync).
-    con_retro = [r for r in cerrables if _retro_hecha(args.root, r)]
+    con_retro = [r for r in cerrables if _retro_hecha(args.root, r, informe)]
     sin_retro = [r for r in cerrables if r not in con_retro]
     if sin_retro:
         out.append(f"{len(sin_retro)} al 100 % pendientes de cierre: "
                    + ", ".join("/retro " + r["slug"] for r in sin_retro))
     if con_retro:
-        out.append(f"{len(con_retro)} al 100 % con retro hecha — desfase: ejecuta roadmap-sync.py docs/roadmap ("
-                   + ", ".join(r["slug"] for r in con_retro) + ")")
+        out.append(f"{len(con_retro)} al 100 % con retro hecha — falta el cierre: roadmap-sync.py "
+                   "docs/roadmap/<carpeta> --cerrar (" + ", ".join(r["slug"] for r in con_retro) + ")")
     huerf = marcadores_huerfanos(args.root, in_process=getattr(args, 'in_process', False))
     if huerf is None:
         out.append("usage-meter: no disponible")
@@ -1144,8 +1160,8 @@ def cmd_session(args):
     if unica["en_progreso"]:
         cola = "retoma desde la tarea en-progreso"
     elif unica.get("total") and unica["completadas"] == unica["total"]:
-        cola = ("al 100 % con retro hecha — desfase: ejecuta roadmap-sync.py docs/roadmap" if _retro_hecha(args.root, unica)
-                else "al 100 %: /retro " + unica["slug"])
+        cola = ("al 100 % con retro hecha — falta el cierre: roadmap-sync.py docs/roadmap/<carpeta> --cerrar"
+                if _retro_hecha(args.root, unica, informe) else "al 100 %: /retro " + unica["slug"])
     else:
         cola = "sin tarea en-progreso"
     out.append(f"Ledger canónico: {rel} — {cola}")

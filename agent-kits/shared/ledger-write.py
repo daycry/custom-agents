@@ -435,8 +435,9 @@ def write(args):
 
 
 def roadmap_sync(path, warnings):
-    """T-42: a verdict that leaves the ledger at 100 % brings its initiative up to date (ledger state,
-    plan/spec with the retro gate, index row) through roadmap-sync.py. Degrades to a warning."""
+    """T-42: a verdict that leaves every task closed brings its initiative up to date through roadmap-sync.py
+    (index row; ledger `en-progreso` if it was behind). It never closes the ledger: that is Phase 6
+    (`roadmap-sync.py <folder> --cerrar`, after QA) — fix1, gap 2. Degrades to a warning."""
     if not LINT.INITIATIVE_FOLDER.fullmatch(path.parent.name) or LINT.ledger_project(path) is None:
         return None
     try:

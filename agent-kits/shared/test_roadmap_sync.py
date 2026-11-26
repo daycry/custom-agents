@@ -144,13 +144,16 @@ def test_t42_fix1_gap1_sync_no_cierra_la_evaluacion_sin_go(tmp_path):
 
 
 def test_nunca_rebaja_un_estado_y_reporta_el_adelantado(tmp_path):
+    # fix1 (gap 2): un ledger `completado` con una tarea reabierta SÍ vuelve a `en-progreso` (única excepción,
+    # con la tarea como evidencia); lo adelantado sin evidencia —spec `implementada` con el ledger abierto— no.
     roadmap = proyecto(tmp_path)
-    c = iniciativa(roadmap, "2026-01-01-demo", tasks=ledger("completado", ("completado", "en-progreso")))
-    antes = (c / "tasks.md").read_bytes()
-    code, out = run_json(c, "--check")
-    assert (c / "tasks.md").read_bytes() == antes
+    c = iniciativa(roadmap, "2026-01-01-demo", tasks=ledger("en-progreso", ("completado", "en-progreso")),
+                   spec=artefacto("spec", "implementada"))
+    antes = (c / "spec.md").read_bytes()
+    code, out = run_json(c)
+    assert (c / "spec.md").read_bytes() == antes
     assert [a["tipo"] for a in out["avisos"]] == ["adelantado"]
-    assert not [d for d in out["desfases"] if d["artefacto"] == "tasks.md"]
+    assert not [d for d in out["desfases"] if d["artefacto"] == "spec.md"]
 
 
 def test_via_rapida_solo_tasks(tmp_path):
