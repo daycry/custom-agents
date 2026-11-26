@@ -449,7 +449,7 @@ def _resumen_acotado(reader, root, relative, absoluta, avisos=None):
         return None
 
 
-def instantanea(root):
+def instantanea(root, conservar=False):
     """INSTANTÁNEA única del roadmap (fix2 B-M3 + fix3): `{"activas": [...], "avisos": [...]}`. La
     usan el escritor del journal, el historial del arranque, el bloque `session`, `active --json`
     (memoria, statusline, `/doctor`).
@@ -504,10 +504,30 @@ def instantanea(root):
         if r and r.get("estado") == "en-progreso":
             out.append(r)
     activas_rel = {"docs/roadmap/" + os.path.basename(os.path.dirname(r["path"])) + "/tasks.md" for r in out}
-    lector.soltar(activas_rel)   # solo se conservan los bytes de las activas (retoma, título)
+    if not conservar:
+        lector.soltar(activas_rel)   # solo se conservan los bytes de las activas (retoma, título)
+    else:
+        lector.activas_rel = activas_rel   # el bloque de sesión los suelta tras la comprobación (T-42 fix2)
     _SNAPSHOT_MEMO.clear()
     _SNAPSHOT_MEMO[clave[0]] = (clave[1], out, avisos, lector)
     return {"activas": [dict(r) for r in out], "avisos": list(avisos)}
+
+
+def _bytes_previos(root):
+    """{carpeta: bytes} de los ledgers que la instantánea leyó ENTEROS: la comprobación de desfases del bloque de
+    sesión los reutiliza en vez de reabrirlos (H-28: una apertura por ledger y arranque; T-42 fix2)."""
+    lector = _lector_instantanea(root, None)
+    previos = {}
+    for relative, previo in (getattr(lector, "_leido", None) or {}).items():
+        if previo.get("status") == "ok" and len(previo.get("data") or b"") >= (previo.get("size") or 0):
+            previos[relative.split("/")[2]] = previo["data"]
+    return previos
+
+
+def _soltar_instantanea(root):
+    lector = _lector_instantanea(root, None)
+    if lector is not None and hasattr(lector, "activas_rel"):
+        lector.soltar(lector.activas_rel)
 
 
 def _lector_instantanea(root, reader):
@@ -1108,7 +1128,7 @@ def _aviso_desfase(root):
         if not os.path.isdir(os.path.join(str(root), "docs", "roadmap")):
             return [], None
         informe = _load_module("session_roadmap_sync", "roadmap-sync.py").comprobar(
-            root, deadline=time.monotonic() + PLAZO_COMPROBACION)
+            root, deadline=time.monotonic() + PLAZO_COMPROBACION, previos=_bytes_previos(root))
     except Exception:  # noqa: BLE001 — sin comprobación no hay aviso; el bloque sigue
         return [], None
     lineas = []
@@ -1129,9 +1149,12 @@ def _aviso_desfase(root):
 
 
 def cmd_session(args):
-    snap = instantanea(args.root)   # fix2 B-M3: misma instantánea acotada que el journal
+    snap = instantanea(args.root, conservar=True)   # fix2 B-M3: misma instantánea acotada que el journal
     rs = snap["activas"]
-    desfase, informe = _aviso_desfase(args.root)
+    try:
+        desfase, informe = _aviso_desfase(args.root)
+    finally:
+        _soltar_instantanea(args.root)
     if not rs:
         print("\n".join([LINEA_NEUTRA] + snap["avisos"][:3] + desfase))
         return 0

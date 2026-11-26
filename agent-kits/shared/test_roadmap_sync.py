@@ -12,6 +12,8 @@ from pathlib import Path
 import subprocess
 import sys
 
+import pytest
+
 KIT = Path(__file__).resolve().parent
 SCRIPT = KIT / "roadmap-sync.py"
 
@@ -28,6 +30,12 @@ CALIBRATION = """# CALIBRATION
 |---|---|---|---|---|---|---|
 {filas}"""
 RETRO = "# Retro — demo\n\n## Causas\n\n- una causa real\n"
+
+
+@pytest.fixture(autouse=True)
+def _cache_aislada(tmp_path_factory, monkeypatch):
+    """La caché de la comprobación de sesión vive fuera del proyecto (fix2): en los tests, en un directorio propio."""
+    monkeypatch.setenv("CUSTOM_AGENTS_CACHE_DIR", str(tmp_path_factory.mktemp("cache-usuario")))
 
 
 def ledger(estado="en-progreso", estados=("completado", "completado"), comentario=""):
@@ -508,8 +516,11 @@ def test_t42_fix1_gap6_cache_por_firma_no_reanaliza_lo_que_no_cambia(tmp_path, m
     iniciativa(roadmap, "2026-01-01-uno", tasks=ledger("borrador", ("en-progreso",)))
     iniciativa(roadmap, "2026-01-02-dos", spec=artefacto("spec", "borrador"))
     mod = _mod()
+    antes = snapshot(tmp_path)
     primera = mod.comprobar(tmp_path)
-    assert primera["desfases"] and (tmp_path / ".claude" / ".roadmap-sync.cache").is_file()
+    assert snapshot(tmp_path) == antes, "fix2: la comprobación de sesión no cambia ningún fichero del proyecto"
+    assert primera["desfases"] and mod.cache_path(tmp_path).is_file()
+    assert tmp_path not in mod.cache_path(tmp_path).parents, "fix2: la caché vive fuera del proyecto"
     llamadas = []
     real = mod.analizar
     monkeypatch.setattr(mod, "analizar", lambda c, *a, **k: llamadas.append(c.name) or real(c, *a, **k))
@@ -519,6 +530,7 @@ def test_t42_fix1_gap6_cache_por_firma_no_reanaliza_lo_que_no_cambia(tmp_path, m
     mod.comprobar(tmp_path)
     assert llamadas == ["2026-01-02-dos"], "solo se reanaliza la iniciativa cuya firma cambió"
     assert not list((tmp_path / "docs").rglob("*.cache")), "la caché nunca vive dentro de docs/"
+    assert set(snapshot(tmp_path)) == set(antes)
 
 
 def test_t42_fix1_gap6_tope_de_carpetas_y_plazo(tmp_path):
@@ -656,7 +668,7 @@ def test_t42_fix2_gap4_cache_con_entrada_incompleta_se_descarta(tmp_path):
     iniciativa(roadmap, "2026-01-01-uno", tasks=ledger("borrador", ("en-progreso",)))
     mod = _mod()
     assert mod.comprobar(tmp_path)["desfases"]
-    cache = tmp_path / ".claude" / mod.CACHE_NOMBRE
+    cache = mod.cache_path(tmp_path)
     for roto in ({"nombre": "x"},
                  {"nombre": "x", "cambios": [{"x": 1}], "avisos": [], "etiqueta": None, "enlaces": [],
                   "titulo": None, "retro": False, "cerrable": False, "vigente": True}):

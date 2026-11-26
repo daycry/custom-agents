@@ -42,6 +42,7 @@ Exit: 0 ok · 1 `--check` con desfases, cambio no aplicado, puerta ya decidida o
 abiertas o sin campo `estado` · 2 uso/E-S · 3 `gate` a medias (escrito un artefacto y no el otro: `escritos`/`no_escritos`).
 """
 import argparse
+import hashlib
 import importlib.util
 import json
 import os
@@ -49,6 +50,7 @@ from pathlib import Path
 import re
 import stat
 import sys
+import tempfile
 import time
 
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -89,10 +91,11 @@ _ENLACE_CARPETA = re.compile(r"\((\d{4}-\d{2}-\d{2}-[^/)\s]+)/")
 _ESCAPADO = "\x00"
 
 # Comprobación de sesión (gap 6 del fix1): mismo tope que la instantánea de progress-report, caché por firma
-# en el estado privado del proyecto (`.claude/`, como `skill-index.py`; nunca dentro de `docs/`).
+# en la caché de usuario, fuera del proyecto (fix2: el bloque de sesión no cambia ningún fichero del proyecto).
 TOPE_SESION = 128
 PLAZO_SESION = 2.0
-CACHE_NOMBRE = ".roadmap-sync.cache"
+CACHE_NOMBRE = ".roadmap-sync.cache"   # nombre histórico (fix1); la caché vive fuera del proyecto (fix2)
+CACHE_ENV = "CUSTOM_AGENTS_CACHE_DIR"
 CACHE_VERSION = 3   # fix2: motivos `cierre-olvidado`/`sin-estado` y validación de la entrada
 
 
@@ -117,6 +120,12 @@ def _leer(path):
         raise SyncError("redirected_path")
     with open(path, "rb") as handle:
         raw = handle.read(LW.MAX_BYTES + 1)
+    return _doc_de_bytes(path, raw)
+
+
+def _doc_de_bytes(path, raw):
+    """El documento de `_leer` a partir de bytes ya leídos (el bloque de sesión reutiliza los de la instantánea de
+    `progress-report.py`: una apertura por ledger y arranque, H-28)."""
     if len(raw) > LW.MAX_BYTES:
         # Fichero > 256 KiB: su cabecera basta para leer el estado; no se deriva ni se escribe.
         texto = raw[:PREFIJO].decode("utf-8", errors="replace").lstrip("﻿").replace("\r\n", "\n")
@@ -207,7 +216,13 @@ def titulo_de(text):
 
 # ---------------------------------------------------------------- análisis de una iniciativa
 
-def analizar(carpeta, root, cerrar=False, presentes=None):
+def _retro_abierta(root, carpeta):
+    """La puerta de retro (`retro.md` con cuerpo + fila en CALIBRATION) con las comprobaciones de `retro-gate.py`,
+    sin `veredicto()`: este vuelve a abrir `tasks.md` para un aviso que aquí no se usa (H-28)."""
+    return bool(RG.retro_ok(str(carpeta))[0] and RG.fila_calibracion(str(root), str(carpeta))[0])
+
+
+def analizar(carpeta, root, cerrar=False, presentes=None, previos=None):
     """Plan de cambios de UNA iniciativa (ver `_resumen` para la parte serializable). `presentes`: los ficheros que
     ya se sabe que existen (la comprobación de sesión los lista con un `scandir`); los demás no se leen."""
     nombre = carpeta.name
@@ -217,6 +232,9 @@ def analizar(carpeta, root, cerrar=False, presentes=None):
             docs[clave] = None
             continue
         try:
+            if previos is not None and fichero == "tasks.md" and nombre in previos:
+                docs[clave] = _doc_de_bytes(carpeta / fichero, previos[nombre])
+                continue
             docs[clave] = _leer(carpeta / fichero)
         except (SyncError, LW.WriteError, OSError, UnicodeError, ValueError) as error:
             docs[clave] = None
@@ -257,7 +275,7 @@ def analizar(carpeta, root, cerrar=False, presentes=None):
         objetivo, abiertas = objetivo_ledger(ledger["text"])
         cerrable = objetivo == "completado"
         if cerrable:
-            retro = bool(RG.veredicto(str(root), str(carpeta))["abierta"])
+            retro = _retro_abierta(root, carpeta)
         if estados["ledger"] is None and not info["ledger"]["spans"] and not info["ledger"]["sin_token"]                 and objetivo:
             # fix2 (gap 5): sin campo `estado` no hay dónde escribir: es un desfase (lo arregla una persona).
             cambios.append({"iniciativa": nombre, "tipo": "ledger", "artefacto": "tasks.md", "de": None,
@@ -286,7 +304,7 @@ def analizar(carpeta, root, cerrar=False, presentes=None):
             proponer("ledger", objetivo, RANGO)
     cerrado = cerrado or (cerrable and nuevos["ledger"] == "completado")
     if retro is None:
-        retro = cerrado and bool(RG.veredicto(str(root), str(carpeta))["abierta"])
+        retro = cerrado and _retro_abierta(root, carpeta)
     if cerrado:
         if retro:
             proponer("plan", "completado", RANGO)
@@ -714,9 +732,31 @@ def _leer_cache(path, clave):
     return inic if isinstance(inic, dict) else {}
 
 
+def cache_path(root):
+    """Caché de la comprobación de sesión FUERA del proyecto y del perfil del usuario (fix2): el bloque de sesión solo
+    avisa y no cambia ningún fichero del proyecto ni de `~`. `$CUSTOM_AGENTS_CACHE_DIR`, o el directorio temporal
+    del sistema + `custom-agents-<usuario>/roadmap-sync/<sha256 de la raíz>.json` (es una caché: si se borra, se
+    recalcula)."""
+    base = os.environ.get(CACHE_ENV)
+    if not base:
+        usuario = (str(os.getuid()) if hasattr(os, "getuid")
+                   else re.sub(r"[^\w.-]", "_", os.environ.get("USERNAME") or "usuario"))
+        base = os.path.join(tempfile.gettempdir(), f"custom-agents-{usuario}")
+    clave = hashlib.sha256(os.path.abspath(str(root)).encode("utf-8")).hexdigest()[:24]
+    return Path(base) / "roadmap-sync" / f"{clave}.json"
+
+
 def _escribir_cache(path, clave, inic):
-    """Solo si el proyecto ya tiene `.claude/` (como `skill-index.py`); nunca bajo `docs/`. Degrada callado."""
-    if not path.parent.is_dir():
+    """Escritura atómica en la caché; nunca dentro del proyecto. En POSIX, solo en un directorio propio y privado
+    (en un `/tmp` compartido, otro usuario no puede plantarlo). Degrada callado."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if hasattr(os, "getuid"):
+            for d in (path.parent, path.parent.parent):
+                info = os.lstat(d)
+                if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
+                    return
+    except OSError:
         return
     tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
     try:
@@ -730,7 +770,7 @@ def _escribir_cache(path, clave, inic):
             pass
 
 
-def comprobar(root_proyecto, deadline=None, tope=TOPE_SESION):
+def comprobar(root_proyecto, deadline=None, tope=TOPE_SESION, previos=None):
     """Solo lectura (bloque de sesión): el mismo análisis, acotado. Las `tope` carpetas más recientes; caché
     por firma (ruta + `mtime_ns` + tamaño de cada artefacto, y la de `CALIBRATION.md`): solo se reanaliza la
     iniciativa cuya firma cambió; con el plazo vencido lo pendiente se omite (`omitida`) sin romper nada."""
@@ -741,8 +781,8 @@ def comprobar(root_proyecto, deadline=None, tope=TOPE_SESION):
     recortadas = max(len(nombres) - tope, 0)
     nombres = nombres[recortadas:]
     clave = [str(root), _firma(roadmap / "CALIBRATION.md")]
-    cache_path = root / ".claude" / CACHE_NOMBRE
-    memo = _leer_cache(cache_path, clave)
+    ruta_cache = cache_path(root)
+    memo = _leer_cache(ruta_cache, clave)
     planes, inic, omitida = [], {}, False
     for nombre in nombres:
         carpeta = roadmap / nombre
@@ -754,12 +794,12 @@ def comprobar(root_proyecto, deadline=None, tope=TOPE_SESION):
             omitida = True
             continue
         else:
-            plan = _resumen(analizar(carpeta, root, presentes=presentes))
+            plan = _resumen(analizar(carpeta, root, presentes=presentes, previos=previos))
         inic[nombre] = {"firma": firma, "plan": plan}
         if plan["vigente"]:
             planes.append(plan)
     if inic != memo:
-        _escribir_cache(cache_path, clave, inic)
+        _escribir_cache(ruta_cache, clave, inic)
     desfases = [c for p in planes for c in p["cambios"]]
     avisos = [a for p in planes for a in p["avisos"]]
     if not omitida:

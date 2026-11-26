@@ -570,6 +570,9 @@ def _modos():
         # Imprime ✅/❌/ℹ️ y acentos graves; sobre la iniciativa de fixture la puerta sale 0 o 1 (memory-retrieval T-17).
         "agent-kits/shared/retro-gate.py":
             [("puerta", lambda w: [INI], (0, 1), None)],
+        # plugin-audit-2 T-42 (fix2): `--check` sobre una iniciativa (solo lee) imprime «→» y «·»; 1 = desfase.
+        "agent-kits/shared/roadmap-sync.py":
+            [("--check", lambda w: [INI, "--check"], (0, 1), None)],
         "agent-kits/shared/scope-check.py":
             [("alcance", lambda w: [INI, "--base", "HEAD"], (0, 1), None)],
         "agent-kits/shared/skill-index.py":
