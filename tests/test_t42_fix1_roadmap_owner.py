@@ -18,7 +18,7 @@ def plain(rel):
 
 def test_t42_fix1_gap2_el_ledger_lo_cierra_la_fase_6():
     fase6 = plain("agent-kits/dev-cycle/references/phase6-close.md")
-    paso6 = fase6[fase6.index("6. **Estados del plan"):][:900]
+    paso6 = fase6[fase6.index("3. **Estados del plan"):][:900]
     assert "--cerrar" in paso6 and "qa" in paso6, paso6
     assert "ya llamó a `roadmap-sync.py`, que pasa `tasks.md` a `completado`" not in fase6
     for rel in ("docs/CONVENTIONS.md", "docs/en/CONVENTIONS.md"):

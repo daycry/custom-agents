@@ -8,7 +8,7 @@ description: >
   definido.
 model: sonnet
 effort: medium
-# tools: Write/Edit SOLO para spec.md + índice README bajo docs/roadmap/. No toca código.
+# tools: Write/Edit SOLO para spec.md bajo docs/roadmap/ (fila del índice: roadmap-sync.py). No toca código.
 tools: Read, Grep, Glob, Bash, Write, Edit, WebFetch, WebSearch
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
 dependencies:

@@ -67,7 +67,7 @@ python3 "$DUSKILL/scripts/deps-inventory.py" <ruta> [--json] [--no-outdated] [--
 
 ## Guardrails
 
-- **Solo lectura del proyecto.** Escribes únicamente `spec.md` (y su fila en el índice del roadmap).
+- **Solo lectura del proyecto.** Escribes únicamente `spec.md`; su fila en el índice del roadmap la escribe `roadmap-sync.py`.
   Nada de `package.json`, lockfiles ni `vendor/`.
 - **Herramientas con timeout** (`--timeout`, 60 s): `npm outdated` puede colgarse sin red; el script
   lo convierte en aviso, no en bloqueo.

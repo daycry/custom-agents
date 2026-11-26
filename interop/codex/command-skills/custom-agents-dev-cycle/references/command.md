@@ -203,7 +203,8 @@ review` → `en-revision`, `verdict` limpio → `completado` (con gaps, `en-prog
 los deriva el writer. Tú reabres el rojo de QA con `ledger-write.py state`. Las puertas de
 artefactos las aplica `roadmap-sync.py`: go/no-go con `roadmap-sync.py gate <carpeta> --decision go|no-go`
 (Fase 1, como `/pm-cycle`) y el cierre del ledger con `roadmap-sync.py <carpeta> --cerrar` (Fase 6, tras
-qa verde); el OK del plan es tuyo. La tabla completa está en `phase6-close.md`.
+qa verde); el OK del plan es tuyo. La tabla completa está en `phase6-close.md`: la consultas en cada
+puerta de artefacto.
 
 ## Reglas del orquestador
 - **Invoca a los agentes por nombre**; no dependas de la auto-delegación.

@@ -96,9 +96,9 @@
     {
       "before_sha256": "b39c0df4ccb4417476d468e4eede13a85fc2fb62f5d13525b8c5a3e1413e8039",
       "before_file": "commands/dev-cycle.md",
-      "after_sha256": "dfcbd22cca01d4f8f4f7f860d16e6681312a360dcc5bec7c51c6ee0412c8c875",
+      "after_sha256": "70e86c38f5ac3a8ad57486cd95258bb2ab65dfba3248c23e56d2b6ca1a5f52c7",
       "after_file": "agent-kits/dev-cycle/references/phase6-close.md",
-      "reason": "Audit H-24/H-25: «seguir» after the 3rd attempt opens a new bounded cycle with the user's OK quoted by ledger-write.py --new-cycle-ok; the commit procedure has a single owner (implementer P4, where commit-selection.py now lives) and Phase 6 only verifies it and reuses it for the orchestrator's own artefacts. plugin-audit-2 T-16: moved verbatim with Phase 6 to phase6-close.md; its fix1 (review attempt 1, gap 4) repoints the COMMIT-SELECTION link to ../../../docs/ so it resolves from agent-kits/dev-cycle/references/, read on reaching Phase 6."
+      "reason": "Audit H-24/H-25: «seguir» after the 3rd attempt opens a new bounded cycle with the user's OK quoted by ledger-write.py --new-cycle-ok; the commit procedure has a single owner (implementer P4, where commit-selection.py now lives) and Phase 6 only verifies it and reuses it for the orchestrator's own artefacts. plugin-audit-2 T-16: moved verbatim with Phase 6 to phase6-close.md; its fix1 (review attempt 1, gap 4) repoints the COMMIT-SELECTION link to ../../../docs/ so it resolves from agent-kits/dev-cycle/references/, read on reaching Phase 6. plugin-audit-2 T-42: step 6 (plan states) is written by the plugin (roadmap-sync.py --cerrar, retro-gate.py --sync closes the whole initiative); fix2 (review attempt 2, gaps 1 and 8) moves it to step 3, before the PR summary and the merge, so the closed ledger travels in the branch; steps 7-9 keep their numbers and gates."
     },
     {
       "before_sha256": "3d0e4510e4ef5e95d659b5f1e3e7e9f04a6e76fcc458e8516735814305bf2b5a",
@@ -145,23 +145,23 @@
     {
       "before_sha256": "ddb8674371d836e6d7a0e08e0359303aa8fb68ce4db0afc40a56ddc71f08f49e",
       "before_file": "commands/dev-cycle.md",
-      "after_sha256": "757023f45cdbd9741c5b9ea686f2c49edde58f1c2a6703dca56124e2f0853e04",
+      "after_sha256": "322dee6d9e6f13c242698eb01d989411c8f3cd9545823583f1783aff020bb52a",
       "after_file": "agent-kits/dev-cycle/references/phase6-close.md",
-      "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates. plugin-audit-2 T-16: moved verbatim with Phase 6 to phase6-close.md, read on reaching Phase 6."
+      "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates. plugin-audit-2 T-16: moved verbatim with Phase 6 to phase6-close.md, read on reaching Phase 6. plugin-audit-2 T-42 (recorded in fix2, review attempt 2, gap 1): the table now says the ledger stays en-progreso until --cerrar and that closing sets ledger and plan to completado."
     },
     {
       "before_sha256": "fa76f237fad8dad6495332589128c1f38175a5865c383e60c00a01be3ec79781",
       "before_file": "commands/dev-cycle.md",
-      "after_sha256": "e4054616a860ed4ed73b631ec3c794fb63714da83212a67a84f201231f01719e",
+      "after_sha256": "d207a06d5d87307a4c6b1a21faad397684f86fccb4e67633e9ca84e591a0ad6e",
       "after_file": "agent-kits/dev-cycle/references/phase6-close.md",
-      "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates. plugin-audit-2 T-16: moved verbatim with Phase 6 to phase6-close.md, read on reaching Phase 6."
+      "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates. plugin-audit-2 T-16: moved verbatim with Phase 6 to phase6-close.md, read on reaching Phase 6. plugin-audit-2 T-42 (recorded in fix2, review attempt 2, gap 1): the sentence becomes the rule that the tool (ledger-write.py for tasks, roadmap-sync.py for the initiative) applies the table, not the orchestrator by hand."
     },
     {
       "before_sha256": "866baa4dec03c18a3ac52811536349034a51a3f757e0ecb49e7aa094e63c082e",
       "before_file": "commands/dev-cycle.md",
-      "after_sha256": "6211a0cb43936ba6b8414658b4c1633a594c4f9b79414898f818a496e4169895",
+      "after_sha256": "aa5749a10d975d3a443d8e85fdb197a583b7cae951f085751acff990e7a6d7bd",
       "after_file": "agent-kits/dev-cycle/references/phase6-close.md",
-      "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates. plugin-audit-2 T-16: moved verbatim with Phase 6 to phase6-close.md, read on reaching Phase 6."
+      "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates. plugin-audit-2 T-16: moved verbatim with Phase 6 to phase6-close.md, read on reaching Phase 6. plugin-audit-2 T-42 (recorded in fix2, review attempt 2, gap 1): the orchestrator keeps validating criteria and evidence, reopening red QA and deciding the judgement gates; roadmap-sync.py --check tells it what fell behind."
     },
     {
       "before_sha256": "60dc7ba69f3646db5fb050a57ed1a2dbae9e3fb3b3c01fb76b267d5272e17304",
@@ -176,6 +176,13 @@
       "after_sha256": "29e62396c02a94307ca7d0503e8f27caadba9decb7f7206663631f626fec719a",
       "after_file": "skills/quick-implement/SKILL.md",
       "reason": "plugin-audit-2 T-15: old description copied into the body; its do-not-use cases (unknowns, phases, budget, typed /dev-cycle, one-line change, ask when unsure) live in the description and the suitability table."
+    },
+    {
+      "before_sha256": "a76825d4ef6113891003b49fcbbf2aa8c9f96b6111d319124bfc1ed7e2bf50bc",
+      "before_file": "agent-kits/dev-cycle/references/phase1-evaluation.md",
+      "after_sha256": "0f93444fb50f9b3b275765399bd91ea6f2b3d72e0473bbb32a8b80d185279b83",
+      "after_file": "agent-kits/dev-cycle/references/phase1-evaluation.md",
+      "reason": "plugin-audit-2 T-42 fix1 (review attempt 1, gap 5), recorded in fix2 (review attempt 2, gap 1): the go/no-go gate keeps showing the verdict, asking and stopping on no-go; the state transition is now applied by roadmap-sync.py gate --decision go|no-go (all or nothing, like /pm-cycle) instead of by hand, and an already decided gate is not reopened."
     }
   ]
 }

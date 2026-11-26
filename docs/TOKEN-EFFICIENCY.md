@@ -169,7 +169,8 @@ El ahorro estimado de la vía rápida es de 6.157 tokens. Tras T-15, la skill
 queda en 16.949 caracteres y `skills/quick-implement/SKILL.md` en 6.224. El
 ahorro de la vía rápida sube a 6.385 tokens; con T-16, a 7.844; con T-17, a 7.860.
 Con el fix1 de ambas queda en 7.850; con el fix1 de T-42 (la Fase 1 y la Fase 6 de `/dev-cycle`
-nombran `roadmap-sync.py gate` y `--cerrar`), en 7.810.
+nombran `roadmap-sync.py gate` y `--cerrar`), en 7.810; con su fix2 (la tabla de transiciones se
+consulta en cada puerta de artefacto), en 7.800.
 
 ## Evitar contexto de poco valor durante la ejecución
 

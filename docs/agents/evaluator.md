@@ -9,7 +9,7 @@ Agente que **evalúa y presupuesta** el coste de implementar una **especificaci�
 ## 1. Entrada y salida
 
 - **Entrada:** una spec en `docs/roadmap/<fecha>-<slug>/spec.md`. Si la especificación llega **por el prompt** (o solo llegan requisitos sueltos), el agente **crea primero la spec** en `docs/roadmap/<fecha>-<slug>/spec.md` (con la plantilla `spec.md`, estado inicial `borrador`) y luego la evalúa.
-- **Salida:** `docs/roadmap/<YYYY-MM-DD>-<slug>/evaluation.md` (mismo `<slug>` que la spec), generado desde las plantillas de `agent-kits/evaluator/templates/` (`spec.md` y `evaluation.md`). Índice en `docs/roadmap/README.md`.
+- **Salida:** `docs/roadmap/<YYYY-MM-DD>-<slug>/evaluation.md` (mismo `<slug>` que la spec), generado desde las plantillas de `agent-kits/evaluator/templates/` (`spec.md` y `evaluation.md`). Su fila del índice `docs/roadmap/README.md` la escribe `roadmap-sync.py` (dueño único).
 - **Enlazado bidireccional:** la evaluación apunta a su spec y, al crearse, actualiza la spec para que apunte a la evaluación. El enlace al plan lo completa `planner` en el handoff.
 
 ---

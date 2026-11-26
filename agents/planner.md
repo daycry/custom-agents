@@ -9,7 +9,7 @@ description: >
   /dev-cycle tenga una evaluación con veredicto go.
 model: sonnet
 effort: medium
-# tools: Write/Edit SOLO para plan+tasks .md + backlinks en spec/evaluación/índice. No toca código.
+# tools: Write/Edit SOLO para plan+tasks .md + backlinks en spec/evaluación. No toca código.
 tools: Read, Grep, Glob, Bash, Write, Edit
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
 # Campos informativos: Claude Code ignora claves extra del frontmatter.
@@ -116,7 +116,7 @@ conserva conflictos o referencias que excedan el límite como pendientes visible
 
 Sustituye TODOS los `{{PLACEHOLDER}}` y borra los comentarios guía `<!-- ... -->` de las plantillas.
 
-**P6. Cierre.** Cierra el medidor (`python3 "$SHAREDKIT/usage-meter.py" close --artefacto "docs/roadmap/<fecha>-<slug>/improvement-plan.md"`) y vuelca su JSON al bloque `generacion:` del frontmatter de **ambos** ficheros del plan (misma medición; re-cerrar **sustituye**, no acumula; si degrada a `fuente: estimado`, estima a juicio, márcalo y **continúa** — nunca bloquea). Escribe ambos ficheros, actualiza `docs/roadmap/README.md` y resume al usuario: ruta del plan, tiempo total, coste total (€), tokens previstos y nº de tareas. Duraciones del resumen en formato humano `XhYm` (`usage-meter.py fmt`). Ofrece abrir el `improvement-plan.md`.
+**P6. Cierre.** Cierra el medidor (`python3 "$SHAREDKIT/usage-meter.py" close --artefacto "docs/roadmap/<fecha>-<slug>/improvement-plan.md"`) y vuelca su JSON al bloque `generacion:` del frontmatter de **ambos** ficheros del plan (misma medición; re-cerrar **sustituye**, no acumula; si degrada a `fuente: estimado`, estima a juicio, márcalo y **continúa** — nunca bloquea). Escribe ambos ficheros (la fila del índice la refresca `roadmap-sync.py`) y resume al usuario: ruta del plan, tiempo total, coste total (€), tokens previstos y nº de tareas. Duraciones del resumen en formato humano `XhYm` (`usage-meter.py fmt`). Ofrece abrir el `improvement-plan.md`.
 
 **P7. Proyección externa opcional.** Tras aprobar el plan local, resuelve el evento `plan.created` mediante `project-integrations.md` y la operación `plan.export`. El adaptador presenta la granularidad (tarea o fase), jerarquía y objetos concretos antes de crear nada; conserva un mapa local de IDs y evita duplicados. Sin integración, cierra localmente.
 
@@ -150,7 +150,7 @@ No des el plan por listo hasta poder mostrar:
 - [ ] Toda tarea que toque `commands/`, `agents/` o `hooks/` lleva **`interop/**`** en su campo `Archivos` (E2) y las **piezas que describen** tomadas de la columna homónima de `docs/agents/CONTRACTS.md` (E3), no improvisadas: `grep -n "interop/\*\*" docs/roadmap/<fecha>-<slug>/tasks.md`.
 - [ ] Si viene de `evaluation.md`: las horas/coste por característica **heredan** la evaluación (diferencias declaradas), no re-estimadas desde cero.
 - [ ] `tasks.md` conserva el banner de **ledger canónico**.
-- [ ] Enlaces de la cadena actualizados: spec `plan:` → improvement-plan.md y fila **Plan** de la evaluación; índice `README.md` con la fila.
+- [ ] Enlaces de la cadena actualizados: spec `plan:` → improvement-plan.md y fila **Plan** de la evaluación; fila del índice al día (`roadmap-sync.py`).
 - [ ] Bloque `generacion:` rellenado en ambos ficheros con el JSON de `usage-meter.py close` (o `fuente: estimado` con aviso si degradó).
 Pega en tu resumen el nº de tareas, el total (h/€/tokens) y el resultado del `grep` de placeholders.
 

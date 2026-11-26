@@ -296,7 +296,7 @@ flowchart TD
     Q --> H
     Z -->|full| B{"folder with<br/>spec+evaluation<br/>from /pm-cycle?"}
     B -->|yes| AD
-    B -->|no| C["evaluator → go/no-go gate"]
+    B -->|no| C["evaluator → go/no-go gate<br/>roadmap-sync.py gate"]
     C -->|go| AD{"design.md present or<br/>requested by the user?"}
     AD -->|yes| AR["architect<br/>options → approved design.md"]
     AR --> D
@@ -324,7 +324,7 @@ flowchart TD
     R -.->|"verdict gaps → en-progreso"| H
     R -->|"verdict limpio → completado"| I["qa · local E2E<br/>verdict: qa-gate.py"]
     I -->|"red (max 3 attempts,<br/>then ask)"| H
-    I -->|green| J["documenter<br/>once at the end<br/>states: orchestrator in Phase 6"]
+    I -->|green| J["documenter<br/>once at the end<br/>states: roadmap-sync in Phase 6"]
     J --> KG{"any candidates in<br/>pending or needs_changes?"}
     KG -->|yes| KC["knowledge-curator<br/>judgment + read-only gate<br/>service apply · original SHA"]
     KG -.->|"no: honest omission<br/>(one line, no failure)"| CP
@@ -333,13 +333,14 @@ flowchart TD
     CV -->|yes| GC["Native Git commit --only<br/>reviewed UTF-8/NUL list<br/>check tree and preserved staging"]
     CV -.->|no| CH["commit pending<br/>visible reason · new preview"]
     GC --> GV{"matching result and<br/>other staging preserved?"}
-    GV -->|yes| CS["changelog-sync skill<br/>[Unreleased] EN + [Sin publicar] ES<br/>from the closed ledger"]
+    GV -->|yes| CL["step 3: roadmap-sync.py --cerrar<br/>ledger completado before the PR"]
+    CL --> CS["changelog-sync skill<br/>[Unreleased] EN + [Sin publicar] ES<br/>from the closed ledger"]
     GV -.->|no| CE["report discrepancy<br/>without rewriting the commit"]
     CS --> K["optional: nemesis<br/>audit"]
-    K --> RG["step 8: /retro + retro-gate.py --sync<br/>retro.md + row in CALIBRATION.md<br/>(gate: exit 0)"]
+    K --> RG["step 8: /retro + retro-gate.py --sync<br/>retro.md + row in CALIBRATION.md<br/>(gate: exit 0; open tasks → exit 1)"]
     RG -.->|"new proposal: service propose"| RH["Curator handoff<br/>or visible pending route/ID"]
-    RG -->|"exit 0"| L(["closeout: roadmap-sync.py writes<br/>plan completado · spec implementada<br/>index row cerrada"])
-    RG -.->|"exit 1"| P(["closeout pending retro<br/>spec aprobada · plan completado"])
+    RG -->|"exit 0"| L(["closeout: retro-gate.py --sync → roadmap-sync.py --cerrar<br/>ledger and plan completado · spec implementada<br/>index row cerrada"])
+    RG -.->|"exit 1"| P(["closeout pending retro<br/>spec aprobada · ledger completado"])
     style X fill:#fdecea,stroke:#ef9a9a
     style L fill:#e8f5e9,stroke:#81c784
 ```

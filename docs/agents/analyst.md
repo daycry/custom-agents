@@ -12,7 +12,7 @@ y su checklist vive ahora dentro de este agente.
 
 ## Entrada / salida
 - **Entrada:** una idea, petición o requisitos sueltos (por chat), o una `spec.md` existente a afinar.
-- **Salida (invariante):** `docs/roadmap/<fecha>-<slug>/spec.md` con la **plantilla `spec.md` del kit del `evaluator`** — contexto/objetivo, usuarios, alcance in/out, criterios de aceptación, restricciones, datos/integraciones y supuestos/incógnitas. Registra la iniciativa en `docs/roadmap/README.md`.
+- **Salida (invariante):** `docs/roadmap/<fecha>-<slug>/spec.md` con la **plantilla `spec.md` del kit del `evaluator`** — contexto/objetivo, usuarios, alcance in/out, criterios de aceptación, restricciones, datos/integraciones y supuestos/incógnitas. La iniciativa entra en `docs/roadmap/README.md` con `roadmap-sync.py` (dueño único de la fila).
 
 ## Cómo trabaja
 Cubre 8 dimensiones internas (objetivo, usuarios, alcance in/out, criterios de éxito,
