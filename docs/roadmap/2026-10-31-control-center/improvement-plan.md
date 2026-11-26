@@ -1,5 +1,5 @@
 ---
-estado: aprobada
+estado: completado
 creado: 2026-10-31
 ---
 

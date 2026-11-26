@@ -17,7 +17,7 @@ generacion:               # MEDIDO por usage-meter.py
 | | |
 |---|---|
 | **Fecha** | 2026-08-12 |
-| **Estado** | en-revision 🔍 |
+| **Estado** | completado |
 | **Prioridad global** | Media 🟡 |
 | **Solicitante** | daycry |
 | **Spec** | [`spec.md`](spec.md) |

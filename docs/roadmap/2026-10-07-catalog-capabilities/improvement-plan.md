@@ -1,6 +1,6 @@
 ---
 plan: catalog-capabilities
-estado: en-progreso
+estado: completado
 creado: 2026-10-07
 spec: spec.md
 evaluacion: evaluation.md

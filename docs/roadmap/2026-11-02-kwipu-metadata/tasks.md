@@ -1,6 +1,6 @@
 ---
 tasks: kwipu-metadata
-estado: en-progreso
+estado: completado
 creado: 2026-11-02
 verificacion: obligatoria
 changelog: Fixed

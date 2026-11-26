@@ -1,6 +1,6 @@
 ---
 plan: project-specialization
-estado: en-progreso       # F1 completada; F2/F3 pendientes
+estado: completado       # F1 completada; F2/F3 pendientes
 creado: 2026-09-09
 actualizado: 2026-09-10
 design: design.md        # `aprobado`, opción elegida O1 (usuario, 2026-09-09) — ADR-014
@@ -22,7 +22,7 @@ generacion:
 | | |
 |---|---|
 | **Fecha** | 2026-09-09 |
-| **Estado** | en-progreso |
+| **Estado** | completado |
 | **Tipo** | Nueva Funcionalidad |
 | **Prioridad** | Alta |
 | **Solicitante** | usuario (petición del 2026-09-09; dos pasadas de descubrimiento) |

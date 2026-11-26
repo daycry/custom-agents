@@ -6,7 +6,7 @@ verificacion: obligatoria
 
 | | |
 |---|---|
-| **Estado** | en-revision |
+| **Estado** | completado |
 | **Origen** | Errores reproducidos y patch revisado en esta conversación; usuario: habría que solucionar estos errores. |
 
 Ledger canónico. No modifica workers, configuración global, el patch externo ni los timeouts de hooks.

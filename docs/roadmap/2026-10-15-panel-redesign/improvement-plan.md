@@ -28,7 +28,7 @@ generacion:               # usage-meter.py close
 | | |
 |---|---|
 | **Fecha** | 2026-10-15 |
-| **Estado** | borrador |
+| **Estado** | completado |
 | **Tipo** | Nueva Funcionalidad |
 | **Prioridad** | Media |
 | **Solicitante** | Usuario del repo (conversación del 2026-10-15) |

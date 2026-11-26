@@ -26,7 +26,7 @@ generacion:               # usage-meter.py close
 | | |
 |---|---|
 | **Fecha** | 2026-10-15 |
-| **Estado** | en-revision 🔍 |
+| **Estado** | completado |
 | **Prioridad global** | Media 🟡 |
 | **Solicitante** | Usuario del repo (conversación del 2026-10-15) |
 | **Spec** | [`spec.md`](spec.md) |
