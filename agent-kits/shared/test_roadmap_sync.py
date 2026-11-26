@@ -537,3 +537,159 @@ def test_t42_fix1_gap15_el_informe_trae_las_retros_abiertas(tmp_path):
     iniciativa(roadmap, "2026-01-01-demo", tasks=ledger(), retro=RETRO)
     iniciativa(roadmap, "2026-01-02-otra", tasks=ledger())
     assert _mod().comprobar(tmp_path)["retro_abiertas"] == ["2026-01-01-demo"]
+
+
+# ---------------------------------------------------------------- fix2 de T-42 (revisión intento 2)
+
+CAL_DEMO = "| 2026-01-09 | demo | −1 % | −1 % | 1 | c | a |\n"
+
+
+def _estado(path):
+    return next(l for l in path.read_text(encoding="utf-8").splitlines() if l.startswith("estado:"))
+
+
+def test_t42_fix2_gap2_retro_gate_sync_cierra_ledger_plan_y_spec(tmp_path):
+    """Gap 2 (a): el cierre lo hace el plugin. Con la retro hecha (solo existe tras qa verde) y las tareas al
+    100 %, `retro-gate.py --sync` cierra el ledger aunque se olvidara `--cerrar`, el plan y la spec."""
+    roadmap = proyecto(tmp_path, filas_cal=CAL_DEMO)
+    c = iniciativa(roadmap, "2026-01-01-demo", tasks=ledger("en-progreso"), retro=RETRO,
+                   spec=artefacto("spec", "aprobada"), plan=artefacto("plan", "en-progreso"))
+    r = subprocess.run([sys.executable, str(KIT / "retro-gate.py"), str(c), "--sync"],
+                       capture_output=True, encoding="utf-8", timeout=30)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert _estado(c / "tasks.md") == "estado: completado"
+    assert _estado(c / "improvement-plan.md") == "estado: completado"
+    assert _estado(c / "spec.md") == "estado: implementada"
+    assert "· estado: cerrada" in (roadmap / "README.md").read_text(encoding="utf-8")
+    assert run_json(roadmap, "--check")[0] == 0
+
+
+def test_t42_fix2_gap2_retro_gate_sync_con_tareas_abiertas_no_abre_la_puerta(tmp_path):
+    roadmap = proyecto(tmp_path, filas_cal=CAL_DEMO)
+    c = iniciativa(roadmap, "2026-01-01-demo", tasks=ledger("en-progreso", ("completado", "en-revision")),
+                   retro=RETRO, spec=artefacto("spec", "aprobada"), plan=artefacto("plan", "en-progreso"))
+    antes = snapshot(tmp_path)
+    r = subprocess.run([sys.executable, str(KIT / "retro-gate.py"), str(c), "--sync"],
+                       capture_output=True, encoding="utf-8", timeout=30)
+    assert r.returncode == 1, r.stdout
+    assert "tareas abiertas" in r.stdout and "ABIERTA" not in r.stdout, r.stdout
+    assert snapshot(tmp_path) == antes
+
+
+def test_t42_fix2_gap2_check_cuenta_el_cierre_olvidado_como_desfase(tmp_path):
+    """Gap 2 (b): tareas al 100 % + retro hecha + ledger/plan/spec sin cerrar = DESFASE (exit 1); sin retro sigue
+    siendo el aviso `cierre-pendiente` (exit 0)."""
+    roadmap = proyecto(tmp_path, filas_cal=CAL_DEMO)
+    iniciativa(roadmap, "2026-01-01-demo", tasks=ledger("en-progreso"), retro=RETRO,
+               spec=artefacto("spec", "aprobada"), plan=artefacto("plan", "en-progreso"))
+    code, out = run_json(roadmap, "--check")
+    assert code == 1
+    assert {"iniciativa": "2026-01-01-demo", "tipo": "ledger", "artefacto": "tasks.md", "de": "en-progreso",
+            "a": "completado", "motivo": "cierre-olvidado"} in out["desfases"], out["desfases"]
+    assert {d["tipo"] for d in out["desfases"]} >= {"ledger", "plan", "spec"}
+    (tmp_path / "b").mkdir()
+    roadmap2 = proyecto(tmp_path / "b")
+    iniciativa(roadmap2, "2026-01-01-demo", tasks=ledger("en-progreso"))
+    code, out = run_json(roadmap2, "--check")
+    assert code == 0 and [a["tipo"] for a in out["avisos"]] == ["cierre-pendiente"]
+
+
+def test_t42_fix2_gap2_el_bloque_de_sesion_da_el_comando_exacto(tmp_path):
+    """Gap 2 (c): para el cierre olvidado, la sesión dice `roadmap-sync.py docs/roadmap/<carpeta> --cerrar`,
+    no `/retro` ni un `<carpeta>` por rellenar."""
+    roadmap = proyecto(tmp_path, filas_cal=CAL_DEMO)
+    iniciativa(roadmap, "2026-01-01-demo", tasks=ledger("en-progreso"), retro=RETRO)
+    r = subprocess.run([sys.executable, str(KIT / "progress-report.py"), "session", "--root", str(tmp_path)],
+                       capture_output=True, encoding="utf-8", errors="replace", timeout=30)
+    assert "roadmap-sync.py docs/roadmap/2026-01-01-demo --cerrar" in r.stdout, r.stdout
+    assert "/retro demo" not in r.stdout and "<carpeta>" not in r.stdout, r.stdout
+    assert any(l.startswith("Roadmap desfasado:") for l in r.stdout.splitlines()), r.stdout
+
+
+def test_t42_fix2_gap2_check_cubre_los_tipos_del_criterio_2(tmp_path):
+    """Gap 2 (e): el criterio 2 (enmendado en fix2) cita los tipos reales: ledger rancio, ledger reabierto, cierre
+    olvidado con retro hecha, plan, spec y fila del índice. `--check` los ve todos; la puesta al día los deja en 0."""
+    cal = "".join(f"| 2026-01-09 | {s} | −1 % | −1 % | 1 | c | a |\n" for s in ("plan-rancio", "olvidado"))
+    roadmap = proyecto(tmp_path, filas_cal=cal)
+    iniciativa(roadmap, "2026-01-01-ledger-rancio", tasks=ledger("borrador", ("completado", "en-progreso")))
+    iniciativa(roadmap, "2026-01-02-reabierto", tasks=ledger("completado", ("completado", "en-progreso")))
+    iniciativa(roadmap, "2026-01-03-olvidado", tasks=ledger("en-progreso"), retro=RETRO,
+               spec=artefacto("spec", "aprobada"))
+    iniciativa(roadmap, "2026-01-04-plan-rancio", tasks=ledger("completado"), retro=RETRO,
+               plan=artefacto("plan", "en-progreso"))
+    code, out = run_json(roadmap, "--check")
+    assert code == 1
+    vistos = {(d["tipo"], d.get("motivo")) for d in out["desfases"]}
+    assert {("ledger", None), ("ledger", "reabierta"), ("ledger", "cierre-olvidado"), ("plan", None),
+            ("spec", None), ("indice", None)} <= vistos, vistos
+    assert run(roadmap)[0] == 0
+    assert run_json(roadmap, "--check")[0] == 0
+
+
+def test_t42_fix2_gap3_fila_con_el_enlace_en_iniciativa_no_se_duplica(tmp_path):
+    """Gap 3: una fila que enlaza a la carpeta en «Iniciativa» con la última columna `—` es la propia: no se
+    añade otra; dos filas así → aviso, sin escribir."""
+    propia = "| 2026-01-01 | [bee](2026-01-01-bee/spec.md) | a | b | — |"
+    roadmap = proyecto(tmp_path, filas_indice=propia)
+    iniciativa(roadmap, "2026-01-01-bee", spec=artefacto("spec", "borrador"))
+    assert run(roadmap)[0] == 0
+    texto = (roadmap / "README.md").read_text(encoding="utf-8")
+    filas = [l for l in texto.splitlines() if "2026-01-01-bee/" in l]
+    assert filas == ["| 2026-01-01 | [bee](2026-01-01-bee/spec.md) · estado: solo spec | a | b | "
+                     "[spec](2026-01-01-bee/spec.md) |"], filas
+    assert run_json(roadmap, "--check")[0] == 0
+    (tmp_path / "b").mkdir()
+    roadmap2 = proyecto(tmp_path / "b", filas_indice=propia + "\n" + propia.replace("| a |", "| c |"))
+    iniciativa(roadmap2, "2026-01-01-bee", spec=artefacto("spec", "borrador"))
+    antes = (roadmap2 / "README.md").read_bytes()
+    code, out = run_json(roadmap2)
+    assert code == 0 and (roadmap2 / "README.md").read_bytes() == antes
+    assert any(a["tipo"] == "indice" and "2026-01-01-bee" in a["detalle"] for a in out["avisos"])
+
+
+def test_t42_fix2_gap4_cache_con_entrada_incompleta_se_descarta(tmp_path):
+    """Gap 4: una entrada de caché con la firma vigente pero incompleta (o de otra forma) se descarta y se
+    recalcula: el aviso de desfases de la sesión sigue apareciendo."""
+    roadmap = proyecto(tmp_path)
+    (tmp_path / ".claude").mkdir()
+    iniciativa(roadmap, "2026-01-01-uno", tasks=ledger("borrador", ("en-progreso",)))
+    mod = _mod()
+    assert mod.comprobar(tmp_path)["desfases"]
+    cache = tmp_path / ".claude" / mod.CACHE_NOMBRE
+    for roto in ({"nombre": "x"},
+                 {"nombre": "x", "cambios": [{"x": 1}], "avisos": [], "etiqueta": None, "enlaces": [],
+                  "titulo": None, "retro": False, "cerrable": False, "vigente": True}):
+        datos = json.loads(cache.read_text(encoding="utf-8"))
+        datos["inic"]["2026-01-01-uno"]["plan"] = roto
+        cache.write_text(json.dumps(datos), encoding="utf-8")
+        assert mod.comprobar(tmp_path)["desfases"], roto
+        datos["inic"]["2026-01-01-uno"]["plan"] = roto
+        cache.write_text(json.dumps(datos), encoding="utf-8")
+        r = subprocess.run([sys.executable, str(KIT / "progress-report.py"), "session", "--root", str(tmp_path)],
+                           capture_output=True, encoding="utf-8", errors="replace", timeout=30)
+        assert any(l.startswith("Roadmap desfasado:") for l in r.stdout.splitlines()), (roto, r.stdout)
+
+
+def test_t42_fix2_gap5_cerrar_sin_campo_estado_no_es_exito_silencioso(tmp_path):
+    roadmap = proyecto(tmp_path)
+    texto = ("# Demo\n\n## Fase 1\n\n### T-01 — t\n\n- **Estado**: completado\n\n"
+             "**Criterios de aceptación**\n- [x] a\n")
+    c = iniciativa(roadmap, "2026-01-01-demo", tasks=texto)
+    antes = snapshot(tmp_path)
+    code, out = run_json(c, "--cerrar")
+    assert code != 0 and out["status"] == "sin_estado", out
+    code, _, err = run(c, "--cerrar")
+    assert code != 0 and "estado" in err
+    assert snapshot(tmp_path) == antes
+    code, out = run_json(roadmap, "--check")
+    assert code == 1 and any(d["tipo"] == "ledger" and d.get("motivo") == "sin-estado" for d in out["desfases"])
+
+
+def test_t42_fix2_gap10_tarea_nueva_en_borrador_reabre_el_ledger(tmp_path):
+    """Gap 10: una tarea nueva en `borrador` (o reabierta) en un ledger `completado` es trabajo abierto: el ledger
+    vuelve a `en-progreso`. Es lo correcto y la documentación lo dice (test de prosa en tests/)."""
+    roadmap = proyecto(tmp_path)
+    c = iniciativa(roadmap, "2026-01-01-demo", tasks=ledger("completado", ("completado", "borrador")))
+    code, out = run_json(roadmap, "--check")
+    assert code == 1 and any(d.get("motivo") == "reabierta" for d in out["desfases"])
+    assert run(roadmap)[0] == 0 and _estado(c / "tasks.md") == "estado: en-progreso"

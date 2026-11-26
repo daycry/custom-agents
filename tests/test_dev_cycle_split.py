@@ -239,3 +239,11 @@ def test_fix1_gap8_phase6_and_transition_sentences_are_short():
     for block in (phase6, transitions):
         for sentence in re.split(r'(?<=[.!?:])\s+(?=[A-ZÁÉÍÓÚ«`(])', ' '.join(block.split())):
             assert len(sentence.split()) <= 40, sentence
+
+
+def test_t42_fix2_gap1_transitions_keep_the_reading_condition_with_the_gate():
+    """plugin-audit-2 T-42 review attempt 2, gap 1: the core transitions paragraph names the tool
+    (`roadmap-sync.py gate`, `--cerrar`) AND keeps the reading condition of T-16 fix1 gap 5."""
+    transitions = ' '.join(_phase6_core_mentions(COMMAND.read_text(encoding='utf-8'))[2].split())
+    assert 'roadmap-sync.py gate' in transitions and '--cerrar' in transitions, transitions
+    assert 'cada puerta de artefacto' in transitions, transitions
