@@ -550,6 +550,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
   - Clasificación: 19 borrados (analyst, architect, documenter, knowledge-curator, setup y 14 skills): cada regla está en la description o en el cuerpo (p. ej. curator `:45,:167,:171`, tdd `:117-118`, quick-implement tabla de idoneidad). Reducidos a su guardarraíl: `doctor` (sin red salvo capacidades opt-in, locales, tope total) y `reviewer` (la petición directa va a la skill). Intactos: `evaluator` (único puntero a `scope.md`), `knowledge-services` y `project-extensions` (cuerpo real), `plugin-panel/references/static-panel.md` (referencia, fuera de `Archivos`).
   - `context-footprint.py --project .`: 509.586 → 495.189 caracteres (−14.397; −14.753 bytes). Vía rápida 6.157 → 6.385; `agents/evaluator.md` 15.465 bytes LF.
   - Líneas base con motivo: `opencode-v2-agent-contract.json` sin `description_body` en 4 agentes y la del reviewer = su guardarraíl; `dev-cycle-modular-replacements.json` +2 filas de quick-implement con `reason`.
+  - Fix tras GREEN (`61453ef`, en la ventana de T-17): `tests/test_agent_tools_skill.py::test_toda_skill_que_el_agente_ordena_invocar_lleva_su_ruta[reviewer.md]` cayó en rojo porque la frase conservada del reviewer manda a la skill sin su ruta; ahora cita `skills/adversarial-review/SKILL.md` (+37 caracteres; fixture de OpenCode al día).
   - **k1**: `--diet-check` de las 14 skills da exactamente 1 párrafo perdido cada una, el borrado a propósito; ninguno más. **k2**: «criterio ausente de la description» se lee como ausente de la description Y del cuerpo; lo que solo estaba en el párrafo se conserva (doctor, reviewer).
 - **Verificación**:
   - `grep -rn "Alcance y activaci" agents commands skills --include=*.md` → solo los párrafos que aportan una regla que la description no tiene
@@ -597,20 +598,28 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: La receta que localiza el kit aparece 19 veces en 9 agentes y 14 en 9 comandos (verificado con `grep -c`). Una por pieza que derive todas las variables (`PLANKIT`, `DEVKIT`…) en vez de repetirla por paso. Ahorro medido −7,5 KB.
 - **Changelog**: Cada agente y comando resuelve el kit una sola vez.
-- **Estado**: borrador
+- **Estado**: en-revision
 - **Tiempo humano**: est. 3h · real —
-- **Tiempo IA (ejec.)**: est. 0.7h · real —
+- **Tiempo IA (ejec.)**: est. 0.7h · real 0.23h (medido, `plugin-audit-2/T-17`; incluye el fix de T-15 `61453ef` y la espera de las suites)
 - **Dependencias**: T-15, T-16
-- **Archivos**: `agents/*.md`, `commands/*.md`, `agent-kits/shared/test_source_snapshot.py`, `tests/test_recipe_once.py` (nuevo), `docs/{,en/}TOKEN-EFFICIENCY.md`, `interop/**` (regenerado)
+- **Archivos**: `agents/*.md`, `commands/*.md`, `agent-kits/shared/test_source_snapshot.py`, `tests/test_recipe_once.py` (nuevo), `docs/{,en/}TOKEN-EFFICIENCY.md`, `interop/**` (regenerado), `tests/test_plugin_root_resolution.py` (nota: lo nombra el criterio 2; además el umbral de resoluciones reconocidas baja de 60 a 45 con motivo), `tests/test_hooks_shell.py` (nota: `/setup` ya no tiene 4 `find`, sino 1), `tests/fixtures/dev-cycle-modular-replacements.json` (nota: el párrafo del tiering de `dev-cycle` cambia de hash al salir la reasignación de `SHAREDKIT`)
 - **Runtimes**: Solo Claude define `CLAUDE_PLUGIN_ROOT`; el criterio prueba Codex/OpenCode con la variable sin definir.
 - **Verificación**:
   - `pytest -q tests/test_recipe_once.py` → `passed` (rojo antes: varias piezas repiten la receta)
   - `grep -c "M=agent-kits/shared/ledger-lint.py" agents/*.md commands/*.md` → ≤ 1 por fichero
   - puertas de runtimes (cabecera) → verde
 
+- RED: tests/test_recipe_once.py::test_como_mucho_una_receta_por_pieza (8 piezas), ::test_la_receta_define_todas_las_variables_de_kit_que_usa_la_pieza (13) y ::test_el_recuento_baja_a_una_receta_por_fichero fallaron con AssertionError (p. ej. «agents/qa.md: 3 recetas»; reviewer y /retro usaban `$SHAREDKIT` sin receta) (commit `595f304`) · 2026-11-26
+- **Evidencia** (GREEN `50824a1`; caracteres LF, estimación caracteres/4, no consumo facturado):
+  - `grep -c "M=agent-kits/shared/ledger-lint.py"`: 33 recetas en 18 piezas → **20, una por pieza**. Cada receta define todas las variables que la pieza usa (`SHAREDKIT` incluido); las de agente conservan `case "$SHAREDKIT" in /*|?:*)`. `reviewer` y `/retro` reciben la suya (`/retro` citaba un «paso 7» sin receta).
+  - `context-footprint.py --project .`: agentes + comandos 489.352 → 483.869 (**−5.483**: −6.390 de recetas repetidas, +907 de las dos nuevas). Vía rápida 7.844 → 7.860; `agents/evaluator.md` 15.434 bytes LF.
+  - `test_receta_unica_de_cada_pieza_resuelve_sin_claude_plugin_root[codex|opencode]`: las 20 recetas, sin `CLAUDE_PLUGIN_ROOT` ni `SHAREDKIT` y con `.codex`/`.config/opencode` falsas, resuelven todas sus variables al bundle esperado (caracteriza; el rojo es de `test_recipe_once.py`).
+  - **k4**: «Medido ≥ 7 KB» no se alcanza (−5,5 KB): el plan contó las recetas repetidas sin las dos que faltaban; sin ellas serían −6,4 KB. Queda abierto para la revisión.
+- **Verificación ejecutada** (2026-11-26): `pytest -q tests/test_recipe_once.py` → `76 passed`; `grep -c` → 1 por fichero (20); `export-interop.py --check` → `88 ficheros al día`; `lint_plugin.py` → `0 errores · 16 avisos`; `evals/check.py` → `0 errores`; `check-handbook.py` → exit 0; los 62 ficheros de tests que leen `agents/` o `commands/` + `test_recipe_once.py` (`-n 3`) → `3274 passed, 3 failed, 5 skipped`: `test_agent_tools_skill[reviewer.md]` (fix T-15 `61453ef`, verde), `test_f4fix1_15` (rojo ya en `f5a15d1`: la tabla de la fase 3 de `TOKEN-EFFICIENCY.md` cuenta como frases de 104 y 164 palabras) y `test_session_context_con_el_tope…` (verde aislado); `node --test` de la cabecera → `263 tests: 256 pass, 1 fail, 6 skipped`, con el único rojo (`SessionEnd timeout terminates its child tree`, plazo con la máquina cargada por el pytest anterior) → `pass` aislado.
+
 **Criterios de aceptación**
-- [ ] Cada pieza tiene una receta que define todas las variables que usa y solo acepta un `SHAREDKIT` absoluto.
-- [ ] Resuelve SIN `CLAUDE_PLUGIN_ROOT` (variable solo de Claude Code): el test la deja sin definir y usa raíces `.codex` y `.opencode` falsas (`tests/test_plugin_root_resolution.py`).
+- [x] Cada pieza tiene una receta que define todas las variables que usa y solo acepta un `SHAREDKIT` absoluto.
+- [x] Resuelve SIN `CLAUDE_PLUGIN_ROOT` (variable solo de Claude Code): el test la deja sin definir y usa raíces `.codex` y `.opencode` falsas (`tests/test_plugin_root_resolution.py`).
 - [ ] Medido: ≥ 7 KB menos entre agentes y comandos; ≤ 1 receta por pieza (`grep -c`).
 
 ### T-18 — Fragmentos solo si hay aciertos y capability-check mínimo (2.3, 2.12)
