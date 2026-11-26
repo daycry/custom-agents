@@ -1,7 +1,7 @@
 ---
 spec: kairos-memory
 descripcion: Integración opcional del plugin con Kairos como memoria de los agentes (lectura, publicación de lo aprobado, journal e hitos), como primer adaptador MCP del marco knowledge-services.
-estado: borrador          # borrador | aprobada | implementada | obsoleta
+estado: aprobada          # borrador | aprobada | implementada | obsoleta
 creado: 2026-11-26
 actualizado: 2026-11-26
 evaluacion: pendiente
