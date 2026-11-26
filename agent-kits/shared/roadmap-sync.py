@@ -436,7 +436,7 @@ def editar_indice(text, planes):
             continue
         nombre = plan["nombre"]
         propias = filas.get(nombre, [])
-        donde = "en sus columnas de enlaces"
+        donde, por_identidad = "en sus columnas de enlaces", not propias
         if not propias:
             propias = [i for i, celdas in sin_duenyo
                        if f"({nombre}/" in celdas[ident]
@@ -469,9 +469,11 @@ def editar_indice(text, planes):
             celdas[ident], previa = _con_marca(celdas[ident], plan["etiqueta"])
         puestos = []
         for col, fichero in sorted(disp["enlaces"].items()):
-            # Lo que falta se mira en la celda de enlaces, no en toda la fila: un enlace en la celda de identidad
-            # no hace propia la fila (gap 3); tras escribirlo aquí, la fila ya se reconoce por su columna.
-            faltan = [(f, label) for f, label in plan["enlaces"] if f"({nombre}/{f})" not in celdas[col]]
+            # Un enlace ya citado en la fila (p. ej. la retro en la prosa de la celda de identidad) no se duplica;
+            # pero si la fila se reconoció solo por su celda de identidad (gap 3), los enlaces van a su columna
+            # para que la próxima vez se reconozca por ella.
+            faltan = [(f, label) for f, label in plan["enlaces"] if f"({nombre}/{f})" not in celdas[col]
+                      and (por_identidad or f"({nombre}/{f})" not in lineas[fila_i])]
             if fichero is None:
                 if faltan:
                     ultima = celdas[col]
