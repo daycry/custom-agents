@@ -66,3 +66,35 @@ def test_el_recuento_baja_a_una_receta_por_fichero():
     total = sum(p.read_text(encoding='utf-8').count(MARCA) for p in piezas())
     con_receta = sum(MARCA in p.read_text(encoding='utf-8') for p in piezas())
     assert total == con_receta
+
+
+SOBREVIVE = re.compile(r'variables\s+no\s+sobreviven\s+entre\s+(llamadas|bloques)', re.I)
+
+
+def bloque_de_la_receta(texto):
+    """(inicio, fin) del bloque cercado que contiene la receta; la línea sola si no va cercada."""
+    i = texto.index(MARCA)
+    ini = texto.rfind('```', 0, i)
+    fin = texto.find('```', i)
+    if ini < 0 or fin < 0:
+        return texto.rfind('\n', 0, i) + 1, texto.find('\n', i)
+    return ini, fin + 3
+
+
+@pytest.mark.parametrize('pieza', piezas(), ids=lambda p: f'{p.parent.name}/{p.name}')
+def test_fix1_gap6_la_receta_avisa_de_reutilizar_la_ruta_si_hay_usos_en_otras_llamadas(pieza):
+    """plugin-audit-2 revisión intento 1, gap 6: si la pieza usa sus variables de kit fuera del bloque
+    de la receta, junto a la receta dice que la ruta absoluta se reutiliza en cada llamada porque las
+    variables no sobreviven entre llamadas de Bash (analyst y qa no lo decían)."""
+    texto = pieza.read_text(encoding='utf-8')
+    linea = receta(texto)
+    if not linea:
+        return
+    ini, fin = bloque_de_la_receta(texto)
+    fuera = texto[:ini] + texto[fin:]
+    usadas = {v for v in ASIGNA.findall(linea) if re.search(r'\$\{?' + v + r'\b', fuera)}
+    if not usadas:
+        return
+    junto = texto[max(0, ini - 400):ini] + texto[fin:fin + 400]
+    assert SOBREVIVE.search(junto), (f'{pieza.parent.name}/{pieza.name} usa {sorted(usadas)} fuera de la receta y no '
+                                     'avisa de que las variables no sobreviven entre llamadas de Bash')

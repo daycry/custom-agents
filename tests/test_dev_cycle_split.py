@@ -85,6 +85,7 @@ def test_common_review_qa_and_commit_gates_stay_in_the_core():
     closing = {hashlib.sha256(p.encode('utf-8')).hexdigest()
                for p in paragraphs((KIT / 'phase6-close.md').read_text(encoding='utf-8'))}
     assert required - hashes <= closing
+    assert required - hashes == _declared_phase6(replacements.values()) & required
     assert any('1. **Verificación final sobre la rama**' in p for p in paragraphs((KIT / 'phase6-close.md').read_text(encoding='utf-8')))
     core = COMMAND.read_text(encoding='utf-8')
     assert '## Fase 4-bis — Knowledge Gate (siempre' in core
@@ -172,3 +173,69 @@ def test_phase6_closing_and_state_table_load_only_at_closing():
     assert 'usage-meter.py start' in core and 'ledger-write.py' in core
     # Regression guard on the measured core size (LF characters, context-footprint method).
     assert len(core) <= 23000
+
+
+PHASE6 = 'agent-kits/dev-cycle/references/phase6-close.md'
+
+
+def _declared_phase6(rows):
+    return {row['after_sha256'] for row in rows if row['after_file'] == PHASE6}
+
+
+def test_fix1_gap3_only_paragraphs_declared_with_after_file_phase6_leave_the_core():
+    """plugin-audit-2 review attempt 1, gap 3: a mandatory core paragraph may leave the core only if
+    the fixture declares it with `after_file: phase6-close.md` (exact, by hash). Being present in
+    phase6-close.md is not enough: moving «Bucle de corrección de qa ACOTADO» there must fail."""
+    original = json.loads(BASELINE.read_text(encoding='utf-8'))
+    rows = json.loads(REPLACEMENTS.read_text(encoding='utf-8'))['replacements']
+    by_old = {row['before_sha256']: row for row in rows}
+    required = {by_old[old]['after_sha256'] if old in by_old else old
+                for old in original['unconditional_core_paragraph_sha256']}
+    hashes = {hashlib.sha256(p.encode('utf-8')).hexdigest()
+              for p in paragraphs(COMMAND.read_text(encoding='utf-8'))}
+    left = required - hashes
+    assert left == _declared_phase6(rows) & required, sorted(left - _declared_phase6(rows))
+    assert left, 'the closing ritual (declared with after_file) is expected to have left the core'
+
+
+def test_fix1_gap4_relative_links_in_kit_references_resolve():
+    """plugin-audit-2 review attempt 1, gap 4: every relative Markdown link of a private kit
+    reference resolves from that file (`../docs/COMMIT-SELECTION.md` did not after T-16)."""
+    broken = []
+    for ref in sorted((ROOT / 'agent-kits').rglob('references/*.md')):
+        for target in re.findall(r'\]\(([^)\s]+)\)', ref.read_text(encoding='utf-8')):
+            path = target.split('#', 1)[0]
+            if path and not re.match(r'[a-z][a-z0-9+.-]*:', path) and not (ref.parent / path).exists():
+                broken.append(f'{ref.relative_to(ROOT).as_posix()} -> {target}')
+    assert not broken, broken
+
+
+def _phase6_core_mentions(core):
+    table_row = next(line for line in core.splitlines() if line.startswith('| `phase6-close.md`'))
+    phase6 = core.split('## Fase 6', 1)[1].split('\n## ', 1)[0]
+    transitions = core.split('## Transiciones de estado', 1)[1].split('\n## ', 1)[0]
+    return table_row, phase6, transitions
+
+
+def test_fix1_gap5_one_reading_condition_for_phase6_close():
+    """plugin-audit-2 review attempt 1, gap 5: the core gives ONE coherent reading condition for
+    phase6-close.md: the transition table at every artefact gate, the closing ritual only in Phase 6."""
+    core = COMMAND.read_text(encoding='utf-8')
+    for text in _phase6_core_mentions(core):
+        flat = ' '.join(text.split())
+        assert 'cada puerta de artefacto' in flat, flat
+    flat_phase6 = ' '.join(_phase6_core_mentions(core)[1].split())
+    assert 'ritual de cierre' in flat_phase6.lower() and 'solo al llegar a la Fase 6' in flat_phase6
+    assert 'que lees al aplicar la primera' not in ' '.join(core.split())
+    assert 'la primera puerta de estado' not in core
+    head = (KIT / 'phase6-close.md').read_text(encoding='utf-8').split('-->', 1)[0]
+    assert 'cada puerta' in ' '.join(head.split()), head
+
+
+def test_fix1_gap8_phase6_and_transition_sentences_are_short():
+    """plugin-audit-2 review attempt 1, gap 8 (docs-style rule 1): no sentence over 40 words in the
+    core's Phase 6 and transition paragraphs."""
+    _, phase6, transitions = _phase6_core_mentions(COMMAND.read_text(encoding='utf-8'))
+    for block in (phase6, transitions):
+        for sentence in re.split(r'(?<=[.!?:])\s+(?=[A-ZÁÉÍÓÚ«`(])', ' '.join(block.split())):
+            assert len(sentence.split()) <= 40, sentence
