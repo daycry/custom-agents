@@ -45,8 +45,8 @@ def test_t42_fix2_gap2_criterio_2_cita_los_tipos_que_cubre_el_test():
     criterio = next(l for l in bloque.splitlines() if l.startswith("- [") and "`--check`" in l)
     for tipo in ("rancio", "reabiert", "cierre olvidado", "plan", "spec", "índice"):
         assert tipo in criterio, (tipo, criterio)
-    assert "5 tipos" not in criterio and "cinco" not in criterio
-    assert "enmendado en fix2 por la revisión intento 2" in criterio
+    # scope-check: un criterio aprobado no se reescribe, se amplía detrás; la enmienda dice los tipos reales.
+    assert "Enmendado en fix2 por la revisión intento 2: los tipos reales son" in criterio
     test = (ROOT / "agent-kits/shared/test_roadmap_sync.py").read_text(encoding="utf-8")
     assert "def test_t42_fix2_gap2_check_cubre_los_tipos_del_criterio_2" in test
 
