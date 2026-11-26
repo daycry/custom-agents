@@ -1,0 +1,66 @@
+"""plugin-audit-2 T-17: una receta del kit por pieza.
+
+La receta que localiza el bundle (regla 5 de docs/CONVENTIONS.md) se repetía por paso: 19 veces en
+9 agentes y 14 en 9 comandos. Cada agente o comando la escribe UNA vez y esa receta define todas las
+variables de kit que la pieza usa (`SHAREDKIT`, `EVALKIT`, `DEVKIT`…); si consulta un `SHAREDKIT`
+heredado, solo lo acepta absoluto. La ejecución real sin `CLAUDE_PLUGIN_ROOT` (raíces `.codex` y
+`.opencode` falsas) vive en tests/test_plugin_root_resolution.py.
+"""
+import pathlib
+import re
+
+import pytest
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+MARCA = 'M=agent-kits/shared/ledger-lint.py'
+ASIGNA = re.compile(r'\b([A-Z][A-Z_]*)="\$\{R:\+\$R/[^"]+\}"')
+ABSOLUTO = 'case "$SHAREDKIT" in /*|?:*)'
+
+
+def piezas():
+    return sorted(p for d in ('agents', 'commands') for p in (ROOT / d).glob('*.md'))
+
+
+def variables_de_kit():
+    """Nombres que alguna receta del repo asigna con `${R:+$R/…}` (SHAREDKIT, EVALKIT, DASH…)."""
+    nombres = set()
+    for d in ('agents', 'commands', 'skills'):
+        for p in (ROOT / d).rglob('*.md'):
+            nombres |= set(ASIGNA.findall(p.read_text(encoding='utf-8')))
+    return nombres
+
+
+def receta(texto):
+    return next((l for l in texto.splitlines() if MARCA in l), None)
+
+
+@pytest.mark.parametrize('pieza', piezas(), ids=lambda p: f'{p.parent.name}/{p.name}')
+def test_como_mucho_una_receta_por_pieza(pieza):
+    n = pieza.read_text(encoding='utf-8').count(MARCA)
+    assert n <= 1, f'{pieza.parent.name}/{pieza.name}: {n} recetas; resuelve el kit una vez y reutiliza las variables'
+
+
+@pytest.mark.parametrize('pieza', piezas(), ids=lambda p: f'{p.parent.name}/{p.name}')
+def test_la_receta_define_todas_las_variables_de_kit_que_usa_la_pieza(pieza):
+    texto = pieza.read_text(encoding='utf-8')
+    usadas = {v for v in variables_de_kit() if re.search(r'\$\{?' + v + r'\b', texto)}
+    if not usadas:
+        return
+    linea = receta(texto)
+    assert linea, f'{pieza.parent.name}/{pieza.name} usa {sorted(usadas)} sin receta que las defina'
+    definidas = set(ASIGNA.findall(linea))
+    assert usadas <= definidas, f'{pieza.parent.name}/{pieza.name}: la receta no define {sorted(usadas - definidas)}'
+
+
+@pytest.mark.parametrize('pieza', piezas(), ids=lambda p: f'{p.parent.name}/{p.name}')
+def test_un_sharedkit_heredado_solo_se_acepta_absoluto(pieza):
+    linea = receta(pieza.read_text(encoding='utf-8')) or ''
+    consulta = linea.split(MARCA, 1)[-1].split('R="${R%/$M}"', 1)[0]
+    if '$SHAREDKIT' in consulta:
+        assert ABSOLUTO in consulta, f'{pieza.parent.name}/{pieza.name}: SHAREDKIT relativo aceptado'
+
+
+def test_el_recuento_baja_a_una_receta_por_fichero():
+    total = sum(p.read_text(encoding='utf-8').count(MARCA) for p in piezas())
+    con_receta = sum(MARCA in p.read_text(encoding='utf-8') for p in piezas())
+    assert total == con_receta

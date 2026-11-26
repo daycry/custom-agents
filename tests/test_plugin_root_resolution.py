@@ -278,3 +278,50 @@ def test_receta_powershell_sin_instalacion_deja_la_ruta_vacia(tmp_path):
                        timeout=180, env=_env(home))
     assert r.returncode == 0 and r.stderr == "", r.stderr
     assert r.stdout.strip() == "[]", r.stdout
+
+
+# plugin-audit-2 T-17: la receta única de cada agente y comando resuelve SIN `CLAUDE_PLUGIN_ROOT` (solo
+# Claude Code la define) en Codex y OpenCode, y todas las variables que define apuntan al mismo bundle.
+RECETA_UNICA = re.compile(r'\b([A-Z][A-Z_]*)="\$\{R:\+\$R/[^"]+\}"')
+
+
+def _recetas_de_piezas():
+    for d in ("agents", "commands"):
+        for p in sorted((ROOT / d).glob("*.md")):
+            linea = next((l for l in p.read_text(encoding="utf-8").splitlines()
+                          if "M=agent-kits/shared/ledger-lint.py" in l), None)
+            if linea:
+                cuerpo = linea[linea.index('R="${CLAUDE_PLUGIN_ROOT}"'):]
+                cuerpo = re.split(r'`|\s+#\s', cuerpo, maxsplit=1)[0].rstrip()
+                yield f"{d}/{p.name}", cuerpo, RECETA_UNICA.findall(cuerpo)
+
+
+@pytest.mark.skipif(not BASH, reason="sin bash")
+@pytest.mark.parametrize("runtime", ["codex", "opencode"])
+def test_receta_unica_de_cada_pieza_resuelve_sin_claude_plugin_root(tmp_path, runtime):
+    home, proj = tmp_path / "home", tmp_path / "proj"
+    proj.mkdir()
+    maquina(home, runtimes=(runtime,))
+    raiz = ("/home/.config/opencode" if runtime == "opencode"
+            else "/" + "/".join(CACHE["codex"]) + "/10.1.0")
+    recetas = list(_recetas_de_piezas())
+    assert len(recetas) >= 19, recetas
+    script = []
+    for nombre, cuerpo, variables in recetas:
+        assert variables, nombre
+        eco = '"' + " ".join(f"{v}=${{{v}}}" for v in variables) + '"'
+        script.append(f'( unset SHAREDKIT; {cuerpo}\nprintf "%s|%s\\n" "{nombre}" {eco} )')
+    env = _env(home)
+    env.pop("SHAREDKIT", None)
+    r = subprocess.run([BASH, "-c", "\n".join(script)], capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", cwd=str(proj), env=env, timeout=300)
+    assert r.stderr == "", r.stderr
+    vistas = {}
+    for fila in r.stdout.replace("\\", "/").splitlines():
+        nombre, _, resto = fila.partition("|")
+        vistas[nombre] = resto
+    assert set(vistas) == {n for n, _, _ in recetas}, r.stdout
+    for nombre, _, variables in recetas:
+        for v in variables:
+            valor = re.search(rf"(?:^| ){v}=(\S*)", vistas[nombre])[1]
+            assert raiz + "/" in valor, (nombre, v, valor)
