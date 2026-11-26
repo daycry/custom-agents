@@ -693,3 +693,53 @@ def test_t42_fix2_gap10_tarea_nueva_en_borrador_reabre_el_ledger(tmp_path):
     code, out = run_json(roadmap, "--check")
     assert code == 1 and any(d.get("motivo") == "reabierta" for d in out["desfases"])
     assert run(roadmap)[0] == 0 and _estado(c / "tasks.md") == "estado: en-progreso"
+
+
+INDICE_SLUG = """# Roadmap
+
+| Fecha | Slug | Estado | Coste estimado | Spec | Evaluación | Plan |
+|---|---|---|---|---|---|---|
+{filas}
+Texto que no se toca.
+"""
+
+
+def test_t42_fix2_gap11_indice_con_columna_slug(tmp_path):
+    """Gap 11 (encontrado por la sesión kairos sobre un índice de otro proyecto): un índice que generó el plugin en
+    versiones anteriores, `| Fecha | Slug | Estado | Coste estimado | Spec | Evaluación | Plan |`, se reconoce (no
+    «sin tabla»), cada iniciativa encuentra su fila por el enlace a su carpeta (o por el slug y la fecha), el
+    estado va a SU columna `Estado` (no una marca en otra celda) sin mover columnas, las celdas de enlace
+    vacías se rellenan y una iniciativa sin fila recibe una fila con las mismas columnas."""
+    filas = "\n".join((
+        "| 2026-01-01 | demo | aprobada | 1.200 € | [spec](2026-01-01-demo/spec.md) | "
+        "[evaluación](2026-01-01-demo/evaluation.md) | [plan](2026-01-01-demo/improvement-plan.md) |",
+        "| 2026-01-02 | otra | borrador | — | [spec](2026-01-02-otra/spec.md) | — | — |",
+        "| 2026-01-03 | sin-enlace | borrador | — | — | — | — |",
+    ))
+    roadmap = tmp_path / "docs" / "roadmap"
+    roadmap.mkdir(parents=True)
+    (roadmap / "README.md").write_text(INDICE_SLUG.format(filas=filas), encoding="utf-8")
+    (roadmap / "CALIBRATION.md").write_text(CALIBRATION.format(filas=""), encoding="utf-8")
+    iniciativa(roadmap, "2026-01-01-demo", spec=artefacto("spec", "aprobada"),
+               evaluation=artefacto("evaluacion", "completado"), plan=artefacto("plan", "en-progreso"),
+               tasks=ledger("en-progreso", ("completado", "en-progreso")))
+    iniciativa(roadmap, "2026-01-02-otra", spec=artefacto("spec", "borrador"),
+               evaluation=artefacto("evaluacion", "en-revision"))
+    iniciativa(roadmap, "2026-01-03-sin-enlace", spec=artefacto("spec", "borrador"))
+    iniciativa(roadmap, "2026-01-04-nueva", spec=artefacto("spec", "borrador"))
+    code, out = run_json(roadmap, "--check")
+    assert code == 1, out
+    assert not [a for a in out["avisos"] if "sin tabla" in a["detalle"]], out["avisos"]
+    assert run(roadmap)[0] == 0
+    lineas = (roadmap / "README.md").read_text(encoding="utf-8").splitlines()
+    assert ("| 2026-01-01 | demo | en curso | 1.200 € | [spec](2026-01-01-demo/spec.md) | "
+            "[evaluación](2026-01-01-demo/evaluation.md) | [plan](2026-01-01-demo/improvement-plan.md) |") in lineas
+    assert ("| 2026-01-02 | otra | evaluada | — | [spec](2026-01-02-otra/spec.md) | "
+            "[eval](2026-01-02-otra/evaluation.md) | — |") in lineas
+    assert "| 2026-01-03 | sin-enlace | solo spec | — | [spec](2026-01-03-sin-enlace/spec.md) | — | — |" in lineas
+    nuevas = [l for l in lineas if "2026-01-04-nueva/" in l]
+    assert nuevas == ["| 2026-01-04 | nueva | solo spec | No estimado | [spec](2026-01-04-nueva/spec.md) | — | — |"], nuevas
+    assert all(l.count("|") == 8 for l in lineas if l.startswith("| 2026-")), lineas
+    assert not any(" · estado: " in l for l in lineas)
+    assert "Texto que no se toca." in lineas
+    assert run_json(roadmap, "--check")[0] == 0
