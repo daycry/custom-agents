@@ -530,3 +530,39 @@ def test_h28_lector_una_vez_sirve_prefijos_y_lectura_entera_como_local_read(tmp_
     finally:
         reader.read_bytes = original
     assert len(abiertos) == 1, abiertos
+
+
+# ------------------------------------------------------------------ T-42 (plugin-audit-2): roadmap al día
+
+CAL_T42 = ("# CALIBRATION\n\n| Fecha | Iniciativa | Desv. producción | Desv. tokens | tokens/hora (medido) | "
+           "Causa principal | Ajuste sugerido |\n|---|---|---|---|---|---|---|\n"
+           "| 2026-09-09 | con-retro | −1 % | −1 % | 1 | causa | ajuste |\n")
+
+
+def _ficheros(root):
+    return {p: p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
+
+
+def test_t42_pendiente_de_cierre_excluye_las_que_tienen_retro(tmp_path):
+    ledger(tmp_path, "2026-09-01-con-retro", AL_100_ACTIVA)
+    (tmp_path / "docs" / "roadmap" / "2026-09-01-con-retro" / "retro.md").write_text(
+        "# Retro — con-retro\n\nCausas reales.\n", encoding="utf-8")
+    (tmp_path / "docs" / "roadmap" / "CALIBRATION.md").write_text(CAL_T42, encoding="utf-8")
+    ledger(tmp_path, "2026-09-03-sin-retro", AL_100_ACTIVA)
+    ledger(tmp_path, "2026-09-02-demo", DOS_FASES)
+    code, out, _ = run("session", "--root", str(tmp_path))
+    assert code == 0
+    assert "/retro con-retro" not in out
+    assert "1 al 100 % pendientes de cierre: /retro sin-retro" in out.splitlines()
+    assert "desfase: ejecuta roadmap-sync.py docs/roadmap (con-retro)" in out
+
+
+def test_t42_session_avisa_del_desfase_sin_escribir(tmp_path):
+    ledger(tmp_path, "2026-09-01-cerrable", AL_100_ACTIVA)
+    ledger(tmp_path, "2026-09-02-demo", DOS_FASES)
+    antes = _ficheros(tmp_path)
+    code, out, _ = run("session", "--root", str(tmp_path))
+    assert code == 0
+    assert any(l.startswith("Roadmap desfasado:") and "roadmap-sync.py docs/roadmap" in l for l in out.splitlines())
+    assert out.strip().splitlines()[-1].startswith("Ledger canónico:")
+    assert _ficheros(tmp_path) == antes, "el hook de SessionStart solo avisa: no escribe"
