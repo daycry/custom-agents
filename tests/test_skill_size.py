@@ -116,6 +116,31 @@ if pytest is not None:
     def test_diet_check_skill_inexistente_exit_2():
         assert diet_check("no-existe-esta-skill", "HEAD") == 2
 
+    # plugin-audit-2 T-15: el párrafo «Alcance y activación» copiaba la description antigua en el
+    # cuerpo de cada pieza (≈15 KB de entrada). Solo sobrevive donde añade una regla que la
+    # description no tiene; cada excepción lleva su motivo.
+    ALCANCE_CONSERVADO = {
+        "agents/evaluator.md": "único puntero a agent-kits/evaluator/references/scope.md",
+        "agents/reviewer.md": "la petición directa de revisar el diff entero va a la skill, no al agente",
+        "commands/doctor.md": "sin red salvo capacidades opt-in activadas, locales y con tope total",
+        "skills/knowledge-services/SKILL.md": "cuerpo real (sin outbox ni adaptadores en la description)",
+        "skills/project-extensions/SKILL.md": "cuerpo real (custom-agents-repo.md y caché del plugin)",
+    }
+
+    def test_alcance_y_activacion_solo_donde_aporta_una_regla():
+        encontrados = set()
+        for base in ("agents", "commands"):
+            for fn in os.listdir(os.path.join(ROOT, base)):
+                if fn.endswith(".md"):
+                    encontrados.add(f"{base}/{fn}")
+        encontrados |= {os.path.relpath(p, ROOT).replace(os.sep, "/") for p in skill_md_paths()}
+        con_alcance = sorted(rel for rel in encontrados
+                             if re.search(r"^## Alcance y activación\s*$",
+                                          open(os.path.join(ROOT, rel), encoding="utf-8").read(), re.M))
+        assert con_alcance == sorted(ALCANCE_CONSERVADO), (
+            "«Alcance y activación» duplica la description: bórralo o añade la pieza a "
+            "ALCANCE_CONSERVADO con el guardarraíl que aporta")
+
 
 def main(argv):
     if len(argv) >= 3 and argv[0] == "--diet-check":
