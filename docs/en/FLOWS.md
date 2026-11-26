@@ -276,7 +276,8 @@ flowchart TD
 
 The core in `commands/dev-cycle.md` retains the common gates and routes to
 `agent-kits/dev-cycle/references/` when each condition applies: evaluation and
-planning in full flow, enabled subagents, and pending knowledge proposals.
+planning in full flow, enabled subagents, pending knowledge proposals, and the
+close (Phase 6 and the transition table, `phase6-close.md`).
 `quick-implement` reads that core and the applicable references. Codex/OpenCode
 adapters retain deferred reading from the same bundle; the installer includes
 these references with the kits.

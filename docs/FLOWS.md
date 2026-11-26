@@ -278,8 +278,8 @@ flowchart TD
 
 El núcleo de `commands/dev-cycle.md` conserva las puertas comunes y dirige a
 `agent-kits/dev-cycle/references/` al llegar a cada condición: evaluación/plan
-en flujo completo, subagentes habilitados, y curación con propuestas
-pendientes. `quick-implement` lee ese núcleo y las referencias que correspondan.
+en flujo completo, subagentes habilitados, curación con propuestas
+pendientes y el cierre (Fase 6 y tabla de transiciones, `phase6-close.md`). `quick-implement` lee ese núcleo y las referencias que correspondan.
 Los adaptadores de Codex/OpenCode conservan esta lectura bajo demanda y usan el
 kit del mismo bundle; el instalador transporta sus referencias junto a los kits.
 

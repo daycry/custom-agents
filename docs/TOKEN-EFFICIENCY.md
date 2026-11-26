@@ -153,6 +153,7 @@ cuando hace falta.
 | Cabecera «ORQUESTA agentes» y mapa de roles solo en los comandos exportados que despachan un rol (T-21) | 15 comandos por runtime con cabecera | 5 la conservan; 10 pierden 696 (Codex) y 658 (OpenCode) caracteres: −6.960 y −6.580 |
 | Bloque de `SessionStart` en Claude Code: solo la cabecera del índice, porque Claude ya enseña su listado nativo de skills (T-20) | índice de 3.378 | cabecera de 331 (−3.047 por arranque y compactación); Codex (3.349) y OpenCode (3.499) sin cambio |
 | Párrafos «Alcance y activación» que copiaban la description antigua en el cuerpo (T-15) | 25 párrafos; informe completo de entrada: 509.586 | 495.189 (−14.397): se borran 19 y se reducen 2 a su guardarraíl (`commands/doctor.md` 5.245, sin red salvo capacidades opt-in; `agents/reviewer.md` 8.200, la petición directa va a la skill); quedan los de `evaluator`, `knowledge-services`, `project-extensions` y la referencia de `plugin-panel` |
+| Fase 6 y tabla de transiciones de `/dev-cycle` a `agent-kits/dev-cycle/references/phase6-close.md`, leída solo al llegar al cierre (T-16) | `commands/dev-cycle.md` 28.499 | 22.662 (−5.837; la referencia, 7.088, se abre en la Fase 6) |
 
 T-14 introdujo la lectura por fase de la Lente A. Su fix3 llevó
 `skills/adversarial-review/SKILL.md` a 17.046 caracteres. Con los traspasos de
@@ -161,7 +162,7 @@ caracteres para esa skill, 29.077 para `agents/implementer.md`, 28.499 para
 `commands/dev-cycle.md` y 7.135 para `skills/quick-implement/SKILL.md`.
 El ahorro estimado de la vía rápida es de 6.157 tokens. Tras T-15, la skill
 queda en 16.949 caracteres, `skills/quick-implement/SKILL.md` en 6.224 y el
-ahorro de la vía rápida sube a 6.385 tokens.
+ahorro de la vía rápida sube a 6.385 tokens; con T-16, a 7.844.
 
 ## Evitar contexto de poco valor durante la ejecución
 

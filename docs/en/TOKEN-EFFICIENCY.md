@@ -145,6 +145,7 @@ disappears: the moved text stays in its single source and is opened when needed.
 | «ORQUESTA agentes» header and role map only in exported commands that dispatch a role (T-21) | 15 commands per runtime with the header | 5 keep it; 10 lose 696 (Codex) and 658 (OpenCode) characters: −6,960 and −6,580 |
 | `SessionStart` block in Claude Code: only the index header, because Claude already shows its native skill listing (T-20) | 3,378-character index | 331-character header (−3,047 per start and compaction); Codex (3,349) and OpenCode (3,499) unchanged |
 | «Alcance y activación» paragraphs that copied the old description into the body (T-15) | 25 paragraphs; full entry report: 509,586 | 495,189 (−14,397): 19 deleted and 2 reduced to their guardrail (`commands/doctor.md` 5,245, no network except opt-in capabilities; `agents/reviewer.md` 8,200, a direct request goes to the skill); `evaluator`, `knowledge-services`, `project-extensions` and the `plugin-panel` reference keep theirs |
+| `/dev-cycle` Phase 6 and transition table move to `agent-kits/dev-cycle/references/phase6-close.md`, read only on reaching the close (T-16) | `commands/dev-cycle.md` 28,499 | 22,662 (−5,837; the reference, 7,088, is opened in Phase 6) |
 
 T-14 introduced per-phase reading for Lens A. Its fix3 brought
 `skills/adversarial-review/SKILL.md` to 17,046 characters. With T-40's task
@@ -153,7 +154,7 @@ handoffs, `context-footprint.py` now measures 17,691 characters for that skill,
 7,135 for `skills/quick-implement/SKILL.md`. The estimated quick-path saving
 is 6,157 tokens. After T-15, the skill is at 16,949 characters,
 `skills/quick-implement/SKILL.md` at 6,224, and the quick-path saving rises to
-6,385 tokens.
+6,385 tokens; with T-16, to 7,844.
 
 ## Tool results and handoffs
 

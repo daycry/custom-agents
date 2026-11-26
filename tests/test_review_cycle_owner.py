@@ -18,7 +18,9 @@ def test_h24_dev_cycle_y_la_skill_describen_el_ciclo_nuevo_con_el_writer():
 
 def test_h25_un_solo_dueno_del_commit():
     implementer = plain('agents/implementer.md')
-    core = plain('commands/dev-cycle.md')
+    # plugin-audit-2 T-16: la Fase 6 vive en la referencia que el núcleo abre al llegar al cierre.
+    core = plain('agent-kits/dev-cycle/references/phase6-close.md')
+    assert 'phase6-close.md' in plain('commands/dev-cycle.md')
     # El procedimiento vive una vez, en el implementer; la Fase 6 solo verifica y remite a él.
     assert 'commit-selection.py' in implementer and 'dueño único de los commits' in implementer
     fase6 = core[core.index('2. **Commits ordenados**'):][:900]

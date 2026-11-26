@@ -34,8 +34,8 @@
       "before_sha256": "ec7f72535e0c8c84027d5e33407cb6e6ef63dcee1c5894f6e6a650fcd7435c8c",
       "before_file": "commands/dev-cycle.md",
       "after_sha256": "813731f244f86dffd04acc9089a965281bcb2b8ee75aa1ac3469217a63d1279a",
-      "after_file": "commands/dev-cycle.md",
-      "reason": "Publication follows the optional documentation binding; summary, retrospective and final state gates preserved."
+      "after_file": "agent-kits/dev-cycle/references/phase6-close.md",
+      "reason": "Publication follows the optional documentation binding; summary, retrospective and final state gates preserved. plugin-audit-2 T-16: moved verbatim with Phase 6 to phase6-close.md, read on reaching Phase 6."
     },
     {
       "before_sha256": "3e536f113782a604a9ee984eb92eb9a561de5fe28f69616b53b13dbe61aca6fb",
@@ -97,8 +97,8 @@
       "before_sha256": "b39c0df4ccb4417476d468e4eede13a85fc2fb62f5d13525b8c5a3e1413e8039",
       "before_file": "commands/dev-cycle.md",
       "after_sha256": "9781a471a3598ef35bd4fa8c559f45eaa777ffefe033d370f2c2f2c51f21802e",
-      "after_file": "commands/dev-cycle.md",
-      "reason": "Audit H-24/H-25: «seguir» after the 3rd attempt opens a new bounded cycle with the user's OK quoted by ledger-write.py --new-cycle-ok; the commit procedure has a single owner (implementer P4, where commit-selection.py now lives) and Phase 6 only verifies it and reuses it for the orchestrator's own artefacts."
+      "after_file": "agent-kits/dev-cycle/references/phase6-close.md",
+      "reason": "Audit H-24/H-25: «seguir» after the 3rd attempt opens a new bounded cycle with the user's OK quoted by ledger-write.py --new-cycle-ok; the commit procedure has a single owner (implementer P4, where commit-selection.py now lives) and Phase 6 only verifies it and reuses it for the orchestrator's own artefacts. plugin-audit-2 T-16: moved verbatim with Phase 6 to phase6-close.md, read on reaching Phase 6."
     },
     {
       "before_sha256": "3d0e4510e4ef5e95d659b5f1e3e7e9f04a6e76fcc458e8516735814305bf2b5a",
@@ -139,29 +139,29 @@
       "before_sha256": "eb241e01a5e64e2f3962054ce4a35b3d0223ea98adcede04de409ed11a4f1d09",
       "before_file": "commands/dev-cycle.md",
       "after_sha256": "e325dc0260e50ab94a5eedeb7ee66ce39fc31aa5782ef9f285a6e35cfe7cd579",
-      "after_file": "commands/dev-cycle.md",
-      "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates."
+      "after_file": "agent-kits/dev-cycle/references/phase6-close.md",
+      "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates. plugin-audit-2 T-16: moved verbatim with Phase 6 to phase6-close.md, read on reaching Phase 6."
     },
     {
       "before_sha256": "ddb8674371d836e6d7a0e08e0359303aa8fb68ce4db0afc40a56ddc71f08f49e",
       "before_file": "commands/dev-cycle.md",
       "after_sha256": "757023f45cdbd9741c5b9ea686f2c49edde58f1c2a6703dca56124e2f0853e04",
-      "after_file": "commands/dev-cycle.md",
-      "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates."
+      "after_file": "agent-kits/dev-cycle/references/phase6-close.md",
+      "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates. plugin-audit-2 T-16: moved verbatim with Phase 6 to phase6-close.md, read on reaching Phase 6."
     },
     {
       "before_sha256": "fa76f237fad8dad6495332589128c1f38175a5865c383e60c00a01be3ec79781",
       "before_file": "commands/dev-cycle.md",
       "after_sha256": "e4054616a860ed4ed73b631ec3c794fb63714da83212a67a84f201231f01719e",
-      "after_file": "commands/dev-cycle.md",
-      "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates."
+      "after_file": "agent-kits/dev-cycle/references/phase6-close.md",
+      "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates. plugin-audit-2 T-16: moved verbatim with Phase 6 to phase6-close.md, read on reaching Phase 6."
     },
     {
       "before_sha256": "866baa4dec03c18a3ac52811536349034a51a3f757e0ecb49e7aa094e63c082e",
       "before_file": "commands/dev-cycle.md",
       "after_sha256": "6211a0cb43936ba6b8414658b4c1633a594c4f9b79414898f818a496e4169895",
-      "after_file": "commands/dev-cycle.md",
-      "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates."
+      "after_file": "agent-kits/dev-cycle/references/phase6-close.md",
+      "reason": "T-40: task handoffs call the writer, preserving measurement, review and QA gates. plugin-audit-2 T-16: moved verbatim with Phase 6 to phase6-close.md, read on reaching Phase 6."
     },
     {
       "before_sha256": "60dc7ba69f3646db5fb050a57ed1a2dbae9e3fb3b3c01fb76b267d5272e17304",
