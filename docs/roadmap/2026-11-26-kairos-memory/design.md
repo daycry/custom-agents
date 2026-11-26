@@ -9,18 +9,18 @@ evaluacion: "evaluation.md"
 plan: pendiente               # improvement-plan.md cuando el planner lo cree
 adr: "docs/knowledge/candidates/pending/2026-11-26-kairos-memory-motor-de-entrega.md"  # propuesta; sha256 1c811f6db71b5f5a053e867426d7dd75510f4638d7a7a6e0955e83af5828ac9f (handoff a knowledge-curator)
 opcion_elegida: "O2"          # variante del usuario: O2 + motor de entrega reutilizable (2026-11-26)
-generacion:                   # suma de las dos pasadas (ventanas win-391a0d47… y win-70328992…)
+generacion:                   # suma de tres ventanas (win-391a0d47…, win-70328992…, win-47652e66…)
   inicio: 2026-11-26T13:44:44Z
-  fin: 2026-11-26T14:06:43Z
+  fin: 2026-11-26T14:23:08Z
   fuente: medido
   fuente_id: src-d2ceb5c719af848b4c213bb2d521d0f003976923acb613d7512912ccbeb6a09e
-  ventana_id: win-70328992f3c34a6f90d0ea56de0a8a12
+  ventana_id: win-47652e664e7344aea02c1b44e13ba6b9
   revision_medicion: 1
   medicion_persistida: true
-  tokens_reales: { entrada: 120, salida: 61665, cache_creacion: 171912, cache_lectura: 10037512 }
-  eur: 3.78
-  horas_ia: 0.44
-  duracion: 27m
+  tokens_reales: { entrada: 128, salida: 70185, cache_creacion: 185000, cache_lectura: 10795898 }
+  eur: 4.14
+  horas_ia: 0.48
+  duracion: 29m
   ratio_usado: 531798.5
 ---
 
@@ -88,10 +88,13 @@ Lo que hay hoy en el repo (recon del 2026-11-26):
 Kairos es una proyección. (2) Cada cuerpo enviado se redacta y serializa **una vez**, antes de encolar, y
 no cambia después (dueño: quien lo encola). (3) Kairos es el dueño del estado remoto: ante cualquier duda
 local se pregunta (`document_status`/`event_status`) antes de reenviar. (4) Una identidad
-(`document_id`+versión o `event_id`) nunca se reenvía con otro cuerpo. (5) Las transiciones de un registro
-son `pendiente → enviado → {completo | pendiente de trabajos → completo | terminal}`, con `transitorio →
-pendiente (aplazado, sin tope)` y `permanente → dead-letter con causa`; `terminal → pendiente` y
-`dead-letter → pendiente` solo por orden explícita del usuario (`reintentar_dead_letter`).
+(`document_id@versión#operación` o `event_id`) nunca se reenvía con otro cuerpo; una edición local de una
+versión aún sin confirmar se encola como versión siguiente y nunca sustituye el cuerpo encolado. (5) Las
+transiciones de un registro son `pendiente → enviado → {completo | pendiente de trabajos → completo |
+terminal | incierto → conciliado}`, con `transitorio → pendiente (aplazado, sin tope)` y `permanente →
+dead-letter con causa`; `terminal → pendiente` y `dead-letter → pendiente` solo por orden explícita del
+usuario (`reintentar_dead_letter`). (6) Conciliar y escribir usan la **misma clave** (la de escritura, que
+incluye `read`). La tabla completa está en el apartado 4, «Contrato de conciliación».
 
 ## 2. Opciones (2-3)
 
@@ -208,18 +211,108 @@ reforzado: un backend nuevo solo escribe `enviar`, `estado_remoto` y su tabla de
 - **Contrato del consumidor.** `enviar(registro, cfg)` y `estado_remoto(registro, cfg)` devuelven un
   resultado tipado: `completo(recibo)`, `pendiente(plazo)`, `ausente`, `terminal(recibo, error_code)`,
   `transitorio(retry_after)`, `permanente(causa)`, `configuracion(causa)` o `incierto`. La tabla de errores
-  del backend (para Kairos, `kairos_assets/errores.json`) la aplica el consumidor; el motor nunca lee un
-  mensaje de error.
+  del backend (para Kairos, `kairos_assets/errores.json`) la aplica el consumidor, que distingue si el
+  fallo llegó **antes o después** de que la escritura pudiera entrar; el motor nunca lee un mensaje de
+  error. Cada registro declara su `grupo` (p. ej. `document_id`), su `orden` (versión) y su `operacion`
+  (`publish`/`revoke`); la clave de cola es `<id>@v<versión>#<operación>`.
 - **Qué hace el motor.** `encolar(cola, clave, cuerpo)` idempotente por identidad con cuerpo inmutable;
-  `drenar(cola, consumidor, cfg, reloj, max_registros, max_segundos)` reclama, llama primero
-  `estado_remoto` y aplica las transiciones de la sección 1: `ausente` → `enviar`; `transitorio`,
-  `pendiente` e `incierto` → `ceder_paso` con el plazo o con su backoff propio (sin dead-letter);
-  `permanente` → `dead_letter` con causa; `completo` y `terminal` → `completar` con recibo;
-  `configuracion` → `ceder_paso` y fin del drenaje con informe. Pasa al consumidor un contexto por corrida
-  (p. ej. «el acceso al proyecto ya se confirmó con esta clave», que necesita la regla de
-  `Resource not found` de CA-08). Reloj inyectable para CA-15 y CA-28.
+  `drenar(cola, consumidor, cfg, reloj, max_registros, max_segundos)` reclama **solo la menor versión
+  pendiente de cada `grupo`**, llama primero `estado_remoto` y aplica las reglas M1-M8 del apartado
+  «Contrato de conciliación»: `ausente` → `enviar`; `pendiente`, `incierto` y `transitorio` →
+  `ceder_paso` con el plazo o con su backoff propio (sin dead-letter); `permanente` → `dead_letter` con
+  causa; `completo` y `terminal` → `completar` con recibo; `configuracion` → `ceder_paso` (retenido) y fin
+  del drenaje con informe. Mantiene el contexto de acceso por (huella de la clave, `project_id`) con
+  invalidación (M5). Reloj inyectable para CA-15 y CA-28.
 - **Qué no hace.** No redacta ni serializa: recibe el cuerpo ya preparado. No conoce MCP ni Kairos. No
   toca `knowledge-sync.py`, `backends/__init__.py` ni `outbox.py`.
+
+**Contrato de conciliación (validación de la sesión kairos, 2026-11-26).** La sesión kairos validó
+`design.md@d10d2d5` contra Kairos 0.4.1: el servidor confirma la escritura antes de responder y sus locks
+por documento y por evento, junto con la idempotencia por hash, impiden que un reenvío idéntico
+duplique. Con estas precisiones, la opción no cambia: son el contrato de `estado_remoto` y del motor.
+
+*Clave.* `estado_remoto` usa **la misma clave que `enviar`**: la de escritura, con `read`.
+`event_status` con proyecto exige `read`+`write` en esa misma clave, y las claves de lectura y escritura
+pueden tener otros proyectos u otro actor. `/setup` y `/doctor` comprueban que `capture_policy`
+responde con la clave de escritura.
+
+*`document_status` → resultado tipado* (`L` = versión local del registro; siempre `source_sha256`,
+**nunca** `canonical_hash`, que incluye al actor):
+
+| Estado remoto | `#publish` | `#revoke` |
+|---|---|---|
+| Versión = `L`, mismo `source_sha256`, todos los `jobs[].state` `succeeded` o lista **vacía** | `completo` | — |
+| Versión = `L`, mismo `source_sha256`, algún job `pending`/`running`/`unknown` y ninguno `failed` | `pendiente` | — |
+| Versión = `L`, mismo `source_sha256`, algún job `failed` (`failed` gana a `pending`) | `terminal` con `error_code` | — |
+| Versión = `L`, otro `source_sha256` | `permanente` (otra máquina u otro actor publicó esa versión) | — |
+| Versión = `L` − 1; o `Resource not found` con acceso probado (M5) y `L` = 1 | `ausente` | `ausente` (revocar con la versión siguiente) |
+| Versión < `L` − 1 (hueco de versión) | `pendiente` si la predecesora está en cola; `permanente` si está en dead-letter; **nunca** `ausente` | igual |
+| Versión > `L` | `terminal` (superada; reenviar daría `Conflicting event or version`) | `terminal` |
+| `deleted: true` | `terminal` (la entrada pasa a la generación siguiente, CA-22) | `completo` |
+| `Resource not found` sin acceso probado | `configuracion` | `configuracion` |
+
+La igualdad por `source_sha256` es **parcial**: cubre `content`, no título, tags ni categoría. Un cambio
+solo de metadatos con el mismo contenido no se detecta por hash; el adaptador encola una versión nueva
+cuando cambia cualquier campo del documento, y `--check` lo declara así.
+
+*`event_status` → resultado tipado* (identidad con `project_id`):
+
+| Estado remoto | Resultado |
+|---|---|
+| `{found: false}` | `ausente`; dentro de los 60 s posteriores a un `incierto`, cuenta como `incierto` |
+| Recibo `accepted` con algún job `failed` | `terminal` con `error_code` (mira `jobs[].state` antes que `complete`, que se queda en `false` para siempre) |
+| Recibo `accepted` con jobs `pending`/`running`/`unknown` | `pendiente` (`unknown` es reclamable) |
+| Recibo `accepted` con todos los jobs `succeeded` o sin jobs | `completo` |
+| Recibo `superseded` o `duplicate` (inalcanzables en 0.4.1) | `terminal` (defensivo) |
+| `status` desconocido | `permanente` |
+| `Resource not found` | `configuracion` (proyecto no accesible) |
+
+*Reglas del motor y del consumidor:*
+
+- **M1 — Orden por documento.** Por `grupo` solo se reclama la menor versión pendiente. Una edición local
+  con una versión sin confirmar se encola como `v+1`; nunca reemplaza el cuerpo de `v`.
+- **M2 — Conflicto tras enviar.** Un `Conflicting event or version` en respuesta a `enviar` no se
+  clasifica directamente: la primera petición pudo entrar. Se vuelve a llamar a `estado_remoto`; con la
+  misma versión y el mismo `source_sha256` → `completo`/`pendiente`; si no → `permanente` con causa.
+- **M3 — Incierto frente a transitorio.** Tras una escritura, `Memory service temporarily unavailable`
+  (kairos-mcp corta a los 30 s), 502/504, timeout y conexión cortada son `incierto`: el handler de `/v1`
+  no se cancela y puede confirmar después del error y del corte de nginx a 45 s. `The store is busy;
+  retry shortly` y `The store took too long to answer; retry shortly` son `transitorio` puro (seguro que
+  no hubo commit).
+- **M4 — Espera tras incierto.** Se espera al menos 60 s (más que los 30 s de kairos-mcp y los 45 s de
+  nginx) antes de conciliar; en ese plazo un `ausente` cuenta como `incierto`. Como mucho dos reenvíos
+  del mismo registro por drenaje. El reenvío idéntico es seguro, salvo si cambió el actor (en documentos
+  el hash incluye `validated_by`) o avanzó la versión remota: entonces lo decide la tabla, sin reenviar.
+- **M5 — Contexto de acceso** por (huella de la clave, `project_id`), nunca global. Se invalida ante
+  cualquier 401, `Operation not permitted` o `Resource not found` de autorización, porque los permisos
+  pueden cambiar en caliente. Para dar por hecha una revocación con `Resource not found`, hay que
+  confirmar después el acceso (`capture_policy` con la misma clave) o la ausencia en
+  `document_manifest`. Si no, el registro no sale de la cola.
+- **M6 — Parada del drenaje.** Un `retry_after` o un `transitorio` al consultar el estado detienen
+  **todo** el drenaje, no solo ese registro: la tasa y la cuota son por clave y cada registro puede gastar
+  40 s.
+- **M7 — Configuración retenida.** `Capture is disabled for this project` en `remember` y cualquier
+  `Resource not found` de `publish_document` o `remember` son `configuracion`: el registro se retiene,
+  nunca va a dead-letter y nunca cuenta como ausencia.
+- **M8 — Pendiente sin fin.** Si el worker de Kairos está parado, un `pendiente` puede no terminar nunca.
+  `episodic-sync.py --status`, `knowledge-sync.py --outbox-status` (vía el adaptador) y `/doctor` avisan
+  por antigüedad. El documento ya es buscable léxicamente mientras tanto.
+- **Identidad de eventos.** `event_id` = UUIDv5 que **incluye `project_id`** (como `item_id`): un
+  `event_id` usado en otro proyecto daría `NotFound` en `remember`.
+
+**Ajustes de spec que hará el planner** (no se edita la spec desde el diseño):
+
+| Criterio o apartado | Ajuste |
+|---|---|
+| §Manejo de errores, CA-04, CA-23 | `Memory service temporarily unavailable`, 502/504, timeout y conexión cortada **después de una escritura** son `incierto` (conciliar), no reintentables puros; solo `busy` y `took too long` son transitorios puros |
+| CA-07, CA-22 | `Conflicting event or version` tras `publish_document` → conciliar primero (M2); tabla completa de `document_status` (hueco de versión, versión remota mayor, otro `source_sha256`) |
+| CA-08 | Acceso probado por (huella de la clave, `project_id`), con invalidación (M5); confirmar después de un `Resource not found` antes de sacar la revocación de la cola; clave de cola con la operación |
+| CA-26 | `jobs[].state` antes que `complete`; lista de jobs vacía = `completo`; `unknown` reclamable; `superseded`/`duplicate` terminales defensivos; `status` desconocido permanente |
+| CA-12, §Manejo de errores | `Capture is disabled for this project` en `remember` → configuración retenida, sin dead-letter |
+| §Flujo paso 2 (`/setup` «no conecta»), CA-02, CA-21 | `/setup` y `/doctor` comprueban `capture_policy` con la clave de escritura; decidir si `/setup` lo hace en vivo o lo delega a `/doctor` (encaja con la pregunta abierta de la sección 7) |
+| CA-13, CA-14 | `event_id` derivado con `project_id`; espera ≥ 60 s tras `incierto` y como mucho dos reenvíos por drenaje |
+| CA-15 | `retry_after` o transitorio al conciliar paran todo el drenaje (M6) |
+| CA-09 | Igualdad por `source_sha256` declarada parcial (solo `content`) |
 
 Descartadas: O1, porque cambia el contrato de `outbox.py` con dos consumidores vivos y contradice «sin
 cambios de núcleo» (criterio 1). O2 original, porque obliga a reescribir la entrega en cada backend
@@ -230,7 +323,7 @@ ocurrencias de hitos (criterios 1 y 2).
 
 | Punto | Decisión de diseño |
 |---|---|
-| Estados de las dos outbox frente a `outbox.py` | Sin ampliar el contrato; las transiciones las aplica el motor `_delivery.py`. Transitorio (incluidos `retry_after=N`, HTTP 429 `Retry-After`, cuota y 502/503/504) → `ceder_paso(item, cortesia_s=plazo)` (no incrementa intentos, nunca dead-letter; un plazo mayor de 3.600 s se reintenta y se vuelve a aplazar). Permanente → `dead_letter` con causa. Terminal remoto → `completar` con recibo. Entrega incierta → sin estado local: conciliación remota al reclamar. El motor nunca llama `reencolar_o_dead_letter`. Un alias aditivo `aplazar` en `outbox.py` es opcional y solo de legibilidad |
+| Estados de las dos outbox frente a `outbox.py` | Sin ampliar el contrato; las transiciones las aplica el motor `_delivery.py`. Transitorio (`retry_after=N`, HTTP 429 `Retry-After`, cuota, `The store is busy`, `took too long`, y 502/503/504 o timeout **antes** de que la escritura pudiera entrar) → `ceder_paso(item, cortesia_s=plazo)` (no incrementa intentos, nunca dead-letter; un plazo mayor de 3.600 s se reintenta y se vuelve a aplazar). Permanente → `dead_letter` con causa. Terminal remoto → `completar` con recibo. Entrega incierta (tras una escritura: `Memory service temporarily unavailable`, 502/504, timeout o conexión cortada) → `incierto`, espera ≥ 60 s y conciliación remota al reclamar (M3, M4). El motor nunca llama `reencolar_o_dead_letter`. Un alias aditivo `aplazar` en `outbox.py` es opcional y solo de legibilidad |
 | `redact.py` y el marcador por destino | Funciones públicas nuevas **fuera del bloque replicado** (como `anonimizar`): `redactar_para(texto, marcador)` y `redactar_estructura_para(obj, marcador)`, con los patrones del hito B, los nombres de secreto de CA-29 (camelCase, `.`/`-`), claves JSON y valor completo con esquema; una asignación con comilla sin cerrar lanza una excepción propia y el registro no se encola. `redactar()`, `REDACTADO` y la copia de `journal.py` no cambian: ADR-016 y las suites del journal siguen igual |
 | Cliente MCP genérico | `agent-kits/shared/mcp-client.py` (junto a `outbox.py` y `redact.py`; el adaptador lo resuelve con la misma ruta relativa que `knowledge-sync.py` usa para `SHARED`). Solo sabe de HTTP y JSON-RPC: cabeceras, `Bearer`, guardarraíl de host, topes, plazos, clasificación por código HTTP, `Retry-After`, `Deprecation`. La tabla de mensajes de Kairos (regex con `re.fullmatch`, clase, extracción de `retry_after`) es **dato del adaptador** en `skills/knowledge-services/backends/kairos_assets/errores.json`, que el adaptador pasa al clasificador del cliente |
 | Fuente de los hitos | O1/O2: `ledger-write.py` añade una línea por transición a `docs/roadmap/<carpeta>/.ledger-write/hitos.jsonl` (carpeta que ya crea con `.gitignore` `*`), bajo el mismo cierre con el que escribe el ledger; la ocurrencia es el número de líneas previas con la misma tarea y estado. Cubre `usage-meter close`. Hitos que se envían: tarea cerrada, veredicto de revisión, retro (`retro.md`, ocurrencia 1) y **decisión** = puerta go/no-go de `/pm-cycle` (fila «Decisión» de `evaluation.md`) y aprobación de `design.md` (`estado: aprobado`), leídas de esos artefactos en el envío, ocurrencia 1 por artefacto (decisión del usuario, 2026-11-26) |
@@ -258,7 +351,7 @@ Tabla de la opción elegida (O2, variante con motor de entrega reutilizable).
 | `skills/knowledge-services/backends/README.md` | Función opcional `capturar`, forma de los episodios neutros, contrato del motor `_delivery.py`, «el plugin incluye un adaptador» | Modificado |
 | `skills/knowledge-services/SKILL.md` | Adaptador incluido y orden manual | Modificado |
 | `skills/knowledge-services/references/` | Activar Kairos; añadir otro MCP de memoria | Modificado / nuevo |
-| `agent-kits/shared/doctor.py` | Una función: fila por capacidad con remedio | Modificado |
+| `agent-kits/shared/doctor.py` | Una función: fila por capacidad con remedio; `capture_policy` con la clave de escritura; aviso de `pendiente` por antigüedad | Modificado |
 | `agent-kits/shared/capabilities.py` | Capacidad de memoria Kairos | Modificado |
 | `commands/setup.md` | Paso guiado; validación sin red en el adaptador | Modificado |
 | `commands/dev-cycle.md` | Fase 6: llamada a `episodic-sync.py` si hay backend con captura | Modificado |
@@ -272,7 +365,11 @@ Tabla de la opción elegida (O2, variante con motor de entrega reutilizable).
 | Riesgo | Probabilidad | Impacto | Mitigación |
 |---|---|---|---|
 | Purgar `done/` y volver a encolar la misma identidad con otra redacción produce `Conflicting event or version` | Media | Alto | La conciliación remota previa al envío lo evita (el servidor dice `complete`); test que purga `done/`, cambia patrones y reintenta (extiende CA-13) |
-| Una corrida larga: cada registro puede sumar consulta, envío y consulta con plazo de 40 s | Media | Medio | Drenaje acotado por número de registros y por tiempo total (como `_MAX_DRENAJE`); lo que no cabe queda en cola |
+| Una corrida larga: cada registro puede sumar consulta, envío y consulta con plazo de 40 s | Media | Medio | Drenaje acotado por número de registros y por tiempo total (como `_MAX_DRENAJE`); parada total ante `retry_after` o transitorio al conciliar (M6); lo que no cabe queda en cola |
+| Un error tras escritura tratado como transitorio produce un reenvío que choca con lo que sí entró | Media | Alto | `incierto` tras escritura (M3), espera ≥ 60 s (M4) y conciliación tras `Conflicting event or version` (M2); tests con el servidor falso que confirma después del error |
+| Una revocación sale de la cola con el documento aún publicado | Baja | Alto | Confirmar acceso o ausencia tras `Resource not found` (M5); clave de cola con la operación |
+| Un `pendiente` eterno con el worker de Kairos parado | Media | Bajo | Aviso por antigüedad en `--status` y `/doctor` (M8) |
+| Un cambio de actor (otra clave de otro usuario) hace chocar los reenvíos de documentos | Baja | Medio | Sin reenvío: lo decide la tabla de `document_status` (versión y `source_sha256`); el informe nombra el cambio de actor |
 | `ceder_paso` se usa para plazos del servidor, no solo para envelopes ajenos | Media | Bajo | Documentarlo en su docstring o añadir el alias `aplazar` con test; sin cambio de comportamiento |
 | El registro de hitos no ve ediciones manuales de `tasks.md` | Baja | Medio | Regla 8: los estados los mueven los scripts; `episodic-sync.py --status` lista tareas cerradas en el ledger sin hito registrado |
 | `ledger-write.py` falla al escribir `hitos.jsonl` | Baja | Bajo | Degrada con aviso `ledger:` como hoy con la actividad; nunca bloquea la transición |
@@ -301,3 +398,4 @@ Resueltas por el usuario el 2026-11-26: las entradas de `approved/` sin recibo v
 |---|---|
 | 2026-11-26 | Diseño creado (`borrador`); tres opciones presentadas al usuario, recomendada O2 |
 | 2026-11-26 | Pasada 2: el usuario elige la variante «O2 + motor de entrega reutilizable»; `aprobado`; ADR propuesto en curación; preguntas 1 y 2 resueltas, la 3 queda para `planner` |
+| 2026-11-26 | Validación de la sesión kairos (2026-11-26) sobre `design.md@d10d2d5`: aprobable con cambios (4 bloqueantes + 6 no bloqueantes), todos incorporados como «Contrato de conciliación» (clave, tablas de `document_status`/`event_status`, M1-M8) y «Ajustes de spec que hará el planner»; sigue `aprobado`, misma opción |
