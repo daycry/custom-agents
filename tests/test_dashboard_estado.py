@@ -101,3 +101,12 @@ def test_presupuesto_no_solicitado_se_declara_y_no_avisa(tmp_path):
 def test_roadmap_real_sin_avisos_de_etiquetas():
     inits = bd.scan(os.path.join(ROOT, "docs", "roadmap"))
     assert not [w for w in bd.warnings_for(inits) if "no se leyeron" in w]
+
+
+def test_t42_fix1_gap14_contar_tareas_usa_el_parser_canonico_del_ledger():
+    """Gap 14 (ADR-016): el panel no tiene un segundo parser de estados de tarea; reutiliza `parse_ledger` de
+    `ledger-lint.py`, que ignora las `### T-XX` citadas dentro de una valla de código."""
+    texto = _ledger("en-progreso", ("completado", "en-progreso")) + (
+        "\n```markdown\n### T-09 — ejemplo citado\n\n- **Estado**: completado\n```\n")
+    assert bd.contar_tareas(texto) == {"completadas": 1, "total": 2, "abiertas": 1, "iniciadas": 2}
+    assert bd._PARSE_LEDGER is not None and bd._PARSE_LEDGER.__name__ == "parse_ledger"

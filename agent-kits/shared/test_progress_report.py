@@ -554,11 +554,14 @@ def test_t42_pendiente_de_cierre_excluye_las_que_tienen_retro(tmp_path):
     assert code == 0
     assert "/retro con-retro" not in out
     assert "1 al 100 % pendientes de cierre: /retro sin-retro" in out.splitlines()
-    assert "desfase: ejecuta roadmap-sync.py docs/roadmap (con-retro)" in out
+    # fix1 (gap 2): con la retro hecha falta el cierre autorizado de la Fase 6 (`--cerrar`), no un sync
+    assert "1 al 100 % con retro hecha — falta el cierre: roadmap-sync.py docs/roadmap/<carpeta> --cerrar (con-retro)" \
+        in out.splitlines()
 
 
 def test_t42_session_avisa_del_desfase_sin_escribir(tmp_path):
-    ledger(tmp_path, "2026-09-01-cerrable", AL_100_ACTIVA)
+    # fix1 (gap 2): un ledger al 100 % sin cerrar ya no es desfase; uno en `borrador` con tareas empezadas, sí.
+    ledger(tmp_path, "2026-09-01-cerrable", AL_100_ACTIVA.replace("estado: en-progreso", "estado: borrador", 1))
     ledger(tmp_path, "2026-09-02-demo", DOS_FASES)
     antes = _ficheros(tmp_path)
     code, out, _ = run("session", "--root", str(tmp_path))
@@ -566,3 +569,34 @@ def test_t42_session_avisa_del_desfase_sin_escribir(tmp_path):
     assert any(l.startswith("Roadmap desfasado:") and "roadmap-sync.py docs/roadmap" in l for l in out.splitlines())
     assert out.strip().splitlines()[-1].startswith("Ledger canónico:")
     assert _ficheros(tmp_path) == antes, "el hook de SessionStart solo avisa: no escribe"
+
+
+def test_t42_fix1_gap15_session_reutiliza_el_veredicto_de_retro_del_informe(tmp_path, monkeypatch, capsys):
+    """Gap 15: el bloque de sesión no vuelve a ejecutar `retro-gate.py` por iniciativa: usa las retros abiertas
+    que ya calculó la comprobación (`retro_abiertas`)."""
+    ledger(tmp_path, "2026-09-01-con-retro", AL_100_ACTIVA)
+    (tmp_path / "docs" / "roadmap" / "2026-09-01-con-retro" / "retro.md").write_text(
+        "# Retro — con-retro\n\nCausas reales.\n", encoding="utf-8")
+    (tmp_path / "docs" / "roadmap" / "CALIBRATION.md").write_text(CAL_T42, encoding="utf-8")
+    ledger(tmp_path, "2026-09-02-demo", DOS_FASES)
+    real = pr._load_module
+
+    def sin_retro_gate(name, filename):
+        if filename == "retro-gate.py":
+            raise AssertionError("retro-gate.py se volvió a cargar desde el bloque de sesión")
+        return real(name, filename)
+
+    monkeypatch.setattr(pr, "_load_module", sin_retro_gate)
+    assert pr.main(["session", "--root", str(tmp_path)], in_process=True) == 0
+    out = capsys.readouterr().out
+    assert "falta el cierre: roadmap-sync.py docs/roadmap/<carpeta> --cerrar (con-retro)" in out
+
+
+def test_t42_fix1_gap6_session_degrada_por_plazo_sin_romper_el_bloque(tmp_path, monkeypatch, capsys):
+    ledger(tmp_path, "2026-09-02-demo", DOS_FASES)
+    ledger(tmp_path, "2026-09-03-rancio", AL_100_ACTIVA.replace("estado: en-progreso", "estado: borrador", 1))
+    monkeypatch.setattr(pr, "PLAZO_COMPROBACION", 0.0)
+    assert pr.main(["session", "--root", str(tmp_path)], in_process=True) == 0
+    lineas = capsys.readouterr().out.strip().splitlines()
+    assert "Roadmap: comprobación de desfases omitida por plazo — roadmap-sync.py docs/roadmap --check" in lineas
+    assert lineas[-1].startswith("Ledger canónico:")
