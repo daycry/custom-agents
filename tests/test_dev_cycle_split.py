@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 COMMAND = ROOT / 'commands/dev-cycle.md'
 KIT = ROOT / 'agent-kits/dev-cycle/references'
 REFERENCES = ('phase1-evaluation.md', 'phase2-planning.md', 'phase2-plan-review.md',
-              'phase3-subagents.md', 'phase3-jira.md', 'phase4-knowledge-gate.md')
+              'phase3-subagents.md', 'phase3-jira.md', 'phase4-knowledge-gate.md', 'phase6-close.md')
 # phase3-jira.md and phase2-plan-review.md are reached only from another reference,
 # never from the core: the visual plan review is optional (audit H-43).
 CORE_REFERENCES = tuple(name for name in REFERENCES
@@ -80,7 +80,12 @@ def test_common_review_qa_and_commit_gates_stay_in_the_core():
               for p in paragraphs(COMMAND.read_text(encoding='utf-8'))}
     replacements = {row['before_sha256']: row for row in json.loads(REPLACEMENTS.read_text(encoding='utf-8'))['replacements']}
     required = {replacements[old]['after_sha256'] if old in replacements else old for old in original['unconditional_core_paragraph_sha256']}
-    assert required <= hashes
+    # plugin-audit-2 T-16: the branch-closing ritual (verification, commits, PR summary, retro gate)
+    # moved verbatim to phase6-close.md, read on reaching Phase 6; nothing else leaves the core.
+    closing = {hashlib.sha256(p.encode('utf-8')).hexdigest()
+               for p in paragraphs((KIT / 'phase6-close.md').read_text(encoding='utf-8'))}
+    assert required - hashes <= closing
+    assert any('1. **Verificación final sobre la rama**' in p for p in paragraphs((KIT / 'phase6-close.md').read_text(encoding='utf-8')))
     core = COMMAND.read_text(encoding='utf-8')
     assert '## Fase 4-bis — Knowledge Gate (siempre' in core
     assert 'docs/knowledge/candidates/{pending,needs_changes}/' in core
@@ -151,3 +156,19 @@ def test_private_kit_lookup_executes_in_real_shell(tmp_path, shell, layout):
     lines = result.stdout.strip().splitlines()
     assert lines[-1] == 'canonical-phase-owner'
     assert lines[-2].replace('\\', '/').endswith('/agent-kits/dev-cycle')
+
+
+def test_phase6_closing_and_state_table_load_only_at_closing():
+    """plugin-audit-2 T-16: Phase 6 and the transition table leave the first turn of every run."""
+    core = COMMAND.read_text(encoding='utf-8')
+    close = (KIT / 'phase6-close.md').read_text(encoding='utf-8')
+    assert 'phase6-close.md' in core and 'solo al llegar a la Fase 6' in core
+    for moved in ('1. **Verificación final sobre la rama**', '8. **Retro — PUERTA, no aviso',
+                  '| Momento | spec | evaluación |'):
+        assert moved not in core and moved in close, moved
+    assert 'retro-gate.py' in close and 'changelog-sync' in close
+    # The table still reflects T-40: the plugin's scripts move the task states.
+    assert '`start`/despacho → `en-progreso`; `close`/`review` → `en-revision`' in close
+    assert 'usage-meter.py start' in core and 'ledger-write.py' in core
+    # Regression guard on the measured core size (LF characters, context-footprint method).
+    assert len(core) <= 23000
