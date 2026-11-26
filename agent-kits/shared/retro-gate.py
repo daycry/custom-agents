@@ -15,11 +15,14 @@ acentos graves). NO escribe la retro ni la fila —eso es `/retro`, con las caus
 vivió—: automatiza EXIGIRLA. Informa (ℹ️) si el ledger no está `completado`, sin cambiar el veredicto.
 
 Uso:
-  retro-gate.py <docs/roadmap/<fecha>-<slug> | <fecha>-<slug> | slug> [--root DIR] [--json]
+  retro-gate.py <docs/roadmap/<fecha>-<slug> | <fecha>-<slug> | slug> [--root DIR] [--json] [--sync]
+`--sync` (plugin-audit-2 T-42): con la puerta ABIERTA, aplica el cierre con `roadmap-sync.py` (ledger y plan
+`completado`, spec `implementada`, fila del índice); con la puerta cerrada no escribe nada. Sin `--sync`, solo lee.
 Exit: 0 puerta abierta · 1 cerrada (imprime qué falta y el comando exacto `/retro docs/roadmap/<carpeta>`) ·
 2 error de uso (carpeta no encontrada o ambigua).
 """
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -153,6 +156,22 @@ def veredicto(root, carpeta):
             "faltan": faltan, "ledger_estado": estado, "comando": f"/retro docs/roadmap/{nombre}", "lineas": lineas}
 
 
+def sincronizar(carpeta):
+    """T-42: el cierre (plan, spec, índice) lo aplica roadmap-sync.py, no el orquestador. Degrada con aviso."""
+    try:
+        here = os.path.dirname(os.path.abspath(__file__))
+        spec = importlib.util.spec_from_file_location("retro_gate_roadmap_sync", os.path.join(here, "roadmap-sync.py"))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        informe = mod.sincronizar(carpeta)
+    except Exception as e:  # noqa: BLE001 — la puerta ya está decidida; la sincronización solo degrada
+        return {"cambios": [], "lineas": [f"roadmap-sync no disponible ({getattr(e, 'status', e.__class__.__name__)}): "
+                                          "ejecútalo a mano sobre esta carpeta"]}
+    lineas = [f"sincronizado {c['tipo']}: {c['artefacto']} {c['de']} → {c['a']}" for c in informe["cambios"]]
+    lineas += [f"roadmap-sync: no escrito {p}" for p in informe["pendientes"]]
+    return {"cambios": informe["cambios"], "lineas": lineas or ["roadmap-sync: sin cambios (ya al día)"]}
+
+
 def render(v):
     out = [f"retro-gate: {v['carpeta']} (slug `{v['slug']}`)"]
     out += [f"{icono} {texto}" for icono, texto in v["lineas"]]
@@ -170,6 +189,7 @@ def main(argv=None):
     ap.add_argument("carpeta", nargs="?", help="docs/roadmap/<fecha>-<slug>, <fecha>-<slug> o slug")
     ap.add_argument("--root", default=None, help="raíz del proyecto (default: la de la carpeta, o CLAUDE_PROJECT_DIR, o cwd)")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--sync", action="store_true", help="puerta abierta → cierra con roadmap-sync.py")
     a = ap.parse_args(argv)
     if not a.carpeta:
         ap.print_usage(sys.stderr)
@@ -188,6 +208,9 @@ def main(argv=None):
         print(f"retro-gate: `{a.carpeta}` casa con varias carpetas de docs/roadmap/: pasa la carpeta con su fecha", file=sys.stderr)
         return 2
     v = veredicto(root, carpeta)
+    if a.sync and v["abierta"]:
+        v["sync"] = sincronizar(carpeta)
+        v["lineas"] += [(INFO, linea) for linea in v["sync"].pop("lineas")]
     if a.json:
         print(json.dumps({k: val for k, val in v.items() if k != "lineas"}, ensure_ascii=False, indent=2))
     else:

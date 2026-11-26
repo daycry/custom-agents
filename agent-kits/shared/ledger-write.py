@@ -428,7 +428,24 @@ def write(args):
     if args.operation == "reconcile":
         states = states_from(after)
         receipt["states"] = {task: states[task] for task in args.tasks.split(",")}
+    if (args.operation == "verdict" and not args.dry_run and after is not None
+            and after["tareas"] and all(t["estado"] in ("completado", "cancelado") for t in after["tareas"])):
+        receipt["roadmap_sync"] = roadmap_sync(path, warnings)
     return receipt
+
+
+def roadmap_sync(path, warnings):
+    """T-42: a verdict that leaves the ledger at 100 % brings its initiative up to date (ledger state,
+    plan/spec with the retro gate, index row) through roadmap-sync.py. Degrades to a warning."""
+    if not LINT.INITIATIVE_FOLDER.fullmatch(path.parent.name) or LINT.ledger_project(path) is None:
+        return None
+    try:
+        report = load("roadmap-sync").sincronizar(path.parent)
+    except Exception as error:  # noqa: BLE001 — the verdict is already written; the sync only degrades
+        warnings.append(f"roadmap: sincronización pendiente ({getattr(error, 'status', 'unavailable')})")
+        return None
+    warnings.extend(f"roadmap: {item}" for item in report["pendientes"])
+    return {"cambios": report["cambios"], "avisos": report["avisos"]}
 
 
 def task_handoff(path, task, state, source, runtime=None):

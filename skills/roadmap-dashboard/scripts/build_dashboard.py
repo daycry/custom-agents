@@ -303,6 +303,7 @@ def _scan_rec_base(name, path, r):
         "has_design": os.path.exists(r["design"]),
         "design_estado": None,
         "has_tasks": os.path.exists(r["tasks"]),
+        "ledger_estado": None, "tareas": None,
         "has_testing": os.path.isdir(r["testing"]),
         "via_rapida": False,
     }
@@ -328,8 +329,21 @@ def _scan_leer_eval(rec, eval_p):
     rec["prioridad"] = table_value(t, "Prioridad global")
     rec["caracteristicas"] = table_value(t, "Características") or \
         table_value(t, "Características evaluadas")
-    rec["coste"] = table_value_any(t, ("Coste",), ("Coste humano",))
-    rec["esfuerzo"] = table_value_any(t, ("Esfuerzo humano", "Tiempo humano"))
+    # T-42 (plugin-audit-2): las etiquetas reales del evaluator llevan sufijo («Esfuerzo humano (referencia)»,
+    # «Esfuerzo humano equivalente», «Coste (presupuesto humano + tokens)», «Coste de referencia (…)»): se leen
+    # por prefijo; si no hay tabla, la estimación en prosa; «No se solicitó presupuesto» se declara, no se avisa.
+    rec["coste"] = table_value_any(t, ("Coste",), ("Coste humano", "Coste (", "Coste de referencia"))
+    rec["esfuerzo"] = table_value_any(t, ("Esfuerzo humano", "Tiempo humano"),
+                                      ("Esfuerzo humano", "Tiempo humano", "Horas humanas"))
+    if not rec["esfuerzo"]:
+        m = re.search(r"\*\*(\d+(?:[.,]\d+)?\s*h\s+humanas)", t)
+        rec["esfuerzo"] = m.group(1) if m else None
+    if not rec["coste"]:
+        m = re.search(r"coste[^\n*]*?\*\*(\d[\d.,]*\s*(?:EUR|€))\*\*", t, re.I)
+        rec["coste"] = m.group(1) if m else None
+    if re.search(r"no se solicit[oó] presupuesto", t, re.I):
+        rec["coste"] = rec["coste"] or "no estimado"
+        rec["esfuerzo"] = rec["esfuerzo"] or "no estimado"
     rec["tokens"] = table_value(t, "Tokens IA")
     rec["multiplicador"] = table_value(t, "Multiplicador productividad")
 
@@ -337,6 +351,8 @@ def _scan_leer_eval(rec, eval_p):
 def _scan_leer_tasks(rec, tasks_p):
     tasks_text = open(tasks_p, encoding="utf-8", errors="replace").read()
     rec["progreso"] = parse_progress_totals(tasks_text)
+    rec["ledger_estado"] = parse_frontmatter(tasks_text).get("estado") or table_value(tasks_text, "Estado")
+    rec["tareas"] = contar_tareas(tasks_text)
     # Vía rápida: o no hay spec, o el propio ledger la DECLARA en su fila Plan
     # («| **Plan** | n/a — **vía rápida** …»). Lo segundo cubre las vías rápidas
     # que nacen de una spec de backlog, que sí tienen spec.md.
@@ -365,16 +381,46 @@ def _scan_generacion(r):
     return gen or None
 
 
+def contar_tareas(text):
+    """{completadas, abiertas, iniciadas, total} de las `### T-XX` del ledger (total sin las canceladas)."""
+    estados, actual = [], None
+    for linea in text.splitlines():
+        if re.match(r"^###\s+T-\d+", linea):
+            actual = len(estados)
+            estados.append("borrador")
+        elif actual is not None:
+            m = re.match(r"^\s*-\s*\*\*Estado\*\*\s*:\s*(.+)$", linea)
+            if m:
+                estados[actual] = _norm_estado(m.group(1)) or "borrador"
+                actual = None
+    vivas = [e for e in estados if e != "cancelado"]
+    return {"completadas": vivas.count("completado"), "total": len(vivas),
+            "abiertas": sum(e != "completado" for e in vivas),
+            "iniciadas": sum(e in ("en-progreso", "en-revision", "completado") for e in vivas)}
+
+
 def _scan_fase(rec):
-    """Fase derivada para ordenar/priorizar."""
-    if rec["has_testing"]:
-        return "en pruebas"
-    if rec["has_plan"]:
+    """Fase derivada de los ESTADOS y del progreso del ledger (T-42), no de los ficheros presentes:
+    cancelada · completada · en curso N/M · planificada · vía rápida · evaluada · solo spec."""
+    spec, ev = _norm_estado(rec.get("spec_estado")), _norm_estado(rec.get("eval_estado"))
+    ledger, t = _norm_estado(rec.get("ledger_estado")), rec.get("tareas")
+    if "cancelado" in (ev, ledger) or spec == "obsoleta":
+        return "cancelada"
+    if t and t["total"]:
+        if not t["abiertas"]:
+            return "completada"
+        if t["iniciadas"]:
+            return f"en curso {t['completadas']}/{t['total']}"
+    if ledger == "completado":
+        return "completada"
+    if ledger in ("en-progreso", "en-revision"):
+        return "en curso"
+    if rec["has_plan"] or (rec["has_tasks"] and not rec.get("via_rapida")):
         return "planificada"
-    if rec["has_eval"]:
-        return "evaluada"
     if rec.get("via_rapida"):
         return "vía rápida"
+    if rec["has_eval"]:
+        return "evaluada"
     return "solo spec"
 
 

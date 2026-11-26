@@ -537,7 +537,7 @@ def run():
         "| | |\n|---|---|\n| **Estado** | completado |\n")
     vr_inits = bd.scan(tmp)
     eq(len(vr_inits), 1, "vía rápida detectada")
-    eq(vr_inits[0]["fase"], "vía rápida", "fase derivada de vía rápida")
+    eq(vr_inits[0]["fase"], "completada", "T-42: la fase sale del estado del ledger (completado), no de los ficheros")
     contains(vr_inits[0]["titulo"], "Rapida (fixture)", "título desde el ledger")
     assert vr_inits[0]["generacion"], "generacion: de la vía rápida se agrega"
     shutil.rmtree(tmp)
@@ -557,7 +557,7 @@ def run():
     eq(len(vr2_inits), 1, "iniciativa de vía rápida con spec escaneada")
     assert vr2_inits[0]["via_rapida"], \
         "vía rápida declarada en el ledger (| **Plan** | n/a — vía rápida) debe detectarse aunque HAYA spec.md"
-    eq(vr2_inits[0]["fase"], "vía rápida", "fase de vía rápida con spec presente")
+    eq(vr2_inits[0]["fase"], "completada", "T-42: vía rápida con spec y ledger completado")
     w2 = bd.warnings_for(vr2_inits)
     assert not any("improvement-plan" in w for w in w2), \
         f"vía rápida declarada NO debe avisar de improvement-plan.md ausente; avisos={w2}"

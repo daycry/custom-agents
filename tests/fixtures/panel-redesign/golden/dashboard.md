@@ -8,12 +8,12 @@
 
 | Iniciativa | Spec | Evaluación | Prioridad | Fase | Coste | Esfuerzo | Tokens | Prod. |
 |---|---|---|---|---|---|---|---|---|
-| Alfa — exportación de informes (`2026-01-10-alfa`) | aprobada | completado ✅ | Alta | planificada | 1.300 EUR | 26h | 1,2 M | x3 |
+| Alfa — exportación de informes (`2026-01-10-alfa`) | aprobada | completado ✅ | Alta | en curso 1/2 | 1.300 EUR | 26h | 1,2 M | x3 |
 | Beta — idea en borrador (`2026-01-11-beta`) | borrador | — | — | solo spec | — | — | — | — |
-| Gamma — migración cerrada (`2026-01-12-gamma`) | implementada | completado | Media | en pruebas | 600 EUR | 12h | 400k | — |
+| Gamma — migración cerrada (`2026-01-12-gamma`) | implementada | completado | Media | completada | 600 EUR | 12h | 400k | — |
 | Delta � ilegible (`2026-01-13-delta`) | — | — | — | evaluada | — | — | — | — |
-| Epsilon ledger grande (`2026-01-14-epsilon`) | — | — | — | vía rápida | — | — | — | — |
-| Zeta — sustituida (`2026-01-15-zeta`) | obsoleta | cancelado | Baja | evaluada | 200 EUR | 4h | — | — |
+| Epsilon ledger grande (`2026-01-14-epsilon`) | — | — | — | completada | — | — | — | — |
+| Zeta — sustituida (`2026-01-15-zeta`) | obsoleta | cancelado | Baja | cancelada | 200 EUR | 4h | — | — |
 
 ## Artefactos por iniciativa
 
