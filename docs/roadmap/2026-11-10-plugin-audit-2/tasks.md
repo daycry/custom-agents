@@ -40,11 +40,11 @@ changelog: Changed
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Defectos | 7 | 8 | 87.5% | 0 / 16h | 0 / 5.0h | 0 / 1.25h | 0 / 1090k |
 | Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev) | 4 | 5 | 80.0% | 0 / 32h | 0 / 7.9h | 0 / 1.98h | 0 / 2100k |
-| Fase 3 — Tokens | 6 | 12 | 50.0% | 0 / 36h | 1.1 / 9.7h | 0 / 2.42h | 0 / 2260k |
+| Fase 3 — Tokens | 9 | 12 | 75.0% | 0 / 36h | 1.1 / 9.7h | 0 / 2.42h | 0 / 2260k |
 | Fase 4 — Simplificación del código | 0 | 8 | 0.0% | 0 / 34.5h | 0 / 8.5h | 0 / 2.12h | 0 / 2470k |
 | Fase 5 — Alcance y entrenamiento | 0 | 5 | 0% | 0 / 26h | 0 / 6.5h | 0 / 1.62h | 0 / 1800k |
 | Fase 6 — Higiene del roadmap | 0 | 4 | 0% | 0 / 10h | 0 / 2.5h | 0 / 0.62h | 0 / 750k |
-| **TOTAL** | **17** | **42** | **40.5%** | **0 / 154.5h** | **0 / 40.1h** | **0 / 10.02h** | **0 / 10470k** |
+| **TOTAL** | **20** | **42** | **47.6%** | **0 / 154.5h** | **0 / 40.1h** | **0 / 10.02h** | **0 / 10470k** |
 
 Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +20 % está en el plan); tokens al precio de `.claude/rates.json`.
 
@@ -559,7 +559,8 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: Párrafos que repiten la description antigua dentro del cuerpo (25 ocurrencias de «Alcance y activación» en `agents/`, `commands/` y `skills/`; el análisis contó 21: se clasifica pieza a pieza). Se borran los que duplican la description y se conserva lo que aporta un guardarraíl. Ahorro estimado ≈15 KB.
 - **Changelog**: Los cuerpos de agentes, comandos y skills ya no repiten su propia description.
-- **Estado**: en-revision
+- **Estado**: completado
+- **Cerrada**: 2026-11-26
 - **Tiempo humano**: est. 2h · real —
 - **Tiempo IA (ejec.)**: est. 0.6h · real 0.54h (medido, `plugin-audit-2/T-15`; incluye la espera de `node --test` y la preparación del RED de T-16)
 - **Dependencias**: T-12, T-13, T-11
@@ -588,7 +589,8 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: `dev-cycle.md` (29,5 KB) carga la Fase 6 y la tabla de transiciones desde el primer turno (≈10 KB). Pasan a `references/phase6-close.md` con «léelo solo al llegar a la Fase 6». El paso Kwipu/Graphiti de `/setup` (2.10) NO se mueve: T-08 lo borra. Mejora el margen de la vía rápida.
 - **Changelog**: dev-cycle carga el cierre solo cuando llega a esa fase.
-- **Estado**: en-revision
+- **Estado**: completado
+- **Cerrada**: 2026-11-26
 - **Tiempo humano**: est. 2h · real —
 - **Tiempo IA (ejec.)**: est. 0.5h · real 0.16h (medido, `plugin-audit-2/T-16`; la preparación del RED y la espera de `node --test` cayeron en las ventanas de T-15 y T-17)
 - **Dependencias**: T-15
@@ -621,7 +623,8 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: La receta que localiza el kit aparece 19 veces en 9 agentes y 14 en 9 comandos (verificado con `grep -c`). Una por pieza que derive todas las variables (`PLANKIT`, `DEVKIT`…) en vez de repetirla por paso. Ahorro medido −7,5 KB.
 - **Changelog**: Cada agente y comando resuelve el kit una sola vez.
-- **Estado**: en-revision
+- **Estado**: completado
+- **Cerrada**: 2026-11-26
 - **Tiempo humano**: est. 3h · real —
 - **Tiempo IA (ejec.)**: est. 0.7h · real 0.23h (medido, `plugin-audit-2/T-17`; incluye el fix de T-15 `61453ef` y la espera de las suites)
 - **Dependencias**: T-15, T-16
@@ -1422,4 +1425,16 @@ Lentes: A+B (Opus, contexto fresco); C y D no aplican (`review-lens-select.py --
 
 ## Revisión de dos lentes — intento 2: Fase 3 (T-15, T-16, T-17) — tanda B1, verificación del fix1 (T-15, T-16, T-17)
 
-Pendiente de revisión; sin veredicto.
+**Veredicto del plugin**: limpio
+
+Lentes: A+B (Opus, contexto fresco, con traspaso del intento 1); C y D no aplican (`review-lens-select.py --base 54d3cd6`: sin motivos). `scope-check.py --base 54d3cd6` → solo marca `docs/roadmap/2026-11-26-kairos-memory/**` (otra iniciativa, fuera de esta revisión). Diff `54d3cd6..9f8af4a` (fix1 `647c9c0` RED, `a77c2f5` GREEN, `f59665a` ledger; `9f8af4a` cifra de T-17 por decisión del usuario). Gaps 1-8 del intento 1 verificados como corregidos (tests nuevos rojos en el árbol `647c9c0` y verdes en HEAD; mutante del gap 3 cazado). Puerta Node de la cabecera: en Linux con el entorno de la CI (`node:22`, `python`, procps, `chmod +x`, repo git) `604 tests · 571 pass · 0 fail · 33 skipped`; en Windows `installer.test.mjs` tarda 78 min con 4 rojos de procesos y tiempos (tests 30, 97, 125, 126), del entorno; la tanda no toca `install/`. Resultado: 0 Critical, 0 Important, 5 Minor.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Minor | El test de enlaces relativos no detecta algunos formatos (espacios, `<…>`, título, definiciones de referencia, anclas, `..\`, `%20`); hoy no se escapa ninguno porque solo hay un enlace | T-16 | deuda aceptada (criterio de cierre del usuario, 2026-11-20) | `tests/test_dev_cycle_split.py:264-266` |
+| 2 | Minor | El aviso del gap 6 mide +628, no +666; el neto −4.817 cuadra con `context-footprint.py` | T-17 | corregido en el ledger y `testing/tokens.md` por el orquestador (`6a85d97`); `docs/TOKEN-EFFICIENCY.md:161` (ES/EN) conserva +666: deuda aceptada | `docs/TOKEN-EFFICIENCY.md:161`; `docs/en/TOKEN-EFFICIENCY.md:153` |
+| 3 | Minor | Gap 10 del intento 1 sin medidas en `testing/tokens.md` | T-15, T-16 | corregido por el orquestador (`6a85d97`) | `testing/tokens.md`, sección «Tanda B1» |
+| 4 | Minor | Nota k5 caducada y Verificación de T-16 que esperaba «≈10 KB menos» | T-16, T-17 | corregido por el orquestador (`6a85d97`) | `tasks.md` (Verificación de T-16 y nota k5) |
+| 5 | Minor | La guardia `len(core) <= 23000` cuenta caracteres y el criterio se midió en bytes LF (22.999) | T-16 | deuda aceptada | `tests/test_dev_cycle_split.py:175` |
+
+**Tanda B1 de la Fase 3 cerrada (2026-11-26)** según el criterio del usuario: 0 Critical y 0 Important tras los intentos 1 (fix1) y 2. Deuda aceptada: gap 9 del intento 1 y gaps 1, 2 (texto de TOKEN-EFFICIENCY) y 5 de este intento.
