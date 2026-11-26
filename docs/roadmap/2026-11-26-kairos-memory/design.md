@@ -1,38 +1,38 @@
 ---
 design: "kairos-memory"
 titulo: "Kairos como memoria opcional de los agentes"
-estado: borrador              # borrador | aprobado | obsoleto
+estado: aprobado              # borrador | aprobado | obsoleto
 creado: "2026-11-26"
 actualizado: "2026-11-26"
 spec: spec.md                 # enlace hacia atrás (misma carpeta)
 evaluacion: "evaluation.md"
 plan: pendiente               # improvement-plan.md cuando el planner lo cree
-adr: "pendiente"              # se propone en la pasada 2, con la opción elegida
-opcion_elegida: "pendiente"   # pendiente | O1 | O2 | O3 — se fija SOLO tras la validación del usuario
-generacion:
+adr: "docs/knowledge/candidates/pending/2026-11-26-kairos-memory-motor-de-entrega.md"  # propuesta; sha256 1c811f6db71b5f5a053e867426d7dd75510f4638d7a7a6e0955e83af5828ac9f (handoff a knowledge-curator)
+opcion_elegida: "O2"          # variante del usuario: O2 + motor de entrega reutilizable (2026-11-26)
+generacion:                   # suma de las dos pasadas (ventanas win-391a0d47… y win-70328992…)
   inicio: 2026-11-26T13:44:44Z
-  fin: 2026-11-26T13:56:17Z
+  fin: 2026-11-26T14:06:43Z
   fuente: medido
   fuente_id: src-d2ceb5c719af848b4c213bb2d521d0f003976923acb613d7512912ccbeb6a09e
-  ventana_id: win-391a0d47660a4700ad3ec3f4755459b6
-  revision_medicion: 3
+  ventana_id: win-70328992f3c34a6f90d0ea56de0a8a12
+  revision_medicion: 1
   medicion_persistida: true
-  tokens_reales: { entrada: 98, salida: 46087, cache_creacion: 145111, cache_lectura: 8162078 }
-  eur: 3.02
-  horas_ia: 0.36
-  duracion: 22m
+  tokens_reales: { entrada: 120, salida: 61665, cache_creacion: 171912, cache_lectura: 10037512 }
+  eur: 3.78
+  horas_ia: 0.44
+  duracion: 27m
   ratio_usado: 531798.5
 ---
 
 # Diseño — Kairos como memoria opcional de los agentes
 
-> **Spec:** [`spec.md`](spec.md) (`aprobada`, 29 criterios) · **Evaluación:** [`evaluation.md`](evaluation.md) (`completado`, go del usuario 2026-11-26) · **Plan:** pendiente · **ADR:** pendiente (pasada 2)
+> **Spec:** [`spec.md`](spec.md) (`aprobada`, 29 criterios) · **Evaluación:** [`evaluation.md`](evaluation.md) (`completado`, go del usuario 2026-11-26) · **Plan:** pendiente · **ADR:** [propuesta en curación](../../knowledge/candidates/pending/2026-11-26-kairos-memory-motor-de-entrega.md)
 
 | | |
 |---|---|
-| **Estado** | borrador |
-| **Opción elegida** | pendiente — se fija con la elección del usuario |
-| **Validada por el usuario** | pendiente |
+| **Estado** | aprobado |
+| **Opción elegida** | O2 (variante) — colas sobre `outbox.py` con conciliación remota, y motor de entrega reutilizable en `skills/knowledge-services/backends/_delivery.py` |
+| **Validada por el usuario** | 2026-11-26 (vía orquestador: `variante: O2 + motor de entrega reutilizable`) |
 
 ## 1. Contexto y restricciones
 
@@ -156,6 +156,22 @@ función `capturar` que O2.
 | Coste relativo | L |
 | Reversibilidad | Media: el almacén es nuevo y aislado, pero su formato queda en disco de los proyectos consumidores |
 
+### O2 (variante del usuario) — O2 con motor de entrega reutilizable
+
+Igual que O2 (`outbox.py` y `knowledge-sync.py` sin cambios, dos colas del adaptador sobre `outbox.py`,
+conciliación remota primero), pero la máquina de entrega **no vive dentro de `kairos.py`**: vive en un
+módulo genérico de la skill, `skills/knowledge-services/backends/_delivery.py`, que cualquier adaptador
+usa aportando `enviar(registro, cfg)`, `estado_remoto(registro, cfg)` y su clasificación de errores. Es el
+contrato que proponía O1, pero como librería opcional fuera del núcleo. `kairos.py` es el primer
+consumidor; un segundo consumidor falso en los tests demuestra la reutilización.
+
+| Criterio | Valoración |
+|---|---|
+| Complejidad | Media: la misma lógica que O2 con una frontera explícita entre motor y adaptador |
+| Riesgo | Medio: el motor pasa a ser un contrato de librería con varios consumidores futuros; se mitiga con su suite propia y el consumidor falso |
+| Coste relativo | M (algo más que O2 por la frontera y el segundo consumidor de test) |
+| Reversibilidad | Alta: nada del núcleo depende del motor; un adaptador puede no usarlo |
+
 ## 3. Criterios de decisión
 
 1. **No romper contratos compartidos** (pesa más): `outbox.py` y `knowledge-sync.py` tienen consumidores
@@ -165,8 +181,9 @@ función `capturar` que O2.
 3. **Reversibilidad**: Kairos está a mitad de tres hitos sin fecha; lo que se construya debe poder
    cambiarse sin tocar el núcleo.
 4. **Coste** frente a la evaluación (C-03 y C-04 son la mitad del esfuerzo).
-5. **Extensibilidad a otro MCP** (CA-16): necesaria, pero basta con que el cliente y el contrato sean
-   genéricos; no exige que el núcleo conduzca la entrega.
+5. **Extensibilidad a otro MCP** (CA-16): necesaria. El usuario la sube de peso el 2026-11-26: un backend
+   nuevo (p. ej. otro servidor de memoria por MCP) debe reutilizar también la entrega, no solo el cliente,
+   sin que el núcleo la conduzca.
 
 ## 4. Recomendación · opción elegida y por qué
 
@@ -175,28 +192,55 @@ ampliar el contrato de la cola, y conciliar con el servidor antes de cada envío
 incierta con la fuente de verdad remota (criterios 1 y 2) con el menor coste y la mayor reversibilidad
 (criterios 3 y 4).
 
-**Opción elegida:** pendiente de la validación del usuario.
+**O2 (variante del usuario) — O2 con motor de entrega reutilizable.** Se elige porque conserva intactos
+`outbox.py` y `knowledge-sync.py` (criterio 1), decide cada reenvío con el estado del servidor
+(criterio 2), queda aislada y reversible (criterio 3), cuesta como O2 (criterio 4) y cumple el criterio 5
+reforzado: un backend nuevo solo escribe `enviar`, `estado_remoto` y su tabla de errores.
 
-Descartadas (motivo provisional, se confirma en la pasada 2): O1 por romper el criterio 1 y la spec; O3 por
-reabrir una decisión técnica de la spec, reimplementar la durabilidad y perder ocurrencias de hitos.
+**Motor de entrega `skills/knowledge-services/backends/_delivery.py`:**
+
+- **Ubicación.** Junto al contrato de adaptadores, porque solo lo usan adaptadores de esta skill (regla
+  «compartido vs privado»): no va en `agent-kits/shared/`, que no debe conocer el contrato de adaptador,
+  ni en `scripts/`, que guarda CLIs. El guion bajo inicial es deliberado: `_TIPO_VALIDO_RE`
+  (`^[a-z][a-z0-9-]*$`) nunca produce un nombre que empiece por `_`, así que el cargador jamás lo
+  confunde con un adaptador (un `delivery.py` sería cargable como `type: "delivery"`). `kairos.py` lo
+  carga por ruta relativa; un adaptador de `--backends-dir` lo localiza con la regla 5 y lo carga por ruta.
+- **Contrato del consumidor.** `enviar(registro, cfg)` y `estado_remoto(registro, cfg)` devuelven un
+  resultado tipado: `completo(recibo)`, `pendiente(plazo)`, `ausente`, `terminal(recibo, error_code)`,
+  `transitorio(retry_after)`, `permanente(causa)`, `configuracion(causa)` o `incierto`. La tabla de errores
+  del backend (para Kairos, `kairos_assets/errores.json`) la aplica el consumidor; el motor nunca lee un
+  mensaje de error.
+- **Qué hace el motor.** `encolar(cola, clave, cuerpo)` idempotente por identidad con cuerpo inmutable;
+  `drenar(cola, consumidor, cfg, reloj, max_registros, max_segundos)` reclama, llama primero
+  `estado_remoto` y aplica las transiciones de la sección 1: `ausente` → `enviar`; `transitorio`,
+  `pendiente` e `incierto` → `ceder_paso` con el plazo o con su backoff propio (sin dead-letter);
+  `permanente` → `dead_letter` con causa; `completo` y `terminal` → `completar` con recibo;
+  `configuracion` → `ceder_paso` y fin del drenaje con informe. Pasa al consumidor un contexto por corrida
+  (p. ej. «el acceso al proyecto ya se confirmó con esta clave», que necesita la regla de
+  `Resource not found` de CA-08). Reloj inyectable para CA-15 y CA-28.
+- **Qué no hace.** No redacta ni serializa: recibe el cuerpo ya preparado. No conoce MCP ni Kairos. No
+  toca `knowledge-sync.py`, `backends/__init__.py` ni `outbox.py`.
+
+Descartadas: O1, porque cambia el contrato de `outbox.py` con dos consumidores vivos y contradice «sin
+cambios de núcleo» (criterio 1). O2 original, porque obliga a reescribir la entrega en cada backend
+(criterio 5). O3, porque reabre «dos colas sobre `outbox.py`», reimplementa la durabilidad y pierde
+ocurrencias de hitos (criterios 1 y 2).
 
 **Respuestas a los puntos que la evaluación pidió cerrar** (comunes salvo donde se indica):
 
 | Punto | Decisión de diseño |
 |---|---|
-| Estados de las dos outbox frente a `outbox.py` | O2: sin ampliar el contrato. Transitorio (incluidos `retry_after=N`, HTTP 429 `Retry-After`, cuota y 502/503/504) → `ceder_paso(item, cortesia_s=plazo)` (no incrementa intentos, nunca dead-letter; un plazo mayor de 3.600 s se reintenta y se vuelve a aplazar). Permanente → `dead_letter` con causa. Terminal remoto → `completar` con recibo. Entrega incierta → sin estado local: conciliación remota al reclamar. El adaptador nunca llama `reencolar_o_dead_letter`. Un alias aditivo `aplazar` en `outbox.py` es opcional y solo de legibilidad |
+| Estados de las dos outbox frente a `outbox.py` | Sin ampliar el contrato; las transiciones las aplica el motor `_delivery.py`. Transitorio (incluidos `retry_after=N`, HTTP 429 `Retry-After`, cuota y 502/503/504) → `ceder_paso(item, cortesia_s=plazo)` (no incrementa intentos, nunca dead-letter; un plazo mayor de 3.600 s se reintenta y se vuelve a aplazar). Permanente → `dead_letter` con causa. Terminal remoto → `completar` con recibo. Entrega incierta → sin estado local: conciliación remota al reclamar. El motor nunca llama `reencolar_o_dead_letter`. Un alias aditivo `aplazar` en `outbox.py` es opcional y solo de legibilidad |
 | `redact.py` y el marcador por destino | Funciones públicas nuevas **fuera del bloque replicado** (como `anonimizar`): `redactar_para(texto, marcador)` y `redactar_estructura_para(obj, marcador)`, con los patrones del hito B, los nombres de secreto de CA-29 (camelCase, `.`/`-`), claves JSON y valor completo con esquema; una asignación con comilla sin cerrar lanza una excepción propia y el registro no se encola. `redactar()`, `REDACTADO` y la copia de `journal.py` no cambian: ADR-016 y las suites del journal siguen igual |
 | Cliente MCP genérico | `agent-kits/shared/mcp-client.py` (junto a `outbox.py` y `redact.py`; el adaptador lo resuelve con la misma ruta relativa que `knowledge-sync.py` usa para `SHARED`). Solo sabe de HTTP y JSON-RPC: cabeceras, `Bearer`, guardarraíl de host, topes, plazos, clasificación por código HTTP, `Retry-After`, `Deprecation`. La tabla de mensajes de Kairos (regex con `re.fullmatch`, clase, extracción de `retry_after`) es **dato del adaptador** en `skills/knowledge-services/backends/kairos_assets/errores.json`, que el adaptador pasa al clasificador del cliente |
-| Fuente de los hitos | O1/O2: `ledger-write.py` añade una línea por transición a `docs/roadmap/<carpeta>/.ledger-write/hitos.jsonl` (carpeta que ya crea con `.gitignore` `*`), bajo el mismo cierre con el que escribe el ledger; la ocurrencia es el número de líneas previas con la misma tarea y estado. Cubre `usage-meter close`. Retro: `retro.md` (ocurrencia 1). O3: instantánea del ledger |
+| Fuente de los hitos | O1/O2: `ledger-write.py` añade una línea por transición a `docs/roadmap/<carpeta>/.ledger-write/hitos.jsonl` (carpeta que ya crea con `.gitignore` `*`), bajo el mismo cierre con el que escribe el ledger; la ocurrencia es el número de líneas previas con la misma tarea y estado. Cubre `usage-meter close`. Hitos que se envían: tarea cerrada, veredicto de revisión, retro (`retro.md`, ocurrencia 1) y **decisión** = puerta go/no-go de `/pm-cycle` (fila «Decisión» de `evaluation.md`) y aprobación de `design.md` (`estado: aprobado`), leídas de esos artefactos en el envío, ocurrencia 1 por artefacto (decisión del usuario, 2026-11-26) |
 | Validador de esquemas sin dependencias | `agent-kits/shared/schema-subset.py`: implementa solo las 11 palabras clave que usan los esquemas y **falla cerrado** ante cualquier otra (así una versión nueva del esquema con otra palabra clave se detecta, no se ignora); límites de 1.000 nodos y profundidad 8. Esquemas copiados en `backends/kairos_assets/` con origen y fecha; los ejemplos de Kairos entran como fixtures de test |
 | «Orden manual» | Sin comando nuevo (ni evals, ni interop, ni espejo EN): O2/O3 → `python3 skills/knowledge-services/scripts/episodic-sync.py --backend <id> [--dry-run\|--status]`, el mismo que llaman la Fase 6 de `/dev-cycle` y `/retro`; O1 → `knowledge-sync.py --episodic` |
-| Evidencia e ID de decisión del curator | El adaptador busca el recibo de `.curation/receipts/` cuyo `target` es la ruta de la entrada y cuyo `target_sha256` coincide con el fichero actual. `evidence` = `curator:operation:<operation_id>` + las `fuentes` del frontmatter + el nivel `evidencia` (1..20 elementos, ≤ 4.000 caracteres). Sin recibo, o con el fichero editado tras la aprobación, no se envía y se informa con el remedio (volver a aprobar con `knowledge-curator`) |
+| Evidencia e ID de decisión del curator | El adaptador busca el recibo de `.curation/receipts/` cuyo `target` es la ruta de la entrada y cuyo `target_sha256` coincide con el fichero actual. `evidence` = `curator:operation:<operation_id>` + las `fuentes` del frontmatter + el nivel `evidencia` (1..20 elementos, ≤ 4.000 caracteres). Sin recibo, o con el fichero editado tras la aprobación, la entrada se queda en local, el sync avisa y nombra el remedio: re-aprobarla con `knowledge-curator` (decisión del usuario, 2026-11-26) |
 
 ## 5. Impacto en módulos y ficheros
 
-Tabla de la opción recomendada (O2). Con O1 se añaden cambios de contrato en `outbox.py` y
-`knowledge-sync.py`; con O3, `agent-kits/shared/delivery-store.py` sustituye a las colas sobre `outbox.py`
-y `ledger-write.py` no cambia.
+Tabla de la opción elegida (O2, variante con motor de entrega reutilizable).
 
 | Módulo / fichero (ruta real) | Cambio | Nuevo / modificado |
 |---|---|---|
@@ -205,12 +249,13 @@ y `ledger-write.py` no cambia.
 | `agent-kits/shared/redact.py` | `redactar_para` y `redactar_estructura_para` fuera del bloque replicado (C-05) | Modificado |
 | `agent-kits/shared/outbox.py` | Sin cambio de semántica; alias aditivo `aplazar` opcional | Sin cambios / modificado |
 | `agent-kits/shared/ledger-write.py` | Registro append-only de transiciones en `.ledger-write/hitos.jsonl` | Modificado |
-| `skills/knowledge-services/backends/kairos.py` | Adaptador: 6 funciones, `puede_leer`, `consultar`, `capturar`, salud por capacidad, dos colas, conciliación | Nuevo |
+| `skills/knowledge-services/backends/_delivery.py` | Motor de entrega genérico: colas por identidad sobre `outbox.py`, conciliación remota primero, transiciones, contexto por corrida, reloj inyectable | Nuevo |
+| `skills/knowledge-services/backends/kairos.py` | Adaptador: 6 funciones, `puede_leer`, `consultar`, `capturar`, salud por capacidad; `enviar`/`estado_remoto` y tabla de errores para el motor (primer consumidor) | Nuevo |
 | `skills/knowledge-services/backends/kairos_assets/` | `errores.json`, esquemas `*.v1` copiados con origen | Nuevo |
 | `skills/knowledge-services/scripts/episodic-sync.py` | Reúne episodios neutros (journal e hitos) y llama `capturar`; orden manual | Nuevo |
-| `skills/knowledge-services/scripts/fixtures/` | Servidor MCP falso en proceso y adaptador `mcp-fixture` (CA-16) | Nuevo |
+| `skills/knowledge-services/scripts/fixtures/` | Servidor MCP falso en proceso, adaptador `mcp-fixture` (CA-16) y segundo consumidor falso del motor de entrega | Nuevo |
 | `skills/knowledge-services/scripts/knowledge-sync.py` | Sin cambios | Sin cambios |
-| `skills/knowledge-services/backends/README.md` | Función opcional `capturar`, forma de los episodios neutros, «el plugin incluye un adaptador» | Modificado |
+| `skills/knowledge-services/backends/README.md` | Función opcional `capturar`, forma de los episodios neutros, contrato del motor `_delivery.py`, «el plugin incluye un adaptador» | Modificado |
 | `skills/knowledge-services/SKILL.md` | Adaptador incluido y orden manual | Modificado |
 | `skills/knowledge-services/references/` | Activar Kairos; añadir otro MCP de memoria | Modificado / nuevo |
 | `agent-kits/shared/doctor.py` | Una función: fila por capacidad con remedio | Modificado |
@@ -231,20 +276,22 @@ y `ledger-write.py` no cambia.
 | `ceder_paso` se usa para plazos del servidor, no solo para envelopes ajenos | Media | Bajo | Documentarlo en su docstring o añadir el alias `aplazar` con test; sin cambio de comportamiento |
 | El registro de hitos no ve ediciones manuales de `tasks.md` | Baja | Medio | Regla 8: los estados los mueven los scripts; `episodic-sync.py --status` lista tareas cerradas en el ledger sin hito registrado |
 | `ledger-write.py` falla al escribir `hitos.jsonl` | Baja | Bajo | Degrada con aviso `ledger:` como hoy con la actividad; nunca bloquea la transición |
-| Entradas de `approved/` sin recibo (aprobadas antes del servicio de curación o editadas a mano) no se publican | Media | Medio | Informe con el remedio; pregunta abierta 1 |
+| Entradas de `approved/` sin recibo (aprobadas antes del servicio de curación o editadas a mano) no se publican | Media | Medio | Se quedan en local, el sync avisa y nombra la re-aprobación con `knowledge-curator` |
+| El motor de entrega se acopla sin querer a Kairos (nombres, mensajes, MCP) | Media | Medio | El motor no recibe textos de error ni conoce MCP; el segundo consumidor falso de los tests no usa MCP; lente A sobre la frontera |
+| Un cambio del motor rompe a un adaptador futuro | Baja | Medio | Suite propia del motor con el consumidor falso; el resultado tipado es el contrato, documentado en `backends/README.md` |
 | Deriva entre las copias de esquemas y errores y el repo de Kairos | Media | Medio | Origen y fecha en `kairos_assets/`; el validador falla cerrado; CA-20 en real; `redaction-cases.json` cuando exista |
 | El envelope de `knowledge-sync.py` acaba en dead-letter tras tres errores de configuración seguidos | Media | Bajo | Es solo una señal de reintento; los registros siguen en la cola del adaptador; `/doctor` nombra el remedio de configuración |
-| La opción elegida desborda la evaluación (O1 u O3) | Media | Medio | Con O1 u O3, `/dev-cycle` debería re-evaluar C-03 y C-04 antes del plan |
+| La frontera del motor añade esfuerzo a C-03/C-04 frente a la evaluación | Media | Bajo | Coste M como O2; el ahorro llega con el segundo backend. Si el plan desborda C-03 + C-04, `/dev-cycle` decide si re-evaluar |
 
 ## 7. Preguntas abiertas
 
-- Entradas de `approved/` editadas tras su aprobación, o aprobadas antes del servicio de curación: ¿se exige
-  volver a aprobarlas con `knowledge-curator` para publicarlas (propuesta), o se acepta otra evidencia?
-- Hito «decisión»: ¿qué cuenta como decisión además de los veredictos de revisión? Propuesta: la puerta
-  go/no-go de `evaluation.md` y la aprobación de `design.md`, leídas de su frontmatter (ocurrencia 1).
-- Validación sin red de `/setup` (CA-02): ¿vía la función opcional `proponer_config` y
-  `knowledge-sync.py --propose-config`, o con un subcomando del adaptador? Lo decide `planner` al ver el
-  contrato actual de `--propose-config`.
+- Validación sin red de `/setup` (CA-02): la decide `planner` al ver el contrato actual de
+  `knowledge-sync.py --propose-config` (función opcional `proponer_config`) frente a un subcomando del
+  adaptador.
+
+Resueltas por el usuario el 2026-11-26: las entradas de `approved/` sin recibo válido se re-aprueban con
+`knowledge-curator` y hasta entonces quedan locales con aviso; el hito «decisión» es la puerta go/no-go de
+`/pm-cycle` y la aprobación de `design.md`.
 
 ---
 
@@ -253,3 +300,4 @@ y `ledger-write.py` no cambia.
 | Fecha | Cambio |
 |---|---|
 | 2026-11-26 | Diseño creado (`borrador`); tres opciones presentadas al usuario, recomendada O2 |
+| 2026-11-26 | Pasada 2: el usuario elige la variante «O2 + motor de entrega reutilizable»; `aprobado`; ADR propuesto en curación; preguntas 1 y 2 resueltas, la 3 queda para `planner` |

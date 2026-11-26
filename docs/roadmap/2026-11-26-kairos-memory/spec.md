@@ -5,7 +5,7 @@ estado: aprobada          # borrador | aprobada | implementada | obsoleta
 creado: 2026-11-26
 actualizado: 2026-11-26
 evaluacion: evaluation.md
-design: n/a
+design: design.md
 plan: pendiente
 generacion:
   inicio: 2026-11-26T12:50:29Z
@@ -25,6 +25,7 @@ generacion:
 # Kairos como memoria opcional de los agentes
 
 > **Evaluación:** [`evaluation.md`](evaluation.md) — `en-revision`: 146,4 h humanas equivalentes · 60 h IA · 7.590 € de referencia · go condicionado (2026-11-26)
+> **Diseño:** [`design.md`](design.md) — `aprobado` (2026-11-26): O2 con motor de entrega reutilizable (`backends/_delivery.py`)
 > **Plan de implementación:** pendiente
 
 > **Terminología:**
