@@ -139,23 +139,27 @@ disappears: the moved text stays in its single source and is opened when needed.
 
 | What changes | Before | After |
 |---|---|---|
-| TDD in the subagent brief: hard law, `RED:` format and what is not TDD; the `tdd` skill only when in doubt (T-12) | implementer 29,280 + brief 7,271 + skill 10,111 = 46,662 | 29,268 + 7,398 = 36,666 (−9,996; the «TDD» section gains 127); the skill (10,304) is opened only when in doubt |
-| What the `reviewer` reads: the reviewer table and the grading move to `adversarial-review/references/lentes.md` (T-13) | `SKILL.md` 18,104 | `lentes.md` 3,012 (−15,092 per read); `SKILL.md` stays at 16,471 and `agents/reviewer.md` gains 184 (8,833) In fix1, the instruction to cite the phase view brings `agents/reviewer.md` to 9,062 characters. |
-| Ledger brake: `ledger-lint` warns at 60,000 bytes (`--umbral-bytes N`) and names `ledger-archive.py`; Lens A receives `task-brief.py <folder> --fase <N>` (T-14) | warning at 183,500 bytes; Lens A with the whole ledger: 100,414 (4-phase test) · 189,819 (plugin-audit-2 ledger) | warning at 60,000; Lens A 25,253 (−75 %) · 21,232 for phase 3 (−89 %); below the threshold, the whole ledger |
-| «ORQUESTA agentes» header and role map only in exported commands that dispatch a role (T-21) | 15 commands per runtime with the header | 5 keep it; 10 lose 696 (Codex) and 658 (OpenCode) characters: −6,960 and −6,580 |
-| `SessionStart` block in Claude Code: only the index header, because Claude already shows its native skill listing (T-20) | 3,378-character index | 331-character header (−3,047 per start and compaction); Codex (3,349) and OpenCode (3,499) unchanged |
-| «Alcance y activación» paragraphs that copied the old description into the body (T-15) | 25 paragraphs; full entry report: 509,586 | 495,189 (−14,397): 19 deleted and 2 reduced to their guardrail (`commands/doctor.md` 5,245, no network except opt-in capabilities; `agents/reviewer.md` 8,200, a direct request goes to the skill); `evaluator`, `knowledge-services`, `project-extensions` and the `plugin-panel` reference keep theirs |
-| `/dev-cycle` Phase 6 and transition table move to `agent-kits/dev-cycle/references/phase6-close.md`, read only on reaching the close (T-16) | `commands/dev-cycle.md` 28,499 | 22,662 (−5,837; the reference, 7,088, is opened in Phase 6) |
-| One kit recipe per agent and command, defining all its variables (T-17) | 33 recipes in 18 pieces; `reviewer` and `/retro` used `$SHAREDKIT` without a recipe | 20 recipes, one per piece: −5,483 across agents and commands (−6,390 of repeated recipes; +907 for the two missing ones); `agents/implementer.md` 29,077 → 28,268 |
+| TDD in the subagent brief: hard law, `RED:` format and what is not TDD (T-12). | implementer 29,280 + brief 7,271 + skill 10,111 = 46,662. | 29,268 + 7,398 = 36,666 (−9,996). The «TDD» section gains 127. The `tdd` skill (10,304) is opened only when in doubt. |
+| What the `reviewer` reads: the reviewer table and the grading move to `adversarial-review/references/lentes.md` (T-13). | `SKILL.md` 18,104. | `lentes.md` 3,012 (−15,092 per read). `SKILL.md` stays at 16,471 and `agents/reviewer.md` gains 184 (8,833). In fix1, citing the phase view brings `agents/reviewer.md` to 9,062 characters. |
+| Ledger brake: `ledger-lint` warns at 60,000 bytes (`--umbral-bytes N`) and names `ledger-archive.py` (T-14). | Warning at 183,500 bytes. | Warning at 60,000. |
+| Lens A receives `task-brief.py <folder> --fase <N>` (T-14). | Whole ledger: 100,414 (4-phase test) and 189,819 (plugin-audit-2 ledger). | 25,253 (−75 %) and 21,232 for phase 3 (−89 %). Below the threshold, the whole ledger. |
+| «ORQUESTA agentes» header and role map only in exported commands that dispatch a role (T-21). | 15 commands per runtime with the header. | 5 keep it. The other 10 lose 696 (Codex) and 658 (OpenCode) characters: −6,960 and −6,580. |
+| `SessionStart` block in Claude Code: only the index header, because Claude already shows its native skill listing (T-20). | 3,378-character index. | 331-character header (−3,047 per start and compaction). Codex (3,349) and OpenCode (3,499) unchanged. |
+| «Alcance y activación» paragraphs that copied the old description into the body (T-15). | 25 paragraphs. Full entry report: 509,586. | 495,189 (−14,397): 19 deleted and 2 reduced to their guardrail. |
+| The 2 reduced paragraphs and the 4 that stay (T-15). | — | `commands/doctor.md` 5,245 (no network except opt-in capabilities). `agents/reviewer.md` 8,200 (a direct request goes to the skill). `evaluator`, `knowledge-services`, `project-extensions` and the `plugin-panel` reference keep theirs. |
+| `/dev-cycle` Phase 6 and transition table move to `agent-kits/dev-cycle/references/phase6-close.md` (T-16). | `commands/dev-cycle.md` 28,499. | 22,662 (−5,837). The reference, 7,088, is opened in Phase 6. |
+| T-16 fix1: one reading condition and short sentences in the core. | 22,599 (after T-17). | 22,639 (+40). The ritual is read only in Phase 6. The transition table, at every artefact gate. |
+| One kit recipe per agent and command, defining all its variables (T-17). | 33 recipes in 18 pieces. `reviewer` and `/retro` used `$SHAREDKIT` without a recipe. | 20 recipes, one per piece: −5,483 across agents and commands. That is −6,390 of repeated recipes and +907 for the two missing ones. `agents/implementer.md` goes from 29,077 to 28,268. |
+| T-17 fix1: 11 pieces warn that variables do not survive between Bash calls. | −5,483. | −4,817 (+666 for the warning). |
 
 T-14 introduced per-phase reading for Lens A. Its fix3 brought
 `skills/adversarial-review/SKILL.md` to 17,046 characters. With T-40's task
 handoffs, `context-footprint.py` now measures 17,691 characters for that skill,
 29,077 for `agents/implementer.md`, 28,499 for `commands/dev-cycle.md`, and
 7,135 for `skills/quick-implement/SKILL.md`. The estimated quick-path saving
-is 6,157 tokens. After T-15, the skill is at 16,949 characters,
-`skills/quick-implement/SKILL.md` at 6,224, and the quick-path saving rises to
-6,385 tokens; with T-16, to 7,844; with T-17, to 7,860.
+is 6,157 tokens. After T-15, the skill is at 16,949 characters and
+`skills/quick-implement/SKILL.md` at 6,224. The quick-path saving rises to
+6,385 tokens; with T-16, to 7,844; with T-17, to 7,860. With both fix1s it is 7,850.
 
 ## Tool results and handoffs
 

@@ -96,9 +96,9 @@
     {
       "before_sha256": "b39c0df4ccb4417476d468e4eede13a85fc2fb62f5d13525b8c5a3e1413e8039",
       "before_file": "commands/dev-cycle.md",
-      "after_sha256": "9781a471a3598ef35bd4fa8c559f45eaa777ffefe033d370f2c2f2c51f21802e",
+      "after_sha256": "dfcbd22cca01d4f8f4f7f860d16e6681312a360dcc5bec7c51c6ee0412c8c875",
       "after_file": "agent-kits/dev-cycle/references/phase6-close.md",
-      "reason": "Audit H-24/H-25: «seguir» after the 3rd attempt opens a new bounded cycle with the user's OK quoted by ledger-write.py --new-cycle-ok; the commit procedure has a single owner (implementer P4, where commit-selection.py now lives) and Phase 6 only verifies it and reuses it for the orchestrator's own artefacts. plugin-audit-2 T-16: moved verbatim with Phase 6 to phase6-close.md, read on reaching Phase 6."
+      "reason": "Audit H-24/H-25: «seguir» after the 3rd attempt opens a new bounded cycle with the user's OK quoted by ledger-write.py --new-cycle-ok; the commit procedure has a single owner (implementer P4, where commit-selection.py now lives) and Phase 6 only verifies it and reuses it for the orchestrator's own artefacts. plugin-audit-2 T-16: moved verbatim with Phase 6 to phase6-close.md; its fix1 (review attempt 1, gap 4) repoints the COMMIT-SELECTION link to ../../../docs/ so it resolves from agent-kits/dev-cycle/references/, read on reaching Phase 6."
     },
     {
       "before_sha256": "3d0e4510e4ef5e95d659b5f1e3e7e9f04a6e76fcc458e8516735814305bf2b5a",

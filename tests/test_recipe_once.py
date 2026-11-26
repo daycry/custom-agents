@@ -95,6 +95,6 @@ def test_fix1_gap6_la_receta_avisa_de_reutilizar_la_ruta_si_hay_usos_en_otras_ll
     usadas = {v for v in ASIGNA.findall(linea) if re.search(r'\$\{?' + v + r'\b', fuera)}
     if not usadas:
         return
-    junto = texto[max(0, ini - 400):ini] + texto[fin:fin + 400]
+    junto = texto[max(0, ini - 400):fin + 400]   # receta en línea (reviewer): la frase va en su misma línea
     assert SOBREVIVE.search(junto), (f'{pieza.parent.name}/{pieza.name} usa {sorted(usadas)} fuera de la receta y no '
                                      'avisa de que las variables no sobreviven entre llamadas de Bash')

@@ -51,7 +51,7 @@ externo (`docs/agents/CONTRACTS.md` E18).
 - **Salida:** decisión, motivo, metadata y recibo del servicio, con rutas relativas verificadas.
   El servicio conserva la propuesta al pedir cambios o rechazar, y publica un aprobado completo
   antes de retirar su fuente exacta verificada. No prometas atomicidad de varios archivos.
-- Resuelve tu kit y el compartido sin rutas fijas:
+- Resuelve tu kit y el compartido una vez y reutiliza la ruta absoluta (las variables no sobreviven entre llamadas de Bash):
   ```bash
   R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache/daycry ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; MIKIT="${R:+$R/agent-kits/knowledge-curator}" SHAREDKIT="${R:+$R/agent-kits/shared}"
   # gate readonly: "$MIKIT/curator-gate.py" · persistencia: "$SHAREDKIT/knowledge-curation.py"

@@ -147,14 +147,18 @@ cuando hace falta.
 
 | Qué cambia | Antes | Después |
 |---|---|---|
-| TDD en el brief del subagente: ley dura, formato `RED:` y qué no es TDD; la skill `tdd` solo ante una duda (T-12) | implementer 29.280 + brief 7.271 + skill 10.111 = 46.662 | 29.268 + 7.398 = 36.666 (−9.996; la sección «TDD» gana 127); la skill (10.304) solo se abre ante una duda |
-| Lo que lee el `reviewer`: la tabla del revisor y la graduación pasan a `adversarial-review/references/lentes.md` (T-13) | `SKILL.md` 18.104 | `lentes.md` 3.012 (−15.092 por lectura); el `SKILL.md` queda en 16.471 y `agents/reviewer.md` gana 184 (8.833) En fix1. la instrucción de citar la vista de fase deja `agents/reviewer.md` en 9.062 caracteres. |
-| Freno del ledger: `ledger-lint` avisa a 60.000 bytes (`--umbral-bytes N`) y nombra `ledger-archive.py`; la Lente A recibe `task-brief.py <carpeta> --fase <N>` (T-14) | aviso a 183.500 bytes; Lente A con el ledger entero: 100.414 (prueba de 4 fases) · 189.819 (ledger de plugin-audit-2) | aviso a 60.000; Lente A 25.253 (−75 %) · 21.232 para la fase 3 (−89 %); por debajo del umbral, el ledger entero |
-| Cabecera «ORQUESTA agentes» y mapa de roles solo en los comandos exportados que despachan un rol (T-21) | 15 comandos por runtime con cabecera | 5 la conservan; 10 pierden 696 (Codex) y 658 (OpenCode) caracteres: −6.960 y −6.580 |
-| Bloque de `SessionStart` en Claude Code: solo la cabecera del índice, porque Claude ya enseña su listado nativo de skills (T-20) | índice de 3.378 | cabecera de 331 (−3.047 por arranque y compactación); Codex (3.349) y OpenCode (3.499) sin cambio |
-| Párrafos «Alcance y activación» que copiaban la description antigua en el cuerpo (T-15) | 25 párrafos; informe completo de entrada: 509.586 | 495.189 (−14.397): se borran 19 y se reducen 2 a su guardarraíl (`commands/doctor.md` 5.245, sin red salvo capacidades opt-in; `agents/reviewer.md` 8.200, la petición directa va a la skill); quedan los de `evaluator`, `knowledge-services`, `project-extensions` y la referencia de `plugin-panel` |
-| Fase 6 y tabla de transiciones de `/dev-cycle` a `agent-kits/dev-cycle/references/phase6-close.md`, leída solo al llegar al cierre (T-16) | `commands/dev-cycle.md` 28.499 | 22.662 (−5.837; la referencia, 7.088, se abre en la Fase 6) |
-| Una receta del kit por agente y comando, que define todas sus variables (T-17) | 33 recetas en 18 piezas; `reviewer` y `/retro` usaban `$SHAREDKIT` sin receta | 20 recetas, una por pieza: −5.483 entre agentes y comandos (−6.390 de recetas repetidas; +907 por las dos que faltaban); `agents/implementer.md` 29.077 → 28.268 |
+| TDD en el brief del subagente: ley dura, formato `RED:` y qué no es TDD (T-12). | implementer 29.280 + brief 7.271 + skill 10.111 = 46.662. | 29.268 + 7.398 = 36.666 (−9.996). La sección «TDD» gana 127. La skill `tdd` (10.304) solo se abre ante una duda. |
+| Lo que lee el `reviewer`: la tabla del revisor y la graduación pasan a `adversarial-review/references/lentes.md` (T-13). | `SKILL.md` 18.104. | `lentes.md` 3.012 (−15.092 por lectura). El `SKILL.md` queda en 16.471 y `agents/reviewer.md` gana 184 (8.833). En fix1, citar la vista de fase deja `agents/reviewer.md` en 9.062 caracteres. |
+| Freno del ledger: `ledger-lint` avisa a 60.000 bytes (`--umbral-bytes N`) y nombra `ledger-archive.py` (T-14). | Aviso a 183.500 bytes. | Aviso a 60.000. |
+| La Lente A recibe `task-brief.py <carpeta> --fase <N>` (T-14). | Ledger entero: 100.414 (prueba de 4 fases) y 189.819 (ledger de plugin-audit-2). | 25.253 (−75 %) y 21.232 para la fase 3 (−89 %). Por debajo del umbral, el ledger entero. |
+| Cabecera «ORQUESTA agentes» y mapa de roles solo en los comandos exportados que despachan un rol (T-21). | 15 comandos por runtime con cabecera. | 5 la conservan. Los otros 10 pierden 696 (Codex) y 658 (OpenCode) caracteres: −6.960 y −6.580. |
+| Bloque de `SessionStart` en Claude Code: solo la cabecera del índice, porque Claude ya enseña su listado nativo de skills (T-20). | Índice de 3.378. | Cabecera de 331 (−3.047 por arranque y compactación). Codex (3.349) y OpenCode (3.499) sin cambio. |
+| Párrafos «Alcance y activación» que copiaban la description antigua en el cuerpo (T-15). | 25 párrafos. Informe completo de entrada: 509.586. | 495.189 (−14.397): se borran 19 y se reducen 2 a su guardarraíl. |
+| Los 2 párrafos reducidos y los 4 que se quedan (T-15). | — | `commands/doctor.md` 5.245 (sin red salvo capacidades opt-in). `agents/reviewer.md` 8.200 (la petición directa va a la skill). Quedan los de `evaluator`, `knowledge-services`, `project-extensions` y la referencia de `plugin-panel`. |
+| Fase 6 y tabla de transiciones de `/dev-cycle` a `agent-kits/dev-cycle/references/phase6-close.md` (T-16). | `commands/dev-cycle.md` 28.499. | 22.662 (−5.837). La referencia, 7.088, se abre en la Fase 6. |
+| Fix1 de T-16: una sola condición de lectura y frases cortas en el núcleo. | 22.599 (tras T-17). | 22.639 (+40). El ritual se lee solo en la Fase 6. La tabla de transiciones, en cada puerta de artefacto. |
+| Una receta del kit por agente y comando, que define todas sus variables (T-17). | 33 recetas en 18 piezas. `reviewer` y `/retro` usaban `$SHAREDKIT` sin receta. | 20 recetas, una por pieza: −5.483 entre agentes y comandos. Son −6.390 de recetas repetidas y +907 por las dos que faltaban. `agents/implementer.md` pasa de 29.077 a 28.268. |
+| Fix1 de T-17: 11 piezas avisan de que las variables no sobreviven entre llamadas de Bash. | −5.483. | −4.817 (+666 por el aviso). |
 
 T-14 introdujo la lectura por fase de la Lente A. Su fix3 llevó
 `skills/adversarial-review/SKILL.md` a 17.046 caracteres. Con los traspasos de
@@ -162,8 +166,9 @@ estado de T-40, la medición actual con `context-footprint.py` da 17.691
 caracteres para esa skill, 29.077 para `agents/implementer.md`, 28.499 para
 `commands/dev-cycle.md` y 7.135 para `skills/quick-implement/SKILL.md`.
 El ahorro estimado de la vía rápida es de 6.157 tokens. Tras T-15, la skill
-queda en 16.949 caracteres, `skills/quick-implement/SKILL.md` en 6.224 y el
+queda en 16.949 caracteres y `skills/quick-implement/SKILL.md` en 6.224. El
 ahorro de la vía rápida sube a 6.385 tokens; con T-16, a 7.844; con T-17, a 7.860.
+Con el fix1 de ambas queda en 7.850.
 
 ## Evitar contexto de poco valor durante la ejecución
 

@@ -47,7 +47,7 @@ Auditas la **UI** de un proyecto ejecutando los tests E2E definidos en el plan, 
 ## 0) ENTRADA / SALIDA / GUARDRAIL — INVARIANTE
 - **Entrada:** una iniciativa en `docs/roadmap/<fecha>-<slug>/` con su `test-plan.md` (bloques `E2E-xx` y `M-xx`). Necesitas la **URL local** de la app **en ejecución**.
 - **Salida:** `docs/roadmap/<fecha>-<slug>/testing/` con `report.md`, PDF opcional, `screenshots/` y `raw/` (results.json + trazas).
-- **Guardrail (no negociable):** los E2E solo contra hosts **locales/privados**. Valida la URL antes de nada:
+- **Guardrail (no negociable):** los E2E solo contra hosts **locales/privados**. Valida la URL antes de nada. Reutiliza la ruta absoluta (las variables no sobreviven entre llamadas de Bash):
   ```bash
   R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; QAKIT="${R:+$R/agent-kits/qa}" SHAREDKIT="${R:+$R/agent-kits/shared}" UTSKILL="${R:+$R/skills/unit-tests}"
   bash -c '. "'"$QAKIT"'/lib-guardrail.sh"; guardrail_assert "<URL>"'

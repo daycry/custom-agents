@@ -18,7 +18,7 @@ experiencia en **datos de calibración** para estimar mejor las próximas. Inici
 > Aquí no se automatiza *escribir* la retro —las causas las escribe quien las conoce—, solo *exigirla*.
 
 ## Pasos
-Resuelve el kit una vez y reutiliza la ruta absoluta:
+Resuelve el kit una vez y reutiliza la ruta absoluta (las variables no sobreviven entre llamadas de Bash):
 ```bash
 R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache/daycry ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="${R:+$R/agent-kits/shared}"
 ```

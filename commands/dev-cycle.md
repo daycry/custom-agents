@@ -53,7 +53,7 @@ $DevCycleKit = if ($R) { "$R/agent-kits/dev-cycle" }
 | `phase3-subagents.md` | Fase 3 con `subagentes: true` |
 | `agent-kits/shared/project-integrations.md` | Operaciones externas opt-in de este proyecto |
 | `phase4-knowledge-gate.md` | Gate tras QA/documentación, si hay candidatos o handoffs pendientes |
-| `phase6-close.md` | Fase 6 (cierre) o la primera puerta de estado de un artefacto |
+| `phase6-close.md` | Ritual de cierre: solo en la Fase 6. Tabla de transiciones: en cada puerta de artefacto |
 
 En referencias exportadas, estas rutas pertenecen al bundle canónico; no son
 relativas a la carpeta `references/` del adaptador de Codex/OpenCode.
@@ -189,20 +189,20 @@ Si el usuario lo pide o la iniciativa lo amerita, invoca **`nemesis`** para audi
 
 ## Fase 6 — Sincronizar y cerrar
 
-Léelo solo al llegar a la Fase 6: `"$DEVKIT/references/phase6-close.md"` trae el ritual de
-cierre de rama completo y en orden (verificación final, commits, resumen del PR desde el ledger,
-integración, limpieza, estados del plan, `changelog-sync`, la puerta `retro-gate.py` y el cierre
-declarado) y la tabla de transiciones de estado. Sin `retro-gate.py` exit 0 no hay cierre ni
-spec `implementada`.
+El ritual de cierre de rama está en `"$DEVKIT/references/phase6-close.md"`:
+léelo solo al llegar a la Fase 6. Sus pasos van en orden: de la verificación final, los commits y
+el resumen del PR a `changelog-sync`, la puerta `retro-gate.py` y el cierre declarado. Sin
+`retro-gate.py` exit 0 no hay cierre ni spec `implementada`. Su tabla de transiciones se consulta
+antes, en cada puerta de artefacto.
 
 ## Transiciones de estado
 
 Los artefactos nacen en `borrador` y cada puerta actualiza su estado en el mismo paso. **El plugin
 aplica las transiciones de tarea**: `usage-meter.py start` → `en-progreso`, `close`/`ledger-write.py
-review` → `en-revision`, `verdict` limpio → `completado` (con gaps, `en-progreso`); fase y resumen
-los deriva el writer. Tú reabres el rojo de QA con `ledger-write.py state` y aplicas las puertas de
-artefactos (go/no-go, OK del plan, cierre) con la tabla de `phase6-close.md`, que lees al aplicar
-la primera.
+review` → `en-revision`, `verdict` limpio → `completado` (con gaps, `en-progreso`). Fase y resumen
+los deriva el writer. Tú reabres el rojo de QA con `ledger-write.py state`. Las puertas de
+artefactos (go/no-go, OK del plan, cierre) las aplicas con la tabla de `phase6-close.md`, que
+consultas en cada puerta de artefacto.
 
 ## Reglas del orquestador
 - **Invoca a los agentes por nombre**; no dependas de la auto-delegación.

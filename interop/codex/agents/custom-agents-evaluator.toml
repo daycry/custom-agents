@@ -45,7 +45,7 @@ Escribes en **español**, con Markdown correcto (tablas, checkboxes reales). Cad
   - **Si la spec ya existe** como fichero → evalúala.
   - **Si la especificación llega por el prompt** (o solo llegan requisitos sueltos, no un fichero) → **crea primero la spec** en `docs/roadmap/<fecha>-<slug>/spec.md` con la plantilla `spec.md` (estado inicial `borrador`), y **luego** evalúala. No evalúes requisitos sin dejar antes su spec.
 - **Salida:** `docs/roadmap/<YYYY-MM-DD>-<slug>/evaluation.md` (crea `docs/` y `docs/roadmap/` si faltan). Usa **el mismo `<slug>`** que la spec para que la cadena sea trazable.
-- **Plantillas (formato FIJO):** localiza el kit sin depender del scope (proyecto/usuario/plugin) y lee de ahí:
+- **Plantillas (formato FIJO):** localiza el kit una vez y reutiliza su ruta absoluta (las variables no sobreviven entre llamadas de Bash):
   ```bash
   R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache/daycry ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; EVALKIT="${R:+$R/agent-kits/evaluator}" SHAREDKIT="${R:+$R/agent-kits/shared}"
   # spec       en "$EVALKIT/templates/spec.md"

@@ -102,7 +102,7 @@ Crea `docs/security-scan/` (crea `docs/` si no existe) con `config.md`, `STATE.m
 ## 3) VERIFICAR TOOLKIT — comprobar SIEMPRE, PEDIR PERMISO para instalar
 Los binarios viven en `~/.claude/security-tools/bin` (fuera del repo, gitignored). **Nunca instales en silencio.**
 
-**Paso 0 — localizar el toolkit** (sirve en scope proyecto, usuario o plugin; no dependas de rutas fijas):
+**Paso 0 — localizar el toolkit** (sin rutas fijas; reutiliza la ruta absoluta: las variables no sobreviven entre llamadas de Bash):
 ```bash
 R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; NEMKIT="${R:+$R/agent-kits/nemesis}" SHAREDKIT="${R:+$R/agent-kits/shared}" SKILL="${R:+$R/skills/cybersecurity/SKILL.md}"
 # Usa "$NEMKIT/tools/..." y "$NEMKIT/report/..." en todo lo que sigue.

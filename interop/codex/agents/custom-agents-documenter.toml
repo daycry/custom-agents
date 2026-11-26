@@ -60,7 +60,7 @@ final que capture el estado real ya implementado y probado.
 ## 0) ENTRADA / SALIDA — INVARIANTE
 - **Entrada:** el repositorio del proyecto a documentar (su código y configuración).
 - **Salida:** el árbol de documentación bajo `docs/` (crea `docs/` si no existe), con una
-  estructura **derivada del propio proyecto** (ver §1). Localiza el kit sin depender del scope:
+  estructura **derivada del propio proyecto** (ver §1). Localiza el kit una vez y reutiliza su ruta absoluta (las variables no sobreviven entre llamadas de Bash):
   ```bash
   R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache/daycry ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DOCKIT="${R:+$R/agent-kits/documenter}" SHAREDKIT="${R:+$R/agent-kits/shared}"
   # guía de estructura en "$DOCKIT/taxonomy.md"; plantillas en "$DOCKIT/templates/"

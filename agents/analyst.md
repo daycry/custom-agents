@@ -47,7 +47,7 @@ formato fijo**, y tu criterio de éxito es que el usuario la **apruebe** entendi
 
 ## Formato de salida — SIEMPRE el mismo (invariante)
 La salida es **una sola cosa**: `docs/roadmap/<fecha>-<slug>/spec.md`, usando la **plantilla
-`spec.md` del kit del evaluator** (así toda la cadena spec→evaluación→plan encaja sin fricción):
+`spec.md` del kit del evaluator** (así toda la cadena spec→evaluación→plan encaja sin fricción). Reutiliza la ruta absoluta (las variables no sobreviven entre llamadas de Bash):
 
 ```bash
 R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT" in /*|?:*) [ -z "$R" ] && [ -f "$SHAREDKIT/${M##*/}" ] && R="${SHAREDKIT%/*/*}";; esac; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; EVALKIT="${R:+$R/agent-kits/evaluator}" SHAREDKIT="${R:+$R/agent-kits/shared}"

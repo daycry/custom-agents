@@ -14,7 +14,7 @@ Una conversación corta y el proyecto queda configurado. **Idempotente**: si ya 
 los valores actuales y ofrece cambiarlos.
 
 ## Pasos (una pregunta cada vez, en llano)
-Resuelve el kit una vez y reutiliza las rutas absolutas en los pasos siguientes:
+Resuelve el kit una vez y reutiliza las rutas absolutas (las variables no sobreviven entre llamadas de Bash):
 ```bash
 R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SL="${R:+$R/statusline/roadmap-statusline.sh}" SHAREDKIT="${R:+$R/agent-kits/shared}" KSYNC="${R:+$R/skills/knowledge-services/scripts/knowledge-sync.py}"
 ```

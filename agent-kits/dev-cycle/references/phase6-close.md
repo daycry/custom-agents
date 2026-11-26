@@ -1,12 +1,13 @@
-<!-- Referencia privada de commands/dev-cycle.md (plugin-audit-2 T-16). Léela solo al llegar a la Fase 6
-     o al aplicar una puerta de estado de artefacto (go/no-go, OK del plan, cierre). -->
+<!-- Referencia privada de commands/dev-cycle.md (plugin-audit-2 T-16). El ritual de cierre se lee solo
+     al llegar a la Fase 6. La tabla de transiciones se consulta en cada puerta de artefacto
+     (go/no-go, OK del plan, cierre). -->
 
 ## Fase 6 — Sincronizar y cerrar
 
 **Ritual de cierre de rama (obligatorio, en orden):**
 
 1. **Verificación final sobre la rama**: suites y lint del proyecto en verde (las mismas comprobaciones de P5 del implementer, una última vez sobre el estado final).
-2. **Commits ordenados**: un commit lógico por tarea (`T-XX: …`), sin restos de instrumentación temporal (logs/asserts de diagnóstico fuera del diff — regla de `debug-root-cause`). Los hace el `implementer`, dueño único de los commits y de su procedimiento de selección exacta (su P4); aquí compruebas el orden, la puerta de alcance del ledger y que no queda nada de la iniciativa sin comitear. Tus propios artefactos (trazas de revisión, CHANGELOG) siguen ese mismo procedimiento. Detalle y límites: [selección de commits](../docs/COMMIT-SELECTION.md). Esto no autoriza push, merge, PR ni release por sí mismo.
+2. **Commits ordenados**: un commit lógico por tarea (`T-XX: …`), sin restos de instrumentación temporal (logs/asserts de diagnóstico fuera del diff — regla de `debug-root-cause`). Los hace el `implementer`, dueño único de los commits y de su procedimiento de selección exacta (su P4); aquí compruebas el orden, la puerta de alcance del ledger y que no queda nada de la iniciativa sin comitear. Tus propios artefactos (trazas de revisión, CHANGELOG) siguen ese mismo procedimiento. Detalle y límites: [selección de commits](../../../docs/COMMIT-SELECTION.md). Esto no autoriza push, merge, PR ni release por sí mismo.
 3. **Resumen de merge/PR derivado del LEDGER** (no de memoria): título, qué se hizo tarea a tarea, criterios de aceptación cumplidos, veredicto de qa-gate y ruta de las evidencias. Es la descripción del PR o el mensaje del merge. Si el repo trae plantilla de PR (`pull_request_template.md`, en mayúsculas o minúsculas, en `.github/` o `docs/`, o la carpeta `.github/PULL_REQUEST_TEMPLATE/`), rellena SUS secciones con este resumen (N/A en las que no apliquen, sin borrarlas). Antes de crear el PR fija base y head explícitos (la base no se supone: `main` no siempre es la principal) y comprueba que la rama no tiene ya uno abierto (`gh pr list --head <rama> --state open`; sin `gh`, pregunta); si lo tiene, dilo y propón actualizar su descripción en vez de abrir otro.
 4. **Integración según el flujo del repo**: merge directo o PR — si no está claro cuál usa el equipo, **pregunta**; no mergees por defecto.
 5. **Limpieza**: rama integrada eliminada; worktrees retirados (`git worktree remove` + `prune`); marcadores de usage-meter sin huérfanos (`usage-meter.py status` limpio).
