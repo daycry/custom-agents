@@ -1082,6 +1082,10 @@ def cmd_active(args):
 PLAZO_COMPROBACION = 2.0   # T-42 fix1 (gap 6): plazo de la comprobación de desfases del bloque de sesión
 
 
+def _carpeta_de(r):
+    return os.path.basename(os.path.dirname(os.path.abspath(r["path"])))
+
+
 def _retro_hecha(root, r, informe=None):
     """Puerta de retro abierta (retro.md + fila en CALIBRATION.md) para la iniciativa de `r` (T-42). fix1
     (gap 15): reutiliza el veredicto que ya calculó la comprobación (`retro_abiertas`) y solo consulta
@@ -1112,9 +1116,13 @@ def _aviso_desfase(root):
     if desfases:
         n = len({d["iniciativa"] for d in desfases})
         reabiertas = sum(d.get("motivo") == "reabierta" for d in desfases)
+        olvidados = sorted({d["iniciativa"] for d in desfases if d.get("motivo") == "cierre-olvidado"})
         lineas.append(f"Roadmap desfasado: {len(desfases)} desfase(s) en {n} iniciativa(s)"
                       + (f", {reabiertas} con tarea reabierta" if reabiertas else "")
                       + " — ejecuta roadmap-sync.py docs/roadmap")
+        # fix2 (gap 2 c): el cierre olvidado (tareas al 100 % y retro hecha) tiene un comando exacto por carpeta.
+        for carpeta in olvidados[:3]:
+            lineas.append(f"Cierre olvidado (retro hecha): roadmap-sync.py docs/roadmap/{carpeta} --cerrar")
     if informe.get("omitida"):
         lineas.append("Roadmap: comprobación de desfases omitida por plazo — roadmap-sync.py docs/roadmap --check")
     return lineas, informe
@@ -1142,8 +1150,8 @@ def cmd_session(args):
         out.append(f"{len(sin_retro)} al 100 % pendientes de cierre: "
                    + ", ".join("/retro " + r["slug"] for r in sin_retro))
     if con_retro:
-        out.append(f"{len(con_retro)} al 100 % con retro hecha — falta el cierre: roadmap-sync.py "
-                   "docs/roadmap/<carpeta> --cerrar (" + ", ".join(r["slug"] for r in con_retro) + ")")
+        out.append(f"{len(con_retro)} al 100 % con retro hecha — falta el cierre: " + "; ".join(
+            f"roadmap-sync.py docs/roadmap/{_carpeta_de(r)} --cerrar" for r in con_retro))
     huerf = marcadores_huerfanos(args.root, in_process=getattr(args, 'in_process', False))
     if huerf is None:
         out.append("usage-meter: no disponible")
@@ -1160,7 +1168,7 @@ def cmd_session(args):
     if unica["en_progreso"]:
         cola = "retoma desde la tarea en-progreso"
     elif unica.get("total") and unica["completadas"] == unica["total"]:
-        cola = ("al 100 % con retro hecha — falta el cierre: roadmap-sync.py docs/roadmap/<carpeta> --cerrar"
+        cola = (f"al 100 % con retro hecha — falta el cierre: roadmap-sync.py docs/roadmap/{_carpeta_de(unica)} --cerrar"
                 if _retro_hecha(args.root, unica, informe) else "al 100 %: /retro " + unica["slug"])
     else:
         cola = "sin tarea en-progreso"

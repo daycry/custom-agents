@@ -16,10 +16,12 @@ vivió—: automatiza EXIGIRLA. Informa (ℹ️) si el ledger no está `completa
 
 Uso:
   retro-gate.py <docs/roadmap/<fecha>-<slug> | <fecha>-<slug> | slug> [--root DIR] [--json] [--sync]
-`--sync` (plugin-audit-2 T-42): con la puerta ABIERTA, aplica el cierre con `roadmap-sync.py` (plan `completado`,
-spec `implementada` y fila del índice, sobre un ledger ya `completado` por la Fase 6 —`roadmap-sync.py --cerrar`—);
-con la puerta cerrada no escribe nada. Sin `--sync`, solo lee.
-Exit: 0 puerta abierta · 1 cerrada (imprime qué falta y el comando exacto `/retro docs/roadmap/<carpeta>`) ·
+`--sync` (plugin-audit-2 T-42; fix2, gap 2): con retro y fila, aplica el cierre COMPLETO con `roadmap-sync.py
+--cerrar` (ledger `completado` aunque se olvidara el paso de la Fase 6, plan `completado`, spec `implementada` y
+fila del índice): la retro solo existe tras qa verde, así que es evidencia suficiente. Si queda alguna tarea
+abierta (o el ledger no tiene campo `estado`), la puerta NO se abre, lo dice y no escribe nada. Con la puerta
+cerrada no escribe nada. Sin `--sync`, solo lee.
+Exit: 0 puerta abierta · 1 cerrada (imprime qué falta y el comando exacto `/retro docs/roadmap/<carpeta>`; con `--sync`, también tareas abiertas o ledger sin `estado`) ·
 2 error de uso (carpeta no encontrada o ambigua).
 """
 import argparse
@@ -157,14 +159,27 @@ def veredicto(root, carpeta):
             "faltan": faltan, "ledger_estado": estado, "comando": f"/retro docs/roadmap/{nombre}", "lineas": lineas}
 
 
+_BLOQUEAN = {"open_tasks": "tareas abiertas en el ledger (ciérralas o cancélalas; el cierre exige todas cerradas)",
+             "sin_estado": "tasks.md sin campo `estado` (añádelo: el cierre no tiene dónde escribirse)"}
+
+
 def sincronizar(carpeta):
-    """T-42: el cierre (plan, spec, índice) lo aplica roadmap-sync.py, no el orquestador. Degrada con aviso."""
+    """T-42: el cierre (ledger, plan, spec, índice) lo aplica roadmap-sync.py `--cerrar`, no el orquestador. fix2
+    (gap 2): tareas abiertas o ledger sin `estado` → `{"bloquea": motivo}` y nada escrito; sin ledger (o > 256 KiB,
+    ya cerrado y archivable) sincroniza sin cerrar. Cualquier otro fallo degrada con aviso."""
     try:
         here = os.path.dirname(os.path.abspath(__file__))
         spec = importlib.util.spec_from_file_location("retro_gate_roadmap_sync", os.path.join(here, "roadmap-sync.py"))
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-        informe = mod.sincronizar(carpeta)
+        try:
+            informe = mod.sincronizar(carpeta, cerrar=True)
+        except mod.SyncError as e:
+            if e.status in _BLOQUEAN:
+                return {"cambios": [], "bloquea": _BLOQUEAN[e.status], "lineas": []}
+            if e.status not in ("not_found", "too_large"):
+                raise
+            informe = mod.sincronizar(carpeta)
     except Exception as e:  # noqa: BLE001 — la puerta ya está decidida; la sincronización solo degrada
         return {"cambios": [], "lineas": [f"roadmap-sync no disponible ({getattr(e, 'status', e.__class__.__name__)}): "
                                           "ejecútalo a mano sobre esta carpeta"]}
@@ -176,7 +191,10 @@ def sincronizar(carpeta):
 def render(v):
     out = [f"retro-gate: {v['carpeta']} (slug `{v['slug']}`)"]
     out += [f"{icono} {texto}" for icono, texto in v["lineas"]]
-    if v["abierta"]:
+    if v.get("bloquea"):
+        out.append(f"{KO} Puerta CERRADA — retro y fila están, pero queda pendiente: {v['bloquea']}. La iniciativa NO se declara "
+                   "cerrada hasta entonces; vuelve a pasar la puerta con --sync.")
+    elif v["abierta"]:
         out.append(f"{OK} Puerta ABIERTA: la iniciativa puede declararse cerrada.")
     else:
         out.append(f"{KO} Puerta CERRADA — falta: {', '.join(v['faltan'])}. Ejecuta `{v['comando']}` (escribe retro.md y la "
@@ -212,6 +230,9 @@ def main(argv=None):
     if a.sync and v["abierta"]:
         v["sync"] = sincronizar(carpeta)
         v["lineas"] += [(INFO, linea) for linea in v["sync"].pop("lineas")]
+        if v["sync"].get("bloquea"):
+            v["abierta"], v["bloquea"] = False, v["sync"]["bloquea"]
+            v["faltan"] = v["faltan"] + ["tareas cerradas"]
     if a.json:
         print(json.dumps({k: val for k, val in v.items() if k != "lineas"}, ensure_ascii=False, indent=2))
     else:

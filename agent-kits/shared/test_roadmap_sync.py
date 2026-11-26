@@ -588,7 +588,8 @@ def test_t42_fix2_gap2_check_cuenta_el_cierre_olvidado_como_desfase(tmp_path):
             "a": "completado", "motivo": "cierre-olvidado"} in out["desfases"], out["desfases"]
     assert {d["tipo"] for d in out["desfases"]} >= {"ledger", "plan", "spec"}
     (tmp_path / "b").mkdir()
-    roadmap2 = proyecto(tmp_path / "b")
+    roadmap2 = proyecto(tmp_path / "b", filas_indice=fila("2026-01-01-demo", "demo · estado: en curso",
+                                                          "[tasks](2026-01-01-demo/tasks.md)"))
     iniciativa(roadmap2, "2026-01-01-demo", tasks=ledger("en-progreso"))
     code, out = run_json(roadmap2, "--check")
     assert code == 0 and [a["tipo"] for a in out["avisos"]] == ["cierre-pendiente"]

@@ -382,9 +382,11 @@ def _scan_generacion(r):
 
 
 def _load_parse_ledger():
-    """Parser CANÓNICO de estados de tarea (`ledger-lint.parse_ledger`, ADR-016; T-42 fix1, gap 14): el panel
-    no mantiene un segundo parser. Mismo bundle que `usage-meter.py` (../../../agent-kits/shared); solo si el
-    bundle está incompleto (paquete portable de la skill) devuelve None y se usa el recuento local mínimo."""
+    """Parser CANÓNICO de estados de tarea (`ledger-lint.estados_tareas`, ADR-016; T-42 fix1, gap 14): el panel
+    no mantiene un segundo parser. fix2 (gap 9): la profundidad ligera del mismo parser (solo estados, mismas
+    reglas que `parse_ledger`), una vez por ledger y con la lectura ya hecha. Mismo bundle que `usage-meter.py`
+    (../../../agent-kits/shared); solo si el bundle está incompleto (paquete portable de la skill) devuelve
+    None y se usa el recuento local mínimo."""
     import importlib.util
     base = os.path.dirname(os.path.abspath(__file__))
     cand = os.path.normpath(os.path.join(base, "..", "..", "..", "agent-kits", "shared", "ledger-lint.py"))
@@ -392,12 +394,12 @@ def _load_parse_ledger():
         spec = importlib.util.spec_from_file_location("dashboard_ledger_lint", cand)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-        return mod.parse_ledger
+        return mod.estados_tareas
     except Exception:  # noqa: BLE001 — bundle incompleto: recuento local
         return None
 
 
-_PARSE_LEDGER = _load_parse_ledger()
+_ESTADOS_TAREAS = _load_parse_ledger()
 
 
 def _estados_locales(text):
@@ -416,8 +418,8 @@ def _estados_locales(text):
 
 def contar_tareas(text):
     """{completadas, abiertas, iniciadas, total} de las `### T-XX` del ledger (total sin las canceladas)."""
-    if _PARSE_LEDGER is not None:
-        estados = [t["estado"] or "borrador" for t in _PARSE_LEDGER(text)["tareas"]]
+    if _ESTADOS_TAREAS is not None:
+        estados = [e or "borrador" for e in _ESTADOS_TAREAS(text)]
     else:
         estados = _estados_locales(text)
     vivas = [e for e in estados if e != "cancelado"]

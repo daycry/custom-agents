@@ -554,8 +554,8 @@ def test_t42_pendiente_de_cierre_excluye_las_que_tienen_retro(tmp_path):
     assert code == 0
     assert "/retro con-retro" not in out
     assert "1 al 100 % pendientes de cierre: /retro sin-retro" in out.splitlines()
-    # fix1 (gap 2): con la retro hecha falta el cierre autorizado de la Fase 6 (`--cerrar`), no un sync
-    assert "1 al 100 % con retro hecha — falta el cierre: roadmap-sync.py docs/roadmap/<carpeta> --cerrar (con-retro)" \
+    # fix1 (gap 2): con la retro hecha falta el cierre (`--cerrar`), no /retro; fix2 (gap 2 c): carpeta exacta
+    assert "1 al 100 % con retro hecha — falta el cierre: roadmap-sync.py docs/roadmap/2026-09-01-con-retro --cerrar" \
         in out.splitlines()
 
 
@@ -589,7 +589,7 @@ def test_t42_fix1_gap15_session_reutiliza_el_veredicto_de_retro_del_informe(tmp_
     monkeypatch.setattr(pr, "_load_module", sin_retro_gate)
     assert pr.main(["session", "--root", str(tmp_path)], in_process=True) == 0
     out = capsys.readouterr().out
-    assert "falta el cierre: roadmap-sync.py docs/roadmap/<carpeta> --cerrar (con-retro)" in out
+    assert "falta el cierre: roadmap-sync.py docs/roadmap/2026-09-01-con-retro --cerrar" in out
 
 
 def test_t42_fix1_gap6_session_degrada_por_plazo_sin_romper_el_bloque(tmp_path, monkeypatch, capsys):

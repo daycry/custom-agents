@@ -97,7 +97,8 @@ def test_t42_fix2_gap9_el_panel_cuenta_con_el_parser_canonico_ligero(monkeypatch
     def prohibido(*a, **k):
         raise AssertionError("contar_tareas no debe usar el parse_ledger completo")
 
-    monkeypatch.setattr(bd, "_PARSE_LEDGER", prohibido, raising=False)
+    assert bd._ESTADOS_TAREAS is not None
+    monkeypatch.setitem(bd._ESTADOS_TAREAS.__globals__, "parse_ledger", prohibido)
     texto = "## Fase 1\n\n### T-01 — a\n\n- **Estado**: completado\n\n### T-02 — b\n\n- **Estado**: en-progreso\n"
     assert bd.contar_tareas(texto) == {"completadas": 1, "total": 2, "abiertas": 1, "iniciadas": 2}
     rs = (ROOT / "agent-kits/shared/roadmap-sync.py").read_text(encoding="utf-8")

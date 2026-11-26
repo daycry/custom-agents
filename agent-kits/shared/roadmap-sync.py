@@ -6,17 +6,22 @@ artefactos, con la tabla de transiciones de `agent-kits/dev-cycle/references/pha
 (reglas 7-8 de CONVENTIONS), y lo escribe:
 
 - ledger (`tasks.md`): alguna tarea empezada → `en-progreso`; tareas todas `completado`/`cancelado` →
-  `completado` SOLO con `--cerrar` (Fase 6 de `/dev-cycle`, tras qa verde: el veredicto de la Fase 3 no
-  cierra el ledger). Sin `--cerrar`, un ledger al 100 % sale como aviso `cierre-pendiente`. Si un ledger
-  `completado` tiene una tarea reabierta (qa en rojo), vuelve a `en-progreso`: única excepción a «nunca
-  rebaja», con la tarea reabierta como evidencia (`motivo: reabierta`);
+  `completado` con `--cerrar` (Fase 6 de `/dev-cycle`, tras qa verde: el veredicto de la Fase 3 no
+  cierra el ledger) o con la retro ya hecha (la retro solo existe tras qa verde: sin `--cerrar` es el
+  desfase `cierre-olvidado`). Al 100 % sin retro ni `--cerrar`: aviso `cierre-pendiente`. Si un ledger
+  `completado` tiene una tarea reabierta o una tarea nueva en `borrador`, vuelve a `en-progreso`: única
+  excepción a «nunca rebaja», con esa tarea como evidencia (`motivo: reabierta`). Un ledger sin campo
+  `estado` es el desfase `sin-estado` (no se escribe; `--cerrar` sale 1 `sin_estado`);
 - con la puerta de retro abierta (`retro.md` + fila en `CALIBRATION.md`, `retro-gate.py`) y el ledger
   `completado` → plan `completado` y spec `implementada`;
 - la evaluación NO se deriva: solo la puerta go/no-go (`gate`) la pasa a `completado`/`cancelado`;
-- la fila de la iniciativa en `docs/roadmap/README.md` (dueño único de esa fila): la que enlaza a su carpeta
-  en la última columna (Artefactos); marca `· estado: <etiqueta>` en la celda «Iniciativa» (solo el valor
-  de la marca: el texto del autor se conserva) y enlaces a los artefactos que existen. Si falta, la añade;
-  con dos filas candidatas avisa y no escribe; el índice no se crea.
+- la fila de la iniciativa en `docs/roadmap/README.md` (dueño único de esa fila), en la tabla `| Fecha |
+  Iniciativa | … | Artefactos |` o en la de versiones anteriores `| Fecha | Slug | Estado | … | Spec |
+  Evaluación | Plan |`: la que enlaza a su carpeta en una columna de enlaces (o, si ninguna, la que la nombra en
+  la celda de identidad sin ser de otra); marca `· estado: <etiqueta>` en la celda de identidad (solo el
+  valor de la marca: el texto del autor se conserva) o, si la tabla tiene columna `Estado`, esa celda; y
+  enlaces a los artefactos que existen. Si falta, la añade; con dos filas candidatas avisa y no escribe;
+  el índice no se crea.
 
 Solo se sustituye el TOKEN de estado (frontmatter `estado:` y celda `| Estado |` de la cabecera): el resto
 de la celda, las comillas y los comentarios se conservan; una fila cabecera `| Estado | Significado |` no
@@ -34,7 +39,7 @@ Uso:
   roadmap-sync.py docs/roadmap/<fecha>-<slug> --cerrar [--dry-run] [--json]
   roadmap-sync.py gate <docs/roadmap/<fecha>-<slug>> --decision go|no-go [--descartar] [--dry-run] [--json]
 Exit: 0 ok · 1 `--check` con desfases, cambio no aplicado, puerta ya decidida o `--cerrar` con tareas
-abiertas · 2 uso/E-S · 3 `gate` a medias (escrito un artefacto y no el otro: `escritos`/`no_escritos`).
+abiertas o sin campo `estado` · 2 uso/E-S · 3 `gate` a medias (escrito un artefacto y no el otro: `escritos`/`no_escritos`).
 """
 import argparse
 import importlib.util
@@ -80,7 +85,6 @@ _TOKEN = re.compile(r"(?<![\w-])(en-progreso|en-revision|completado|cancelado|bo
 _TABLA_ESTADO = re.compile(r"^\|[ \t]*(?:\*\*)?Estado(?:\*\*)?[ \t]*\|([^|\n]*)\|", re.M)
 _SEPARADOR_TABLA = re.compile(r"^\|?[ \t]*:?-{3,}:?[ \t]*(?:\|[ \t]*:?-{3,}:?[ \t]*)*\|?[ \t]*$")
 _FM_ESTADO = re.compile(r"^estado:[ \t]*([^\s#]+)", re.M)
-_CABECERA_INDICE = re.compile(r"^\|\s*Fecha\s*\|\s*Iniciativa\s*\|")
 _ENLACE_CARPETA = re.compile(r"\((\d{4}-\d{2}-\d{2}-[^/)\s]+)/")
 _ESCAPADO = "\x00"
 
@@ -89,7 +93,7 @@ _ESCAPADO = "\x00"
 TOPE_SESION = 128
 PLAZO_SESION = 2.0
 CACHE_NOMBRE = ".roadmap-sync.cache"
-CACHE_VERSION = 2
+CACHE_VERSION = 3   # fix2: motivos `cierre-olvidado`/`sin-estado` y validación de la entrada
 
 
 class SyncError(Exception):
@@ -184,8 +188,7 @@ def _subir(actual, objetivo, rango):
 
 
 def objetivo_ledger(text):
-    tareas = LINT.parse_ledger(text)["tareas"]
-    estados = [t["estado"] or "borrador" for t in tareas]
+    estados = [e or "borrador" for e in LINT.estados_tareas(text)]   # fix2 (gap 9): parser canónico ligero
     abiertas = [e for e in estados if e not in ("completado", "cancelado")]
     if estados and not abiertas and "completado" in estados:
         return "completado", 0
@@ -204,11 +207,15 @@ def titulo_de(text):
 
 # ---------------------------------------------------------------- análisis de una iniciativa
 
-def analizar(carpeta, root, cerrar=False):
-    """Plan de cambios de UNA iniciativa (ver `_resumen` para la parte serializable)."""
+def analizar(carpeta, root, cerrar=False, presentes=None):
+    """Plan de cambios de UNA iniciativa (ver `_resumen` para la parte serializable). `presentes`: los ficheros que
+    ya se sabe que existen (la comprobación de sesión los lista con un `scandir`); los demás no se leen."""
     nombre = carpeta.name
     docs, avisos, cambios = {}, [], []
     for clave, fichero, _ in ARTEFACTOS:
+        if presentes is not None and fichero not in presentes:
+            docs[clave] = None
+            continue
         try:
             docs[clave] = _leer(carpeta / fichero)
         except (SyncError, LW.WriteError, OSError, UnicodeError, ValueError) as error:
@@ -238,7 +245,7 @@ def analizar(carpeta, root, cerrar=False):
                            "detalle": f"{FICHERO[clave]} sin campo `estado` legible "
                                       f"(debería ser `{objetivo}`)"})
 
-    ledger, cerrable = docs["ledger"], False
+    ledger, cerrable, retro = docs["ledger"], False, None
     # Un ledger > 256 KiB no se deriva: su cabecera `completado` se acepta tal cual (ya cerrado y archivable).
     cerrado = bool(ledger and ledger.get("grande") and estados["ledger"] == "completado")
     if ledger and ledger.get("grande"):
@@ -249,13 +256,27 @@ def analizar(carpeta, root, cerrar=False):
     elif ledger:
         objetivo, abiertas = objetivo_ledger(ledger["text"])
         cerrable = objetivo == "completado"
-        if estados["ledger"] == "completado" and abiertas:
-            # Excepción documentada a «nunca rebaja»: una tarea reabierta (qa en rojo) es la evidencia.
+        if cerrable:
+            retro = bool(RG.veredicto(str(root), str(carpeta))["abierta"])
+        if estados["ledger"] is None and not info["ledger"]["spans"] and not info["ledger"]["sin_token"]                 and objetivo:
+            # fix2 (gap 5): sin campo `estado` no hay dónde escribir: es un desfase (lo arregla una persona).
+            cambios.append({"iniciativa": nombre, "tipo": "ledger", "artefacto": "tasks.md", "de": None,
+                            "a": "completado" if cerrable and (cerrar or retro) else "en-progreso",
+                            "motivo": "sin-estado"})
+        elif estados["ledger"] == "completado" and abiertas:
+            # Excepción documentada a «nunca rebaja»: una tarea reabierta, o una tarea nueva en `borrador`, es
+            # trabajo abierto y la evidencia (fix2, gap 10).
             if info["ledger"]["spans"]:
                 nuevos["ledger"] = "en-progreso"
                 cambios.append({"iniciativa": nombre, "tipo": "ledger", "artefacto": "tasks.md",
                                 "de": "completado", "a": "en-progreso", "motivo": "reabierta"})
-        elif cerrable and not cerrar:
+        elif cerrable and (cerrar or retro):
+            # fix2 (gap 2): la retro (que solo existe tras qa verde) basta como autorización del cierre; un
+            # `--cerrar` olvidado es un DESFASE (`cierre-olvidado`), no un aviso que se pueda ignorar.
+            proponer("ledger", "completado", RANGO)
+            if not cerrar and cambios and cambios[-1]["tipo"] == "ledger":
+                cambios[-1]["motivo"] = "cierre-olvidado"
+        elif cerrable:
             proponer("ledger", "en-progreso", RANGO)
             if estados["ledger"] not in ("completado",) and estados["ledger"] not in TERMINALES:
                 avisos.append({"iniciativa": nombre, "tipo": "cierre-pendiente",
@@ -264,7 +285,8 @@ def analizar(carpeta, root, cerrar=False):
         else:
             proponer("ledger", objetivo, RANGO)
     cerrado = cerrado or (cerrable and nuevos["ledger"] == "completado")
-    retro = bool(cerrable or cerrado) and bool(RG.veredicto(str(root), str(carpeta))["abierta"])
+    if retro is None:
+        retro = cerrado and bool(RG.veredicto(str(root), str(carpeta))["abierta"])
     if cerrado:
         if retro:
             proponer("plan", "completado", RANGO)
@@ -327,56 +349,147 @@ def _con_marca(actual, valor):
     return actual[:corte] + MARCA + valor + cola, previa
 
 
+# Columnas del índice (gap 11 del fix2): el formato vigente `| Fecha | Iniciativa | … | Artefactos |` y el de
+# versiones anteriores del plugin `| Fecha | Slug | Estado | Coste estimado | Spec | Evaluación | Plan |`.
+_IDENTIDAD = ("iniciativa", "slug", "initiative")
+_COLUMNA_ENLACE = {"artefactos": None, "artifacts": None, "spec": "spec.md", "evaluación": "evaluation.md",
+                   "evaluacion": "evaluation.md", "evaluation": "evaluation.md", "eval": "evaluation.md",
+                   "design": "design.md", "diseño": "design.md", "plan": "improvement-plan.md",
+                   "tasks": "tasks.md", "ledger": "tasks.md", "retro": "retro.md"}
+_VACIA = ("", "—", "-")
+
+
+def _nombre_columna(celda):
+    return celda.replace("*", "").strip().lower()
+
+
+def _disposicion(cabecera):
+    """{'ident', 'estado', 'enlaces': {índice: fichero|None}, 'n', 'nombres'} o None si no es la tabla del índice.
+    Sin columnas de enlace reconocibles, la última hace de Artefactos (formato vigente)."""
+    nombres = [_nombre_columna(c) for c in _celdas(cabecera)]
+    if len(nombres) < 3 or nombres[0] not in ("fecha", "date"):
+        return None
+    ident = next((i for i, n in enumerate(nombres) if n in _IDENTIDAD), None)
+    if ident is None:
+        return None
+    enlaces = {i: _COLUMNA_ENLACE[n] for i, n in enumerate(nombres) if n in _COLUMNA_ENLACE and i != ident}
+    estado = next((i for i, n in enumerate(nombres) if n in ("estado", "status")), None)
+    return {"ident": ident, "estado": estado, "enlaces": enlaces or {len(nombres) - 1: None},
+            "n": len(nombres), "nombres": nombres}
+
+
+def _texto_plano(celda):
+    return re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", celda).replace("`", "").replace("*", "").strip()
+
+
+def _celda_nueva(nombre, plan, columna, disp, i):
+    """Celda `i` de una fila nueva en un índice con columnas propias (formato con Slug/Estado)."""
+    if i == 0:
+        return nombre[:10]
+    if i == disp["ident"]:
+        return nombre[11:]
+    if i == disp["estado"]:
+        return plan["etiqueta"]
+    if i in disp["enlaces"]:
+        fichero = disp["enlaces"][i]
+        enlaces = [(f, label) for f, label in plan["enlaces"] if fichero is None or f == fichero]
+        return " · ".join(f"[{label}]({nombre}/{f})" for f, label in enlaces) or "—"
+    if "coste" in columna or "cost" in columna:
+        return "No estimado"
+    return "No medido" if "tiempo" in columna or "horas" in columna else "—"
+
+
 def editar_indice(text, planes):
     """(texto nuevo, cambios, avisos) con la fila de cada iniciativa al día; el resto del índice intacto.
-    La fila propia es la que enlaza a la carpeta en la ÚLTIMA columna (Artefactos), no la primera que la cita."""
+
+    La tabla se reconoce por su cabecera `| Fecha | Iniciativa |` o `| Fecha | Slug |` (gap 11). La fila propia es
+    la que enlaza a la carpeta en una columna de enlaces (Artefactos, o Spec/Evaluación/Plan…), no la primera
+    que la cita; si ninguna lo hace, la que no pertenece a otra iniciativa y la nombra en la celda de identidad
+    (enlace, o slug + fecha; gap 3). Dos candidatas → aviso, sin escribir. Con columna `Estado` el estado va a
+    esa celda (es su sitio: una marca en otra celda la dejaría desfasada y contradictoria); sin ella, la marca
+    `· estado:` en la celda de identidad. El formato vigente conserva su fila nueva y su celda de Artefactos."""
     lineas = text.split("\n")
-    cabecera = next((i for i, l in enumerate(lineas) if _CABECERA_INDICE.match(l)), None)
-    if cabecera is None or cabecera + 1 >= len(lineas):
-        return text, [], ["README.md sin tabla `| Fecha | Iniciativa |`"]
-    columnas = len(_celdas(lineas[cabecera]))
-    filas = {}
+    cabecera, disp = None, None
+    for i, linea in enumerate(lineas[:-1]):
+        if linea.startswith("|") and _SEPARADOR_TABLA.match(lineas[i + 1].strip()) and "-" in lineas[i + 1]:
+            disp = _disposicion(linea)
+            if disp:
+                cabecera = i
+                break
+    if cabecera is None:
+        return text, [], ["README.md sin tabla `| Fecha | Iniciativa |` ni `| Fecha | Slug |`"]
+    ident, columnas = disp["ident"], disp["n"]
+    vigente = disp["enlaces"] == {columnas - 1: None} and disp["estado"] is None
+    filas, sin_duenyo = {}, []
     i = cabecera + 2
     while i < len(lineas) and lineas[i].startswith("|"):
-        for nombre in set(_ENLACE_CARPETA.findall(_celdas(lineas[i])[-1])):
+        celdas = _celdas(lineas[i])
+        duenyos = {n for c in disp["enlaces"] if c < len(celdas) for n in _ENLACE_CARPETA.findall(celdas[c])}
+        for nombre in duenyos:
             filas.setdefault(nombre, []).append(i)
+        if not duenyos and ident < len(celdas):
+            sin_duenyo.append((i, celdas))
         i += 1
     cambios, problemas, nuevas = [], [], []
     for plan in planes:
         if not plan["etiqueta"]:
             continue
         nombre = plan["nombre"]
-        enlaces = [(f, label) for f, label in plan["enlaces"]]
         propias = filas.get(nombre, [])
+        donde = "en sus columnas de enlaces"
+        if not propias:
+            propias = [i for i, celdas in sin_duenyo
+                       if f"({nombre}/" in celdas[ident]
+                       or (_texto_plano(celdas[ident]) in (nombre, nombre[11:]) and celdas[0].strip() == nombre[:10])]
+            donde = "en la celda de identidad"
         if len(propias) > 1:
-            problemas.append(f"{nombre}: {len(propias)} filas enlazan a la carpeta en Artefactos; no se escribe")
+            problemas.append(f"{nombre}: {len(propias)} filas la nombran {donde}; no se escribe")
             continue
         if not propias:
-            titulo = plan["titulo"] or nombre[11:]
-            celdas = [nombre[:10], f"{nombre[11:]} — {titulo}{MARCA}{plan['etiqueta']}"]
-            celdas += ["No estimado", "No medido"][:max(columnas - 3, 0)] + ["—"] * max(columnas - 5, 0)
-            celdas.append(" · ".join(f"[{label}]({nombre}/{f})" for f, label in enlaces))
+            if vigente:
+                titulo = plan["titulo"] or nombre[11:]
+                celdas = [nombre[:10], f"{nombre[11:]} — {titulo}{MARCA}{plan['etiqueta']}"]
+                celdas += ["No estimado", "No medido"][:max(columnas - 3, 0)] + ["—"] * max(columnas - 5, 0)
+                celdas.append(" · ".join(f"[{label}]({nombre}/{f})" for f, label in plan["enlaces"]))
+            else:
+                celdas = [_celda_nueva(nombre, plan, col, disp, n) for n, col in enumerate(disp["nombres"])]
             nuevas.append(_fila(celdas))
             cambios.append({"iniciativa": nombre, "tipo": "indice", "artefacto": "README.md",
                             "de": "sin fila", "a": plan["etiqueta"]})
             continue
         fila_i = propias[0]
         celdas = _celdas(lineas[fila_i])
-        if len(celdas) < 3:
+        if len(celdas) < 3 or len(celdas) <= max([ident, disp["estado"] or 0] + list(disp["enlaces"])):
+            problemas.append(f"{nombre}: su fila tiene menos columnas que la cabecera; no se escribe")
             continue
-        celdas[1], previa = _con_marca(celdas[1], plan["etiqueta"])
-        faltan = [(f, label) for f, label in enlaces if f"({nombre}/{f})" not in lineas[fila_i]]
-        if faltan:
-            ultima = celdas[-1]
-            sep = next((s for s in SEPARADORES if s in ultima), " · ")
-            nuevos = sep.join(f"[{label}]({nombre}/{f})" for f, label in faltan)
-            celdas[-1] = nuevos if ultima in ("", "—", "-") else ultima + sep + nuevos
+        if disp["estado"] is not None:
+            previa = celdas[disp["estado"]].strip()
+            celdas[disp["estado"]] = plan["etiqueta"]
+        else:
+            celdas[ident], previa = _con_marca(celdas[ident], plan["etiqueta"])
+        puestos = []
+        for col, fichero in sorted(disp["enlaces"].items()):
+            # Lo que falta se mira en la celda de enlaces, no en toda la fila: un enlace en la celda de identidad
+            # no hace propia la fila (gap 3); tras escribirlo aquí, la fila ya se reconoce por su columna.
+            faltan = [(f, label) for f, label in plan["enlaces"] if f"({nombre}/{f})" not in celdas[col]]
+            if fichero is None:
+                if faltan:
+                    ultima = celdas[col]
+                    sep = next((s for s in SEPARADORES if s in ultima), " · ")
+                    nuevos = sep.join(f"[{label}]({nombre}/{f})" for f, label in faltan)
+                    celdas[col] = nuevos if ultima in _VACIA else ultima + sep + nuevos
+                    puestos += faltan
+            else:
+                propio = [(f, label) for f, label in faltan if f == fichero]
+                if propio and celdas[col].strip() in _VACIA:
+                    celdas[col] = f"[{propio[0][1]}]({nombre}/{fichero})"
+                    puestos += propio
         nueva = _fila(celdas)
         if nueva != lineas[fila_i]:
             lineas[fila_i] = nueva
-            de = previa if previa is not None else "sin marca"
-            if faltan:
-                de += " · faltan " + ", ".join(label for _, label in faltan)
+            de = previa if previa not in (None, "") else "sin marca"
+            if puestos:
+                de += " · faltan " + ", ".join(label for _, label in puestos)
             cambios.append({"iniciativa": nombre, "tipo": "indice", "artefacto": "README.md",
                             "de": de, "a": plan["etiqueta"]})
     if nuevas:
@@ -513,12 +626,17 @@ def sincronizar(objetivo, *, escribir=True, deadline=None, cerrar=False):
             raise SyncError("too_large", 1)
         if not plan["cerrable"]:
             raise SyncError("open_tasks", 1)
+        if any(c.get("motivo") == "sin-estado" for c in plan["cambios"]):
+            raise SyncError("sin_estado", 1, detalle="tasks.md sin campo `estado:` (frontmatter) ni celda "
+                                                    "`| Estado |`: añádelo y repite --cerrar")
     desfases = [c for p in planes for c in p["cambios"]]
     avisos = [a for p in planes for a in p["avisos"]]
     indice, indice_nuevo, cambios_indice = _indice(root, planes, avisos)
     desfases += cambios_indice
     pendientes = []
     if escribir:
+        pendientes += [f"{c['iniciativa']}/tasks.md: sin campo `estado` (añádelo a mano)"
+                       for c in desfases if c.get("motivo") == "sin-estado"]
         for p in planes:
             for clave, fichero, _ in ARTEFACTOS:
                 if p["docs"].get(clave) and any(c["artefacto"] == fichero for c in p["cambios"]):
@@ -544,6 +662,42 @@ def _firma(path):
     except OSError:
         return None
     return [info.st_mtime_ns, info.st_size]
+
+
+def _firma_carpeta(carpeta):
+    """(firma, presentes): la firma de los artefactos de una iniciativa con UN `scandir` (en Windows el `stat` de
+    cada entrada viene con el listado, sin una llamada por fichero) y el conjunto de los que existen."""
+    vistos = {}
+    try:
+        with os.scandir(carpeta) as entradas:
+            for entrada in entradas:
+                if entrada.name in FICHERO.values():
+                    info = entrada.stat(follow_symlinks=False)
+                    vistos[entrada.name] = [info.st_mtime_ns, info.st_size]
+    except OSError:
+        return [None] * len(ARTEFACTOS), set()
+    return [vistos.get(fichero) for _, fichero, _ in ARTEFACTOS], set(vistos)
+
+
+_CLAVES_CAMBIO = ("iniciativa", "tipo", "artefacto", "de", "a")
+_CLAVES_AVISO = ("iniciativa", "tipo", "detalle")
+
+
+def _plan_valido(plan):
+    """¿Una entrada de la caché tiene la forma de `_resumen`? (fix2, gap 4: una entrada incompleta, de otra versión
+    o manipulada se descarta y se recalcula; nunca rompe ni silencia el aviso de la sesión)."""
+    if not isinstance(plan, dict) or not isinstance(plan.get("nombre"), str):
+        return False
+    listas = {"cambios": _CLAVES_CAMBIO, "avisos": _CLAVES_AVISO}
+    for clave, requeridas in listas.items():
+        valor = plan.get(clave)
+        if not isinstance(valor, list) or not all(isinstance(x, dict) and all(k in x for k in requeridas)
+                                                  for x in valor):
+            return False
+    enlaces = plan.get("enlaces")
+    if not isinstance(enlaces, list) or not all(isinstance(e, list) and len(e) == 2 for e in enlaces):
+        return False
+    return all(k in plan for k in ("etiqueta", "titulo", "retro", "cerrable", "vigente"))
 
 
 def _leer_cache(path, clave):
@@ -590,15 +744,15 @@ def comprobar(root_proyecto, deadline=None, tope=TOPE_SESION):
     planes, inic, omitida = [], {}, False
     for nombre in nombres:
         carpeta = roadmap / nombre
-        firma = [_firma(carpeta / fichero) for _, fichero, _ in ARTEFACTOS]
+        firma, presentes = _firma_carpeta(carpeta)
         previo = memo.get(nombre)
-        if isinstance(previo, dict) and previo.get("firma") == firma and isinstance(previo.get("plan"), dict):
+        if isinstance(previo, dict) and previo.get("firma") == firma and _plan_valido(previo.get("plan")):
             plan = previo["plan"]
         elif time.monotonic() > limite:
             omitida = True
             continue
         else:
-            plan = _resumen(analizar(carpeta, root))
+            plan = _resumen(analizar(carpeta, root, presentes=presentes))
         inic[nombre] = {"firma": firma, "plan": plan}
         if plan["vigente"]:
             planes.append(plan)
@@ -697,6 +851,7 @@ def main(argv=None):
         print(_texto(informe, check or args.dry_run))
     else:
         detalle = "".join(f" · {k}: {', '.join(v)}" for k, v in informe.items() if k in ("escritos", "no_escritos"))
+        detalle += f" — {informe['detalle']}" if informe.get("detalle") else ""
         print(f"roadmap-sync: {informe['status']}{detalle}", file=sys.stderr)
     return code
 

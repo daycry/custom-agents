@@ -815,6 +815,57 @@ def estado_ledger(text):
     return norm_estado(fm) if fm else _estado_tabla_de(text)
 
 
+_FASE_RE = re.compile(r"^##\s+(Fase\b[^\n]*)")
+_TASK_RE = re.compile(r"^###\s+(T-\d+)\b\s*(?:[—–:-]\s*)?(.*)$")
+_ESTADO_RE = re.compile(r"^\s*-\s*\*\*Estado\*\*\s*:\s*(.+)$")
+_DESC_RE = re.compile(r"^\s*-\s*\*\*Descripci[oó]n\*\*\s*:\s*(.*)$", re.I)
+
+
+def estados_tareas(text):
+    """Estados (normalizados o None) de las `### T-XX` en orden, con la MISMA regla que `parse_ledger`
+    (vallas vaciadas, `## `/`### Fase` cierran la tarea, primer `- **Estado**:` de cada tarea y las mismas
+    líneas absorbidas por Verificación, Changelog y Descripción) pero sin trocear el resto de campos: lo usan
+    el panel y `roadmap-sync.py`, que solo cuentan estados (plugin-audit-2 T-42 fix2, gap 9: un parser, dos
+    profundidades; `tests/test_t42_fix2_roadmap.py` comprueba la igualdad sobre los ledgers reales)."""
+    lines = sin_vallas(text.lstrip("﻿")).splitlines()
+    # Fuera de una tarea sin estado solo importan las cabeceras: se salta de una a otra (gap 9: el panel recorre
+    # todos los ledgers del roadmap y la mayoría de las líneas son cuerpo de tareas ya resueltas).
+    cabeceras = [i for i, ln in enumerate(lines) if ln.startswith("##")]
+    estados, actual, idx, vistos, h = [], None, 0, set(), 0
+    while idx < len(lines):
+        ln = lines[idx]
+        idx += 1
+        if ln.startswith("##"):
+            if _FASE_RE.match(ln) or re.match(r"^##\s", ln) or re.match(r"^###\s+Fase\b", ln):
+                actual = None
+                continue
+            if _TASK_RE.match(ln):
+                estados.append(None)
+                actual, vistos = len(estados) - 1, set()
+                continue
+        if actual is None or estados[actual] is not None:
+            while h < len(cabeceras) and cabeceras[h] < idx:
+                h += 1
+            if h == len(cabeceras):
+                break
+            idx = cabeceras[h]
+            continue
+        m = _ESTADO_RE.match(ln)
+        if m:
+            estados[actual] = norm_estado(m.group(1))
+        elif "verif" not in vistos and VERIF_RE.match(ln):
+            vistos.add("verif")
+            idx = parse_verificacion(lines, idx - 1)[1]
+        else:
+            # Changelog y Descripción absorben sus continuaciones solo la primera vez (como `parse_ledger`).
+            campo = "changelog" if CHANGELOG_RE.match(ln) else "desc" if _DESC_RE.match(ln) else None
+            if campo and campo not in vistos:
+                vistos.add(campo)
+                while idx < len(lines) and es_continuacion(lines[idx]):
+                    idx += 1
+    return estados
+
+
 def parse_ledger(text):
     """Parser ESTRUCTURAL del ledger (sin efectos secundarios, importable).
 

@@ -109,4 +109,6 @@ def test_t42_fix1_gap14_contar_tareas_usa_el_parser_canonico_del_ledger():
     texto = _ledger("en-progreso", ("completado", "en-progreso")) + (
         "\n```markdown\n### T-09 — ejemplo citado\n\n- **Estado**: completado\n```\n")
     assert bd.contar_tareas(texto) == {"completadas": 1, "total": 2, "abiertas": 1, "iniciadas": 2}
-    assert bd._PARSE_LEDGER is not None and bd._PARSE_LEDGER.__name__ == "parse_ledger"
+    # fix2 (gap 9): la profundidad ligera del MISMO parser (`ledger-lint.estados_tareas`), no uno propio.
+    assert bd._ESTADOS_TAREAS is not None and bd._ESTADOS_TAREAS.__name__ == "estados_tareas"
+    assert bd._ESTADOS_TAREAS.__globals__["__file__"].replace("\\", "/").endswith("agent-kits/shared/ledger-lint.py")
