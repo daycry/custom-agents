@@ -797,82 +797,7 @@ RED: `test_transicion_reconcile_uses_latest_review_without_inventing_one` falló
 - **Interpretaciones**: k1: `--dispatch` explicita que se va a despachar; la consulta sigue siendo de lectura. k2: los eventos del ledger tienen su propio historial local acotado y conservan el opt-in de los hooks. Si falla publicar actividad, queda un aviso tras el cambio canónico. k3: `reconcile` reconoce revisiones históricas y conserva el estado de tareas sin veredicto. Se entrega T-40 en revisión.
 - **Fuera de Archivos inicial**: referencia de la consola (contrato de actividad); fixture de párrafos (reemplazos trazados); prueba de egreso (huella de fuente actualizada, escáner intacto).
 
-**Fix7** · RED `eb4c04b` · GREEN `92bd141`.
-RED: `test_npm_contains_pdf_editions_linked_from_its_readme` falló con SHA distinto · 2026-11-25.
-RED: `test_fix7_gap2_no_home_keeps_start_and_close_markers` falló con RuntimeError/OSError/KeyError · 2026-11-25.
-RED: `test_fix7_gap3_minor_rows_without_verdict_cannot_hide_warning` falló con aviso oculto · 2026-11-25.
-RED: `test_fix6_gap2_later_evidence_covers_warning` falló con aviso oculto o sobrante · 2026-11-25.
-RED: `test_fix7_gap4_prune_race_does_not_discard_new_index` falló con índice ausente · 2026-11-25.
-RED: `test_fix7_gap4_prunes_abandoned_open_index` falló con índice caduco presente · 2026-11-25.
-Verificación: Py 801 + 1 omit.; handbook exit 0; interop 88; lint 0/16; evals 228/0; Node 257 + 6 omit.
-
-**Fix6** · RED `e93afb3` (13 fallos, 11 verdes) · GREEN `dc240d7`.
-RED: `test_fix6_gap1_real_reclassified_counts`, `test_fix6_gap1_counts_only_warn` falló con fila `#?` · 2026-11-25.
-RED: `test_fix6_gap2_count_wording_preserves_rows`, `test_fix6_gap2_archived_attempt_no_synthetic_block` falló con fila `#?` · 2026-11-25.
-RED: `test_fix6_gap2_later_evidence_covers_warning` falló con aviso tras revisión aplicable · 2026-11-25.
-RED: `test_fix6_gap3_index_is_private_and_legacy_index_is_ignored`, `test_fix6_gap3_prunes_expired_closed_index_and_preserves_repeat` falló con índice en el proyecto · 2026-11-25.
-RED: `test_fix6_gap4_attempt18_archived_task_results` falló con nota ausente · 2026-11-25.
-views4: vs fix4, 0 diferencias. Vs fix5, 82 briefs y 82 aprobaciones (9 ledgers), 0 cambios de última revisión. Lint: 5 → 3 avisos.
-Verificación: Py 786 + 3 omit.; Node 257 + 6 omit.; consola 3 E2E y 13 JS. Dietas 0+0; interop 88; lint 0/16; evals 228/0; 5 mutantes (cmp 0/1/0).
-
-**Fix5** · RED `935c0a8` · GREEN `c37dfd1`.
-RED: `test_fix5_gap1_resumed_sessions` falló con tokens nulos · 2026-11-24.
-RED: `test_fix5_gap2_unread_counts` falló con brief vacío · 2026-11-24.
-RED: `test_fix5_gap3_embedded_ranges` falló con tareas intermedias omitidas · 2026-11-24.
-RED: `test_fix5_gap4_ambiguous_alias` falló con candidatas sin bloquear · 2026-11-24.
-
-views4: 85 tareas de 10 ledgers pierden la aprobación sin filas suficientes (31 de las 47 habilitadas por fix4). 85 briefs ganan solo el aviso; 0 cambios de última revisión. Los rangos ambiguos incluyen las tareas intermedias del catálogo y fallan cerrado.
-
-Verificación: afectados 657 passed + 2 omit.; consola Py 141 + 2 omit., JS 13, tres runtimes ≤5,095 s. Runtimes Py 151, Node 257 + 6 omit. en copia del GREEN. Tokens 103 + 1 omit., ahorro 6157, evaluator 15465 B LF, dietas 0 pérdidas. Interop 88, lint 0/16, evals 228/0; 5 mutantes con cmp 0/1/0 y 5 reproducciones externas verdes.
-
-Codex: 17819585 tokens, 127 respuestas, 57 min de reloj, 0,29 h IA, 4,47 € estimados. Cobertura parcial: marcador anterior al índice. Cierre persistido en-revision.
-
-**Fix4** · RED `ca555fa` · GREEN `4f9b3ea`.
-
-RED: `test_fix4_gap1_ambiguous_cell_blocks_its_ids_and_section` falló con T-03 omitida · 2026-11-24.
-RED: `test_fix4_gap2_brief_queries_do_not_reparse_review_rows` falló con 8100 parseos · 2026-11-24.
-RED: `test_fix4_gap3_numeric_aliases_and_chained_ranges` falló con T-001 literal · 2026-11-24.
-RED: `test_fix4_gap4_header_range_is_a_mention_without_rows` falló con T-02 omitida · 2026-11-24.
-RED: `test_fix4_gap5_codex_limits_days_and_skips_stale_files` falló con archivos antiguos abiertos · 2026-11-24.
-RED: `test_f4fix2_5_*` falló con 17.691 ausente · 2026-11-24.
-
-bench.py: 55,58 s → <0,01 s (40 briefs). views4.py: 69 ledgers, 595 tareas, 62 últimas revisiones y 47 tareas pasan a ser elegibles en Jira, 0 cambios de gaps en briefs. setup-statusline T-03..T-08: cabecera propia antes 0/6, ahora 6/6.
-
-Codex: 19245107 tokens, 113 respuestas, 0.4 h IA, cobertura completa. Excepción mtime: CODEX_THREAD_ID activo en Windows. En la base, --runtime ya prevalecía (test_fix4_gap5_explicit_claude_runtime_overrides_global_codex).
-
-Verificación: Py 659+3 omit.; consola Py 141+2 omit., Node 13, E2E máx. 0,995 s; runtimes Py 151, Node 257+6 omit. Tokens 103+1 omit., vía rápida 6157, evaluator 15465 B LF, diet 0+0; F4 2 passed. Interop 88, lint 0/16, evals 228/0; 5 mutantes (cmp 0/1/0).
-
-**Fix3** · RED `e3476b2` · GREEN `0fc4c21`, `a19989f`.
-
-RED: `test_fix3_gap1_task_cell_whitelist` falló con T-02 omitida en `T-01..T-03` · 2026-11-24.
-RED: `T-40 fix3 gap 2` falló con el panel retirado por el mutante · 2026-11-24.
-RED: `test_fix3_gap4_codex_measures_window_and_project_without_duplicate_tokens` y `test_fix3_gap4_opencode_measures_completed_messages_for_project_and_window` fallaron con `estimado` · 2026-11-24.
-RED: `test_fix3_gap4_missing_native_source_never_reports_measured_zero` falló con fuente o aviso incorrecto · 2026-11-24.
-
-Codex real (`close --runtime codex`): 22483064 tokens (234651 entrada, 66397 salida, 0 creación y 22182016 lectura de caché), 0.57 h IA al ratio 531798. 123 respuestas, 1 sesión, cobertura completa. T-40 en-revision por el medidor. OpenCode v2 verificado en SQLite local y con fixtures. Fix2 carecía de contadores de Codex.
-
-`views3.py`: 69 ledgers, 595 tareas, 0 cambios de bloqueo. 0 vistas de gaps pendientes cambian, 18 cambios de cobertura histórica por la regla. `forms.py`: un rango real (`panel-redesign:1955`). `l3/scripts/failopen.py` ausente: 31 celdas probadas (23 no reconocidas) y 7 casos de integración. Mutante Node 1/1 (`cmp` 0→1→0).
-
-Medianas s (n=9, 231682 B, c34e9e0/ebd9ad6/a19989f). Start cambio 0.203/0.538/0.675, sin cambio 0.249/0.356/0.405. Close cambio 0.216/0.613/0.622, sin cambio 0.206/0.403/0.379. Start con cambio frente a fix2: −0.114 s bajo carga y +0.137 s sin suites.
-
-Verificación: pytest afectados 544+3 omit.; runtimes/tokens 247+1 omit.; consola Python 135+2 omit. y Node 13/13; runtimes Node 256 + B02 aislado, 6 omit.; export-interop --check 88; lint_plugin 0 errores/16 avisos; evals 228/0; diet 0+0. B02 pasó aislado en base y HEAD. Dos pruebas auxiliares de cifras seguían rojas en archivos iguales a la base.
-
-**Fix1** · RED a30631e, 14 rojos Python y 1 Node.
-RED: `test_fix1_gap1_implementer_docs_describe_plugin_owned_states` falló con faltaba en-progreso · 2026-11-24
-RED: `T-40 fix1 gap 2: Activity renders a transition and keeps its row on an unchanged poll` falló con se reemplazó la fila · 2026-11-24
-RED: `test_fix1_gap3_parallel_close_and_start_preserve_both_markers` falló con se perdió el marcador ajeno · 2026-11-24
-RED: `test_fix1_gap4_reconcile_requires_later_verification_covering_task` falló con completado prematuro · 2026-11-24
-RED: `test_fix1_gap5_start_and_dispatch_preserve_open_review` falló con reapertura indebida · 2026-11-24
-RED: `test_fix1_gap6_review_rejects_summary_with_undeclared_task` falló con exit 0 · 2026-11-24
-RED: `test_fix1_gap7_reconcile_writes_closing_date` falló con sin Cerrada · 2026-11-24
-RED: `test_fix1_gap8_task_cell_context_does_not_participate_in_review` falló con T-03 se atribuyó · 2026-11-24
-RED: `test_fix1_gap9_phase_state_uses_all_nonterminal_tasks` falló con fase en-revision · 2026-11-24
-RED: `test_fix1_gap10_writer_validates_each_input_snapshot_once` falló con 4 lints · 2026-11-24
-RED: `test_fix1_gap11_shared_readme_documents_runtime_handoffs` falló con faltaban operaciones · 2026-11-24
-
-218.877 B, mediana: start 2,420 → 1,952 s; close 2,362 → 1,788 s.
-`reconcile --dry-run --tasks T-23`
-`{"changed":false,"dry_run":true,"input_sha256":"4a6f77ba6320df8812f5f5c6112987324caf91d34d213598558938d67090fecd","operation":"reconcile","output_sha256":"4a6f77ba6320df8812f5f5c6112987324caf91d34d213598558938d67090fecd","schema_version":1,"states":{"T-23":"en-progreso"},"status":"ok","warnings":["T-02: en-progreso con medición cerrada","T-23: en-progreso con medición cerrada","ledger de 222748 bytes (aviso a 60000 bytes por tokens; tope de lectura 262144 bytes): archiva la historia cerrada con `python3 agent-kits/shared/ledger-archive.py docs\\roadmap\\2026-11-10-plugin-audit-2 --apply`"]}`
+**T-40 Fix7 a Fix3 y Fix1** — archivado LITERALMENTE (bytes sin cambios: RED, GREEN, gaps corregidos y verificaciones) en [execution-history.md](execution-history.md), sección «Archivado 2026-11-26 — T-40 Fix7 a Fix3 y Fix1» · SHA-256 `2eae7ead2b5b8392402d2b498ec5c3aa242fc5c4819222d463aabf7ec7ffcfe7`. Tarea cerrada (T-40, 2026-11-25); el bloque Fix2 sigue en el ledger porque lo leen tests; se movió el 2026-11-26 por el tope de lectura de 256 KiB.
 
 **Fix2** · RED `e43426c`, `9d19226` · 0.01h sin medir.
 RED: `test_fix2_gap1_ledger_records_verification` falló con bloque ausente · 2026-11-24
@@ -1243,6 +1168,12 @@ RED: `tests/test_suites_no_pytest.py::test_el_bucle_de_ci_solo_ejecuta_lo_que_py
 - 2026-11-20 · «Revisión de dos lentes — intento 20: Fase 1 (T-06) — 3 Important, 4 Minor (corrección: fix25)» → [execution-history.md](execution-history.md) · SHA-256 `b827b7b60885d785d4df8451b84863399b01ac62cfcd76194e86912c4620851e`
 - 2026-11-20 · «Revisión de dos lentes — intento 1: Fase 2 (T-08, T-09, T-10, T-11) — 4 Important, 11 Minor (corrección: fix1)» → [execution-history.md](execution-history.md) · SHA-256 `538292f9392d32ce98fe9b5a4a9311ac1847847d98bc50ac510f53639c177026`
 - 2026-11-24 · «Revisión de dos lentes — intento 3: Fase 3 (T-14, T-21) — verificación del fix2: 1 Important, 7 Minor (decisión del usuario: ciclo nuevo con fix3)» → [execution-history.md](execution-history.md) · SHA-256 `11982fd6f89ef6c92a355be6179484ed9a463a2b339d6c0523b0753265c6440a`
+- 2026-11-26 · «Revisión de dos lentes — intento 1: Fase 3 (T-40) — estados de tarea movidos por el plugin y consola en vivo (T-40)» → [execution-history.md](execution-history.md) · SHA-256 `9661c168c5b91d241ffa5db898b0864cb48e21db3c4555ed78f5585a13773f0c`
+- 2026-11-26 · «Revisión de dos lentes — intento 2: Fase 3 (T-40) — verificación del fix1 (T-40)» → [execution-history.md](execution-history.md) · SHA-256 `b0f412bd4523f40f6244e2c87aaa5ff77a58165293c06f4d5cab2816b5632609`
+- 2026-11-26 · «Revisión de dos lentes — intento 3: Fase 3 (T-40) — verificación del fix2 (T-40)» → [execution-history.md](execution-history.md) · SHA-256 `c678f88ef18222418baa80cb101a7e17d96dedf7d3e3ac07f208b126feaf1ce4`
+- 2026-11-26 · «Revisión de dos lentes — intento 5: Fase 3 (T-40) — verificación del fix4 (T-40)» → [execution-history.md](execution-history.md) · SHA-256 `f805f95dc4e283c0b8bed280832578cde47ae6279e6a3e085ed479db35a054e5`
+- 2026-11-26 · «Revisión de dos lentes — intento 6: Fase 3 (T-40) — verificación del fix5 (T-40)» → [execution-history.md](execution-history.md) · SHA-256 `33735d6e3959f11c02126afc45d31b72b96ae4e1e8316fb81d1648a88f9d2d8a`
+- 2026-11-26 · «Revisión de dos lentes — intento 7: Fase 3 (T-40) — verificación del fix6 — ciclo 3, abierto con OK del usuario: «Cerrar T‑40 y tarea nueva» (T-40)» → [execution-history.md](execution-history.md) · SHA-256 `bd80ff4464cf05d1495eb676329e3fb05a8b3730aee25d60be62262f9bf973e6`
 
 
 ## Revisión de dos lentes — intento 18: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix17: 4 Important, 13 Minor
@@ -1372,56 +1303,6 @@ Ciclo nuevo autorizado por el usuario el 2026-11-23 («fix3 corto y cierro»). L
 
 **Tanda A de la Fase 3 cerrada (2026-11-24)** según el criterio del usuario: 0 Critical y 0 Important tras los intentos 1 (fix1), 2 (fix2), 3 (fix3) y 4. La deuda aceptada son los gaps 3, 6 y 8 del intento 3 y los 3 Minor de este intento. Los estados de T-12, T-13, T-14, T-20 y T-21 los reconcilia la herramienta de T-40.
 
-## Revisión de dos lentes — intento 1: Fase 3 (T-40) — estados de tarea movidos por el plugin y consola en vivo (T-40)
-
-**Veredicto del plugin**: gaps (T-40)
-Lentes A y B (Claude Opus 5.5, esfuerzo alto; C y D no se activan por heurística, B cubre seguridad y la ruta caliente) sobre `c34e9e0..0599538` (Codex gpt-6.2-sol). Criterios 1-6, 8-10 ✓; 7 parcial. Seguridad sin hallazgos: evento con seudónimo y listas cerradas, la consola pinta con `textContent`.
-
-| # | Grado | Gap | Tarea | Corrección | Evidencia |
-|---|---|---|---|---|---|
-| 1 | Important | E3: `docs/agents/implementer.md` sigue describiendo que el implementer marca checkbox y estado y cierra `completado`; no está en `Archivos` | T-40 | corregido (fix1, c13853e; test `test_fix1_gap1_implementer_docs_describe_plugin_owned_states`) | `docs/agents/implementer.md:22` frente a `agents/implementer.md:102,108-110` |
-| 2 | Important | JS nuevo de la consola (panel de transiciones de Actividad) sin test ni `RED:`; el E2E solo cubre la API | T-40 | corregido (fix1, c13853e; test `T-40 fix1 gap 2: Activity renders a transition and keeps its row on an unchanged poll`) | `skills/plugin-panel/assets/console-context.js:3,167-185,211`; `docs/CONSTITUTION.md:11` |
-| 3 | Important | Dos `usage-meter` en paralelo pierden marcadores: `cmd_close` lee el state, lanza el traspaso (0,5-5 s) y guarda el state entero sin fusionar; un `start` de otra tarea en ese hueco desaparece (regresión) | T-40 | corregido (fix1, c13853e; test `test_fix1_gap3_parallel_close_and_start_preserve_both_markers`) | `agent-kits/shared/usage-meter.py:826,906,917`; `scratchpad/lensB-xq7/race.py` 3/3 frente al control 0/3 |
-| 4 | Important | `reconcile` cierra `completado` tareas con «corregido en fixN» que ningún intento posterior verificó: en el ledger real T-23 pasaría de `en-progreso` a `completado` (contrato: sin veredicto interpretable se conserva) | T-40 | corregido (fix1, c13853e; test `test_fix1_gap4_reconcile_requires_later_verification_covering_task`) | `agent-kits/shared/ledger-write.py:224`; `ledger-lint.py:458,470` |
-| 5 | Minor | `start`/`--dispatch` sacan de `en-revision` una tarea con revisión abierta (el criterio: solo desde `borrador`/`en-progreso`); el propio lint avisa la incoherencia | T-40 | corregido (fix1, c13853e; test `test_fix1_gap5_start_and_dispatch_preserve_open_review`) | `ledger-write.py:240-243` |
-| 6 | Minor | `verdict` exige ids(cabecera) == `--tasks`: un `--summary` de `review` que cite otra tarea deja la revisión sin cierre posible | T-40 | corregido (fix1, c13853e; test `test_fix1_gap6_review_rejects_summary_with_undeclared_task`) | `ledger-write.py:175-177` |
-| 7 | Minor | `reconcile` cierra sin `- **Cerrada**` (el burndown la lee); `verdict limpio` sí la escribe | T-40 | corregido (fix1, c13853e; test `test_fix1_gap7_reconcile_writes_closing_date`) | `ledger-write.py:228` |
-| 8 | Minor | Una mención de contexto en la columna Tarea («T-21 (origen T-03)») cuenta como revisión de T-03 | T-40 | corregido (fix1, c13853e; test `test_fix1_gap8_task_cell_context_does_not_participate_in_review`) | `ledger-lint.py:454` |
-| 9 | Minor | `phase_state` declara `en-revision` una fase con tareas en `borrador` (Fase 3 con T-15..T-22 sin empezar) | T-40 | corregido (fix1, c13853e; test `test_fix1_gap9_phase_state_uses_all_nonterminal_tasks`) | `ledger-write.py:127-135` |
-| 10 | Minor | Coste en la ruta caliente: +1,4 s en `start` y +0,5 s en `close` con 215 KB (lint 4 veces por escritura, relee `usage-state.json`, un intérprete más) | T-40 | corregido (fix1, c13853e; test `test_fix1_gap10_writer_validates_each_input_snapshot_once`) | `ledger-write.py`, `usage-meter.py` |
-| 11 | Minor | Runtime `unknown` por defecto: ninguna pieza fija `CUSTOM_AGENTS_RUNTIME`; `agent-kits/shared/README.md` (E8) no recoge `verdict`/`reconcile`/`handoff`/`--dispatch`; el ledger no pega la salida de `reconcile` | T-40 | corregido (fix1, c13853e; test `test_fix1_gap11_shared_readme_documents_runtime_handoffs`) | `ledger-write.py:319-321`; `agent-kits/shared/README.md:58-59` |
-
-
-## Revisión de dos lentes — intento 2: Fase 3 (T-40) — verificación del fix1 (T-40)
-
-**Veredicto del plugin**: gaps (T-40)
-Lentes A y B (Claude Opus 5.5, esfuerzo alto) sobre `f3a8572..c0e2c02` (fix1 de Codex gpt-6.2-sol). Gaps 1-7, 9 y 11 del intento 1 ✓ con test dedicado; carrera de `usage-meter` 20+20 sin pérdidas; `reconcile` sobre las 40 tareas no cambia ningún estado (T-02 y T-23 siguen `en-progreso`); T-40 pasó a `en-revision` por `usage-meter close` (evento `source: usage-meter`, `runtime: codex`). Seguridad sin hallazgos.
-
-| # | Grado | Gap | Tarea | Corrección | Evidencia |
-|---|---|---|---|---|---|
-| 1 | Important | El ledger no recoge la Verificación del fix1 (ni los tests en verde ni el `export-interop --check`, aunque el fix1 toca `agents/`, `commands/`, `hooks/`) | T-40 | corregido (fix2, ab227f7; test `test_fix2_gap1_ledger_records_verification`) | `tasks.md` (bloque fix1 de T-40, sin «passed»); criterios 5 y 6 de la Lente A |
-| 2 | Important | Regresión del gap 8: `ids_de_celda_tarea` descarta en silencio las tareas tras `;`, `+`, `→` o que no abren la celda (`(T-01)`, `Fase 1 (T-01)`); `verdict limpio` cierra una tarea con un Critical pendiente y el brief/`aprobado` de jira-flow ven 0 pendientes (falla abierto) | T-40 | corregido (fix2, 9e79cad; test `test_fix2_gap2_critical_cell_blocks_clean_verdict_brief_and_jira`) | `ledger-lint.py:321-327,485,517`; `task-brief.py:795,959`; `jira-flow.py:436,600`; `scratchpad/lb40b/scripts/failopen.py` |
-| 3 | Minor | Gap 10 marcado «corregido» sin llegar al objetivo: base `c34e9e0` → HEAD, `start` +0,65-0,8 s y `close` +0,7-0,9 s (ledger de 222 KB); un traspaso sin cambio cuesta 0,60 s porque valida todo | T-40 | corregido (fix2, af8dde3; test `test_fix2_gap3_meter_handoff_avoids_second_interpreter`) | `ledger-write.py:319-329`; `usage-meter.py:796-812`; `scratchpad/lb40b/scripts/bench.py` |
-| 4 | Minor | `phase_state` pierde la rama `cancelado`: todas canceladas → `completado`; `borrador` + una cancelada → `en-progreso` | T-40 | corregido (fix2, 9e79cad; test `test_fix2_gap4_phase_state_respects_cancellation`) | `ledger-write.py:136-145`; `scratchpad/lb40b/scripts/phase.py` |
-| 5 | Minor | El test JS del gap 2 deja vivos 3 de 7 mutantes (no retira el panel anterior, `append` frente a `prepend`, orden/ventana) | T-40 | corregido (fix2, e43426c; test `T-40 fix2 gap 5: transition-only polling replaces one leading panel with the newest 20 rows`) | `tests/console-live.test.mjs:76-113`; `console-context.js:170` |
-| 6 | Minor | La aserción de PLUGIN-PANEL del test del gap 1 entró con su cambio, sin rojo; la salida de `reconcile --dry-run` pegada solo cubre T-23 | T-40 | corregido (fix2, ab227f7; test `test_fix2_gap6_ledger_discloses_concurrent_doc_assertion`) | `test_ledger_write_transitions.py:234-237`; `tasks.md` (fix1 de T-40) |
-| 7 | Minor | Con el lock del state retenido > 2 s, `start` devuelve `ok` con aviso pero no guarda el marcador (el `close` posterior dirá «sin marcador») | T-40 | corregido (fix2, 9e79cad; test `test_fix2_gap7_start_reports_unsaved_marker_when_state_locked`) | `usage-meter.py:824-830` |
-
-
-## Revisión de dos lentes — intento 3: Fase 3 (T-40) — verificación del fix2 (T-40)
-
-**Veredicto del plugin**: gaps (T-40)
-Lentes A y B (Claude Opus 5.5, esfuerzo alto) sobre `5e397d0..b212ae6` (fix2 de Codex gpt-6.2-sol). Los 7 gaps del intento 2 ✓ con test dedicado y rojo real (`e43426c`, `9d19226`); `reconcile` sin cambios sobre todos los ledgers; el medidor no se bloquea en 10 escenarios; ruta caliente +0,36-0,53 s sobre la base según la carga (objetivo +0,5 s); T-40 pasó a `en-revision` por `usage-meter close` (runtime codex).
-
-| # | Grado | Gap | Tarea | Corrección | Evidencia |
-|---|---|---|---|---|---|
-| 1 | Important | La celda Tarea cuenta los IDs uno a uno: un rango (`T-01..T-03`, `T-01 a T-03`) solo cubre sus extremos y la tarea intermedia falla abierto (`verdict limpio` la cierra con un Critical pendiente; brief y jira-flow ven 0). La notación existe en ledgers reales. Misma clase que el gap 2 del intento 2 | T-40 | corregido (fix3, 0fc4c21; test `test_fix3_gap1_task_cell_whitelist`) | `ledger-lint.py:321-324`; `task-brief.py:795-798`; `jira-flow.py:436-439`; `docs/roadmap/2026-10-15-panel-redesign/tasks.md:1955`; `scratchpad/l3/scripts/failopen.py` |
-| 2 | Minor | Mutante vivo del panel: con la firma igual, devolver `null` en vez de `host` borra las transiciones en el siguiente sondeo con actividad nueva | T-40 | corregido (fix3, e3476b2; test `T-40 fix3 gap 2: new activity keeps the unchanged transitions panel`) | `skills/plugin-panel/assets/console-context.js:167,217`; `tests/console-live.test.mjs:120-144` |
-| 3 | Minor | Margen del objetivo de la ruta caliente: con la máquina cargada `start` con cambio llega a +0,53 s | T-40 | deuda aceptada por el usuario (2026-11-24: «Lista blanca + medir Codex») | `tasks.md` (fix2 de T-40); `scratchpad/la40c` |
-| 4 | Minor | El fix2 se apunta «0.01h (medido)» con el marcador vacío: `usage-meter` no ve las transcripciones de Codex (busca las de Claude), así que la medida de un implementador Codex no existe | T-40 | corregido (fix3, 0fc4c21 y a19989f; test `test_fix3_gap4_codex_measures_window_and_project_without_duplicate_tokens` y fixture OpenCode) | `tasks.md` (fix2 de T-40); marcador `plugin-audit-2/T-40-fix2` con `offsets: {}` |
-
-Decisión del usuario (2026-11-24), textual: «Lista blanca + medir Codex». Ciclo nuevo de revisión (intento 4) con fix3: la celda Tarea solo admite formas reconocidas (falla cerrado por construcción), test del mutante del panel y medición de las sesiones de Codex y OpenCode en `usage-meter`; el margen de la ruta caliente queda como deuda aceptada.
-
 ## Revisión de dos lentes — intento 4: Fase 3 (T-40) — verificación del fix3 — ciclo 2, abierto con OK del usuario: «Lista blanca + medir Codex» (T-40)
 
 **Veredicto del plugin**: gaps (T-40)
@@ -1435,46 +1316,6 @@ Lentes A y B (Claude Opus 5.5, esfuerzo alto) sobre `ebd9ad6..5eace02` (fix3 de 
 | 4 | Minor | Un rango en la cabecera solo cuenta como mención si la sección tiene alguna fila global (depende de una fila ajena) | T-40 | corregido (fix4, `4f9b3ea`; test `test_fix4_gap4_header_range_is_a_mention_without_rows`) | `ledger-lint.py:396-397,418-422` |
 | 5 | Minor | `_read_codex` recorre todas las sesiones de Codex en cada `close` (crece con el histórico); `CUSTOM_AGENTS_RUNTIME=codex` global hace que un close de Claude mida sesiones de Codex | T-40 | corregido (fix4, `4f9b3ea`; test `test_fix4_gap5_codex_limits_days_and_skips_stale_files`) | `usage-meter.py:626-628` y lectura de `sessions/AAAA/MM/DD/*.jsonl` |
 | 6 | Important | Rojo previo al fix3 que deja la CI en rojo: `tests/test_f4fix2_misc.py::test_f4fix2_5_*` (2 tests) — `docs/TOKEN-EFFICIENCY.md:156` dice 16.878 de `skills/adversarial-review/SKILL.md` y mide 17.691 (T-14 fix3 `4369db5` y T-40 `0599538`/`c13853e` cambiaron los ficheros sin actualizar las cifras) | T-40, T-14 | corregido (fix4, `4f9b3ea`; test `test_f4fix2_5_*`) | `docs/TOKEN-EFFICIENCY.md:156` (+ espejo EN) |
-
-
-## Revisión de dos lentes — intento 5: Fase 3 (T-40) — verificación del fix4 (T-40)
-
-**Veredicto del plugin**: gaps (T-40)
-Lentes A y B (Claude Opus 5.5, esfuerzo alto) sobre `78616e2..ecea3be` (fix4 de Codex gpt-6.2-sol). Gaps 1, 2, 4 y 6 del intento 4 ✓ con test dedicado y rojo real (`ca555fa`: 13 failed); 5b rebatido con razón (`_runtime` idéntico antes y después); `test_f4fix2_5_*` en verde sin tocar el test; fix4 medido (19.245.107 tokens, 0,4 h).
-
-| # | Grado | Gap | Tarea | Corrección | Evidencia |
-|---|---|---|---|---|---|
-| 1 | Important | Regresión del fix4: la ventana de días de Codex pierde sesiones creadas antes de `start` − 1 día (sesión reanudada o abierta varios días) y marca `cobertura: completa`; `CODEX_THREAD_ID` solo salta el filtro de `mtime`, no el de días; el ayudante del test cambió su `mtime` por defecto y ya no cubre el caso Windows | T-40 | corregido (fix5, c37dfd1; test test_fix5_gap1_resumed_sessions) | `usage-meter.py:706-729`; `test_usage_meter_runtimes.py:51`; `scratchpad/l5/um/test_codex_window.py`, `scratchpad/l5a/test_l5a_old_session.py` |
-| 2 | Important | Una sección cuya cabecera declara gaps («5 Important») sin filas legibles cuenta como sin gaps: con el rango de cabecera del fix4, `evidencia_aprobado` (jira-flow) y el brief dan por buenas las tareas intermedias (47 tareas en ledgers reales) | T-40 | corregido (fix5, c37dfd1; test test_fix5_gap2_unread_counts) | `docs/roadmap/2026-09-09-plugin-refactor/tasks.md:3111`; `scratchpad/l5/v4.out` |
-| 3 | Minor | Los rangos dentro de una celda no reconocida no se expanden (`T-01–T-03–T-05`, `T-01..T-600`, `T-05..T-01`): la tarea intermedia que no nombra la cabecera queda libre | T-40 | corregido (fix5, c37dfd1; test test_fix5_gap3_embedded_ranges) | `ledger-lint.py:373-401` (y copias); `test_ledger_write_transitions.py:394,435` |
-| 4 | Minor | Alias ambiguo (`T-001` con `T-1` y `T-01` en el catálogo) no bloquea a ninguna y no avisa | T-40 | corregido (fix5, c37dfd1; test test_fix5_gap4_ambiguous_alias) | `ledger-lint.py:423-433` (y copias) |
-
-
-## Revisión de dos lentes — intento 6: Fase 3 (T-40) — verificación del fix5 (T-40)
-
-**Veredicto del plugin**: gaps (T-40)
-Lentes A y B (Claude Opus 5.5, esfuerzo alto) sobre `25d5b80..566761e` (fix5 de gpt-6.2-astra). Gaps 1 (sesiones de Codex reanudadas, índice incremental, sin doble conteo), 3 (rangos en celdas no reconocidas) y 4 (alias ambiguo) ✓ con test dedicado y rojo real (`935c0a8`: 16 fallos). El gap 2 bloquea de más y de menos.
-
-| # | Grado | Gap | Tarea | Corrección | Evidencia |
-|---|---|---|---|---|---|
-| 1 | Important | El recuento compara cada gravedad por separado: una fila que la tabla sube a Critical o baja a Minor cuenta como «sin explicar» y bloquea tareas con evidencia completa (windows-console T-04; plugin-audit-remediation T-17..T-21) | T-40 | corregido (fix6, dc240d7; test test_fix6_gap1_real_reclassified_counts) | `ledger-lint.py:366-371` (y copias); `2026-09-03-windows-console/tasks.md:368`; `2026-11-09-plugin-audit-remediation/tasks.md:915`; `scratchpad/l6a/` |
-| 2 | Important | La regla del gap 2 sigue fallando abierto con recuentos en palabras, plural o «etiqueta: número» (`dos Important`, `2 Importantes`, `Important: 2`; caso real `2026-11-04-token-efficiency/tasks.md:123`), y la fila sintética «pendiente» no se puede cerrar nunca: una revisión posterior limpia no la libera (T-06, T-07, T-23 pierden `aprobado` por el intento 18 archivado, aunque el intento 21 cerró la Fase 1) | T-40 | corregido (fix6, dc240d7; test test_fix6_gap2_count_wording_preserves_rows) | `ledger-lint.py:366,373-378` (y copias); `tasks.md:1229`; `testing/intento18-traza.md:25-29`; `scratchpad/b6/g2.py` |
-| 3 | Minor | El índice de Codex (`.claude/usage-state.json.<k>.codex-index.json`) no está ignorado por git ni se borra: inventario de todas las sesiones de Codex de la máquina (UUID, fecha, tamaño); uno por `start` | T-40 | corregido (fix6, dc240d7; test test_fix6_gap3_prunes_expired_closed_index_and_preserves_repeat) | `usage-meter.py:737-740,1098-1101`; `.gitignore:56` |
-| 4 | Minor | Los avisos nuevos de este ledger (línea 1229 y T-07) vienen del intento 18 archivado a mano (cabecera con «4 Important» y cuerpo en `testing/`): problema de registro, no de código; no constan en la Verificación del fix5 | T-40 | corregido (fix6, dc240d7; test test_fix6_gap4_attempt18_archived_task_results) | `tasks.md:1229` |
-
-Decisión del usuario (2026-11-24), textual: «Cerrar T-40 y tarea nueva». Revisión externa de gpt-6.2-astra (`scratchpad/t40-astra-review.md`): confirma los 4 gaps y propone retirar la comparación de recuentos como puerta y registrar las revisiones de forma estructurada (3-5 jornadas). Ciclo nuevo (intento 7) con un fix6 corto: la comparación de recuentos queda como aviso de `ledger-lint` sin fila sintética ni bloqueo, el índice de Codex sale del repo y entra en `.gitignore`, y se arregla el registro del intento 18. El rediseño va a la tarea T-14 de `docs/roadmap/2026-11-24-auditoria-astra/`.
-
-## Revisión de dos lentes — intento 7: Fase 3 (T-40) — verificación del fix6 — ciclo 3, abierto con OK del usuario: «Cerrar T‑40 y tarea nueva» (T-40)
-
-**Veredicto del plugin**: gaps (T-40)
-Lentes A y B (Claude Opus 5.5, esfuerzo medio) sobre `89b4d6b..cbf88e6` (fix6 de Codex gpt-6.2-sol, esfuerzo medio). Los cuatro gaps del intento 6 ✓ con test dedicado y rojo real (`e93afb3`: 13 failed); `views4` antes del fix5 frente a HEAD: 0 diferencias; gaps 1, 3 y 4 del fix5 siguen en verde; tres copias idénticas; índice de Codex en `~/.cache/custom-agents/` por proyecto.
-
-| # | Grado | Gap | Tarea | Corrección | Evidencia |
-|---|---|---|---|---|---|
-| 1 | Important | Regresión de T-40 fix1 (`c13853e`): cambió un diagrama de una fuente del manual sin regenerar `output/pdf/`; `check-handbook.py` sale con exit 1 y falla `test_npm_payload.py::test_npm_contains_pdf_editions_linked_from_its_readme` (CI y release en rojo; regla de T-38) | T-40 | corregido (fix7, 92bd141; test test_npm_contains_pdf_editions_linked_from_its_readme) | `docs/guides/core-workflows.md:199,207`; `output/pdf/custom-agents-manual-operativo.manifest.json:11` |
-| 2 | Important | Sin home resoluble, `Path.home()` lanza `RuntimeError` no capturado: `usage-meter start/close --runtime codex` cae con exit 1 y no guarda el marcador (regresión; contra «degradación, no bloqueo») | T-40 | corregido (fix7, 92bd141; test test_fix7_gap2_no_home_keeps_start_and_close_markers) | `usage-meter.py:751` (llamado en `:909`, `:1151`, `:1262`); `scratchpad/r7/nohome2` |
-| 3 | Minor | «Cubierto por una revisión posterior» acepta una sección posterior con filas pero sin veredicto: apaga el aviso de un Critical ilegible | T-40 | corregido (fix7, 92bd141; test test_fix7_gap3_minor_rows_without_verdict_cannot_hide_warning) | `ledger-lint.py:671`; `scratchpad/r7/hide.py` |
-| 4 | Minor | Poda y guardado del índice en el mismo `try` (una carrera con `unlink` pierde el índice); índices abiertos de ventanas abandonadas nunca se podan | T-40 | corregido (fix7, 92bd141; test test_fix7_gap4_prune_race_does_not_discard_new_index, test_fix7_gap4_prunes_abandoned_open_index) | `usage-meter.py:766-769,1156-1158` |
 
 
 ## Revisión de dos lentes — intento 8: Fase 3 (T-40) — verificación del fix7 (T-40)
