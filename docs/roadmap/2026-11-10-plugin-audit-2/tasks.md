@@ -567,22 +567,30 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: `dev-cycle.md` (29,5 KB) carga la Fase 6 y la tabla de transiciones desde el primer turno (≈10 KB). Pasan a `references/phase6-close.md` con «léelo solo al llegar a la Fase 6». El paso Kwipu/Graphiti de `/setup` (2.10) NO se mueve: T-08 lo borra. Mejora el margen de la vía rápida.
 - **Changelog**: dev-cycle carga el cierre solo cuando llega a esa fase.
-- **Estado**: borrador
+- **Estado**: en-revision
 - **Tiempo humano**: est. 2h · real —
-- **Tiempo IA (ejec.)**: est. 0.5h · real —
+- **Tiempo IA (ejec.)**: est. 0.5h · real 0.16h (medido, `plugin-audit-2/T-16`; la preparación del RED y la espera de `node --test` cayeron en las ventanas de T-15 y T-17)
 - **Dependencias**: T-15
-- **Archivos**: `commands/dev-cycle.md`, `agent-kits/dev-cycle/references/phase6-close.md` (nuevo), `tests/test_dev_cycle_split.py`, `docs/{,en/}FLOWS.md`, `docs/agents/ROLES.md`, `interop/**` (regenerado)
+- **Archivos**: `commands/dev-cycle.md`, `agent-kits/dev-cycle/references/phase6-close.md` (nuevo), `tests/test_dev_cycle_split.py`, `docs/{,en/}FLOWS.md`, `docs/agents/ROLES.md`, `interop/**` (regenerado), `tests/fixtures/dev-cycle-modular-replacements.json` (nota: 6 filas cuyo párrafo destino se mudó literal a la referencia), `tests/installer.test.mjs` y `tests/test_review_cycle_owner.py` (nota: leen la Fase 6 en su sitio nuevo), `docs/{,en/}TOKEN-EFFICIENCY.md` (nota: `test_f4fix2_misc` fija el ahorro de la vía rápida publicado)
 - **Runtimes**: `dev-cycle` es command-skill en Codex y comando en OpenCode; `phase6-close.md` viaja en `agent-kits/` (`install/providers.mjs:30,34`) y se lee con la 
 - **Verificación**:
   - `context-footprint.py --project . --file commands/dev-cycle.md` antes y después → ≈10 KB menos (en `testing/tokens.md`)
   - `python scripts/lint_plugin.py --diet-check` → 0 párrafos perdidos
   - puertas de runtimes (cabecera) → verde
 
+- RED: tests/test_dev_cycle_split.py::test_phase6_closing_and_state_table_load_only_at_closing (y 4 más del mismo fichero) falló con FileNotFoundError: `phase6-close.md` no existía (commit `3e0c1f3`) · 2026-11-26
+- **Evidencia** (GREEN `e70dc52`; caracteres LF, estimación caracteres/4, no consumo facturado):
+  - `context-footprint.py --file commands/dev-cycle.md`: 28.499 → **22.662** caracteres (−5.837; LF bytes 28.987 → 23.024); `phase6-close.md` 7.088, solo en la Fase 6 o en la primera puerta de estado de un artefacto. Vía rápida 6.385 → **7.844** (≥ 6.000).
+  - El núcleo conserva un resumen de transiciones fiel a T-40 (`usage-meter.py start/close`, `ledger-write.py review/verdict/state`); la tabla completa, el ritual y `retro-gate.py` van literales a la referencia. Paridad de párrafos: `test_no_original_paragraph_is_lost` y `test_common_review_qa_and_commit_gates_stay_in_the_core` (el ritual de cierre debe estar en `phase6-close.md`) en verde.
+  - Codex/OpenCode: `test_native_adapters_keep_core_and_references_deferred` exige `phase6-close.md` en ambos comandos exportados; `installer.test.mjs` exige que el bundle instalado la traiga.
+  - **k3**: el criterio «≤ 20 KB» no se alcanza: la Fase 6 y la tabla medían 6.894 caracteres, no ≈10 KB como estimaba el plan; mover más (Ledger grande, tiering) sacaría reglas que se usan antes del cierre. Queda abierto para la revisión; T-17 quitará la receta duplicada del núcleo.
+- **Verificación ejecutada** (2026-11-26): footprint arriba; diet-check n/a (no toca skills: la paridad de párrafos de `dev-cycle` la cubre `test_dev_cycle_split.py`, 12 passed); `export-interop.py --check` → `88 ficheros al día`; `lint_plugin.py` → `0 errores · 16 avisos`; `evals/check.py` → `0 errores`; `check-handbook.py` → exit 0; pytest de runtimes, `test_dev_cycle_split`, `test_review_*`, `test_phase3_review_contract`, `test_ledger_write_transitions`, `test_f4fix2_misc`, `test_source_snapshot`, `test_context_footprint` y los que leen `dev-cycle.md` → `449 passed, 1 skipped` y `778 passed, 15 skipped` (antes de ajustar 3); `node --test` de la cabecera (con `installer.test.mjs` exigiendo `phase6-close.md`) → `263 tests: 257 pass, 0 fail, 6 skipped`.
+
 **Criterios de aceptación**
-- [ ] El ahorro de la vía rápida sigue ≥ 6.000 (idealmente mayor).
-- [ ] Los pasos movidos dicen cuándo leerlos; `retro-gate.py` y la tabla de transiciones se leen en el cierre.
-- [ ] Ninguna puerta del cierre se pierde (`--diet-check`).
-- [ ] Los comandos exportados a Codex/OpenCode resuelven las referencias nuevas.
+- [x] El ahorro de la vía rápida sigue ≥ 6.000 (idealmente mayor).
+- [x] Los pasos movidos dicen cuándo leerlos; `retro-gate.py` y la tabla de transiciones se leen en el cierre.
+- [x] Ninguna puerta del cierre se pierde (`--diet-check`).
+- [x] Los comandos exportados a Codex/OpenCode resuelven las referencias nuevas.
 - [ ] Medido: `dev-cycle.md` baja de 29,5 KB a ≤ 20 KB y el ahorro de la vía rápida sigue ≥ 6.000.
 
 ### T-17 — Una receta del kit por pieza (2.6)
