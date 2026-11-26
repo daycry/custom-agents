@@ -539,9 +539,9 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: Párrafos que repiten la description antigua dentro del cuerpo (25 ocurrencias de «Alcance y activación» en `agents/`, `commands/` y `skills/`; el análisis contó 21: se clasifica pieza a pieza). Se borran los que duplican la description y se conserva lo que aporta un guardarraíl. Ahorro estimado ≈15 KB.
 - **Changelog**: Los cuerpos de agentes, comandos y skills ya no repiten su propia description.
-- **Estado**: en-progreso
+- **Estado**: en-revision
 - **Tiempo humano**: est. 2h · real —
-- **Tiempo IA (ejec.)**: est. 0.6h · real —
+- **Tiempo IA (ejec.)**: est. 0.6h · real 0.54h (medido, `plugin-audit-2/T-15`; incluye la espera de `node --test` y la preparación del RED de T-16)
 - **Dependencias**: T-12, T-13, T-11
 - **Archivos**: `agents/*.md`, `commands/*.md`, `skills/*/SKILL.md` (solo los párrafos «Alcance y activación»), `agent-kits/shared/test_source_snapshot.py` (líneas base de párrafos, con motivo), `docs/{,en/}TOKEN-EFFICIENCY.md`, `interop/**` (regenerado), `tests/test_skill_size.py` (nota: test RED/GREEN de la lista de conservados), `tests/fixtures/opencode-v2-agent-contract.json` y `tests/fixtures/dev-cycle-modular-replacements.json` (nota: son las líneas base reales de esos párrafos; `test_source_snapshot.py` no fija ninguno y no cambia)
 - **Runtimes**: Los cuerpos se copian a los agentes generados de Codex y OpenCode: se regenera y los evals de description siguen casando.
@@ -555,7 +555,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
   - `grep -rn "Alcance y activaci" agents commands skills --include=*.md` → solo los párrafos que aportan una regla que la description no tiene
   - `python agent-kits/shared/context-footprint.py --project .` antes y después → ≈15 KB menos, en `testing/tokens.md`
   - puertas de runtimes (cabecera) → verde
-- **Verificación ejecutada** (2026-11-26): `grep` → 5 piezas (evaluator, reviewer, doctor, knowledge-services, project-extensions) + `static-panel.md`; footprint −14.397; `export-interop.py --check` → `88 ficheros al día`; `evals/check.py` → `0 errores`; `lint_plugin.py` → `0 errores · 16 avisos`; pytest de runtimes + `test_source_snapshot`, `test_context_footprint`, `test_f4fix2_misc`, `test_dev_cycle_split`, `test_skill_size`, `test_ledger_write_transitions`, `test_phase3_review_contract` → verde; `check-handbook.py` → exit 0.
+- **Verificación ejecutada** (2026-11-26): `grep` → 5 piezas (evaluator, reviewer, doctor, knowledge-services, project-extensions) + `static-panel.md`; footprint −14.397; `export-interop.py --check` → `88 ficheros al día`; `evals/check.py` → `0 errores`; `lint_plugin.py` → `0 errores · 16 avisos`; pytest de runtimes + `test_source_snapshot`, `test_context_footprint`, `test_f4fix2_misc`, `test_dev_cycle_split`, `test_skill_size`, `test_ledger_write_transitions`, `test_phase3_review_contract` → verde; `check-handbook.py` → exit 0; `node --test` de la cabecera → `263 tests: 257 pass, 0 fail, 6 skipped`; `scope-check.py` exit 1 solo por 5 ficheros y 7 criterios ajenos a T-15 (preexistentes).
 
 **Criterios de aceptación**
 - [x] Ningún párrafo borrado contiene un criterio ausente de la description (revisión pieza a pieza).
