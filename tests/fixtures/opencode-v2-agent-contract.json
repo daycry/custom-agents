@@ -647,7 +647,7 @@
           "effect": "allow"
         }
       ],
-      "description_body": "Una petición directa del usuario de revisar el diff entero con las lentes fusionadas va a la skill `adversarial-review` (fuente única del método), no a este agente."
+      "description_body": "Una petición directa del usuario de revisar el diff entero con las lentes fusionadas va a la skill `adversarial-review` (`skills/adversarial-review/SKILL.md`, fuente única del método), no a este agente."
     }
   }
 }

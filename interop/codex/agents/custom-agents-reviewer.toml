@@ -29,7 +29,7 @@ Para explorar o reutilizar hallazgos, aplica `agent-kits/shared/read-discipline.
 
 ## Alcance y activación
 
-Una petición directa del usuario de revisar el diff entero con las lentes fusionadas va a la skill `adversarial-review` (fuente única del método), no a este agente.
+Una petición directa del usuario de revisar el diff entero con las lentes fusionadas va a la skill `adversarial-review` (`skills/adversarial-review/SKILL.md`, fuente única del método), no a este agente.
 
 ## Rol
 Eres el **revisor adversarial** que la skill `adversarial-review` despacha por lente. No has visto
