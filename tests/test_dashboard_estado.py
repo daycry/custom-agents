@@ -112,3 +112,12 @@ def test_t42_fix1_gap14_contar_tareas_usa_el_parser_canonico_del_ledger():
     # fix2 (gap 9): la profundidad ligera del MISMO parser (`ledger-lint.estados_tareas`), no uno propio.
     assert bd._ESTADOS_TAREAS is not None and bd._ESTADOS_TAREAS.__name__ == "estados_tareas"
     assert bd._ESTADOS_TAREAS.__globals__["__file__"].replace("\\", "/").endswith("agent-kits/shared/ledger-lint.py")
+
+
+def test_t43_ledger_sin_tareas_txx_es_no_derivable_nunca_via_rapida_ni_planificada(tmp_path):
+    ledger_c01 = ("---\nestado: en-progreso\n---\n\n# Checklist — demo\n\n- [x] C-01 primera\n- [x] C-02 segunda\n")
+    rec = _iniciativa(tmp_path, tasks=ledger_c01)
+    assert rec["fase"] == "no derivable", rec["fase"]
+    assert any("no derivable" in w for w in bd.warnings_for([rec]))
+    rec = _iniciativa(tmp_path, nombre="2026-01-02-otra", spec=SPEC, evaluation=EVAL, plan=PLAN, tasks=ledger_c01)
+    assert rec["fase"] == "no derivable", rec["fase"]

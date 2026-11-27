@@ -1054,3 +1054,111 @@ def test_t42_fix3_gap8_una_tabla_fecha_slug_anterior_no_secuestra_el_indice(tmp_
     solo_cabecera = "| Fecha | Slug | Estado | Coste estimado | Spec | Evaluación | Plan |\n|---|---|---|---|---|---|---|\n"
     nuevo, cambios, problemas = mod.editar_indice(solo_cabecera, [plan])
     assert "2026-01-01-a/spec.md" in nuevo and not problemas, (nuevo, problemas)
+
+
+# ---------------------------------------------------------------- T-43: roadmaps de otros proyectos (sesión kairos)
+
+def _proyecto_slug(tmp_path, filas, filas_cal=""):
+    roadmap = tmp_path / "docs" / "roadmap"
+    roadmap.mkdir(parents=True)
+    (roadmap / "README.md").write_text(INDICE_SLUG.format(filas=filas), encoding="utf-8")
+    (roadmap / "CALIBRATION.md").write_text(CALIBRATION.format(filas=filas_cal), encoding="utf-8")
+    return roadmap
+
+
+def _fila_slug(estado, nombre="2026-01-01-demo"):
+    return (f"| {nombre[:10]} | {nombre[11:]} | {estado} | 1.200 € | [spec]({nombre}/spec.md) | "
+            f"[evaluación]({nombre}/evaluation.md) | [plan]({nombre}/improvement-plan.md) |")
+
+
+def _cerrada(roadmap, nombre="2026-01-01-demo"):
+    return iniciativa(roadmap, nombre, spec=artefacto("spec", "implementada"),
+                      evaluation=artefacto("evaluacion", "completado"), plan=artefacto("plan", "completado"),
+                      tasks=ledger("completado", ("completado", "completado")), retro=RETRO)
+
+
+# Formato literal del índice de knowledge-graphs (celda `Estado` descriptiva).
+ESTADO_KG = ("spec `implementada` · evaluación `completado` · plan `completado` "
+             "(38/38 tareas, 8 fases; retro hecha)")
+
+
+def test_t43_celda_estado_descriptiva_que_concuerda_no_es_desfase_ni_se_reescribe(tmp_path):
+    roadmap = _proyecto_slug(tmp_path, _fila_slug(ESTADO_KG), filas_cal=CAL_DEMO)
+    _cerrada(roadmap)
+    code, out = run_json(roadmap, "--check")
+    assert code == 0 and not out["desfases"], out
+    antes = snapshot(tmp_path)
+    assert run(roadmap)[0] == 0 and snapshot(tmp_path) == antes
+
+
+def test_t43_celda_estado_descriptiva_que_discrepa_solo_cambia_sus_tokens(tmp_path):
+    """Discrepa el plan: la escritura cambia SOLO ese token y conserva el texto del autor; luego, idempotente."""
+    celda = "spec `aprobada` · evaluación `completado` · plan `borrador` (1/2 tareas; nota del autor)"
+    roadmap = _proyecto_slug(tmp_path, _fila_slug(celda))
+    iniciativa(roadmap, "2026-01-01-demo", spec=artefacto("spec", "aprobada"),
+               evaluation=artefacto("evaluacion", "completado"), plan=artefacto("plan", "en-progreso"),
+               tasks=ledger("en-progreso", ("completado", "en-progreso")))
+    code, out = run_json(roadmap, "--check")
+    assert code == 1 and [d["tipo"] for d in out["desfases"]] == ["indice"], out
+    assert run(roadmap)[0] == 0
+    texto = (roadmap / "README.md").read_text(encoding="utf-8")
+    esperada = "spec `aprobada` · evaluación `completado` · plan `en-progreso` (1/2 tareas; nota del autor)"
+    assert _fila_slug(esperada) in texto.splitlines(), texto
+    assert run_json(roadmap, "--check")[0] == 0
+
+
+def test_t43_celda_descriptiva_sin_estados_antepone_la_palabra_y_no_borra_texto(tmp_path):
+    roadmap = _proyecto_slug(tmp_path, _fila_slug("pendiente de revisar con el equipo"))
+    iniciativa(roadmap, "2026-01-01-demo", spec=artefacto("spec", "aprobada"),
+               plan=artefacto("plan", "en-progreso"), tasks=ledger("en-progreso", ("completado", "en-progreso")))
+    assert run(roadmap)[0] == 0
+    texto = (roadmap / "README.md").read_text(encoding="utf-8")
+    assert _fila_slug("en curso · pendiente de revisar con el equipo") in texto.splitlines(), texto
+    antes = snapshot(tmp_path)
+    assert run_json(roadmap, "--check")[0] == 0 and run(roadmap)[0] == 0 and snapshot(tmp_path) == antes
+
+
+LEDGER_C01 = ("---\ntasks: demo\nestado: en-progreso\n---\n\n# Checklist — demo\n\n## Checklist\n\n"
+              "- [x] C-01 primera comprobación\n- [x] C-02 segunda comprobación\n")
+
+
+def test_t43_ledger_sin_tareas_txx_es_no_derivable_sin_escritura(tmp_path):
+    roadmap = _proyecto_slug(tmp_path, _fila_slug("spec `aprobada` · checklist heredada (2/2)"))
+    iniciativa(roadmap, "2026-01-01-demo", spec=artefacto("spec", "aprobada"),
+               evaluation=artefacto("evaluacion", "completado"), plan=artefacto("plan", "borrador"),
+               tasks=LEDGER_C01)
+    code, out = run_json(roadmap, "--check")
+    assert code == 0 and not out["desfases"], out
+    assert any(a["tipo"] == "no-derivable" and a["iniciativa"] == "2026-01-01-demo" for a in out["avisos"]), out
+    antes = snapshot(tmp_path)
+    assert run(roadmap)[0] == 0 and snapshot(tmp_path) == antes
+
+
+def test_t43_ledger_no_verificable_no_escribe_ni_propone_nada_indice_incluido(tmp_path):
+    """Ledger > 256 KiB con la cabecera atrasada y la retro hecha (iniciativa cerrada de verdad): solo el aviso
+    `no-verificable`; ni fila del índice («en curso» sería un retroceso), ni ledger, plan o spec."""
+    roadmap = _proyecto_slug(tmp_path, _fila_slug("spec `implementada` · plan `completado` (74/74; PR fusionado)"),
+                             filas_cal=CAL_DEMO)
+    relleno = "\n".join(f"<!-- relleno {n} {'x' * 200} -->" for n in range(1400))
+    c = iniciativa(roadmap, "2026-01-01-demo", retro=RETRO, spec=artefacto("spec", "implementada"),
+                   plan=artefacto("plan", "completado"),
+                   tasks=ledger("en-progreso", ("completado", "completado")) + relleno + "\n")
+    iniciativa(roadmap, "2026-01-02-otra", spec=artefacto("spec", "borrador"),
+               tasks=ledger("en-progreso", ("completado",)) + relleno + "\n")
+    assert (c / "tasks.md").stat().st_size > 256 * 1024
+    code, out = run_json(roadmap, "--check")
+    assert code == 0 and not out["desfases"], out
+    tipos = {(a["iniciativa"], a["tipo"]) for a in out["avisos"]}
+    assert {("2026-01-01-demo", "no-verificable"), ("2026-01-02-otra", "no-verificable")} <= tipos, out
+    antes = snapshot(tmp_path)
+    assert run(roadmap)[0] == 0 and snapshot(tmp_path) == antes
+    assert "2026-01-02-otra" not in (roadmap / "README.md").read_text(encoding="utf-8")
+
+
+def test_t43_la_comprobacion_de_sesion_respeta_la_celda_descriptiva(tmp_path):
+    """El bloque de sesión (caché por firma) llega a la misma conclusión: sin desfase del índice."""
+    roadmap = _proyecto_slug(tmp_path, _fila_slug(ESTADO_KG), filas_cal=CAL_DEMO)
+    _cerrada(roadmap)
+    informe = _mod().comprobar(tmp_path)
+    assert not informe["desfases"], informe
+    assert not _mod().comprobar(tmp_path)["desfases"]          # segunda vez, desde la caché
