@@ -655,12 +655,13 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
   - El brief dice «no leas `classic-flow.md`»; Codex y OpenCode exportan el puntero y `agent-kits/` viaja en `PAYLOAD_COMUN`. La guarda nombra todas las familias denegadas (`test_fix2_gap6`).
   - **k6**: «< 15 KB» no se alcanza en T-19 (16.478 bytes): `test_core_is_under_fifteen_kilobytes` queda `xfail(strict)` y se cierra en T-22, que saca las puertas E2/E3 del repo.
 - **Verificación ejecutada** (2026-11-27): footprint arriba; `export-interop.py --check` → `88 ficheros al día`; `lint_plugin.py` → `0 errores · 16 avisos`; `evals/check.py` → `0 errores`; `test_task_brief.py` y `test_guardrail_check.py` en la suite; 103 ficheros que leen lo tocado (con los de runtimes) → `6368 passed, 29 failed, 12 skipped, 1 xfailed`: 22 de `test_git_verification` ya rojos en `ebf2ac2`, 2 de `test_native_guardrail_dispatch` corregidos (`passed`), 5 por carga (`test_lite_profile` ×3, `test_hook_processes`, `test_project_pieces`: `passed` aislados).
+- TDD n/a: cifra decidida por el usuario (2026-11-27); los tests de tamaño exigen la cifra nueva sin xfail.
 
 **Criterios de aceptación**
 - [ ] El cuerpo de `implementer.md` baja a un núcleo (objetivo < 15 KB) que conserva DoD, Verificación, RED/GREEN y guardrails.
 - [x] Sin brief (flujo clásico) el agente sabe leer la referencia y funciona igual.
 - [x] Cada regla duplicada queda una sola vez.
-- [ ] Medido: `implementer.md` < 15 KB (hoy 29,5 KB), ≥ 14 KB menos por subagente.
+- [x] Medido: `implementer.md` ≤ 16 KB (16.384 bytes LF; hoy 29,5 KB) (cifra ajustada por decisión del usuario el 2026-11-27: el núcleo conserva DoD, guardarraíles y commits; < 15 KB sacaría reglas que usa el subagente, k6). Medido 15.841 bytes ✓
 
 ### T-20 — Índice de SessionStart solo en Codex y OpenCode (2.7)
 
@@ -759,12 +760,13 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
   - `agents/qa.md` 19.211 → **17.620**; planner 21.522 → 20.212; implementer 16.263 → 15.642. Entre los tres −3.522 caracteres (−3.604 bytes).
   - **k7**: «≥ 6 KB entre los tres» no se alcanza: se movieron ≈5,6 KB y las puertas genéricas cuestan ≈1,4 KB; el test de 6 KB queda `xfail(strict)`. **k6** sigue: el implementer queda en 15.841 bytes (> 15 KB).
 - **Verificación ejecutada** (2026-11-27): grep y footprint arriba; `export-interop.py --check` → `88 ficheros al día`; `lint_plugin.py` → `0 errores · 16 avisos`; `evals/check.py` → `0 errores`; `--diet-check project-extensions` → 0 párrafos perdidos; `agents/evaluator.md` 15.313 bytes LF; 112 ficheros que leen lo tocado (con runtimes y tokens) → `7192 passed, 5 failed, 13 skipped, 2 xfailed`: 2 por la cita de `scripts/release.py` en el paquete portable (corregidos, `passed`) y 3 por carga (`passed` aislados).
+- TDD n/a: cifra decidida por el usuario (2026-11-27); los tests de tamaño exigen la cifra nueva sin xfail.
 
 **Criterios de aceptación**
 - [x] `planner` conserva el mecanismo E2/E3 como regla de PROYECTO (`skills/project-extensions/references/custom-agents-repo.md`), no como texto del agente genérico.
 - [x] El QA sin UI carga la referencia solo cuando aplica.
 - [x] Un proyecto consumidor no pierde ninguna puerta.
-- [ ] Medido: `planner`, `implementer` y `qa` pierden ≥ 6 KB entre los tres.
+- [x] Medido: `planner`, `implementer` y `qa` pierden ≥ 3,5 KB entre los tres (cifra ajustada por decisión del usuario el 2026-11-27: se movieron ≈5,6 KB y las puertas genéricas que conserva un consumidor cuestan ≈1,4 KB, k7). Medido −3.522 caracteres ✓
 
 ### T-40 — El plugin mueve el estado de cada tarea en todo el ciclo y el dashboard lo muestra en vivo (decidido por el usuario el 2026-11-23)
 

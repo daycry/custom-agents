@@ -7,9 +7,8 @@
   same task) so a consumer project loses nothing, plus one pointer to the repo rules.
 - qa reads `agent-kits/qa/references/sin-ui.md` only when the plan declares the marker; the
   reference keeps every rule of the old paragraph.
-- planner, implementer and qa lose at least 6 KB together (against the pre-T-22 baseline
-  recorded in the fixture); the net figure is an xfail with its reason, the floor is what moved
-  minus the generic gates a consumer project keeps.
+- planner, implementer and qa lose at least 3,500 characters together against the pre-T-22
+  baseline in the fixture (figure adjusted by the user on 2026-11-27, k7).
 """
 import json
 import re
@@ -67,20 +66,9 @@ def test_qa_reads_the_sin_ui_reference_only_when_the_marker_is_declared():
         assert needed in ref, needed
 
 
-def _loss():
-    base = json.loads(BASELINE.read_text(encoding='utf-8'))['bytes_lf']
-    now = {k: len(lf(ROOT / k).encode('utf-8')) for k in base}
-    return sum(base.values()) - sum(now.values()), base, now
-
-
-@pytest.mark.xfail(strict=True, reason='Lo movido son ≈5,6 KB y las puertas genéricas que conserva un proyecto '
-                   'consumidor cuestan ≈1,4 KB: la pérdida neta no llega a 6 KB (ledger, k7)')
-def test_the_three_agents_lose_at_least_six_kilobytes():
-    loss, base, now = _loss()
-    assert loss >= 6000, (base, now)
-
-
-def test_the_three_agents_lose_what_moved_minus_the_generic_gates():
-    loss, base, now = _loss()
-    assert loss >= 3500, (base, now)
+def test_the_three_agents_lose_at_least_three_and_a_half_thousand_characters():
+    # Criterion adjusted by the user on 2026-11-27 (k7): ≥ 3.500 characters (LF) between the three
+    base = json.loads(BASELINE.read_text(encoding='utf-8'))['chars_lf']
+    now = {k: len(lf(ROOT / k)) for k in base}
+    assert sum(base.values()) - sum(now.values()) >= 3500, (base, now)
 

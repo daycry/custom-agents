@@ -4,5 +4,10 @@
     "agents/planner.md": 21883,
     "agents/implementer.md": 16478,
     "agents/qa.md": 19451
+  },
+  "chars_lf": {
+    "agents/planner.md": 21522,
+    "agents/implementer.md": 16263,
+    "agents/qa.md": 19211
   }
 }

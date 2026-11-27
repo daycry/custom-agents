@@ -50,17 +50,10 @@ def sha(text):
     return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
 
-@pytest.mark.xfail(strict=True, reason='T-19 lo deja en ≤ 16.500 bytes y T-22 en 15.841 al sacar las puertas E2/E3 '
-                   'propias de este repo: < 15 KB sigue abierto para la revisión (ledger, k6)')
-def test_core_is_under_fifteen_kilobytes():
+def test_core_is_at_most_sixteen_kibibytes():
+    # Criterion adjusted by the user on 2026-11-27 (k6): ≤ 16 KB = 16.384 bytes LF (28.785 before T-19)
     size = len(lf(CORE).encode('utf-8'))
-    assert size < 15000, size
-
-
-def test_core_loses_at_least_twelve_kilobytes_in_t19():
-    # 28.785 bytes before T-19; the classic flow and the duplicated rules leave the core
-    size = len(lf(CORE).encode('utf-8'))
-    assert size <= 16500, size
+    assert size <= 16384, size
 
 
 def test_core_keeps_dod_verification_red_green_and_guardrails():
