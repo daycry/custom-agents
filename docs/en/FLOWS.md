@@ -340,7 +340,7 @@ flowchart TD
     K --> RG["step 8: /retro + retro-gate.py --sync<br/>retro.md + row in CALIBRATION.md<br/>(gate: exit 0; open tasks → exit 1)"]
     RG -.->|"new proposal: service propose"| RH["Curator handoff<br/>or visible pending route/ID"]
     RG -->|"exit 0"| L(["closeout: retro-gate.py --sync → roadmap-sync.py --cerrar<br/>ledger and plan completado · spec implementada<br/>index row cerrada"])
-    RG -.->|"exit 1"| P(["closeout pending retro<br/>spec aprobada · ledger completado"])
+    RG -.->|"exit 1"| P(["no closeout: retro missing,<br/>open tasks or unverifiable ledger<br/>(> 256 KiB: ledger-archive.py)"])
     style X fill:#fdecea,stroke:#ef9a9a
     style L fill:#e8f5e9,stroke:#81c784
 ```

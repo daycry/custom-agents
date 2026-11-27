@@ -341,7 +341,7 @@ flowchart TD
     K --> RG["paso 8: /retro + retro-gate.py --sync<br/>retro.md + fila en CALIBRATION.md<br/>(puerta: exit 0; tareas abiertas → exit 1)"]
     RG -.->|"propuesta nueva: servicio propose"| RH["handoff al Curator<br/>o ruta/ID pendiente visible"]
     RG -->|"exit 0"| L(["cierre: retro-gate.py --sync → roadmap-sync.py --cerrar<br/>ledger y plan completado · spec implementada<br/>fila del índice cerrada"])
-    RG -.->|"exit 1"| P(["cierre pendiente de retro<br/>spec aprobada · ledger completado"])
+    RG -.->|"exit 1"| P(["no cierra: falta la retro,<br/>tareas abiertas o ledger no verificable<br/>(> 256 KiB: ledger-archive.py)"])
     style X fill:#fdecea,stroke:#ef9a9a
     style L fill:#e8f5e9,stroke:#81c784
 ```
