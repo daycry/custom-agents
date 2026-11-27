@@ -622,22 +622,29 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: El agente resume la regla y además manda leer el fragmento (`knowledge-check*`, `constitution-check`): doble pago de hasta ≈28 K tokens por ciclo [E]. Se lee el fragmento solo con aciertos y se quita el puntero a `rationalization-table`. `capability-check.md` (5,7 KB) pasa a un núcleo de ≈1,8 KB.
 - **Changelog**: Los agentes leen los fragmentos de conocimiento y capacidades solo cuando aplican.
-- **Estado**: en-progreso
+- **Estado**: en-revision
 - **Tiempo humano**: est. 3h · real —
-- **Tiempo IA (ejec.)**: est. 0.8h · real —
+- **Tiempo IA (ejec.)**: est. 0.8h · real 0.73h (medido, `plugin-audit-2/T-18`; incluye 46 min de la suite de 94 ficheros)
 - **Dependencias**: T-17
-- **Archivos**: `agent-kits/shared/knowledge-check.md`, `agent-kits/shared/knowledge-check-governed.md`, `agent-kits/shared/constitution-check.md`, `agent-kits/shared/capability-check.md`, `agent-kits/shared/rationalization-table.md`, `agents/implementer.md`, `agents/qa.md`, `agents/planner.md`, `agents/evaluator.md`, `docs/agents/ROLES.md`, `interop/**` (regenerado)
+- **Archivos**: `agent-kits/shared/knowledge-check.md`, `agent-kits/shared/knowledge-check-governed.md`, `agent-kits/shared/constitution-check.md`, `agent-kits/shared/capability-check.md`, `agent-kits/shared/rationalization-table.md`, `agents/implementer.md`, `agents/qa.md`, `agents/planner.md`, `agents/evaluator.md`, `docs/agents/ROLES.md`, `interop/**` (regenerado), `agent-kits/shared/capability-check-detail.md` (nuevo; nota: el detalle que sale del núcleo), `agent-kits/shared/README.md` (nota: inventario del fragmento nuevo), `tests/test_fragments_on_demand.py` y `tests/fixtures/capability-check-paragraphs.json` (nuevos), `tests/test_rationalization_tables.py` (nota: implementer y qa ya no remiten al fragmento), `docs/{,en/}TOKEN-EFFICIENCY.md` (nota: `test_f4fix2_misc` fija las cifras publicadas)
 - **Runtimes**: Los fragmentos se leen con la receta; mismo texto en los tres; no cambia la forma de invocar skills.
 - **Verificación**:
   - `git show :agents/evaluator.md | tr -d '\r' | wc -c` → ≤ 15.513 (bytes en LF)
   - `context-footprint.py --project . --file agent-kits/shared/capability-check.md` antes/después → menos bytes (`testing/tokens.md`) → núcleo ≈1,8 KB
   - puertas de runtimes (cabecera) → verde
 
+- RED: tests/test_fragments_on_demand.py (14 de 16: núcleo > 2 KB, sin `capability-check-detail.md`, constitución y memoria que mandan abrir el fragmento, puntero a la tabla) y tests/test_rationalization_tables.py::test_implementer_tiene_tabla_antes_del_dod (y qa) fallaron con AssertionError (commit `3bc4710`) · 2026-11-27
+- **Evidencia** (GREEN `8db4080`; caracteres LF, estimación caracteres/4, no consumo facturado):
+  - `capability-check.md` 5.597 → **1.975** caracteres (5.743 → 1.993 bytes); el comando de `capability-route.py` es el mismo, así que la salida de capacidades no cambia. Extensiones y stacks, literales en `capability-check-detail.md` (3.417), solo con piezas propias o `--stack`; paridad de párrafos con 3 reemplazos con motivo.
+  - implementer, qa, planner y evaluator: constitución en una línea sin abrir `constitution-check.md` (1.462, es de la Lente A); `knowledge-check.md` (4.000) solo con aciertos, con «respeta los ADR y lecciones aplicables». Sin puntero a `rationalization-table.md` en implementer y qa (guía de autoría). Agentes: 28.268 → 28.208, 19.284 → 19.211, 21.533 → 21.522, 15.106 → 15.031.
+  - k1: `docs/agents/ROLES.md` no cambia (no cita estos fragmentos); analyst, architect, documenter y reviewer siguen mandando abrir los fragmentos: fuera de `Archivos`.
+- **Verificación ejecutada** (2026-11-27): `git show :agents/evaluator.md | tr -d '\r' | wc -c` → `15313`; footprint arriba; `export-interop.py --check` → `88 ficheros al día`; `lint_plugin.py` → `0 errores · 16 avisos`; `evals/check.py` → `0 errores`; pytest de runtimes (cabecera) → `153 passed`; 94 ficheros de tests que leen lo tocado → `5314 passed, 1 failed, 16 skipped` (`test_real_opencode_v2_adapter_location_and_idle`, carga: `1 passed` aislado).
+
 **Criterios de aceptación**
-- [ ] `evaluator.md` ≤ 15.513 bytes en LF.
-- [ ] La salida de capacidades sigue siendo la misma (200-300 caracteres) con el núcleo.
-- [ ] Ningún agente pierde la obligación de respetar ADR/lecciones aplicables.
-- [ ] Medido: `capability-check.md` ≤ 2 KB (hoy 5,7 KB) y `evaluator.md` ≤ 15.513 bytes en LF.
+- [x] `evaluator.md` ≤ 15.513 bytes en LF.
+- [x] La salida de capacidades sigue siendo la misma (200-300 caracteres) con el núcleo.
+- [x] Ningún agente pierde la obligación de respetar ADR/lecciones aplicables.
+- [x] Medido: `capability-check.md` ≤ 2 KB (hoy 5,7 KB) y `evaluator.md` ≤ 15.513 bytes en LF.
 
 ### T-19 — Cuerpo de implementer: núcleo + referencia del flujo clásico (2.2, parte de 2.13)
 
@@ -741,7 +748,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - **Changelog**: Los agentes genéricos dejan de cargar reglas que solo valen para el repositorio del plugin.
 - **Estado**: borrador
 - **Tiempo humano**: est. 3h · real —
-- **Tiempo IA (ejec.)**: est. 0.8h · real —
+- **Tiempo IA (ejec.)**: est. 0.8h · real 0.73h (medido, `plugin-audit-2/T-18`; incluye 46 min de la suite de 94 ficheros)
 - **Dependencias**: T-18, T-19, T-11
 - **Archivos**: `agents/planner.md`, `agents/implementer.md`, `agents/qa.md`, `agent-kits/qa/references/sin-ui.md` (nuevo), `skills/project-extensions/references/custom-agents-repo.md` (sustituye a `.claude/skills/plugin-dev/SKILL.md` y `docs/CONSTITUTION.md`, replanificado 2026-11-23), `docs/agents/CONTRACTS.md`, `docs/agents/planner.md`, `docs/agents/qa.md`, `interop/**` (regenerado)
 - **Runtimes**: Constitución y referencias se leen igual en los tres; el consumidor no recibe reglas de este repo.
@@ -1014,7 +1021,7 @@ RED: `tests/test_suites_no_pytest.py::test_el_bucle_de_ci_solo_ejecuta_lo_que_py
 - **Changelog**: Se documenta qué hace falta de training-data-services.
 - **Estado**: borrador
 - **Tiempo humano**: est. 3h · real —
-- **Tiempo IA (ejec.)**: est. 0.8h · real —
+- **Tiempo IA (ejec.)**: est. 0.8h · real 0.73h (medido, `plugin-audit-2/T-18`; incluye 46 min de la suite de 94 ficheros)
 - **Archivos**: `docs/roadmap/2026-11-10-plugin-audit-2/testing/evaluacion-training.md` (nuevo; solo lectura del resto)
 - **Runtimes**: Pregunta 5: de dónde sale la trayectoria en Codex y OpenCode (o si el caso queda sin ella).
 - **Verificación**:
@@ -1151,7 +1158,7 @@ RED: `tests/test_suites_no_pytest.py::test_el_bucle_de_ci_solo_ejecuta_lo_que_py
 - **Changelog**: Una sesión cuyo cierre coincide con un disco atascado ya no pierde su entrada del journal sin avisar.
 - **Estado**: borrador
 - **Tiempo humano**: est. 3h · real —
-- **Tiempo IA (ejec.)**: est. 0.8h · real —
+- **Tiempo IA (ejec.)**: est. 0.8h · real 0.73h (medido, `plugin-audit-2/T-18`; incluye 46 min de la suite de 94 ficheros)
 - **Archivos**: `agent-kits/shared/journal-capture.py`, `agent-kits/shared/journal-io.py`, `agent-kits/shared/test_journal.py`, `docs/FLOWS.md`, `docs/en/FLOWS.md`
 - **Verificación**:
   - `pytest -q agent-kits/shared/test_journal.py -k atasco` → `passed` (rojo antes: un fsync que pasa de 5 s pierde la captura sin que `SessionStart` lo diga)
