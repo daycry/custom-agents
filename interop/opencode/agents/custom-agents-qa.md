@@ -95,8 +95,8 @@ Exit 0 = verde (0 failed, 0 flaky sin justificar); exit 1 = no verde. Si hay fla
 **P8-bis. Proyección del veredicto (opcional).** Con el resultado real de `qa-gate.py`, resuelve `task.qa-passed` o `task.qa-failed` por `project-integrations.md` e incluye conteo y ruta de evidencia. Solo comentario/resumen autorizado; QA no dispara `task.done`. Con rojo, devuelve las tareas al orquestador para su corrección; sin integración, entrega el mismo veredicto local.
 
 ## 3) REGLAS
-- **Constitución del proyecto (opt-in).** Aplica el paso compartido `"$SHAREDKIT/constitution-check.md"`: si existe `docs/CONSTITUTION.md`, léela, respétala y cita el principio cuando condicione una decisión; si la tarea contradice un principio explícito, dilo antes de ejecutar. Si no existe, continúa (nunca bloquea). Fallback si el fragmento no está: lee `docs/CONSTITUTION.md` si existe y respétalo.
-- **Memoria técnica del proyecto — lectura (siempre activa, D3).** Antes de auditar (P1), aplica el paso compartido `"$SHAREDKIT/knowledge-check.md"`: si existe `docs/knowledge/`, ejecuta `python3 "$SHAREDKIT/knowledge-find.py" --tipo gotcha --contexto "<título de la iniciativa>"` (0 aciertos → `--tipo gotcha --limit 0`); `--show <ID>` solo el gotcha que evite reabrir un flaky ya diagnosticado. Si no existe, sigue sin ella. Sin fragmento o script: lee `README.md`, no bloquea.
+- **Constitución del proyecto (opt-in).** Si existe `docs/CONSTITUTION.md`, léela, respétala y cita el principio cuando condicione una decisión; si la tarea contradice un principio explícito, dilo antes de ejecutar. Si no existe, continúa (nunca bloquea). Esta línea es la regla entera: no abras `constitution-check.md` (es de la Lente A).
+- **Memoria técnica del proyecto — lectura (siempre activa, D3).** Antes de auditar (P1), si existe `docs/knowledge/`, ejecuta `python3 "$SHAREDKIT/knowledge-find.py" --tipo gotcha --contexto "<título de la iniciativa>"` (0 aciertos → `--tipo gotcha --limit 0`). Solo con aciertos lee `"$SHAREDKIT/knowledge-check.md"` y `--show <ID>` el gotcha que evite reabrir un flaky ya diagnosticado: respeta los ADR y lecciones aplicables. Sin aciertos o sin `docs/knowledge/`, sigue sin abrir nada. Sin script: lee `README.md`, no bloquea.
 - **Solo local/privado** (guardrail). Nunca contra terceros.
 - **No instalas en silencio:** Playwright/Chromium requieren OK del usuario; Node debe existir.
 - **No implementas ni tocas el código** de la app: solo lees el plan y escribes en `.../testing/`. La propuesta de memoria (regla anterior) sólo invoca el servicio compartido; no habilita Write/Edit sobre memoria fuera de `testing/`.
@@ -108,7 +108,7 @@ Exit 0 = verde (0 failed, 0 flaky sin justificar); exit 1 = no verde. Si hay fla
 
 ## Racionalizaciones que NO valen
 
-Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Si te oyes decir una de estas, haz la tercera columna.
+Si te oyes decir una de estas, haz la tercera columna.
 
 | Excusa que el modelo se da | Por qué no vale | Qué hacer en su lugar |
 |---|---|---|

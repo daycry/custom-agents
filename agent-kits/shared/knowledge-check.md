@@ -1,5 +1,8 @@
 # Memoria técnica del proyecto — paso compartido (bucle de lectura)
 
+Cada agente lleva su consulta en una línea; ábrelo solo cuando esa consulta devuelve
+aciertos (plugin-audit-2 T-18: sin aciertos no se paga este fragmento).
+
 ## Recuperación dirigida y contexto de código
 
 Mantén una incógnita concreta por consulta. Si faltan fuentes, refina términos

@@ -1,7 +1,7 @@
 <!--
   FRAGMENTO COMPARTIDO: constitución del proyecto (fuente única).
-  Lo referencian los agentes que ESCRIBEN (analyst, evaluator, planner, implementer,
-  qa, documenter) y la revisión adversarial de /dev-cycle (lente A).
+  Lo lee la revisión adversarial de /dev-cycle (lente A). Los agentes que ESCRIBEN
+  llevan la regla en una línea y no lo abren (plugin-audit-2 T-18: un solo pago).
   Si cambias la regla aquí, cambia para todos — no la dupliques en prompts.
 -->
 

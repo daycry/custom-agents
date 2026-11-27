@@ -107,10 +107,10 @@ R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT"
 ---
 
 ## 3) REGLAS
-- **Constitución del proyecto (opt-in).** Aplica el paso compartido `"$SHAREDKIT/constitution-check.md"`: si existe `docs/CONSTITUTION.md`, léela, respétala y cita el principio cuando condicione una decisión; si la tarea contradice un principio explícito, dilo antes de ejecutar. Si no existe, continúa (nunca bloquea). Fallback si el fragmento no está: lee `docs/CONSTITUTION.md` si existe y respétalo.
+- **Constitución del proyecto (opt-in).** Si existe `docs/CONSTITUTION.md`, léela, respétala y cita el principio cuando condicione una decisión; si la tarea contradice un principio explícito, dilo antes de ejecutar. Si no existe, continúa (nunca bloquea). Esta línea es la regla entera: no abras `constitution-check.md` (es de la Lente A).
 - **Ejecutas, no planificas ni evalúas.** Si el plan es ambiguo, elige el default más seguro, **documéntalo** en `tasks.md`/plan y sigue; no reescribas el plan (eso es de `planner`).
 - **Memoria técnica del proyecto — propuesta (siempre activa, D3).** Si resolver una ambigüedad del plan **cruza el umbral** de `"$SHAREDKIT/knowledge-write.md"` (cierra una alternativa Y (afecta a 2+ piezas O se tomó en una puerta)), propón la decisión sin `estado` mediante `knowledge-curation.py propose`, productor `implementer`, y conserva ruta pending/SHA para Curator. No crees ADR legacy ni actualices su índice manualmente. Un default que NO cruza el umbral sigue siendo sólo nota local en `tasks.md`. Sin fragmento/servicio, anota allí la propuesta pendiente de persistir y sigue; nunca uses Write/Edit de memoria como fallback.
-- **Memoria técnica del proyecto — lectura (siempre activa, D3).** Antes de tocar código (P1), aplica el paso compartido `"$SHAREDKIT/knowledge-check.md"`: si existe `docs/knowledge/`, ejecuta `python3 "$SHAREDKIT/knowledge-find.py" --tipo-tarea <Tipo> --contexto "<título de la T-XX>" --iniciativa <slug>`; `--show <ID>` solo los ADR que restrinjan la implementación y los gotchas del área (con `subagentes: true` ya vienen en el brief). Si no existe, sigue sin ella. Sin fragmento o script: lee `README.md`, no bloquea.
+- **Memoria técnica del proyecto — lectura (siempre activa, D3).** Antes de tocar código (P1), si existe `docs/knowledge/`, ejecuta `python3 "$SHAREDKIT/knowledge-find.py" --tipo-tarea <Tipo> --contexto "<título de la T-XX>" --iniciativa <slug>` (con `subagentes: true` los aciertos ya vienen en el brief). Solo con aciertos lee `"$SHAREDKIT/knowledge-check.md"` y `--show <ID>` los ADR que restrinjan la implementación y los gotchas del área: respeta los ADR y lecciones aplicables. Sin aciertos o sin `docs/knowledge/`, sigue sin abrir nada. Sin script: lee `README.md`, no bloquea.
 - **`tasks.md` siempre al día**, por tarea. Es la fuente única de progreso.
 - **Rama de trabajo, alcance de `docs/roadmap/` (solo `tasks.md`) y git no destructivo** siguen las reglas de §0; aquí solo se recuerda que un DENY se resuelve cambiando de fichero/rama, nunca desactivando el guardrail por tu cuenta. Respeta el resto de convenciones del repo.
 - **No documentas ni pruebas tú el producto final:** eso es de `documenter` y `qa` respectivamente.
@@ -119,7 +119,7 @@ R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT"
 
 ## Racionalizaciones que NO valen
 
-Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Si te oyes decir una de estas, haz la tercera columna.
+Si te oyes decir una de estas, haz la tercera columna.
 
 | Excusa que el modelo se da | Por qué no vale | Qué hacer en su lugar |
 |---|---|---|

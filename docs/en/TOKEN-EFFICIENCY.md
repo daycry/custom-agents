@@ -151,6 +151,7 @@ disappears: the moved text stays in its single source and is opened when needed.
 | T-16 fix1: one reading condition and short sentences in the core. | 22,599 (after T-17). | 22,639 (+40). The ritual is read only in Phase 6. The transition table, at every artefact gate. |
 | One kit recipe per agent and command, defining all its variables (T-17). | 33 recipes in 18 pieces. `reviewer` and `/retro` used `$SHAREDKIT` without a recipe. | 20 recipes, one per piece: −5,483 across agents and commands. That is −6,390 of repeated recipes and +907 for the two missing ones. `agents/implementer.md` goes from 29,077 to 28,268. |
 | T-17 fix1: 11 pieces warn that variables do not survive between Bash calls. | −5,483. | −4,817 (+666 for the warning). |
+| Fragments only when they apply (T-18). The constitution and the memory query fit in one line per agent. | `capability-check.md` 5,597. Writing agents also opened `constitution-check.md` and `knowledge-check.md`. | A 1,975 core (−3,622 per read). The detail, 3,417, is opened with own pieces or `--stack`. Without hits, 1,462 + 4,000 are not opened. `agents/implementer.md` goes to 28,208. |
 
 T-14 introduced per-phase reading for Lens A. Its fix3 brought
 `skills/adversarial-review/SKILL.md` to 17,046 characters. With T-40's task

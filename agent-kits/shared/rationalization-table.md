@@ -36,6 +36,9 @@ qa); si su tabla está llena, sustituye a la fila que menos haya aparecido en su
 5. **Sustituye prosa equivalente, no la dupliques**: si una regla en prosa dice lo mismo que una
    fila, la fila la reemplaza (una sola fuente por regla).
 
+**Es una guía de autoría, no lectura de runtime.** Sirve para escribir o revisar una tabla; los agentes
+que la cargan en cada ejecución (`implementer`, `qa`) no remiten aquí (plugin-audit-2 T-18).
+
 **Quién la lleva hoy:** `agents/implementer.md` (excusas del que implementa),
 `skills/adversarial-review/references/lentes.md` (excusas del REVISOR) y `agents/qa.md` (excusas de qa).
 Una pieza nueva con DoD o veredicto la añade en su checklist (`skills/project-extensions/SKILL.md`; en este repo, su referencia `custom-agents-repo.md`).

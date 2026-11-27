@@ -46,7 +46,8 @@ def bullet(body, title):
 
 
 def test_capability_core_is_at_most_two_kilobytes():
-    assert len(lf(CORE).encode('utf-8')) <= 2048, len(lf(CORE).encode('utf-8'))
+    # ≤ 2 KB in decimal (the criterion's figure), stricter than 2 KiB
+    assert len(lf(CORE).encode('utf-8')) <= 2000, len(lf(CORE).encode('utf-8'))
 
 
 def test_capability_output_is_unchanged_the_core_keeps_the_exact_router_command():
