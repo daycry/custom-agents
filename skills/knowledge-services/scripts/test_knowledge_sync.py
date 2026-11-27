@@ -781,11 +781,11 @@ def test_fix2_22_avisos_grupo_sanea_el_id_del_backend(tmp_path, capsys):
 import pytest
 
 
-@pytest.mark.parametrize("bid,tipo", [("kwipu", "markdown-export"), ("graphiti", "graphiti"),
-                                      ("otro", "kwipu")])
-def test_backend_retirado_sale_con_mensaje_retirado_sin_traceback(tmp_path, capsys, bid, tipo):
-    """Una taxonomía heredada que declara un backend retirado no rompe con traceback: exit 2,
-    «retirado» y el camino para añadir un backend propio; sin prometer ningún sustituto."""
+@pytest.mark.parametrize("bid,tipo", [("heredado", "antiguo"), ("otro", "otro-heredado")])
+def test_un_type_sin_adaptador_sale_con_el_aviso_generico_sin_traceback(tmp_path, capsys, bid, tipo):
+    """T-41: una taxonomia heredada que declara un `type` sin adaptador no rompe con traceback:
+    exit 2 con el MISMO aviso que cualquier adaptador ausente (sin lista de retirados) y el
+    camino para anadir un backend propio; sin prometer ningun sustituto."""
     root = str(tmp_path)
     d = os.path.join(root, ".claude", "knowledge-services")
     os.makedirs(d, exist_ok=True)
@@ -797,5 +797,18 @@ def test_backend_retirado_sale_con_mensaje_retirado_sin_traceback(tmp_path, caps
         json.dump(cfg, f)
     assert ks_sync.main(["--backend", bid, "--root", root, "--check"]) == 2
     err = capsys.readouterr().err
-    assert "retirado" in err and "add-backend.md" in err
+    assert "no se encontró un adaptador" in err and "add-backend.md" in err
+    assert "retirado" not in err
     assert "Traceback" not in err and "kairos" not in err.lower()
+
+
+def test_t41_el_cargador_no_guarda_lista_de_retirados():
+    """T-41: el cargador no conserva `RETIRADOS` ni la version de la retirada; ningun `type`
+    recibe un mensaje propio."""
+    ruta = os.path.join(HERE, "..", "backends", "__init__.py")
+    spec = importlib.util.spec_from_file_location("ks_backends_t41", ruta)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert not hasattr(mod, "RETIRADOS") and not hasattr(mod, "VERSION_RETIRADA")
+    fuente = io.open(ruta, encoding="utf-8").read()
+    assert "retirad" not in fuente.lower()

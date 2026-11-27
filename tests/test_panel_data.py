@@ -328,40 +328,25 @@ def test_backend_deshabilitado_se_dice_como_tal(tmp_path):
     assert fila['situacion'] == 'deshabilitado' and fila['entradas'] is None
 
 
-def test_backend_retirado_y_activo_no_sale_configurado(tmp_path):
-    """fix1 Fase 2 (gap 3): un `type` que el plugin retiro en 4.0.0, declarado y `enabled: true`, no puede
-    verse como `configurado` sin senal: sale `retirado` (el motivo vive en el cargador del marco)."""
+def test_t41_un_type_sin_adaptador_y_activo_sale_configurado_sin_lista_de_retirados(tmp_path, monkeypatch):
+    """T-41: el panel no lee ninguna lista de retirados del cargador; un backend declarado y activo sale
+    `configurado` aunque su `type` figure en una lista asi (el motivo de un adaptador ausente lo da
+    `/doctor` por el cargador, no el panel)."""
     from memoria_fixture import crear_proyecto
-    proyecto = crear_proyecto(tmp_path)
+    modulo = _cargar()
+    assert not hasattr(modulo, '_tipos_retirados')
+    destino = tmp_path / 'falso' / 'skills' / 'knowledge-services' / 'backends'
+    destino.mkdir(parents=True)
+    (destino / '__init__.py').write_text('RETIRADOS = ("antiguo",)' + chr(10), encoding='utf8')
+    monkeypatch.setattr(modulo, 'HERE', tmp_path / 'falso' / 'skills' / 'plugin-panel' / 'scripts')
+    proyecto = crear_proyecto(tmp_path / 'p')
     ks = proyecto / '.claude/knowledge-services'
     config = json.loads((ks / 'taxonomy.json').read_text(encoding='utf8'))
-    config['backends']['memoria-a']['type'] = 'graphiti'
+    config['backends']['memoria-a']['type'] = 'antiguo'
     config['backends']['memoria-a']['enabled'] = True
     (ks / 'taxonomy.json').write_text(json.dumps(config), encoding='utf8')
-    filas = {b['backend']: b for b in _cargar().memoria(proyecto)['backends']}
-    assert filas['memoria-a']['situacion'] == 'retirado'
+    datos = modulo.memoria(proyecto)
+    filas = {b['backend']: b for b in datos['backends']}
+    assert filas['memoria-a']['situacion'] == 'configurado' and filas['memoria-a']['tipo'] == 'antiguo'
     assert filas['memoria-b']['situacion'] == 'configurado'
-
-
-@pytest.mark.parametrize('valor', ['frozenset({"a", "b"})', '("a", "b")', '["a", "b"]', '{"a", "b"}'])
-def test_fix2_tipos_retirados_acepta_las_formas_literales(tmp_path, monkeypatch, valor):
-    """Gap 6 (intento 2): RETIRADOS como set/frozenset/tuple/list literal."""
-    modulo = _cargar()
-    ruta = tmp_path / 'skills' / 'plugin-panel' / 'scripts'
-    destino = tmp_path / 'skills' / 'knowledge-services' / 'backends'
-    destino.mkdir(parents=True)
-    (destino / '__init__.py').write_text('RETIRADOS = %s\n' % valor, encoding='utf8')
-    monkeypatch.setattr(modulo, 'HERE', ruta)
-    assert modulo._tipos_retirados() == frozenset({'a', 'b'})
-
-
-@pytest.mark.parametrize('valor', ['5', 'tuple(x for x in "ab")', 'OTRA', '{"a": 1}', '"abc"'])
-def test_fix2_tipos_retirados_degrada_con_aviso_sin_tumbar(tmp_path, monkeypatch, valor):
-    modulo = _cargar()
-    destino = tmp_path / 'skills' / 'knowledge-services' / 'backends'
-    destino.mkdir(parents=True)
-    (destino / '__init__.py').write_text('RETIRADOS = %s' % valor + chr(10), encoding='utf8')
-    monkeypatch.setattr(modulo, 'HERE', tmp_path / 'skills' / 'plugin-panel' / 'scripts')
-    avisos = []
-    assert modulo._tipos_retirados(avisos.append) == frozenset()
-    assert avisos == ['retirados_ilegibles'], avisos
+    assert 'retirados_ilegibles' not in json.dumps(datos)
