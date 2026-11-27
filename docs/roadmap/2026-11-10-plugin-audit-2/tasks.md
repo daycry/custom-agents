@@ -40,11 +40,11 @@ changelog: Changed
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Defectos | 7 | 8 | 87.5% | 0 / 16h | 0 / 5.0h | 0 / 1.25h | 0 / 1090k |
 | Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev) | 4 | 5 | 80.0% | 0 / 32h | 0 / 7.9h | 0 / 1.98h | 0 / 2100k |
-| Fase 3 — Tokens | 9 | 12 | 75.0% | 0 / 36h | 1.1 / 9.7h | 0 / 2.42h | 0 / 2260k |
+| Fase 3 — Tokens | 12 | 12 | 100.0% | 0 / 36h | 1.1 / 9.7h | 0 / 2.42h | 0 / 2260k |
 | Fase 4 — Simplificación del código | 0 | 8 | 0.0% | 0 / 34.5h | 0 / 8.5h | 0 / 2.12h | 0 / 2470k |
 | Fase 5 — Alcance y entrenamiento | 0 | 5 | 0% | 0 / 26h | 0 / 6.5h | 0 / 1.62h | 0 / 1800k |
 | Fase 6 — Higiene del roadmap | 1 | 4 | 25.0% | 0 / 10h | 0 / 2.5h | 0 / 0.62h | 0 / 750k |
-| **TOTAL** | **21** | **42** | **50.0%** | **0 / 154.5h** | **0 / 40.1h** | **0 / 10.02h** | **0 / 10470k** |
+| **TOTAL** | **24** | **42** | **57.1%** | **0 / 154.5h** | **0 / 40.1h** | **0 / 10.02h** | **0 / 10470k** |
 
 Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +20 % está en el plan); tokens al precio de `.claude/rates.json`.
 
@@ -424,7 +424,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 ## Fase 3 — Tokens
 
-**Estado**: en-revision · **Est.**: 30h humanas · **Real**: — · 1500 € · 2260k tokens
+**Estado**: completado · **Est.**: 30h humanas · **Real**: — · 1500 € · 2260k tokens
 
 ### T-12 — TDD en el brief, skill bajo demanda (2.4)
 
@@ -609,7 +609,8 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: El agente resume la regla y además manda leer el fragmento (`knowledge-check*`, `constitution-check`): doble pago de hasta ≈28 K tokens por ciclo [E]. Se lee el fragmento solo con aciertos y se quita el puntero a `rationalization-table`. `capability-check.md` (5,7 KB) pasa a un núcleo de ≈1,8 KB.
 - **Changelog**: Los agentes leen los fragmentos de conocimiento y capacidades solo cuando aplican.
-- **Estado**: en-revision
+- **Estado**: completado
+- **Cerrada**: 2026-11-27
 - **Tiempo humano**: est. 3h · real —
 - **Tiempo IA (ejec.)**: est. 0.8h · real 0.73h (medido, `plugin-audit-2/T-18`; incluye 46 min de la suite de 94 ficheros)
 - **Dependencias**: T-17
@@ -638,7 +639,8 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: El subagente con brief carga el cuerpo entero de `implementer` (29,5 KB) con secciones que no puede usar. Núcleo corto, flujo clásico a `agent-kits/implementer/references/` (directorio nuevo) y reglas repetidas 2-5 veces, una sola vez. Ahorro [E] 24-30 K tokens por ciclo.
 - **Changelog**: El implementer carga un núcleo corto y lee el flujo clásico solo cuando no hay brief.
-- **Estado**: en-revision
+- **Estado**: completado
+- **Cerrada**: 2026-11-27
 - **Tiempo humano**: est. 5h · real —
 - **Tiempo IA (ejec.)**: est. 1.5h · real 2.23h (medido: `plugin-audit-2/T-19` 1.4h, incluye 54 min de la suite de 103 ficheros, + `T-19-fix1` 0.83h, fix1 de los gaps 1, 2 y 4-8 de las tres tareas)
 - **Dependencias**: T-12, T-18
@@ -662,10 +664,10 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - **Verificación ejecutada fix1** (2026-11-27): Windows 5.256 + 2.798 passed (rojos de carga `passed` aislados); Linux `t23m:ci` no root 4.525 + 633 passed; lint 0 errores; evals 0; interop 88 al día.
 
 **Criterios de aceptación**
-- [x] El cuerpo de `implementer.md` baja a un núcleo (objetivo ≤ 16 KB por decisión del usuario del 2026-11-27; antes < 15 KB) que conserva DoD, Verificación, RED/GREEN y guardrails. Medido 15.841 bytes; DoD, Verificación, TDD y guardarraíles en `agents/implementer.md:59-125` (revisión intento 1, Lente A).
+- [x] El cuerpo de `implementer.md` baja a un núcleo (objetivo ≤ 16 KB por decisión del usuario del 2026-11-27; antes < 15 KB) que conserva DoD, Verificación, RED/GREEN y guardrails. Medido 15.841 bytes (15.855 tras el fix1 de la tanda B2); DoD, Verificación, TDD y guardarraíles en `agents/implementer.md:59-125` (revisión intento 1, Lente A).
 - [x] Sin brief (flujo clásico) el agente sabe leer la referencia y funciona igual.
 - [x] Cada regla duplicada queda una sola vez.
-- [x] Medido: `implementer.md` ≤ 16 KB (16.384 bytes LF; hoy 29,5 KB) (cifra ajustada por decisión del usuario el 2026-11-27: el núcleo conserva DoD, guardarraíles y commits; < 15 KB sacaría reglas que usa el subagente, k6). Medido 15.841 bytes ✓
+- [x] Medido: `implementer.md` ≤ 16 KB (16.384 bytes LF; hoy 29,5 KB) (cifra ajustada por decisión del usuario el 2026-11-27: el núcleo conserva DoD, guardarraíles y commits; < 15 KB sacaría reglas que usa el subagente, k6). Medido 15.841 bytes; 15.855 tras el fix1 de la tanda B2 ✓
 
 ### T-20 — Índice de SessionStart solo en Codex y OpenCode (2.7)
 
@@ -746,7 +748,8 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: Reglas propias de este repositorio (`export-interop`, `CONTRACTS.md`) viven dentro de agentes genéricos (≈4,2 KB) y `qa.md:114` (2 KB) solo aplica al QA sin UI. Las primeras pasan a `skills/project-extensions/references/custom-agents-repo.md` (solo se lee dentro de custom-agents; replanificado por el orquestador el 2026-11-23: `plugin-dev` ya no existe tras T-11 y `docs/CONSTITUTION.md` no se toca); lo segundo, a una referencia condicional.
 - **Changelog**: Los agentes genéricos dejan de cargar reglas que solo valen para el repositorio del plugin.
-- **Estado**: en-revision
+- **Estado**: completado
+- **Cerrada**: 2026-11-27
 - **Tiempo humano**: est. 3h · real —
 - **Tiempo IA (ejec.)**: est. 0.8h · real 0.13h (medido, `plugin-audit-2/T-22`; reloj 1h 11m, casi todo espera de la suite de 112 ficheros)
 - **Dependencias**: T-18, T-19, T-11
@@ -770,7 +773,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - [x] `planner` conserva el mecanismo E2/E3 como regla de PROYECTO (`skills/project-extensions/references/custom-agents-repo.md`), no como texto del agente genérico.
 - [x] El QA sin UI carga la referencia solo cuando aplica.
 - [x] Un proyecto consumidor no pierde ninguna puerta.
-- [x] Medido: `planner`, `implementer` y `qa` pierden ≥ 3,5 KB entre los tres (cifra ajustada por decisión del usuario el 2026-11-27: se movieron ≈5,6 KB y las puertas genéricas que conserva un consumidor cuestan ≈1,4 KB, k7). Medido −3.522 caracteres ✓
+- [x] Medido: `planner`, `implementer` y `qa` pierden ≥ 3,5 KB entre los tres (cifra ajustada por decisión del usuario el 2026-11-27: se movieron ≈5,6 KB y las puertas genéricas que conserva un consumidor cuestan ≈1,4 KB, k7). Medido −3.522 caracteres; −3.508 tras el fix1 de la tanda B2 ✓
 
 ### T-40 — El plugin mueve el estado de cada tarea en todo el ciclo y el dashboard lo muestra en vivo (decidido por el usuario el 2026-11-23)
 
@@ -1461,3 +1464,20 @@ Lentes: A+B (Opus, contexto fresco). D por `review-lens-select.py --base ebf2ac2
 | 6 | Minor | La fila de racionalización remite a «(P3)», que ya no está en el núcleo | T-19 | corregido (fix1, `6f0ef68`; test `test_b2_fix1_gap6_la_racionalizacion_no_remite_a_p3`) | `agents/implementer.md:101` |
 | 7 | Minor | El doc del implementer sigue citando `constitution-check.md` como dependencia | T-18 | corregido (fix1, `6f0ef68`; test `test_b2_fix1_gap7_el_doc_no_cita_constitution_check_como_dependencia`) | `docs/agents/implementer.md:258` |
 | 8 | Minor | La lista de casos «sin brief» omite el despacho de `/dev-cycle` con `subagentes: false` (flujo clásico sin brief); sin test | T-19 | corregido (fix1, `6f0ef68`; test `test_b2_fix1_gap8_sin_brief_incluye_dev_cycle_con_subagentes_false`) | `agent-kits/implementer/references/classic-flow.md:3-4`; `agents/implementer.md:48`; `commands/dev-cycle.md:153-155` |
+
+## Revisión de dos lentes — intento 2: Fase 3 (T-18, T-19, T-22) — tanda B2, verificación del fix1 (T-18, T-19, T-22)
+
+**Veredicto del plugin**: limpio
+
+Lentes: A+B+C (Opus, con traspaso del intento 1). C por `review-lens-select.py --base cf650e9` (flujo `task-brief.py:284`: `dev.json` → brief) y por decisión del orquestador (cambio de `guardrail-check.py`). Diff `cf650e9..ffe304f`. Gaps 1-8 del intento 1 verificados (`test_b2_fix1.py` 14 failed en `a0e8484`, 26 passed en HEAD; `test_git_verification.py` 22 failed en `cf650e9` → 357 passed: causa en `3804a2a`, T-06 fix25, corregida en `guardrail-check.py` sin tocar el test). Lente C: ~90 órdenes de evasión y git 2.53 real con pre-commit: ninguna se salta los hooks. Linux: suites de la guardia `1117 passed`. Puerta Node en Linux: 11 rojos de árboles de procesos y plazos (tests 36, 284, 285, 534, 536, 537, 548, 566, 569, 570, 572) que salen IGUAL en el control `0d00e2e` (antes `0 fail`): cambio del entorno Docker de la máquina, no del diff (que no toca hooks, procesos ni el instalador). Resultado: 0 Critical, 0 Important, 6 Minor.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Minor | Evidencias de criterios con las cifras previas al fix1 (15.841 → 15.855 bytes; −3.522 → −3.508) | T-19, T-22 | corregido por el orquestador (ledger) | `tasks.md` criterios de T-19 y T-22 |
+| 2 | Minor | El comentario de la lista blanca de egress dice «vacía a propósito» y ya tiene una entrada | T-19 | deuda aceptada (criterio de cierre del usuario, 2026-11-20) | `tests/test_hook_network_egress.py:96-98` |
+| 3 | Minor | La entrada nueva de la lista blanca de egress vale para todo el recorrido de hooks, no atada a `task-brief.py` (CWE-693; hoy no explotable) | T-19 | deuda aceptada | `tests/test_hook_network_egress.py:99-104,748` |
+| 4 | Minor | La orden del núcleo de `capability-check` omite `--cwd <paquete>` (monorepos) y el vocabulario de `--runtime` | T-18 | deuda aceptada | `agent-kits/shared/capability-check.md:25` |
+| 5 | Minor | Con `$UTSKILL` vacío, el gate de cobertura del brief sale con exit 2 y se trata como aviso: se pierde sin verse | T-19 | deuda aceptada | `agent-kits/shared/task-brief.py:126-128` |
+| 6 | Minor | `coberturaMinima: 80.0` se aplica sin brief y se descarta con brief (solo aviso; `/doctor` lo marca ❌) | T-19 | deuda aceptada | `task-brief.py:298` frente a `classic-flow.md:31` |
+
+**Tanda B2 de la Fase 3 cerrada (2026-11-27)** según el criterio del usuario: 0 Critical y 0 Important tras los intentos 1 (fix1) y 2. Deuda aceptada: gaps 2-6 de este intento. Pendiente fuera de la tanda: el entorno Docker de la máquina da 11 rojos de procesos en la puerta Node también en `0d00e2e`; confirmar con la CI real antes del cierre de la iniciativa.
