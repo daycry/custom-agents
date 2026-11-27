@@ -289,7 +289,7 @@ GREEN: `python scripts/build-handbook.py --edition 2026-11-12` regeneró las tre
 
 ## Fase 2 — Retirada decidida (Kwipu, Graphiti, plugin-dev)
 
-**Estado**: completado · **Est.**: 32h humanas · **Real**: ≈ 3.1h IA medidas (T-08 1.43 + T-09 0.4 + T-10 1.33 + T-11 0.35; las ventanas de T-08 y T-10 se solapan) · 1600 € · 2100k tokens · Decidida por el usuario el 2026-11-10. Nota de `scope-check.py`: sus 6 «criterios aprobados alterados» de T-08, T-10 y T-11 son la replanificación del usuario del 2026-11-19 (commit `21ad63f`), posterior a la base `fb3bb37`; no los ha tocado quien los cumple. Pendiente (usuario): la verificación manual M-B de T-11.
+**Estado**: en-revision · **Est.**: 32h humanas · **Real**: ≈ 3.1h IA medidas (T-08 1.43 + T-09 0.4 + T-10 1.33 + T-11 0.35; las ventanas de T-08 y T-10 se solapan) · 1600 € · 2100k tokens · Decidida por el usuario el 2026-11-10. Nota de `scope-check.py`: sus 6 «criterios aprobados alterados» de T-08, T-10 y T-11 son la replanificación del usuario del 2026-11-19 (commit `21ad63f`), posterior a la base `fb3bb37`; no los ha tocado quien los cumple. Pendiente (usuario): la verificación manual M-B de T-11.
 
 ### T-08 — Retirar Kwipu y Graphiti: código, tests y configuración (decidido)
 
@@ -406,21 +406,25 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: T-08 y T-09 retiraron los adaptadores, pero el código vivo aún los nombra. El cargador de `knowledge-services` mantiene `RETIRADOS = ("kwipu", "graphiti", "markdown-export")` con un mensaje propio de «retirado», el panel (`panel_data.py`) lee esa constante, y unos 15 tests y fixtures los citan (asserts sueltos de «no aparece», plantillas 3.x con esos `type`, un test que lee el ledger histórico `2026-09-15-graphiti-memory`). El usuario decide (2026-11-26) que todo lo relacionado con Graphiti y Kwipu se elimina porque ya no existen: un `type` desconocido recibe el mismo mensaje que cualquier adaptador ausente, sin lista de retirados. Quedan como se escribieron los registros fechados (`docs/roadmap/**`, `docs/knowledge/**`, secciones publicadas del CHANGELOG) y la entrada `[Unreleased]`/`[Sin publicar]` que anuncia la retirada a quien actualice. Los asserts dispersos se sustituyen por UN test de no regresión que recorre el árbol vivo con una lista blanca de esas rutas históricas (es el único sitio que puede nombrarlos). El test que lee el ledger histórico pasa a una fixture copiada, sin el nombre en el test.
 - **Changelog**: El cargador de backends de memoria ya no conserva una lista de backends retirados: un `type` sin adaptador recibe siempre el mismo aviso.
-- **Estado**: borrador
+- **Estado**: en-revision
 - **Tiempo humano**: est. 2h · real —
-- **Tiempo IA (ejec.)**: est. 0.6h · real —
-- **Archivos**: `skills/knowledge-services/backends/__init__.py`, `skills/knowledge-services/backends/README.md`, `skills/knowledge-services/scripts/test_knowledge_sync.py`, `skills/plugin-panel/scripts/panel_data.py`, `tests/test_panel_data.py`, `agent-kits/shared/test_capabilities.py`, `agent-kits/shared/test_doctor.py`, `agent-kits/shared/test_knowledge_schema.py`, `agent-kits/shared/test_knowledge_portability.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/shared/fixtures/**`, `skills/training-data-services/scripts/test_case_schema.py`, `tests/test_knowledge_router.py`, `tests/test_knowledge_router_read.py`, `tests/test_hook_network_egress.py`, `tests/test_sync_write_gate.py`, `tests/test_doctor_notes_in_docs.py`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/test_retired_backends_absent.py`, `CHANGELOG.md`, `CHANGELOG.es.md`
+- **Tiempo IA (ejec.)**: est. 0.6h · real 0.41h (medido)
+- **Archivos**: `skills/knowledge-services/backends/__init__.py`, `skills/knowledge-services/backends/README.md`, `skills/knowledge-services/scripts/test_knowledge_sync.py`, `skills/plugin-panel/scripts/panel_data.py`, `tests/test_panel_data.py`, `agent-kits/shared/test_capabilities.py`, `agent-kits/shared/test_doctor.py`, `agent-kits/shared/test_knowledge_schema.py`, `agent-kits/shared/test_knowledge_portability.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/shared/fixtures/**`, `skills/training-data-services/scripts/test_case_schema.py`, `tests/test_knowledge_router.py`, `tests/test_knowledge_router_read.py`, `tests/test_hook_network_egress.py`, `tests/test_sync_write_gate.py`, `tests/test_doctor_notes_in_docs.py`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/test_retired_backends_absent.py`, `CHANGELOG.md`, `CHANGELOG.es.md`, `skills/knowledge-services/SKILL.md`, `skills/knowledge-services/references/add-backend.md` y `skills/plugin-panel/assets/page-memoria.js` (añadidos: decían que un `type` retirado recibía «retirado» y la página pintaba esa situación), `tests/test_knowledge_services.py` (añadido: su lista de términos de red citaba el módulo del adaptador retirado)
 - **Verificación**:
   - `pytest -q -p no:xdist tests/test_retired_backends_absent.py` → `passed` (rojo antes: lista las rutas vivas que aún nombran kwipu, graphiti o markdown-export)
   - `git grep -ilE "kwipu|graphiti|markdown-export" -- . ':!docs/roadmap' ':!docs/knowledge' ':!CHANGELOG*' ':!.claude' ':!tests/test_retired_backends_absent.py'` → vacío
   - `python agent-kits/shared/ledger-lint.py docs/roadmap/2026-11-10-plugin-audit-2/tasks.md` → `0 incoherencias`
+- **Evidencia**: RED `ac5af0d` · GREEN `39b9c00` + `138d224`. Borrado: `RETIRADOS`/`VERSION_RETIRADA` y su mensaje (cargador); `_tipos_retirados`, situación `retirado` y aviso `retirados_ilegibles` (panel); 5 asserts sueltos de «no aparece»; los nombres en tests, comentarios y una `reason`. Lista blanca: `docs/roadmap/`, `docs/knowledge/`, los CHANGELOG, el test y `agent-kits/shared/fixtures/task-brief-historical-t08.md` (bloque T-08 literal, SHA-256 `1cafcb31…14a5d9`, lo comprueba el test): el `git grep` de la Verificación devuelve SOLO esa copia. Suites que leen lo tocado: 2418 passed, 5 skipped (Windows); Linux (python:3.11-slim, no root, sin git: recorrido de disco) 273 passed tras `138d224`; interop 88 al día; lint 0 errores; evals 0 errores.
 
 **Criterios de aceptación**
-- [ ] Ningún fichero vivo (fuera de `docs/roadmap/**`, `docs/knowledge/**`, los CHANGELOG y el propio test de no regresión) nombra Kwipu, Graphiti ni `markdown-export`.
-- [ ] El cargador no tiene lista de retirados: un `type` sin adaptador da el aviso genérico de adaptador ausente, con test; el panel deja de leer `RETIRADOS` y sigue mostrando los backends declarados.
-- [ ] Un único test de no regresión recorre el árbol vivo con lista blanca explícita de las rutas históricas; los asserts sueltos de «no aparece» desaparecen.
-- [ ] El test que leía `docs/roadmap/2026-09-15-graphiti-memory/tasks.md` lee una fixture copiada (bytes iguales, SHA-256 en la Evidencia), con la misma aserción.
-- [ ] La entrada `[Unreleased]`/`[Sin publicar]` del CHANGELOG sigue anunciando la retirada y suma esta línea.
+- [x] Ningún fichero vivo (fuera de `docs/roadmap/**`, `docs/knowledge/**`, los CHANGELOG y el propio test de no regresión) nombra Kwipu, Graphiti ni `markdown-export`.
+- [x] El cargador no tiene lista de retirados: un `type` sin adaptador da el aviso genérico de adaptador ausente, con test; el panel deja de leer `RETIRADOS` y sigue mostrando los backends declarados.
+- [x] Un único test de no regresión recorre el árbol vivo con lista blanca explícita de las rutas históricas; los asserts sueltos de «no aparece» desaparecen.
+- [x] El test que leía `docs/roadmap/2026-09-15-graphiti-memory/tasks.md` lee una fixture copiada (bytes iguales, SHA-256 en la Evidencia), con la misma aserción.
+- [x] La entrada `[Unreleased]`/`[Sin publicar]` del CHANGELOG sigue anunciando la retirada y suma esta línea.
+
+
+RED: `tests/test_retired_backends_absent.py::test_ningun_fichero_vivo_nombra_los_backends_retirados` falló con AssertionError (15 rutas vivas), y `test_t41_*` de `test_panel_data.py`/`test_knowledge_sync.py` con `hasattr(..., '_tipos_retirados'/'RETIRADOS')` True · 2026-11-27.
 
 ## Fase 3 — Tokens
 
