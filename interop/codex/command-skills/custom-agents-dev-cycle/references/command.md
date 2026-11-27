@@ -85,7 +85,7 @@ cada tarea en secuencia, sin paralelismo, al `implementer` nativo (ID en `agent-
 copiado, el agente `implementer` homónimo; nunca el hilo principal, que no tiene guardia) con el brief de
 `task-brief.py --dispatch --runtime <claude-code|codex|opencode>` como prompt; no abras `phase3-subagents.md`. Su exit 2 exige ajustar la tarea. El writer es obligatorio y los
 revisores frescos se despachan secuencialmente; invoca `adversarial-review` con
-ese perfil. TDD, QA, cobertura y Knowledge Gate conservan todas sus puertas.
+ese perfil. TDD y cobertura (`tdd`, `tests.coberturaMinima`) llegan en el brief; QA y Knowledge Gate conservan todas sus puertas.
 El perfil
 normal conserva sus defaults y el fallback parcial de `ledger-write.md`, y implementa con el mismo `implementer` (flujo clásico: una sola ejecución; con `subagentes: true`, uno fresco por tarea).
 
@@ -152,7 +152,7 @@ La autorización conversacional suficiente conserva su alcance y evita otro OK.
 
    **Subagentes (opt-in).** Solo cuando `subagentes: true`, lee
    `"$DEVKIT/references/phase3-subagents.md"` antes de preparar el brief o despachar.
-   Sin ese opt-in, sigue el flujo clásico en el contexto principal. La revisión
+   Sin ese opt-in, despacha una sola ejecución del `implementer` sin brief (lee `classic-flow.md`). La revisión
    independiente conserva su propio método y no depende de este interruptor.
 
    **Medición por tarea (usage-meter).** `usage-meter.py start --artefacto "<slug>/T-XX"` mueve a `en-progreso`; `close` con la misma clave mueve a `en-revision` antes de lanzar la revisión. Fija `--runtime claude|codex|opencode` en ambos comandos según el runtime que implementa. Lo ejecuta `implementer` en clásico; con subagentes o lite, lo coordinas por despacho. Registra `horas_ia` con `fuente: medido` como tiempo IA real `(medido)` para la imputación externa; el adaptador prioriza esos valores sin recalcular el ledger. Si degrada, anota `(estimado)` y sigue. Re-close de la MISMA ventana sustituye; una corrección usa `"<slug>/T-XX-fix<N>"` y **suma** sus horas. Los tokens de revisión llevan su propia imputación `[revisión]` por intento. Muestra duraciones `XhYm` (`usage-meter.py fmt`).

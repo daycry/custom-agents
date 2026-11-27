@@ -8,9 +8,8 @@ R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; case "$SHAREDKIT"
 python3 "$SHAREDKIT/capability-route.py" --project <paquete-de-la-tarea> --role <agente> --area <area> --json
 ```
 
-`capability-catalog.json` fija los criterios; roles, fases, stacks y áreas son
-vocabularios cerrados del script. En un monorepo, el paquete afectado. `--stack`
-solo si la tarea declara la tecnología.
+`capability-catalog.json` fija los criterios (vocabularios cerrados); en un
+monorepo, el paquete afectado; `--stack`, solo con tecnología declarada.
 
 1. Áreas pertinentes al contrato, no todas: research, api, data, frontend,
    accessibility, performance, delivery, mcp, security, testing, memory, catalog,
@@ -23,7 +22,8 @@ solo si la tarea declara la tecnología.
 4. TDD, revisión, qa-gate, Knowledge Gate y cierre siguen aplicándose; memoria por
    knowledge-check, sin precargar histórico.
 
-Solo si el proyecto o el usuario tienen piezas propias (agentes, skills, comandos,
-MCP o tools) o pasas `--stack`, lee `capability-check-detail.md`. Hábitos del
-proyecto o selección vieja: `capability-selection.md`; coste: `context-cost.md`.
+Piezas propias: `python3 "$SHAREDKIT/project-pieces.py" --project <raíz> --runtime <runtime> --json`;
+si `pieces` trae alguna pertinente o hay `--stack`, lee `capability-check-detail.md`
+y anota `- **Extensiones**:`. Hábitos o selección vieja:
+`capability-selection.md`; coste: `context-cost.md`.
 Sin script o registro, avisa y conserva los criterios explícitos: no detiene el ciclo.

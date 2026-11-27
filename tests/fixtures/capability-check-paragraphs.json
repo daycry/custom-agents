@@ -29,8 +29,8 @@
       "before_sha256": "daa86723f587c98fdc1b309d6d8fd94682fe4a17015cf909b33a24e650d4b27d",
       "before_file": "agent-kits/shared/capability-check.md",
       "after_file": "agent-kits/shared/capability-check.md",
-      "after_sha256": "30d0e73bf3e7488fdd26f21766fad4133d06d88f404a4b6906af57c9bc5c877c",
-      "reason": "Criterios y vocabularios cerrados conservados; los límites de lectura de manifiestos y la procedencia de --stack son conducta del script capability-route.py, no instrucción del agente (T-18)."
+      "after_sha256": "a2f46c0d6bb60a4ace7d8297a1f958d4fffd2bd0900c8bfdecc2843d1d8439ef",
+      "reason": "Criterios y vocabularios cerrados conservados; los límites de lectura de manifiestos y la procedencia de --stack son conducta del script capability-route.py, no instrucción del agente (T-18); fix1 de la tanda B2 lo condensa más para que el núcleo nombre project-pieces.py dentro de 2 KB."
     },
     {
       "before_sha256": "b5af57244f0b4ec0f92048ca930c2f0ca2569ff221928cd8aa37eba8c2791c29",

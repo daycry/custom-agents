@@ -438,6 +438,13 @@
       "after_file": "skills/project-extensions/references/custom-agents-repo.md",
       "after_sha256": "ced3fd8391d24558efadcc08bcf984d6f8cd9699e95a2fa6477756f9fe389447",
       "reason": "plugin-audit-2 T-22: puerta E2/E3 propia de este repo, literal en custom-agents-repo.md; el núcleo lleva la regla genérica de proyecto."
+    },
+    {
+      "before_sha256": "3f4d14b21b744f09c26a9c6af1d2e7ed7161e61e6d1996fe879e83137e1ee6b5",
+      "before_line": 72,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "957184ee97582420b9d9061dc793f8868203d85488e6dda46bd3100ce2d8e844",
+      "reason": "La fila de racionalización remitía a «(P3)», que ya no está en el núcleo; ahora remite a §2 «Por tarea», la misma regla (fix1 de la tanda B2, gap 6)."
     }
   ]
 }

@@ -255,7 +255,7 @@ cuando un despacho falla dos veces.
 ## Dependencias
 
 - Agente `qa` (handoff de pruebas al terminar).
-- Kit shared: `usage-meter.py` (medición por tarea), `constitution-check.md`, `ledger-lint.py`.
+- Kit shared: `usage-meter.py` (medición por tarea), `ledger-lint.py`; la constitución se lee directamente de `docs/CONSTITUTION.md` (el fragmento de la Lente A no es dependencia).
 - Config `.claude/dev.json` (opt-in: `tdd` · `worktree` · `subagentes`; defaults off).
 
 ## Contexto técnico común

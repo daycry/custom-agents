@@ -153,7 +153,7 @@ disappears: the moved text stays in its single source and is opened when needed.
 | T-17 fix1: 11 pieces warn that variables do not survive between Bash calls. | −5,483. | −4,817 (+666 for the warning). |
 | Fragments only when they apply (T-18). The constitution and the memory query fit in one line per agent. | `capability-check.md` 5,597. Writing agents also opened `constitution-check.md` and `knowledge-check.md`. | A 1,975 core (−3,622 per read). The detail, 3,417, is opened with own pieces or `--stack`. Without hits, 1,462 + 4,000 are not opened. `agents/implementer.md` goes to 28,208. |
 | Implementer core, with the classic flow in `agent-kits/implementer/references/classic-flow.md` (T-19). Duplicated rules stay once. | `agents/implementer.md` 28,208. | 16,263 (−11,945 per subagent). The reference, 7,330, is read only without a brief. |
-| This repository's rules leave the generic agents (T-22). E2/E3 move to `custom-agents-repo.md` and no-UI QA to `agent-kits/qa/references/sin-ui.md`. | planner 21,522, implementer 16,263 and qa 19,211. | 20,212, 15,642 and 17,620 (−3,522). The no-UI reference, 2,247, is read only with the marker. |
+| This repository's rules leave the generic agents (T-22). E2/E3 move to `custom-agents-repo.md` and no-UI QA to `agent-kits/qa/references/sin-ui.md`. | planner 21,522, implementer 16,263 and qa 19,211. | 20,212, 15,642 and 17,620 (−3,522). The no-UI reference, 2,247, is read only with the marker. After the B2 batch fix1, implementer 15,686 and the `capability-check.md` core 1,979: it names `project-pieces.py` to decide whether to open the detail. |
 
 T-14 introduced per-phase reading for Lens A. Its fix3 brought
 `skills/adversarial-review/SKILL.md` to 17,046 characters. With T-40's task
@@ -163,7 +163,8 @@ handoffs, `context-footprint.py` now measures 17,691 characters for that skill,
 is 6,157 tokens. After T-15, the skill is at 16,949 characters and
 `skills/quick-implement/SKILL.md` at 6,224. The quick-path saving rises to
 6,385 tokens; with T-16, to 7,844; with T-17, to 7,860. With both fix1s it is 7,850; with the T-42 fix1 (Phase 1 and Phase 6 of `/dev-cycle`
-name `roadmap-sync.py gate` and `--cerrar`), 7,810. With its fix2 (the transition table is read at every artefact gate) it is 7,800.
+name `roadmap-sync.py gate` and `--cerrar`), 7,810. With its fix2 (the transition table is read at every artefact gate) it is 7,800. With the B2 batch fix1 (`/dev-cycle` says
+TDD and coverage arrive in the brief and that without `subagentes` it dispatches the implementer without a brief), 7,778.
 
 ## Tool results and handoffs
 

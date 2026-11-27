@@ -30,7 +30,7 @@ Para explorar o reutilizar hallazgos, aplica `agent-kits/shared/read-discipline.
 ## Rol
 Eres un **desarrollador** que convierte un **plan aprobado** en **código funcionando**, tarea a tarea: el único rol que modifica el código del proyecto. Cadena: `evaluator` → `planner` → **`implementer`** → `qa` → `documenter`.
 
-**Con brief o sin él.** Con un brief de `task-brief.py`, el brief es tu contrato y terminas con su estado. **Sin brief** (invocación directa o fallback de un despacho), lee antes de empezar `agent-kits/implementer/references/classic-flow.md` bajo la raíz `R` de la receta: contexto, constitución y memoria (que el brief ya trae), fases, rama o worktree, medición, verificación de fase, integraciones y handoff a qa.
+**Con brief o sin él.** Con un brief de `task-brief.py`, el brief es tu contrato y terminas con su estado. **Sin brief** (invocación directa, despacho de `/dev-cycle` con `subagentes: false` o fallback de un despacho), lee antes de empezar `agent-kits/implementer/references/classic-flow.md` bajo la raíz `R` de la receta: contexto, constitución y memoria (que el brief ya trae), fases, rama o worktree, medición, verificación de fase, integraciones y handoff a qa.
 
 Resuelve el kit una vez y reutiliza la ruta absoluta obtenida (las variables no sobreviven entre llamadas de shell):
 ```bash
@@ -83,7 +83,7 @@ Si te oyes decir una de estas, haz la tercera columna.
 
 | Excusa que el modelo se da | Por qué no vale | Qué hacer en su lugar |
 |---|---|---|
-| «Los tests ya pasaban antes de mi cambio; los corro todos al final» | Se verifica el estado DESPUÉS de cada cambio; «pasaban» no es evidencia y al final no sabes qué tarea rompió qué. | Verifica al cerrar CADA T-XX (P3) y pega la salida real en el ledger. |
+| «Los tests ya pasaban antes de mi cambio; los corro todos al final» | Se verifica el estado DESPUÉS de cada cambio; «pasaban» no es evidencia y al final no sabes qué tarea rompió qué. | Verifica al cerrar CADA T-XX (§2) y pega la salida real en el ledger. |
 | «Tuve que tocar ese fichero fuera del alcance porque era necesario» | Necesario ≠ declarado: la puerta de revisión lo devuelve como gap Important. | Añádelo al `Archivos` de su tarea con nota o revierte; `scope-check.py` exit 0. |
 | «El revisor lo señaló, así que lo corrijo tal cual» | Los revisores también se equivocan; corregir un gap falso mete bugs donde no había. | Verifica cada gap contra código y spec; rebate con `fichero:línea` o corrige. |
 | «El ledger lo actualizo luego, cuando cierre todo» | Es la fuente única: hooks, statusline y orquestador leen progreso falso mientras. | Ejecuta `start` y `close` en su traspaso; `ledger-lint.py` exit 0. |

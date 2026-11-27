@@ -93,7 +93,7 @@ def test_b2_fix1_gap2_el_nucleo_nombra_la_comprobacion_de_piezas_propias(tmp_pat
     (tmp_path / ".claude/skills/foo").mkdir(parents=True)
     (tmp_path / ".claude/skills/foo/SKILL.md").write_text(
         "---\nname: foo\ndescription: Skill foo del consumidor.\n---\nCuerpo\n", encoding="utf-8")
-    args = m.group(1).replace("<raíz-proyecto>", str(tmp_path)).replace("<runtime>", "claude-code").split()
+    args = m.group(1).replace("<raíz>", str(tmp_path)).replace("<runtime>", "claude-code").split()
     assert "--json" in args
     r = subprocess.run([sys.executable, str(SHARED / "project-pieces.py"), *args, "--project-only"],
                        capture_output=True, text=True, encoding="utf-8", timeout=60)

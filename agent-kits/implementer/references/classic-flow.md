@@ -1,7 +1,7 @@
 # Implementer — flujo clásico (sin brief)
 
-Léelo solo si trabajas **sin brief** de `task-brief.py`: invocación directa del implementer o
-fallback cuando un despacho de `/dev-cycle` falla dos veces. Con brief, el brief y el núcleo de
+Léelo solo si trabajas **sin brief** de `task-brief.py`: invocación directa del implementer,
+despacho de `/dev-cycle` con `subagentes: false` o fallback cuando un despacho falla dos veces. Con brief, el brief y el núcleo de
 `agents/implementer.md` bastan. El núcleo sigue mandando (guardrails, ledger, reglas por tarea,
 commits y DoD); aquí está lo que el orquestador hace por ti cuando hay brief. `$SHAREDKIT` y
 `$UTSKILL` salen de la receta del núcleo.

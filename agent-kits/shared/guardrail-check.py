@@ -2743,8 +2743,10 @@ _MERGE_LARGAS = ("no-edit edit ff no-ff ff-only squash no-squash commit no-commi
 _OPCIONES = {
     "add": _spec("AuvnNiepf", "", "", "all update verbose dry-run intent-to-add ignore-errors refresh patch interactive edit renormalize sparse ignore-removal no-ignore-removal "
                  "no-warn-embedded-repo ignore-missing force pathspec-file-nul", "chmod pathspec-from-file"),
-    "commit": _spec("asqveoi", "mFCct", "Su", "all amend no-edit edit signoff no-signoff quiet verbose allow-empty allow-empty-message only include dry-run short branch porcelain long null status "
-                    "no-status reset-author no-gpg-sign gpg-sign no-post-rewrite interactive patch untracked-files pathspec-file-nul",
+    # b2 fix1 (gap 4): `-n`, `--verify`, `--no-verify` y `--no-no-verify` entran aqui porque saltarse los hooks de commit lo decide
+    # `_commit_skips_verification`, que corre ANTES (en `_razon_git`) y conserva su ultima palabra (`--no-verify --verify` restaura).
+    "commit": _spec("asqveoin", "mFCct", "Su", "all amend no-edit edit signoff no-signoff quiet verbose allow-empty allow-empty-message only include dry-run short branch porcelain long null status "
+                    "no-status reset-author no-gpg-sign gpg-sign no-post-rewrite interactive patch untracked-files pathspec-file-nul verify no-verify no-no-verify",
                     "message file author date cleanup fixup squash trailer reuse-message reedit-message template pathspec-from-file"),
     "merge": _spec("eqv", "mXF", "S", _MERGE_LARGAS, "message file strategy-option cleanup"),
     "rebase": _spec("imqvfr", "xX", "SC", "continue abort skip quit interactive autosquash no-autosquash autostash no-autostash quiet verbose stat no-stat gpg-sign no-gpg-sign keep-empty "
@@ -2778,6 +2780,11 @@ _OPCIONES_WORKTREE = {
     "remove": _spec(),
 }
 _SUB_NUMERICAS = frozenset(("stash",))
+# b2 fix1 (gap 4): git acepta prefijos unicos de las opciones largas (`--mess` = `--message`). En `commit` (el unico con capa propia de hooks) un prefijo
+# vale si casa con UNA sola opcion de su lista blanca: si en git fuera ambiguo, git falla; ninguna opcion real de commit fuera de la lista es prefijo de
+# una permitida (lo fija `tests/test_b2_fix1.py`), asi que git no puede resolverlo a otra. En los demas subcomandos el prefijo sigue denegado
+# (`git merge --no-verify` es exacta y prefijo de `--no-verify-signatures`).
+_SUB_ABREVIA = frozenset(("commit",))
 
 
 def _razon_opciones(sub, args, spec, nombre=None):
@@ -2797,6 +2804,11 @@ def _razon_opciones(sub, args, spec, nombre=None):
                 continue
             if base in largas or base == "help":
                 continue
+            if sub in _SUB_ABREVIA and base and base not in valor and base not in largas:
+                casan = [o for o in largas | valor if o.startswith(base)]
+                if len(casan) == 1:
+                    k += 0 if igual or casan[0] not in valor else 1
+                    continue
         elif t.startswith("-") and len(t) > 1:
             if sub in _SUB_NUMERICAS and re.fullmatch(r"-\d+", t):
                 continue

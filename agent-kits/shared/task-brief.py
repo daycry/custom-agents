@@ -37,6 +37,8 @@ subagente fresco necesita para implementar UNA tarea `T-XX` — y nada más (bri
      tiene `tdd: true` — o se pasa `--tdd` —, el brief añade la sección «TDD» que manda seguir la
      skill `tdd` (fuente única del método) y devolver la evidencia del rojo (`RED: …`); dev.json
      ausente/corrupto → sin sección, aviso por stderr, nunca bloquea (`--dev-json RUTA` para tests).
+     Igual con `tests.coberturaMinima` (entero 0-100): sección «Cobertura» con el gate de `coverage-gate.py`
+     (plugin-audit-2 b2 fix1; también en lite). Inválido → sin sección y aviso.
   8. DISEÑO (parity-core T-fix1): si la carpeta tiene `design.md` (agente architect) en estado
      `aprobado`, se inyecta SOLO su sección «opción elegida y por qué» (token-diet: ni contexto, ni
      las opciones descartadas, ni el impacto); `borrador`/sin opción → aviso por stderr y nada.
@@ -115,6 +117,15 @@ el mínimo para el verde; refactoriza en verde. NO es TDD: tests después, `asse
 un test que ya pasaba. Devuelve `RED: <fichero::test> falló con <error> · <AAAA-MM-DD>` por criterio;
 el orquestador lo registra con `ledger-write.py` según `ledger-write.md`. Sin código testeable:
 `TDD n/a: <motivo>`, nunca un test vacío.
+"""
+
+
+# plugin-audit-2 b2 fix1 (gap 1): el gate de cobertura de `.claude/dev.json` llega al camino CON brief, como TDD.
+COBERTURA_BRIEF = """## Cobertura (activa en `.claude/dev.json`: `tests.coberturaMinima` = {n})
+
+Tras el verde, `python3 "$UTSKILL/scripts/coverage-gate.py" . --changed-only --min {n}` (`$UTSKILL`, de la receta
+del núcleo) y devuelve su salida: exit 1 (bajo el umbral) es un gap de verificación — sube la cobertura o
+devuelve `DONE_WITH_CONCERNS` con la excepción justificada; exit 2 (sin herramienta o stack) es aviso, no bloquea.
 """
 
 
@@ -264,6 +275,37 @@ def _tdd_activo(carpeta, dev_json=None):
             return False
         return bool(isinstance(data, dict) and data.get("tdd") is True)
     return False
+
+
+def _cobertura_minima(carpeta, dev_json=None):
+    """`tests.coberturaMinima` de dev.json (mismas rutas que `_tdd_activo`) si es un entero 0-100; None si falta,
+    no es válido o el fichero no se lee (aviso por stderr, nunca bloquea)."""
+    raiz = _raiz_de(carpeta)
+    candidatas = [dev_json] if dev_json else [os.path.join(raiz, ".claude", "dev.json"),
+                                              os.path.join(".claude", "dev.json")]
+    for c in candidatas:
+        if not c or not os.path.isfile(c):
+            continue
+        try:
+            with open(c, encoding="utf-8-sig") as fh:
+                data = json.load(fh)
+        except (OSError, ValueError):
+            return None
+        tests = data.get("tests") if isinstance(data, dict) else None
+        n = tests.get("coberturaMinima") if isinstance(tests, dict) else None
+        if n is None:
+            return None
+        if isinstance(n, bool) or not isinstance(n, int) or not 0 <= n <= 100:
+            print(f"⚠️  dev.json `tests.coberturaMinima` = {n!r} no es un entero 0-100 — brief sin gate de cobertura.",
+                  file=sys.stderr)
+            return None
+        return n
+    return None
+
+
+def _seccion_cobertura(args):
+    n = _cobertura_minima(args.carpeta, args.dev_json)
+    return [] if n is None else ["", COBERTURA_BRIEF.format(n=n)]
 
 
 def _lineas_con_fence(text):
@@ -1844,6 +1886,7 @@ def main(argv=None):
         return 2
     out += _seccion_constitucion(args)
     out += (["", TDD_BRIEF] if args.tdd or profile.get("tdd") else []) if lite else _seccion_tdd(args)
+    out += _seccion_cobertura(args)
     out += ["", CONTRATO]
     # Consumer text is DATA (fix3 gap 1): neutralise BEFORE the budget so the lengths it reports are the real ones.
     real_kit = _linea_kit_real()

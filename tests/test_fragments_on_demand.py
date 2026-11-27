@@ -66,8 +66,11 @@ def test_extensions_and_stacks_are_read_only_when_they_apply():
     core = ' '.join(lf(CORE).split())
     assert DETAIL.is_file(), 'capability-check-detail.md does not exist'
     assert 'capability-check-detail.md' in core
-    assert re.search(r'[Ss]olo si[^.]*piezas propias[^.]*capability-check-detail\.md', core), core
-    assert 'project-pieces.py' not in core
+    # b2 fix1 (gap 2): the condition must be decidable from the core, so the core names the cheap
+    # inventory (project-pieces.py) and opens the detail only when it finds pertinent pieces or --stack.
+    assert re.search(r'[Pp]iezas propias[^;]*project-pieces\.py[^;]*;\s*si `pieces`[^.]*--stack[^.]*'
+                     r'capability-check-detail\.md', core), core
+    assert '--select <id>' not in core and '## Stacks y detección' not in core
     detail = lf(DETAIL)
     for needed in ('project-pieces.py', '- **Extensiones**: ext-', '- **Procedencia de extensiones**:',
                    '--select <id>', '## Stacks y detección', 'codeigniter4/framework'):

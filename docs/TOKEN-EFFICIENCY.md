@@ -161,7 +161,7 @@ cuando hace falta.
 | Fix1 de T-17: 11 piezas avisan de que las variables no sobreviven entre llamadas de Bash. | −5.483. | −4.817 (+666 por el aviso). |
 | Fragmentos solo cuando aplican (T-18). La constitución y la consulta de memoria van en una línea por agente. | `capability-check.md` 5.597. Los agentes que escriben abrían además `constitution-check.md` y `knowledge-check.md`. | Núcleo de 1.975 (−3.622 por lectura). El detalle, 3.417, se abre con piezas propias o `--stack`. Sin aciertos no se abren 1.462 + 4.000. `agents/implementer.md` pasa a 28.208. |
 | Núcleo del implementer y flujo clásico en `agent-kits/implementer/references/classic-flow.md` (T-19). Las reglas duplicadas quedan una vez. | `agents/implementer.md` 28.208. | 16.263 (−11.945 por subagente). La referencia, 7.330, solo se lee sin brief. |
-| Reglas de este repositorio fuera de los agentes genéricos (T-22). E2/E3 pasan a `custom-agents-repo.md` y el QA sin UI, a `agent-kits/qa/references/sin-ui.md`. | planner 21.522, implementer 16.263 y qa 19.211. | 20.212, 15.642 y 17.620 (−3.522). La referencia sin UI, 2.247, se lee solo con el marcador. |
+| Reglas de este repositorio fuera de los agentes genéricos (T-22). E2/E3 pasan a `custom-agents-repo.md` y el QA sin UI, a `agent-kits/qa/references/sin-ui.md`. | planner 21.522, implementer 16.263 y qa 19.211. | 20.212, 15.642 y 17.620 (−3.522). La referencia sin UI, 2.247, se lee solo con el marcador. Tras el fix1 de la tanda B2, implementer 15.686 y núcleo de `capability-check.md` 1.979: nombra `project-pieces.py` para decidir si abre el detalle. |
 
 T-14 introdujo la lectura por fase de la Lente A. Su fix3 llevó
 `skills/adversarial-review/SKILL.md` a 17.046 caracteres. Con los traspasos de
@@ -173,7 +173,8 @@ queda en 16.949 caracteres y `skills/quick-implement/SKILL.md` en 6.224. El
 ahorro de la vía rápida sube a 6.385 tokens; con T-16, a 7.844; con T-17, a 7.860.
 Con el fix1 de ambas queda en 7.850; con el fix1 de T-42 (la Fase 1 y la Fase 6 de `/dev-cycle`
 nombran `roadmap-sync.py gate` y `--cerrar`), en 7.810. Con su fix2 (la tabla de transiciones se
-consulta en cada puerta de artefacto) queda en 7.800.
+consulta en cada puerta de artefacto) queda en 7.800. Con el fix1 de la tanda B2 (`/dev-cycle` dice que
+TDD y cobertura llegan en el brief y que sin `subagentes` despacha el implementer sin brief), en 7.778.
 
 ## Evitar contexto de poco valor durante la ejecución
 

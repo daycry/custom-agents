@@ -10,7 +10,7 @@
 Objetivo y filtros: **$ARGUMENTS**. Resuelve `agent-kits/shared/` con las raíces
 del runtime, como indica `agent-kits/shared/capability-check.md`. Usa ese método
 y ejecuta capability-route con el paquete, rol/fase y filtros pertinentes.
-Aplica también su sección de extensiones usando project-pieces del mismo bundle,
+Aplica también «Extensiones de proyecto y usuario» de `capability-check-detail.md` usando project-pieces del mismo bundle,
 la raíz de proyecto, el paquete como cwd y el runtime real de la sesión.
 
 Muestra stack detectado/declarado, fuentes, advertencias y mapas seleccionados.
