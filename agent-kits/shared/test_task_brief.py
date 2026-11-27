@@ -99,6 +99,16 @@ def test_brief_extrae_tarea_fase_y_arquitectura(inic):
         assert estado in out, f"el contrato de retorno incluye {estado}"
 
 
+def test_t19_el_brief_sustituye_al_flujo_clasico_del_implementer(inic):
+    """plugin-audit-2 T-19: el subagente con brief no lee la referencia del flujo clásico."""
+    rc, out = _run([str(inic), "T-01", "--sin-lint",
+                    "--constitucion", str(inic / "no-existe.md")])
+    assert rc == 0
+    contrato = out.split("## Contrato de retorno")[1]
+    assert "no leas `classic-flow.md`" in contrato
+    assert contrato.index("classic-flow.md") < contrato.index("DONE")
+
+
 def test_contrato_pide_sinonimos_del_dominio_antes_de_needs_context(inic):
     rc, out = _run([str(inic), "T-01", "--sin-lint",
                     "--constitucion", str(inic / "no-existe.md")])

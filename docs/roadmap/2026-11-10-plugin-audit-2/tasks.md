@@ -650,7 +650,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: El subagente con brief carga el cuerpo entero de `implementer` (29,5 KB) con secciones que no puede usar. Núcleo corto, flujo clásico a `agent-kits/implementer/references/` (directorio nuevo) y reglas repetidas 2-5 veces, una sola vez. Ahorro [E] 24-30 K tokens por ciclo.
 - **Changelog**: El implementer carga un núcleo corto y lee el flujo clásico solo cuando no hay brief.
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 5h · real —
 - **Tiempo IA (ejec.)**: est. 1.5h · real —
 - **Dependencias**: T-12, T-18
