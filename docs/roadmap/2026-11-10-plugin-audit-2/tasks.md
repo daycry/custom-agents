@@ -1232,6 +1232,8 @@ RED: `agent-kits/shared/test_roadmap_sync.py::test_t42_fix2_gap2_retro_gate_sync
 - 2026-11-26 · «Revisión de dos lentes — intento 6: Fase 3 (T-40) — verificación del fix5 (T-40)» → [execution-history.md](execution-history.md) · SHA-256 `33735d6e3959f11c02126afc45d31b72b96ae4e1e8316fb81d1648a88f9d2d8a`
 - 2026-11-26 · «Revisión de dos lentes — intento 7: Fase 3 (T-40) — verificación del fix6 — ciclo 3, abierto con OK del usuario: «Cerrar T‑40 y tarea nueva» (T-40)» → [execution-history.md](execution-history.md) · SHA-256 `bd80ff4464cf05d1495eb676329e3fb05a8b3730aee25d60be62262f9bf973e6`
 - 2026-11-26 · «Revisión de dos lentes — intento 1: Fase 3 (T-15, T-16, T-17) — tanda B1 (T-15, T-16, T-17)» → [execution-history.md](execution-history.md) · SHA-256 `0abd9c5b561a5498697872adab8675568c8414d290480696d2bab64659fc9fb0`
+- 2026-11-27 · «Revisión de dos lentes — intento 1: Fase 6 (T-42) — el plugin mantiene el roadmap al día (T-42)» → [execution-history.md](execution-history.md) · SHA-256 `784224a866c47fde5b5114f9db5122c31a33988f2494dd86078e2d981fab9c40`
+- 2026-11-27 · «Revisión de dos lentes — intento 2: Fase 6 (T-42) — verificación del fix1 (T-42)» → [execution-history.md](execution-history.md) · SHA-256 `a9fb388ce4f6c5352102594932a6d287528ca87337fa0ed46510e8320e55d8c5`
 
 
 ## Revisión de dos lentes — intento 18: Fase 1 (T-06, T-07, T-23) — verificación dirigida del fix17: 4 Important, 13 Minor
@@ -1404,51 +1406,6 @@ Lentes: A+B (Opus, contexto fresco, con traspaso del intento 1); C y D no aplica
 
 **Tanda B1 de la Fase 3 cerrada (2026-11-26)** según el criterio del usuario: 0 Critical y 0 Important tras los intentos 1 (fix1) y 2. Deuda aceptada: gap 9 del intento 1 y gaps 1, 2 (texto de TOKEN-EFFICIENCY) y 5 de este intento.
 
-## Revisión de dos lentes — intento 1: Fase 6 (T-42) — el plugin mantiene el roadmap al día (T-42)
-
-**Veredicto del plugin**: gaps (T-42)
-
-Lentes: A+B+D (Opus, contexto fresco). D por `review-lens-select.py --base ddd7f8a` (ruta `agent-kits/shared/progress-report.py`); C no aplica. `scope-check.py --base ddd7f8a` → exit 0. Diff `ddd7f8a..760f8b9`. Puerta Node en Linux (entorno de la CI): `604 · 571 pass · 0 fail · 33 skipped`. Resultado: 6 Important, 10 Minor.
-
-| # | Grado | Gap | Tarea | Corrección | Evidencia |
-|---|---|---|---|---|---|
-| 1 | Important | Cierra la evaluación sin go: con la spec `aprobada` (el analyst la aprueba antes de evaluar), cualquier sync pasa la evaluación `en-revision` a `completado`; luego `gate --decision no-go` sale con `decision_already_taken` | T-42 | corregido (fix1, 0e115d2; test test_t42_fix1_gap1_sync_no_cierra_la_evaluacion_sin_go) | `roadmap-sync.py:198-199,386-387`; `agents/analyst.md:87` |
-| 2 | Important | El ledger pasa a `completado` en el último verdict limpio (Fase 3, antes de qa) y no vuelve a `en-progreso` si qa reabre una tarea (el sync nunca rebaja); contradice `phase6-close.md:41` y CONVENTIONS:151 (ES/EN); `changelog-sync.py:534` ya lo da por cerrado | T-42 | corregido (fix1, 0e115d2+1eaa9df; test test_t42_fix1_gap2_* (×3) y test_t42_fix1_gap2_el_ledger_lo_cierra_la_fase_6) | `ledger-write.py:431-433`; `roadmap-sync.py:130-135,183-185` |
-| 3 | Important | Al cambiar el estado se borra el resto de la celda `\| Estado \|` (p. ej. «**La ejecución NO está autorizada**» de un plan) y se pisa una cabecera `\| Estado \| Significado \|` | T-42 | corregido (fix1, 0e115d2; test test_t42_fix1_gap3_conserva_el_resto_de_la_celda_y_salta_cabeceras) | `roadmap-sync.py:67,107-110,114-118` |
-| 4 | Important | La fila del índice se busca por el primer enlace `(<nombre>/`: si otra fila enlaza a esa carpeta, la marca cae en la fila ajena y `--check` no lo ve (ya ocurre con `2026-09-04-ideas-externas`) | T-42 | corregido (fix1, 0e115d2; test test_t42_fix1_gap4_fila_propia_por_su_enlace_no_por_la_primera_mencion) | `roadmap-sync.py:243` |
-| 5 | Important | La puerta go/no-go de `/dev-cycle` (flujo completo) no usa `roadmap-sync.py gate`; `dev-cycle.md` y el evaluator siguen aplicando spec y evaluación a mano (criterio 1) | T-42 | corregido (fix1, 1eaa9df; test test_t42_fix1_gap5_la_puerta_go_de_dev_cycle_usa_la_herramienta) | `agent-kits/dev-cycle/references/phase1-evaluation.md:4`; `commands/dev-cycle.md:203-205`; `agents/evaluator.md:120` |
-| 6 | Important | SessionStart recorre TODO el roadmap sin tope ni caché en cada arranque/reanudación/compactación (lecturas completas con `LocalState.read`, `parse_ledger` entero, sin plazo en lectura): 71 iniciativas +0,6-1,2 s; 300 iniciativas 16,6 s (hook 20,9 s de 30 s); ~45 ms por iniciativa en Windows: un proyecto grande pierde TODO el bloque de contexto | T-42 | corregido (fix1, 0e115d2; test test_t42_fix1_gap6_cache_por_firma_no_reanaliza_lo_que_no_cambia, _tope_de_carpetas_y_plazo, _session_degrada_por_plazo_sin_romper_el_bloque) | `progress-report.py:1110`; `roadmap-sync.py:331,151,80-92,368`; `local-state.py:51-73` |
-| 7 | Minor | Un `\|` escapado en el título desplaza las columnas de la fila | T-42 | corregido (fix1, 0e115d2; test test_t42_fix1_gap7_pipe_escapado_en_el_titulo) | `roadmap-sync.py:254-267` |
-| 8 | Minor | Índice > 256 KiB → `KeyError: 'bom'`, traceback y exit 1 sin JSON | T-42 | corregido (fix1, 0e115d2; test test_t42_fix1_gap8_indice_grande_degrada_con_aviso_y_json) | `roadmap-sync.py:84-89,281` |
-| 9 | Minor | Se pierde el texto que sigue a una marca ` · estado: ` previa | T-42 | corregido (fix1, 0e115d2; test test_t42_fix1_gap9_conserva_el_texto_tras_una_marca_previa) | `roadmap-sync.py:258-260` |
-| 10 | Minor | `gate` puede quedar a medias (spec escrita, evaluación en conflicto) sin avisarlo | T-42 | corregido (fix1, 0e115d2; test test_t42_fix1_gap10_gate_escribe_ambos_o_ninguno) | `roadmap-sync.py:390-395` |
-| 11 | Minor | Ledger > 256 KiB al 100 % con cabecera `en-progreso`: ni desfase ni aviso (el propio ledger de esta iniciativa pesa ~254 KB) | T-42 | corregido (fix1, 0e115d2; test test_t42_fix1_gap11_ledger_grande_sin_cerrar_avisa_no_escrito) | `roadmap-sync.py:180-187` |
-| 12 | Minor | La marca `· estado:` convive con un estado en prosa contradictorio en la misma celda | T-42 | corregido (fix1, 1eaa9df; test test_t42_fix1_gap12_la_marca_es_la_fuente_del_indice) | `docs/roadmap/README.md:73` |
-| 13 | Minor | evaluator y planner siguen instruidos a mantener la fila del índice: dos escritores sin dueño declarado (ADR-011) | T-42 | corregido (fix1, 1eaa9df; test test_t42_fix1_gap13_un_solo_dueno_de_la_fila_del_indice) | `agents/evaluator.md:66`; `agents/planner.md:66` |
-| 14 | Minor | `contar_tareas` del panel es un segundo parser de estados de tarea, sin declarar (ADR-016) | T-42 | corregido (fix1, 0e115d2; test test_t42_fix1_gap14_contar_tareas_usa_el_parser_canonico_del_ledger) | `build_dashboard.py:384-399` |
-| 15 | Minor | `_retro_hecha` re-ejecuta `retro-gate.py` y relee CALIBRATION por iniciativa (~7,6 ms cada una) | T-42 | corregido (fix1, 0e115d2; test test_t42_fix1_gap15_el_informe_trae_las_retros_abiertas, _session_reutiliza_el_veredicto_de_retro_del_informe) | `progress-report.py:1082-1088,1123,1147` |
-| 16 | Minor | `ledger-write.py` y `roadmap-sync.py` se importan mutuamente (perezoso) sin arista en `docs/agents/CONTRACTS.md` | T-42 | corregido (fix1, 1eaa9df; test test_t42_fix1_gap16_arista_ledger_write_roadmap_sync_en_contracts) | `ledger-write.py`; `roadmap-sync.py` |
-
-## Revisión de dos lentes — intento 2: Fase 6 (T-42) — verificación del fix1 (T-42)
-
-**Veredicto del plugin**: gaps (T-42)
-
-Lentes: A+B+D (Opus, con traspaso del intento 1). `scope-check --base 760f8b9` → 0 fuera de alcance. Diff `760f8b9..9fc1a8b`. Los 16 gaps del intento 1 verificados como corregidos (31 tests del fix1 rojos en `8443cf8`, verdes en HEAD), salvo lo que sigue. Puerta Node en Linux (entorno de la CI): `604 · 571 · 0 fail · 33 skipped`. SessionStart: caliente +0,06-0,14 s (real) y 0,50 s (300 iniciativas); plazo de 2 s respetado. Resultado: 2 Important, 8 Minor.
-
-| # | Grado | Gap | Tarea | Corrección | Evidencia |
-|---|---|---|---|---|---|
-| 1 | Important | `tests/test_dev_cycle_split.py` en rojo (CI roja): `ddd7f8a` 16 passed, `760f8b9` 2 failed (T-42 original, no visto en el intento 1), HEAD 3 failed (`test_fix1_gap5_one_reading_condition_for_phase6_close`, `test_no_original_paragraph_is_lost` hash a76825d4, `test_common_review_qa_and_commit_gates_stay_in_the_core` dfcbd22); fixtures sin actualizar; la Evidencia fix1 no incluyó esta suite | T-42 | corregido (fix2, f9f2ca6; test test_t42_fix2_gap1_transitions_keep_the_reading_condition_with_the_gate) | `commands/dev-cycle.md:204-206`; `tests/fixtures/dev-cycle-paragraphs.json:21`; `tests/fixtures/dev-cycle-modular-replacements.json:99` |
-| 2 | Important | Un `--cerrar` olvidado pasa en silencio: `--check` exit 0 (`cierre-pendiente` solo aviso); `retro-gate --sync` abre la puerta sin cerrar ledger, plan ni spec y dice «puede declararse cerrada»; el paso 9 afirma lo contrario; el bloque de sesión manda a `/retro`; el criterio 2 cita «5 tipos» y el test comprueba 4 | T-42 | corregido (fix2, 2bdbc57 + f9f2ca6; tests test_t42_fix2_gap2_*) | `roadmap-sync.py:240-247`; `retro-gate.py:212-214`; `phase6-close.md:17`; `progress-report.py:1141-1143` |
-| 3 | Minor | Fila existente con el enlace en «Iniciativa» y última columna `—` no se reconoce: fila duplicada sin aviso | T-42 | corregido (fix2, 2bdbc57 + 224ebf3; test test_t42_fix2_gap3_fila_con_el_enlace_en_iniciativa_no_se_duplica) | `roadmap-sync.py:341,354-361` |
-| 4 | Minor | Caché con firma vigente y entrada incompleta → `KeyError` antes de reescribirla: el aviso de desfases desaparece para siempre sin decirlo | T-42 | corregido (fix2, 2bdbc57; test test_t42_fix2_gap4_cache_con_entrada_incompleta_se_descarta) | `roadmap-sync.py:595-603` |
-| 5 | Minor | `--cerrar` sobre un ledger sin campo `estado` y al 100 % sale 0 sin cerrar (aviso `sin-estado`); `--check` también 0 | T-42 | corregido (fix2, 2bdbc57; test test_t42_fix2_gap5_cerrar_sin_campo_estado_no_es_exito_silencioso) | `roadmap-sync.py:514-515,235-239` |
-| 6 | Minor | Gap 13 sin cerrar: evaluator (P1, P6), planner (P6), dependency-upgrade y su doc siguen instruidos a escribir el índice; el test solo busca «Mantén» | T-42 | corregido (fix2, f9f2ca6; test test_t42_fix2_gap6_ninguna_pieza_escribe_el_indice_salvo_roadmap_sync) | `agents/evaluator.md:85,105`; `agents/planner.md:119`; `skills/dependency-upgrade/SKILL.md:70`; `docs/agents/evaluator.md:12` |
-| 7 | Minor | FLOWS (ES/EN) no muestra `gate` en `/dev-cycle` ni el paso de cierre del ledger | T-42 | corregido (fix2, f9f2ca6; test test_t42_fix2_gap7_flows_muestra_gate_y_el_cierre_del_ledger) | `docs/FLOWS.md:326-342`; `docs/en/FLOWS.md:~325-341` |
-| 8 | Minor | El paso 6 escribe `tasks.md` después del merge/PR (paso 4) y del borrado de la rama (paso 5): el ledger cerrado queda fuera del PR | T-42 | corregido (fix2, f9f2ca6; test test_t42_fix2_gap2_el_ledger_se_cierra_antes_del_merge_y_el_paso_9_dice_la_verdad) | `phase6-close.md:12-14` |
-| 9 | Minor | `contar_tareas` con `parse_ledger` completo: `build_dashboard.py --json` +0,3 s (72 iniciativas), +1,5 s (300); comando a demanda | T-42 | corregido (fix2, 2bdbc57; test test_t42_fix2_gap9_el_panel_cuenta_con_el_parser_canonico_ligero) | `skills/roadmap-dashboard/scripts/build_dashboard.py:384-422` |
-| 10 | Minor | `analizar` reabre un ledger `completado` con una tarea `borrador` nueva (no solo las reabiertas por qa); la doc solo habla de reapertura por qa | T-42 | corregido (fix2, 2bdbc57 + f9f2ca6: documentado, es correcto; test test_t42_fix2_gap10_*) | `roadmap-sync.py:232-238` |
-| 11 | Minor | Encontrado por la sesión kairos sobre un índice de otro proyecto: `--check` avisa «README.md sin tabla» con la cabecera `\| Fecha \| Slug \| Estado \| Coste estimado \| Spec \| Evaluación \| Plan \|` (generada por versiones anteriores del plugin) | T-42 | corregido (fix2, 2bdbc57; test test_t42_fix2_gap11_indice_con_columna_slug) | `roadmap-sync.py` `editar_indice` |
-
 ## Revisión de dos lentes — intento 3: Fase 6 (T-42) — verificación del fix2 (T-42)
 
 **Veredicto del plugin**: gaps (T-42)
@@ -1467,3 +1424,5 @@ Lentes: A+B+D (Opus, con traspaso del intento 2). Diff `9fc1a8b..a8c1275`. Los 1
 | 8 | Minor | Una tabla `\| Fecha \| Slug \| … \|` anterior al índice secuestra la escritura | T-42 | pendiente | `roadmap-sync.py:384-396,433-439` |
 | 9 | Minor | El test del gap 6 (dueño único del índice) no protege `skills/dependency-upgrade/SKILL.md:70` ni `docs/agents/evaluator.md:12` | T-42 | pendiente | `tests/test_t42_fix2_roadmap.py:61-71` |
 | 10 | Minor | FLOWS: el nodo de exit 1 de `retro-gate --sync` dice «ledger completado» y también significa tareas abiertas | T-42 | pendiente | `docs/FLOWS.md:344`; `docs/en/FLOWS.md:343` |
+
+**Decisión del usuario (2026-11-27)** tras el 3.er intento con gaps: «Ciclo nuevo con fix3 acotado (Recomendado)». El fix3 abre el ciclo 2 (intento 4): caché en el directorio de estado privado del usuario con el helper del plugin (permisos reales 0700, sin enlaces, propietario comprobado; sin él, sin caché y nunca dentro del proyecto), test del plazo con plazos absolutos, `retro-gate --sync` se niega con un ledger que no puede verificar, y los 6 Minor.
