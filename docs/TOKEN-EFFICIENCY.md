@@ -160,6 +160,7 @@ cuando hace falta.
 | Una receta del kit por agente y comando, que define todas sus variables (T-17). | 33 recetas en 18 piezas. `reviewer` y `/retro` usaban `$SHAREDKIT` sin receta. | 20 recetas, una por pieza: −5.483 entre agentes y comandos. Son −6.390 de recetas repetidas y +907 por las dos que faltaban. `agents/implementer.md` pasa de 29.077 a 28.268. |
 | Fix1 de T-17: 11 piezas avisan de que las variables no sobreviven entre llamadas de Bash. | −5.483. | −4.817 (+666 por el aviso). |
 | Fragmentos solo cuando aplican (T-18). La constitución y la consulta de memoria van en una línea por agente. | `capability-check.md` 5.597. Los agentes que escriben abrían además `constitution-check.md` y `knowledge-check.md`. | Núcleo de 1.975 (−3.622 por lectura). El detalle, 3.417, se abre con piezas propias o `--stack`. Sin aciertos no se abren 1.462 + 4.000. `agents/implementer.md` pasa a 28.208. |
+| Núcleo del implementer y flujo clásico en `agent-kits/implementer/references/classic-flow.md` (T-19). Las reglas duplicadas quedan una vez. | `agents/implementer.md` 28.208. | 16.263 (−11.945 por subagente). La referencia, 7.330, solo se lee sin brief. |
 
 T-14 introdujo la lectura por fase de la Lente A. Su fix3 llevó
 `skills/adversarial-review/SKILL.md` a 17.046 caracteres. Con los traspasos de

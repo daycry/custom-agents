@@ -36,7 +36,11 @@ def paragraphs(text):
 
 
 def agent(name):
-    return lf(ROOT / 'agents' / f'{name}.md')
+    text = lf(ROOT / 'agents' / f'{name}.md')
+    if name == 'implementer':
+        # plugin-audit-2 T-19: constitution and memory reading move to the classic flow (the brief carries them)
+        text += '\n' + lf(ROOT / 'agent-kits/implementer/references/classic-flow.md')
+    return text
 
 
 def bullet(body, title):

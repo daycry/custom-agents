@@ -97,5 +97,335 @@
     "37295a082b43667e19d69b3be97fbecda2cffa867a78d0a85848d8739c01e1f9",
     "fe3a84dba8de65a63078fd953d712c93ec99cd39b971988183644a8da8e27350"
   ],
-  "replacements": []
+  "replacements": [
+    {
+      "before_sha256": "00ace6d9399be8512c022f19713d44e8eab0eddf12ca182c5628a59ce2dc4707",
+      "before_line": 3,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "fd1059cc6b36dff17e02c13061322e954136f1006ab1720dc8a852064353554b",
+      "reason": "Mismas puertas del contexto de capacidades en menos líneas: selección del brief, rol, referencias pertinentes y fallback con aviso (T-19, núcleo)."
+    },
+    {
+      "before_sha256": "7315e3a620c992eaa2d28e71db94b0b1028c00cbd68b25ce78fce7d7da367eae",
+      "before_line": 4,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "fd1059cc6b36dff17e02c13061322e954136f1006ab1720dc8a852064353554b",
+      "reason": "Mismas puertas del contexto de capacidades en menos líneas: selección del brief, rol, referencias pertinentes y fallback con aviso (T-19, núcleo)."
+    },
+    {
+      "before_sha256": "63ea9a358405838236e8647d542e254193b19c69a2024820d8ab9bde5999d5e9",
+      "before_line": 5,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "8532bb950d5945aad7001166598afdf7fabe39d3933868719239978ff2357d94",
+      "reason": "Mismas puertas del contexto de capacidades en menos líneas: selección del brief, rol, referencias pertinentes y fallback con aviso (T-19, núcleo)."
+    },
+    {
+      "before_sha256": "2a06cb2686cb87bb213c0516e6f4d7b10cf67f1016e78be04367558ad492adfe",
+      "before_line": 6,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "8532bb950d5945aad7001166598afdf7fabe39d3933868719239978ff2357d94",
+      "reason": "Mismas puertas del contexto de capacidades en menos líneas: selección del brief, rol, referencias pertinentes y fallback con aviso (T-19, núcleo)."
+    },
+    {
+      "before_sha256": "97d3451512b8599a74e3798802a4f2c0661de13c6861ebdb294f60a8a0b60a10",
+      "before_line": 10,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "9f5e370399c91a6ed9a94ec4cd3762c8f366ca5a824a725be8db051de80401ed",
+      "reason": "Rol condensado en una frase con la cadena; el contraste con los roles de solo lectura lo da la Salida de §0 (T-19, núcleo)."
+    },
+    {
+      "before_sha256": "05761d1a8da4e684058e601b1478502b02c272c8f21d2939e1a0b4711034041a",
+      "before_line": 11,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "9f5e370399c91a6ed9a94ec4cd3762c8f366ca5a824a725be8db051de80401ed",
+      "reason": "Rol condensado en una frase con la cadena; el contraste con los roles de solo lectura lo da la Salida de §0 (T-19, núcleo)."
+    },
+    {
+      "before_sha256": "8e8891e55ae4333bae25b48140b409e16e9dc1ee9259f715704612fe6e9cb2d3",
+      "before_line": 12,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "9f5e370399c91a6ed9a94ec4cd3762c8f366ca5a824a725be8db051de80401ed",
+      "reason": "Rol condensado en una frase con la cadena; el contraste con los roles de solo lectura lo da la Salida de §0 (T-19, núcleo)."
+    },
+    {
+      "before_sha256": "d165f46ed6a4c03f072750b71087ae3f37f8071f9982620f7454817f83a63dab",
+      "before_line": 13,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "9f5e370399c91a6ed9a94ec4cd3762c8f366ca5a824a725be8db051de80401ed",
+      "reason": "Rol condensado en una frase con la cadena; el contraste con los roles de solo lectura lo da la Salida de §0 (T-19, núcleo)."
+    },
+    {
+      "before_sha256": "5b310a044c07513e1f492fd5ff78d915ca5cdd703d5607e3343e0013af325150",
+      "before_line": 14,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "9f5e370399c91a6ed9a94ec4cd3762c8f366ca5a824a725be8db051de80401ed",
+      "reason": "Rol condensado en una frase con la cadena; el contraste con los roles de solo lectura lo da la Salida de §0 (T-19, núcleo)."
+    },
+    {
+      "before_sha256": "53d36b47b6d4d4b2ed09268a6a73a3149ae5ffa60577c2b45fc26ce0a47d7ff6",
+      "before_line": 20,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "ffdca8c4419ed9f01bfdfc16cf999edff09c2ec6befc13dbda39d4bac1f6860f",
+      "reason": "Guardarraíl resumido por clases con la lista blanca completa y «no es un sandbox»; la enumeración literal vive en docs/agents/implementer.md y el hook imprime la razón de cada DENY (T-19)."
+    },
+    {
+      "before_sha256": "b8dea020b959ab516bc94335e85b6a883e3082906145d21376f737bf28598823",
+      "before_line": 21,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "4e6b663953ba014593fb9c21970a13fe2c61518fd31ef8249bc2cd70a1b550dd",
+      "reason": "Regla del ledger en un párrafo: fuente única, espejo, ledger-write.md, start/close y autoridad del orquestador; dicha una sola vez (T-19, deduplicación)."
+    },
+    {
+      "before_sha256": "330d7c2791bbf71c6422ebc883228bd883f59f4a42fc3728afed2a842d4feeeb",
+      "before_line": 22,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "85dcb179a58005d1c06061007d0b8f1a69ba2c39e350beb6625df7ca8d49dbac",
+      "reason": "Regla del ledger en un párrafo: fuente única, espejo, ledger-write.md, start/close y autoridad del orquestador; dicha una sola vez (T-19, deduplicación)."
+    },
+    {
+      "before_sha256": "208f4385286a4efd3e805d1ea444eecfbd4fa02e214b42d046590076375f4c90",
+      "before_line": 23,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "85dcb179a58005d1c06061007d0b8f1a69ba2c39e350beb6625df7ca8d49dbac",
+      "reason": "Regla del ledger en un párrafo: fuente única, espejo, ledger-write.md, start/close y autoridad del orquestador; dicha una sola vez (T-19, deduplicación)."
+    },
+    {
+      "before_sha256": "776956f061b05a91b337d12cbbe5348eb60da3d088e5d7da4aff799d56b7eb5d",
+      "before_line": 24,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "85dcb179a58005d1c06061007d0b8f1a69ba2c39e350beb6625df7ca8d49dbac",
+      "reason": "Regla del ledger en un párrafo: fuente única, espejo, ledger-write.md, start/close y autoridad del orquestador; dicha una sola vez (T-19, deduplicación)."
+    },
+    {
+      "before_sha256": "4b751e5d3f75cf71d803c0f25ca527718c10534aec395893135d9276ce86a298",
+      "before_line": 25,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "85dcb179a58005d1c06061007d0b8f1a69ba2c39e350beb6625df7ca8d49dbac",
+      "reason": "Regla del ledger en un párrafo: fuente única, espejo, ledger-write.md, start/close y autoridad del orquestador; dicha una sola vez (T-19, deduplicación)."
+    },
+    {
+      "before_sha256": "5c9ee3d3c2005444f59c4d94ce6a8248051592a77aed9bea5314d3aa749890ed",
+      "before_line": 26,
+      "after_file": "agent-kits/implementer/references/classic-flow.md",
+      "after_sha256": "66e26ee536008bb86c29011a5c85d04f76fcf06d9e898eea2e53fe660a70c120",
+      "reason": "Pasa literal o casi literal a la referencia del flujo clásico, que solo se lee sin brief (T-19)."
+    },
+    {
+      "before_sha256": "b05967fc5e5e684bd600b8db2e76e0890413911dfb0b08c1bb1d3ec4a58de33e",
+      "before_line": 27,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "85dcb179a58005d1c06061007d0b8f1a69ba2c39e350beb6625df7ca8d49dbac",
+      "reason": "Regla del ledger en un párrafo: fuente única, espejo, ledger-write.md, start/close y autoridad del orquestador; dicha una sola vez (T-19, deduplicación)."
+    },
+    {
+      "before_sha256": "6c239d8fc92de9787d75cdcbf0b969d8a8ada24fdea4580f2794166ce81069d9",
+      "before_line": 28,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "85dcb179a58005d1c06061007d0b8f1a69ba2c39e350beb6625df7ca8d49dbac",
+      "reason": "Regla del ledger en un párrafo: fuente única, espejo, ledger-write.md, start/close y autoridad del orquestador; dicha una sola vez (T-19, deduplicación)."
+    },
+    {
+      "before_sha256": "c81e4a1682cad77d39076d55aa76f41f14912f8e408c21676ec0802843a06c00",
+      "before_line": 29,
+      "after_file": "agent-kits/implementer/references/classic-flow.md",
+      "after_sha256": "397b047beff88ce6b3e3f70163c837e3cfa91b14a9542e0cd0923d79f78fcc1b",
+      "reason": "El título del flujo de 6 pasos pasa a la referencia del flujo clásico; el núcleo lleva «Por tarea» (T-19)."
+    },
+    {
+      "before_sha256": "549618ecb976f3e0da6265f09c24255c2b89bea145aa7a309637858664f54943",
+      "before_line": 31,
+      "after_file": "agent-kits/implementer/references/classic-flow.md",
+      "after_sha256": "d323b50dc9d406dc7f812e7538b7e97fad98f21669c5b03b7e4fb176654d142e",
+      "reason": "Pasa literal o casi literal a la referencia del flujo clásico, que solo se lee sin brief (T-19)."
+    },
+    {
+      "before_sha256": "8fb6fa643b69b431a7cfd09d6008864f91bd2dde6e9d9ec26f38f78ba4ca0363",
+      "before_line": 34,
+      "after_file": "agent-kits/implementer/references/classic-flow.md",
+      "after_sha256": "afeb03a84ba44fc3a25f9351d2fd46387aa8ec5299778d30d1d80d34091ef9e6",
+      "reason": "Pasa literal o casi literal a la referencia del flujo clásico, que solo se lee sin brief (T-19)."
+    },
+    {
+      "before_sha256": "42e3b53fc65d262a099d9dc4721494a605311adf01842ec1673874a216c1bc75",
+      "before_line": 36,
+      "after_file": "agent-kits/implementer/references/classic-flow.md",
+      "after_sha256": "ff1f07f1f0ba2d0d0cc9af0bacc0171cd65995ea5465974f1338ef2033ff8fb6",
+      "reason": "Pasa literal o casi literal a la referencia del flujo clásico, que solo se lee sin brief (T-19)."
+    },
+    {
+      "before_sha256": "892f2db223c694817631969f61aa436fe994c1dd27fedc6fe2cd9d992035b153",
+      "before_line": 37,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "e1564d82e728cfe986643afc093bb98055f81d85526f967a008dd6a10be03294",
+      "reason": "La regla TDD queda en el núcleo; «con tdd: false, flujo clásico» pasa a P1-bis de la referencia (T-19)."
+    },
+    {
+      "before_sha256": "fe4df457cf363ccae0296f2944e665aad35660cec4a6eea19ccb9ba986262e6a",
+      "before_line": 38,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "f45b1d7c09a6ce29e2c0a0d1ba6e417b06f94e528fbf60f446433e92f0f22b84",
+      "reason": "Misma regla con menos palabras; se conservan los hechos, los comandos y las prohibiciones (T-19, núcleo < 15 KB)."
+    },
+    {
+      "before_sha256": "2a3af92811cf230f92a50f90df4b4f818f1fd28c62c4f5694590039c3f5cd328",
+      "before_line": 40,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "325205eaa5455e4421b17b1c6e9b1a745c360994929b0f1f1d568661f854d803",
+      "reason": "Misma regla con menos palabras; se conservan los hechos, los comandos y las prohibiciones (T-19, núcleo < 15 KB)."
+    },
+    {
+      "before_sha256": "b42a3483b5769c19576b77c1bf9e0ab7c56065e385df089019cde992e968529a",
+      "before_line": 41,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "fab6d4b78cbf19adc74de878a3925c9b1b8130a021738e23d0ed5d45eacc67a2",
+      "reason": "Se conserva ejecutar la Verificación, pegar la salida y el OK del usuario ante red/credenciales; «verifica localmente» ya lo exige el DoD (Salida real) (T-19, deduplicación)."
+    },
+    {
+      "before_sha256": "6d9d4939dd28b64a3ca7140d7b290a93949ddedd250e3b65d471273ba1721063",
+      "before_line": 42,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "580f5a6f0252767d8262c7414a7b475c8de01fc0a49dd8155ac38b6a1988d419",
+      "reason": "Misma regla con menos palabras; se conservan los hechos, los comandos y las prohibiciones (T-19, núcleo < 15 KB)."
+    },
+    {
+      "before_sha256": "333f02d2a3d4b9ad1bde680efa65682495982a6cdb238355931f7efb92b423e1",
+      "before_line": 43,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "8beb8602b81785fffb4fb32063977bc70e12b1be4b258dbccf4ad1838fcabe68",
+      "reason": "Duplicada con el ítem E2 del DoD: la regla queda una sola vez, en el DoD (T-19, deduplicación)."
+    },
+    {
+      "before_sha256": "25dd2d62593f07334ae397734a7e36e5ed5134cd2ef261c4f3ffd8c9a0d8eea1",
+      "before_line": 44,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "80553727ea70bcffa001d95228cf7a0592dc235ee1a090d70e438a6a3d3a9f71",
+      "reason": "Marcar criterios y horas reales queda en el DoD; la entrega a revisión por close, en §1 (T-19, deduplicación)."
+    },
+    {
+      "before_sha256": "4bbbf10ba9961432b1b83e2a5684faed92bc7e0c5777d99d5b5f68ec2bfc8e10",
+      "before_line": 45,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "0744fb0079009d6a90649aeda20f338d3e387489596453ac84d24d59ee5b7254",
+      "reason": "Misma regla con menos palabras; se conservan los hechos, los comandos y las prohibiciones (T-19, núcleo < 15 KB)."
+    },
+    {
+      "before_sha256": "6b11256f8edf69166c09d5259dd58e9884deed2d337d711d67a57be9e4c60a9b",
+      "before_line": 46,
+      "after_file": "agent-kits/implementer/references/classic-flow.md",
+      "after_sha256": "66e26ee536008bb86c29011a5c85d04f76fcf06d9e898eea2e53fe660a70c120",
+      "reason": "Pasa literal o casi literal a la referencia del flujo clásico, que solo se lee sin brief (T-19)."
+    },
+    {
+      "before_sha256": "00688e05714ac0049a9fd9cde93f53b367e3198284182e0427a967675db6ce05",
+      "before_line": 49,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "360bc1ac3dd56a50fa86962a7e9eab0900f17f58eea69111a14710db1a9d3689",
+      "reason": "«No marques completado lo que no lo está» ya es la fila «Está casi hecho» de la tabla; la nota de bloqueo queda en el núcleo (T-19, deduplicación)."
+    },
+    {
+      "before_sha256": "8ce1093a5956f170d8b1620e3118c800ae8f82b4960efa874a1f7ba35980ef9f",
+      "before_line": 50,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "7f8db2ef118751cad39c443f5a0c2879e1bcbaf6de449a46e9635afec3c95796",
+      "reason": "Verificar antes de corregir y rebatir con fichero:línea ya es una fila de la tabla de racionalización; el núcleo conserva la sección del brief y la nota de bloqueo (T-19, deduplicación)."
+    },
+    {
+      "before_sha256": "05239b811315d1f6ca24227c4f0baf80d3648e1cd32643f84e2eb54305ccd8a4",
+      "before_line": 51,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "bb8a3b5a0ddf108e422f5d1f7389a4ec74e0f3b95f925af210a5fa77048e4753",
+      "reason": "Misma regla con menos palabras; se conservan los hechos, los comandos y las prohibiciones (T-19, núcleo < 15 KB)."
+    },
+    {
+      "before_sha256": "f642260f5e0211c018a83e696478533cbcf94178cb5def5c5ae2a1eb1c7ef868",
+      "before_line": 52,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "cedc4cf795b7764606407aa61db14e5cbc87879a32a556c9d83b81c024e17abe",
+      "reason": "Misma regla con menos palabras; se conservan los hechos, los comandos y las prohibiciones (T-19, núcleo < 15 KB)."
+    },
+    {
+      "before_sha256": "69e81c4a97aae56f1d24d69f4f8e19690a66ab909427b63e86c588733bf6dc20",
+      "before_line": 53,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "ac288b72f63c4add43a38250591ffa69b08b30757156a8423e268c65b5576900",
+      "reason": "Misma regla con menos palabras; se conservan los hechos, los comandos y las prohibiciones (T-19, núcleo < 15 KB)."
+    },
+    {
+      "before_sha256": "8f50acac8baf836033b078d011a0af2685a61b7ee7d437bdaa2a9357337089da",
+      "before_line": 55,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "5a8baa9c51b139acf7a3eb0aa66ec5db28b28ebcff27e116bf768574ea5789f2",
+      "reason": "Misma regla con menos palabras; se conservan los hechos, los comandos y las prohibiciones (T-19, núcleo < 15 KB)."
+    },
+    {
+      "before_sha256": "6af75d5fa40d3f2137afcd770f3ba00faeb9da770303e4a978f921bd01a6c189",
+      "before_line": 57,
+      "after_file": "agent-kits/implementer/references/classic-flow.md",
+      "after_sha256": "33e6524ff844467cfcfd36ae814ab0aa7310ec80067fa8a8c3885f202d33c61f",
+      "reason": "Pasa literal o casi literal a la referencia del flujo clásico, que solo se lee sin brief (T-19)."
+    },
+    {
+      "before_sha256": "35ce2b723e763b00d892d1898b1bab0e1ca9d522bce1f088f52d2a13fc879bcd",
+      "before_line": 62,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "5fa6d99b37308c7f5bc144f6133317a13408bf97065a1998e31e08efa97f3905",
+      "reason": "«Ejecutas, no planificas» es la fila «El plan es ambiguo» de la tabla de racionalización (regla 5 del fragmento: una sola fuente) (T-19)."
+    },
+    {
+      "before_sha256": "79e0011ee2ce38a777d8a4684c503fff40419d381ea3ccd3a6b970af1f39e453",
+      "before_line": 63,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "dd13c3d9d143ffda29441a4ee712465c139818a754934443907fa93e90ab931c",
+      "reason": "Misma regla con menos palabras; se conservan los hechos, los comandos y las prohibiciones (T-19, núcleo < 15 KB)."
+    },
+    {
+      "before_sha256": "b2a280b1d516f295d855d4582f0689cacd4ba0147d818850a940f5c007837e6e",
+      "before_line": 65,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "c3ea04de02915e461d71d1c711254227de60be2d6ec00a15472a7ac7dd5f118c",
+      "reason": "«tasks.md siempre al día» es la fila «El ledger lo actualizo luego» de la tabla y la regla de §1 (T-19, deduplicación)."
+    },
+    {
+      "before_sha256": "9d3a680651c3dd4df5503f625533b3758423eee6e5a243d9c8fee8158ce84408",
+      "before_line": 66,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "ffdca8c4419ed9f01bfdfc16cf999edff09c2ec6befc13dbda39d4bac1f6860f",
+      "reason": "Repetía §0 (guardarraíles y DENY): queda una sola vez, en §0 (T-19, deduplicación)."
+    },
+    {
+      "before_sha256": "9b5ad4a37f8cb969e8f07dcc4fd3e39a8c6649e9f1224e9887eb78eb0cb49508",
+      "before_line": 82,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "dce7b7039dd2901fad001939f3436d3ca64b53514d71b2037abbcb22b27c316d",
+      "reason": "Misma regla con menos palabras; se conservan los hechos, los comandos y las prohibiciones (T-19, núcleo < 15 KB)."
+    },
+    {
+      "before_sha256": "71a0ddea3bf81e6053aee8761fb630bae4e58ccfe8b70e262ea62288e0e903ee",
+      "before_line": 83,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "80553727ea70bcffa001d95228cf7a0592dc235ee1a090d70e438a6a3d3a9f71",
+      "reason": "Misma regla con menos palabras; se conservan los hechos, los comandos y las prohibiciones (T-19, núcleo < 15 KB)."
+    },
+    {
+      "before_sha256": "435c3c1e191d7dce865b8cb612dc9355a5e577611e5926902aac845f92d46946",
+      "before_line": 84,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "db7177cb9d7b6432698cfebcef36b9161f303fb3529d8e74d66c9fd9bea19a00",
+      "reason": "Misma regla con menos palabras; se conservan los hechos, los comandos y las prohibiciones (T-19, núcleo < 15 KB)."
+    },
+    {
+      "before_sha256": "7f9cacf4bfbd2ee49eec49c23f877ce743a99cf5b0ee41db3b0a9ec8a58c1130",
+      "before_line": 85,
+      "after_file": "agents/implementer.md",
+      "after_sha256": "797d2081ac38a1ac89c61e8b09df6e3f7b42eabfb3d178f5d09e3314bc424a40",
+      "reason": "Misma regla con menos palabras; se conservan los hechos, los comandos y las prohibiciones (T-19, núcleo < 15 KB)."
+    },
+    {
+      "before_sha256": "fe3a84dba8de65a63078fd953d712c93ec99cd39b971988183644a8da8e27350",
+      "before_line": 92,
+      "after_file": "agent-kits/implementer/references/classic-flow.md",
+      "after_sha256": "9979d58764509e5776d6b1a2739fc53ef6360e40ea5ca6b3ad508842a1f6cabb",
+      "reason": "La disciplina de salida del flujo clásico pasa a la referencia; con brief, la salida es el estado del contrato (T-19)."
+    }
+  ]
 }

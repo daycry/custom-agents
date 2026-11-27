@@ -97,7 +97,8 @@ def test_fix1_a4_las_piezas_dicen_que_el_marcador_tambien_vale_en_tasks_md():
     assert 'en la vía rápida, de `tasks.md`' in contracts
     assert 'en la vía rápida, el `tasks.md` ligero' in text('docs/agents/qa.md')
     qa_p1 = next(line for line in text('agents/qa.md').splitlines() if line.startswith('**P1.'))
-    impl_p1 = next(line for line in text('agents/implementer.md').splitlines() if line.startswith('**P1. Contexto.**'))
+    # plugin-audit-2 T-19: P1 vive en el flujo clásico del implementer (con brief, el brief es el contexto)
+    impl_p1 = next(line for line in text('agent-kits/implementer/references/classic-flow.md').splitlines() if line.startswith('**P1. Contexto.**'))
     assert 'vía rápida' in qa_p1 and 'vía rápida' in impl_p1
 
 

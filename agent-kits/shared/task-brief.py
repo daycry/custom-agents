@@ -89,6 +89,7 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 CONTRATO = """## Contrato de retorno (obligatorio)
 
 Trabaja SOLO con este brief y los ficheros que referencia (no explores el repo entero).
+Sustituye al flujo clásico del implementer: no leas `classic-flow.md`.
 Si un término no aparece en ellos, búscalo con sinónimos del dominio («rate limit» → `throttle`)
 antes de devolver NEEDS_CONTEXT.
 Si este flujo te encarga usage-meter start/close, fija --runtime claude|codex|opencode según tu runtime.

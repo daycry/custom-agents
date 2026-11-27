@@ -278,6 +278,14 @@ reutiliza navegación vigente, consulta fuentes pertinentes y conserva todos los
 criterios y gates del rol. Los recibos no sustituyen análisis, aprobación o tests.
 [Medición y ejemplos](../TOKEN-EFFICIENCY.md).
 
+**Núcleo y flujo clásico (plugin-audit-2 T-19).** `agents/implementer.md` es un núcleo:
+guardarraíles, ledger, reglas por tarea, commits, tabla de racionalización y DoD. Lo carga
+también el subagente despachado con brief, que no necesita más. Sin brief (invocación directa o
+fallback de un despacho), el agente lee además
+[`classic-flow.md`](../../agent-kits/implementer/references/classic-flow.md): contexto,
+constitución y memoria, rama o worktree, medición, integraciones, verificación de fase y
+handoff a qa. La referencia viaja en el payload común (`agent-kits/`) a Codex y OpenCode.
+
 ### Autoridad de cierre
 
 El implementador registra criterios y evidencias en `tasks.md`. El plugin mueve tareas y recalcula la fase en cada traspaso. `/dev-cycle` coordina los estados del plan y la spec; también cuando la implementación se invoca por separado se entrega un handoff. QA aporta evidencia, y la spec sólo pasa a `implementada` con la puerta de retro en verde.
