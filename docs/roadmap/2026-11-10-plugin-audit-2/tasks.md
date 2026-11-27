@@ -424,7 +424,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 ## Fase 3 — Tokens
 
-**Estado**: en-progreso · **Est.**: 30h humanas · **Real**: — · 1500 € · 2260k tokens
+**Estado**: en-revision · **Est.**: 30h humanas · **Real**: — · 1500 € · 2260k tokens
 
 ### T-12 — TDD en el brief, skill bajo demanda (2.4)
 
@@ -609,11 +609,11 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: El agente resume la regla y además manda leer el fragmento (`knowledge-check*`, `constitution-check`): doble pago de hasta ≈28 K tokens por ciclo [E]. Se lee el fragmento solo con aciertos y se quita el puntero a `rationalization-table`. `capability-check.md` (5,7 KB) pasa a un núcleo de ≈1,8 KB.
 - **Changelog**: Los agentes leen los fragmentos de conocimiento y capacidades solo cuando aplican.
-- **Estado**: en-progreso
+- **Estado**: en-revision
 - **Tiempo humano**: est. 3h · real —
 - **Tiempo IA (ejec.)**: est. 0.8h · real 0.73h (medido, `plugin-audit-2/T-18`; incluye 46 min de la suite de 94 ficheros)
 - **Dependencias**: T-17
-- **Archivos**: `agent-kits/shared/knowledge-check.md`, `agent-kits/shared/knowledge-check-governed.md`, `agent-kits/shared/constitution-check.md`, `agent-kits/shared/capability-check.md`, `agent-kits/shared/rationalization-table.md`, `agents/implementer.md`, `agents/qa.md`, `agents/planner.md`, `agents/evaluator.md`, `docs/agents/ROLES.md`, `interop/**` (regenerado), `agent-kits/shared/capability-check-detail.md` (nuevo; nota: el detalle que sale del núcleo), `agent-kits/shared/README.md` (nota: inventario del fragmento nuevo), `tests/test_fragments_on_demand.py` y `tests/fixtures/capability-check-paragraphs.json` (nuevos), `tests/test_rationalization_tables.py` (nota: implementer y qa ya no remiten al fragmento), `docs/{,en/}TOKEN-EFFICIENCY.md` (nota: `test_f4fix2_misc` fija las cifras publicadas)
+- **Archivos**: `agent-kits/shared/knowledge-check.md`, `agent-kits/shared/knowledge-check-governed.md`, `agent-kits/shared/constitution-check.md`, `agent-kits/shared/capability-check.md`, `agent-kits/shared/rationalization-table.md`, `agents/implementer.md`, `agents/qa.md`, `agents/planner.md`, `agents/evaluator.md`, `docs/agents/ROLES.md`, `interop/**` (regenerado), `agent-kits/shared/capability-check-detail.md` (nuevo; nota: el detalle que sale del núcleo), `agent-kits/shared/README.md` (nota: inventario del fragmento nuevo), `tests/test_fragments_on_demand.py` y `tests/fixtures/capability-check-paragraphs.json` (nuevos), `tests/test_rationalization_tables.py` (nota: implementer y qa ya no remiten al fragmento), `docs/{,en/}TOKEN-EFFICIENCY.md` (nota: `test_f4fix2_misc` fija las cifras publicadas). Fix1: `commands/work-context.md` (gap 5), `docs/agents/implementer.md` (gap 7), `tests/test_b2_fix1.py` (nuevo)
 - **Runtimes**: Los fragmentos se leen con la receta; mismo texto en los tres; no cambia la forma de invocar skills.
 - **Verificación**:
   - `git show :agents/evaluator.md | tr -d '\r' | wc -c` → ≤ 15.513 (bytes en LF)
@@ -626,6 +626,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
   - implementer, qa, planner y evaluator: constitución en una línea sin abrir `constitution-check.md` (1.462, es de la Lente A); `knowledge-check.md` (4.000) solo con aciertos, con «respeta los ADR y lecciones aplicables». Sin puntero a `rationalization-table.md` en implementer y qa (guía de autoría). Agentes: 28.268 → 28.208, 19.284 → 19.211, 21.533 → 21.522, 15.106 → 15.031.
   - k1: `docs/agents/ROLES.md` no cambia (no cita estos fragmentos); analyst, architect, documenter y reviewer siguen mandando abrir los fragmentos: fuera de `Archivos`.
 - **Verificación ejecutada** (2026-11-27): `git show :agents/evaluator.md | tr -d '\r' | wc -c` → `15313`; footprint arriba; `export-interop.py --check` → `88 ficheros al día`; `lint_plugin.py` → `0 errores · 16 avisos`; `evals/check.py` → `0 errores`; pytest de runtimes (cabecera) → `153 passed`; 94 ficheros de tests que leen lo tocado → `5314 passed, 1 failed, 16 skipped` (`test_real_opencode_v2_adapter_location_and_idle`, carga: `1 passed` aislado).
+- **Fix1** (revisión intento 1, gaps 2, 5 y 7; RED `a0e8484`, GREEN `6f0ef68`): el núcleo de `capability-check.md` nombra `project-pieces.py`; con piezas pertinentes o `--stack` abre el detalle y anota `- **Extensiones**:` (1.997 bytes LF ≤ 2 KB; el test de T-18 que prohibía nombrarlo fijaba el defecto y se reescribe). `/work-context` apunta al detalle; el doc del implementer sin `constitution-check.md`. Tests `test_b2_fix1_gap2/5/7_…` (consumidor con `.claude/skills/foo/`).
 
 **Criterios de aceptación**
 - [x] `evaluator.md` ≤ 15.513 bytes en LF.
@@ -637,11 +638,11 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: El subagente con brief carga el cuerpo entero de `implementer` (29,5 KB) con secciones que no puede usar. Núcleo corto, flujo clásico a `agent-kits/implementer/references/` (directorio nuevo) y reglas repetidas 2-5 veces, una sola vez. Ahorro [E] 24-30 K tokens por ciclo.
 - **Changelog**: El implementer carga un núcleo corto y lee el flujo clásico solo cuando no hay brief.
-- **Estado**: en-progreso
+- **Estado**: en-revision
 - **Tiempo humano**: est. 5h · real —
-- **Tiempo IA (ejec.)**: est. 1.5h · real 1.4h (medido, `plugin-audit-2/T-19`; incluye 54 min de la suite de 103 ficheros)
+- **Tiempo IA (ejec.)**: est. 1.5h · real 2.23h (medido: `plugin-audit-2/T-19` 1.4h, incluye 54 min de la suite de 103 ficheros, + `T-19-fix1` 0.83h, fix1 de los gaps 1, 2 y 4-8 de las tres tareas)
 - **Dependencias**: T-12, T-18
-- **Archivos**: `agents/implementer.md`, `agent-kits/implementer/references/classic-flow.md` (nuevo), `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/agents/implementer.md`, `evals/cases/agent-implementer.json`, `install/providers.mjs` (solo si no copia `agent-kits/` entero), `interop/**` (regenerado), `tests/test_implementer_core.py` y `tests/fixtures/implementer-core-lines.json` (nuevos), `tests/test_fragments_on_demand.py` y `tests/test_quick_path_gates.py` (nota: la constitución, la memoria y P1 se leen ahora en `classic-flow.md`), `docs/{,en/}TOKEN-EFFICIENCY.md` (nota: `test_f4fix2_misc` fija la cifra publicada del implementer)
+- **Archivos**: `agents/implementer.md`, `agent-kits/implementer/references/classic-flow.md` (nuevo), `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/agents/implementer.md`, `evals/cases/agent-implementer.json`, `install/providers.mjs` (solo si no copia `agent-kits/` entero), `interop/**` (regenerado), `tests/test_implementer_core.py` y `tests/fixtures/implementer-core-lines.json` (nuevos), `tests/test_fragments_on_demand.py` y `tests/test_quick_path_gates.py` (nota: la constitución, la memoria y P1 se leen ahora en `classic-flow.md`), `docs/{,en/}TOKEN-EFFICIENCY.md` (nota: `test_f4fix2_misc` fija la cifra publicada del implementer). Fix1: `agent-kits/shared/guardrail-check.py` (gap 4), `commands/dev-cycle.md` y `agent-kits/dev-cycle/references/phase6-close.md` (gaps 1 y 8), `tests/test_b2_fix1.py` (nuevo), `tests/test_hook_network_egress.py` (la cita del brief se declara texto de prompt), `tests/fixtures/dev-cycle-modular-replacements.json` (paso 1 de la Fase 6)
 - **Runtimes**: `agent-kits/implementer/references/` viaja en el payload común (`install/providers.mjs:34`); sin brief.
 - **Verificación**:
   - `context-footprint.py --project . --file agents/implementer.md` antes/después → menos bytes (`testing/tokens.md`) → ≤ 16 KB (16.384 bytes LF; cifra ajustada por el usuario el 2026-11-27)
@@ -656,6 +657,9 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
   - **k6**: «< 15 KB» no se alcanza en T-19 (16.478 bytes): el usuario ajustó la cifra a ≤ 16 KB el 2026-11-27 (`0d00e2e`); `test_core_is_at_most_sixteen_kibibytes` la exige sin xfail. Medido 15.841 bytes.
 - **Verificación ejecutada** (2026-11-27): footprint arriba; `export-interop.py --check` → `88 ficheros al día`; `lint_plugin.py` → `0 errores · 16 avisos`; `evals/check.py` → `0 errores`; `test_task_brief.py` y `test_guardrail_check.py` en la suite; 103 ficheros que leen lo tocado (con los de runtimes) → `6368 passed, 29 failed, 12 skipped, 1 xfailed`: 22 de `test_git_verification` ya rojos en `ebf2ac2`, 2 de `test_native_guardrail_dispatch` corregidos (`passed`), 5 por carga (`test_lite_profile` ×3, `test_hook_processes`, `test_project_pieces`: `passed` aislados).
 - TDD n/a: cifra decidida por el usuario (2026-11-27); los tests de tamaño exigen la cifra nueva sin xfail.
+- RED: tests/test_b2_fix1.py (14 de 26: brief sin «Cobertura», punteros, «sin brief», 6 formas de commit) falló con AssertionError (commit `a0e8484`) · 2026-11-27
+- **Fix1** (gaps 1, 4, 6 y 8; GREEN `6f0ef68`, `2634a74`, `fe9bd6a`): el brief inyecta «Cobertura» (`coverage-gate.py --changed-only --min N`) con `tests.coberturaMinima` 0-100, también en lite; `phase6-close.md` y `dev-cycle.md` sin «P5 del implementer». Gap 4: rojo desde `3804a2a` (T-06 fix25; `93cb964` 357 passed): commit acepta prefijos únicos de su lista y `-n`/`--verify`/`--no-no-verify`, que decide `_commit_skips_verification`; ningún caso rebajado. Implementer 15.656 (T-22 −3.508).
+- **Verificación ejecutada fix1** (2026-11-27): Windows 5.256 + 2.798 passed (rojos de carga `passed` aislados); Linux `t23m:ci` no root 4.525 + 633 passed; lint 0 errores; evals 0; interop 88 al día.
 
 **Criterios de aceptación**
 - [x] El cuerpo de `implementer.md` baja a un núcleo (objetivo ≤ 16 KB por decisión del usuario del 2026-11-27; antes < 15 KB) que conserva DoD, Verificación, RED/GREEN y guardrails. Medido 15.841 bytes; DoD, Verificación, TDD y guardarraíles en `agents/implementer.md:59-125` (revisión intento 1, Lente A).
@@ -742,7 +746,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: Reglas propias de este repositorio (`export-interop`, `CONTRACTS.md`) viven dentro de agentes genéricos (≈4,2 KB) y `qa.md:114` (2 KB) solo aplica al QA sin UI. Las primeras pasan a `skills/project-extensions/references/custom-agents-repo.md` (solo se lee dentro de custom-agents; replanificado por el orquestador el 2026-11-23: `plugin-dev` ya no existe tras T-11 y `docs/CONSTITUTION.md` no se toca); lo segundo, a una referencia condicional.
 - **Changelog**: Los agentes genéricos dejan de cargar reglas que solo valen para el repositorio del plugin.
-- **Estado**: en-progreso
+- **Estado**: en-revision
 - **Tiempo humano**: est. 3h · real —
 - **Tiempo IA (ejec.)**: est. 0.8h · real 0.13h (medido, `plugin-audit-2/T-22`; reloj 1h 11m, casi todo espera de la suite de 112 ficheros)
 - **Dependencias**: T-18, T-19, T-11
@@ -1449,11 +1453,11 @@ Lentes: A+B (Opus, contexto fresco). D por `review-lens-select.py --base ebf2ac2
 
 | # | Grado | Gap | Tarea | Corrección | Evidencia |
 |---|---|---|---|---|---|
-| 1 | Important | El gate de cobertura `tests.coberturaMinima` (P5) solo vive en `classic-flow.md`, que el brief prohíbe leer; ni `task-brief.py`, ni `dev-cycle.md`, ni `phase3-subagents.md` ejecutan `coverage-gate.py`; `phase6-close.md:9` remite a «P5 del implementer», que ya no está en el núcleo; `dev-cycle.md:88` dice que la cobertura conserva sus puertas | T-19 | pendiente (fix1) | `agent-kits/implementer/references/classic-flow.md:31`; `agent-kits/shared/task-brief.py:92`; `agent-kits/dev-cycle/references/phase6-close.md:9`; `commands/dev-cycle.md:88` |
-| 2 | Important | La condición «solo si el proyecto o el usuario tienen piezas propias» no se puede evaluar con el núcleo de `capability-check` (`capability-route.py` no informa de extensiones y el núcleo ya no nombra `project-pieces.py`): el planner no abre el detalle, la tarea queda sin `- **Extensiones**:` y el brief sin la extensión | T-18 | pendiente (fix1) | `agent-kits/shared/capability-check.md:26`; `task-brief.py:1463` |
+| 1 | Important | El gate de cobertura `tests.coberturaMinima` (P5) solo vive en `classic-flow.md`, que el brief prohíbe leer; ni `task-brief.py`, ni `dev-cycle.md`, ni `phase3-subagents.md` ejecutan `coverage-gate.py`; `phase6-close.md:9` remite a «P5 del implementer», que ya no está en el núcleo; `dev-cycle.md:88` dice que la cobertura conserva sus puertas | T-19 | corregido (fix1, `6f0ef68`; test `test_b2_fix1_gap1_el_brief_lleva_el_gate_de_cobertura`) | `agent-kits/implementer/references/classic-flow.md:31`; `agent-kits/shared/task-brief.py:92`; `agent-kits/dev-cycle/references/phase6-close.md:9`; `commands/dev-cycle.md:88` |
+| 2 | Important | La condición «solo si el proyecto o el usuario tienen piezas propias» no se puede evaluar con el núcleo de `capability-check` (`capability-route.py` no informa de extensiones y el núcleo ya no nombra `project-pieces.py`): el planner no abre el detalle, la tarea queda sin `- **Extensiones**:` y el brief sin la extensión | T-18 | corregido (fix1, `6f0ef68`; test `test_b2_fix1_gap2_el_nucleo_nombra_la_comprobacion_de_piezas_propias`) | `agent-kits/shared/capability-check.md:26`; `task-brief.py:1463` |
 | 3 | Important | El ajuste del usuario solo reescribió un criterio de T-19: «objetivo < 15 KB» seguía sin marcar, la Verificación pedía «< 15 KB» y las notas k6/k7 citaban un `xfail` ya quitado | T-19, T-22 | corregido por el orquestador (texto del ledger alineado con la decisión del usuario del 2026-11-27; medida 15.841 bytes) | `tasks.md` (T-19 Verificación, k6 y criterio 1; T-22 k7) |
-| 4 | Important | Rojo previo a la tanda que deja la CI en rojo: `agent-kits/shared/test_git_verification.py` 22 failed en Windows y en Linux (`python:3.11-slim` y `node:22-bookworm-slim`), ya en `ebf2ac2` (p. ej. `git commit -n \ --verify`, `--no-no-verify`, opciones git abreviadas) | T-19 (guardia del implementer) | pendiente (fix1): investigar desde qué commit y arreglar sin debilitar | `agent-kits/shared/test_git_verification.py` |
-| 5 | Minor | `/work-context` manda aplicar «su sección de extensiones» de `capability-check.md`, que se movió al detalle | T-18 | pendiente (fix1) | `commands/work-context.md:11` |
-| 6 | Minor | La fila de racionalización remite a «(P3)», que ya no está en el núcleo | T-19 | pendiente (fix1) | `agents/implementer.md:101` |
-| 7 | Minor | El doc del implementer sigue citando `constitution-check.md` como dependencia | T-18 | pendiente (fix1) | `docs/agents/implementer.md:258` |
-| 8 | Minor | La lista de casos «sin brief» omite el despacho de `/dev-cycle` con `subagentes: false` (flujo clásico sin brief); sin test | T-19 | pendiente (fix1) | `agent-kits/implementer/references/classic-flow.md:3-4`; `agents/implementer.md:48`; `commands/dev-cycle.md:153-155` |
+| 4 | Important | Rojo previo a la tanda que deja la CI en rojo: `agent-kits/shared/test_git_verification.py` 22 failed en Windows y en Linux (`python:3.11-slim` y `node:22-bookworm-slim`), ya en `ebf2ac2` (p. ej. `git commit -n \ --verify`, `--no-no-verify`, opciones git abreviadas) | T-19 (guardia del implementer) | corregido (fix1, `6f0ef68`; test `test_b2_fix1_gap4_commit_restaura_hooks_y_abrevia_solo_en_la_lista_blanca`): rojo desde `3804a2a` (T-06 fix25, lista blanca de opciones; `93cb964` 357 passed), causa en `guardrail-check.py`, ningún caso del test rebajado | `agent-kits/shared/test_git_verification.py` |
+| 5 | Minor | `/work-context` manda aplicar «su sección de extensiones» de `capability-check.md`, que se movió al detalle | T-18 | corregido (fix1, `6f0ef68`; test `test_b2_fix1_gap5_work_context_apunta_al_detalle`) | `commands/work-context.md:11` |
+| 6 | Minor | La fila de racionalización remite a «(P3)», que ya no está en el núcleo | T-19 | corregido (fix1, `6f0ef68`; test `test_b2_fix1_gap6_la_racionalizacion_no_remite_a_p3`) | `agents/implementer.md:101` |
+| 7 | Minor | El doc del implementer sigue citando `constitution-check.md` como dependencia | T-18 | corregido (fix1, `6f0ef68`; test `test_b2_fix1_gap7_el_doc_no_cita_constitution_check_como_dependencia`) | `docs/agents/implementer.md:258` |
+| 8 | Minor | La lista de casos «sin brief» omite el despacho de `/dev-cycle` con `subagentes: false` (flujo clásico sin brief); sin test | T-19 | corregido (fix1, `6f0ef68`; test `test_b2_fix1_gap8_sin_brief_incluye_dev_cycle_con_subagentes_false`) | `agent-kits/implementer/references/classic-flow.md:3-4`; `agents/implementer.md:48`; `commands/dev-cycle.md:153-155` |
