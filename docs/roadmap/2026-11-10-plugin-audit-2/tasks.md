@@ -650,21 +650,29 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: El subagente con brief carga el cuerpo entero de `implementer` (29,5 KB) con secciones que no puede usar. Núcleo corto, flujo clásico a `agent-kits/implementer/references/` (directorio nuevo) y reglas repetidas 2-5 veces, una sola vez. Ahorro [E] 24-30 K tokens por ciclo.
 - **Changelog**: El implementer carga un núcleo corto y lee el flujo clásico solo cuando no hay brief.
-- **Estado**: en-progreso
+- **Estado**: en-revision
 - **Tiempo humano**: est. 5h · real —
-- **Tiempo IA (ejec.)**: est. 1.5h · real —
+- **Tiempo IA (ejec.)**: est. 1.5h · real 1.4h (medido, `plugin-audit-2/T-19`; incluye 54 min de la suite de 103 ficheros)
 - **Dependencias**: T-12, T-18
-- **Archivos**: `agents/implementer.md`, `agent-kits/implementer/references/classic-flow.md` (nuevo), `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/agents/implementer.md`, `evals/cases/agent-implementer.json`, `install/providers.mjs` (solo si no copia `agent-kits/` entero), `interop/**` (regenerado)
+- **Archivos**: `agents/implementer.md`, `agent-kits/implementer/references/classic-flow.md` (nuevo), `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/agents/implementer.md`, `evals/cases/agent-implementer.json`, `install/providers.mjs` (solo si no copia `agent-kits/` entero), `interop/**` (regenerado), `tests/test_implementer_core.py` y `tests/fixtures/implementer-core-lines.json` (nuevos), `tests/test_fragments_on_demand.py` y `tests/test_quick_path_gates.py` (nota: la constitución, la memoria y P1 se leen ahora en `classic-flow.md`), `docs/{,en/}TOKEN-EFFICIENCY.md` (nota: `test_f4fix2_misc` fija la cifra publicada del implementer)
 - **Runtimes**: `agent-kits/implementer/references/` viaja en el payload común (`install/providers.mjs:34`); sin brief.
 - **Verificación**:
   - `context-footprint.py --project . --file agents/implementer.md` antes/después → menos bytes (`testing/tokens.md`) → < 15 KB
   - puertas de tokens (cabecera) → verde · `pytest -q agent-kits/shared/test_task_brief.py agent-kits/shared/test_guardrail_check.py` → verde
   - puertas de runtimes (cabecera) → verde
 
+- RED: tests/test_implementer_core.py (6 de 7: núcleo ≥ 15 KB, sin `classic-flow.md`, reglas duplicadas, brief y exportación) y agent-kits/shared/test_task_brief.py::test_t19_el_brief_sustituye_al_flujo_clasico_del_implementer fallaron con AssertionError/FileNotFoundError (commit `5db8b99`) · 2026-11-27
+- **Evidencia** (GREEN `c7be8eb`; caracteres LF, estimación caracteres/4, no consumo facturado):
+  - `agents/implementer.md` 28.208 → **16.263** caracteres (28.785 → 16.478 bytes; −11.945 por subagente). `classic-flow.md` 7.330, solo sin brief: contexto, constitución y memoria (el brief ya los trae), P1-bis, rama/worktree, medición, integraciones, rama compartida, P5/P5-bis y handoff.
+  - Línea a línea: 93 unidades del prompt anterior, 46 sin cambios y 47 reemplazos con motivo en el fixture (reescritas o deduplicadas). Una vez: E2, Verificación, start, resumen de progreso, «Disciplina al RECIBIR», DENY, dueño de commits y worktree; la prosa que repetía una fila de la tabla sale.
+  - El brief dice «no leas `classic-flow.md`»; Codex y OpenCode exportan el puntero y `agent-kits/` viaja en `PAYLOAD_COMUN`. La guarda nombra todas las familias denegadas (`test_fix2_gap6`).
+  - **k6**: «< 15 KB» no se alcanza en T-19 (16.478 bytes): `test_core_is_under_fifteen_kilobytes` queda `xfail(strict)` y se cierra en T-22, que saca las puertas E2/E3 del repo.
+- **Verificación ejecutada** (2026-11-27): footprint arriba; `export-interop.py --check` → `88 ficheros al día`; `lint_plugin.py` → `0 errores · 16 avisos`; `evals/check.py` → `0 errores`; `test_task_brief.py` y `test_guardrail_check.py` en la suite; 103 ficheros que leen lo tocado (con los de runtimes) → `6368 passed, 29 failed, 12 skipped, 1 xfailed`: 22 de `test_git_verification` ya rojos en `ebf2ac2`, 2 de `test_native_guardrail_dispatch` corregidos (`passed`), 5 por carga (`test_lite_profile` ×3, `test_hook_processes`, `test_project_pieces`: `passed` aislados).
+
 **Criterios de aceptación**
 - [ ] El cuerpo de `implementer.md` baja a un núcleo (objetivo < 15 KB) que conserva DoD, Verificación, RED/GREEN y guardrails.
-- [ ] Sin brief (flujo clásico) el agente sabe leer la referencia y funciona igual.
-- [ ] Cada regla duplicada queda una sola vez.
+- [x] Sin brief (flujo clásico) el agente sabe leer la referencia y funciona igual.
+- [x] Cada regla duplicada queda una sola vez.
 - [ ] Medido: `implementer.md` < 15 KB (hoy 29,5 KB), ≥ 14 KB menos por subagente.
 
 ### T-20 — Índice de SessionStart solo en Codex y OpenCode (2.7)
