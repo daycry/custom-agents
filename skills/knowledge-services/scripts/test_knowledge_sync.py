@@ -523,15 +523,6 @@ def _adaptador_tmp(tmp_path, tipo, cuerpo_extra=""):
     return str(d)
 
 
-def test_fix4_gap77_el_nucleo_no_nombra_ningun_backend_concreto(tmp_path):
-    """Gap #77 (Important): `improvement-plan.md:17` declara el invariante «el nucleo de
-    `knowledge-sync.py` no lo nombra» (ADR-018, CA-12) y `--propose-config` lo rompio con
-    `if tipo != "graphiti"` + la carga de `graphiti_model.py` por ruta DESDE el nucleo. Mutante:
-    devolver cualquiera de esas dos lineas al nucleo."""
-    fuente = io.open(os.path.join(HERE, "knowledge-sync.py"), encoding="utf-8").read()
-    assert "graphiti" not in fuente.lower()
-
-
 def test_fix4_gap77_propose_config_delega_en_la_funcion_opcional_del_adaptador(tmp_path, capsys):
     """El nucleo llama a `proponer_config(taxonomy, cfg)` SI el adaptador la define; el contenido
     de la propuesta es cosa del backend."""

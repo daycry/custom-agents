@@ -14,7 +14,7 @@
   var SIN_AREA = '\u0001sin-area';
   var ESTADOS_RESPUESTA = ['ok', 'partial', 'not_found', 'unavailable'];
   var SITUACIONES_BANDEJA = ['ok', 'incompleto', 'ausente', 'no_disponible'];
-  var SITUACIONES_BACKEND = ['configurado', 'deshabilitado', 'no_configurado', 'retirado'];
+  var SITUACIONES_BACKEND = ['configurado', 'deshabilitado', 'no_configurado'];
   var ESTADOS_JOURNAL = ['ok', 'empty', 'not_found', 'incomplete', 'unavailable'];
   var BANDEJA = [['pending', 'Pendientes'], ['needs_changes', 'Cambios pedidos'], ['rejected', 'Rechazados']];
   var ETIQUETA_BACKEND = {};
@@ -440,7 +440,7 @@
         contenedor.appendChild(tarjeta);
         return;
       }
-      tarjeta.appendChild(el('h3', '', etiquetaBackend(b) + ' · ' + (b.tipo || 'tipo sin datos') + (b.situacion === 'deshabilitado' ? ' · deshabilitado' : '') + (b.situacion === 'retirado' ? ' · retirado en 4.0.0: sin adaptador' : '')));
+      tarjeta.appendChild(el('h3', '', etiquetaBackend(b) + ' · ' + (b.tipo || 'tipo sin datos') + (b.situacion === 'deshabilitado' ? ' · deshabilitado' : '')));
       tarjeta.appendChild(el('p', '', b.entradas === null ? 'entradas: sin datos' : b.entradas + (b.entradas === 1 ? ' entrada publicada' : ' entradas publicadas')));
       tarjeta.appendChild(el('p', '', 'última publicación: ' + (b.ultima_parcial ? (b.ultima === null ? 'sin datos (listado parcial)' : 'al menos ' + b.ultima) : dato(b.ultima))));
       if (b.interrumpida) { tarjeta.appendChild(el('p', 'ausencia', 'publicación interrumpida: queda un manifiesto pendiente (.pending.json); la siguiente publicación lo retoma.')); }

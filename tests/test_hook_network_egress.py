@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Suite «ningun hook hace red» (antes parte de la regresion de seguridad de la memoria Graphiti,
-retirada en plugin-audit-2 T-08; ver `docs/roadmap/2026-11-10-plugin-audit-2/testing/retirada.md`).
+"""Suite «ningun hook hace red» (antes parte de la regresion de seguridad del backend de grafo,
+retirado en plugin-audit-2 T-08; ver `docs/roadmap/2026-11-10-plugin-audit-2/testing/retirada.md`).
 
 Pina, con tests PROPIOS y desde la raiz del repo, el invariante que la spec declara fuera de
 alcance y que un cambio futuro podria romper en silencio: **ninguna llamada de red desde hooks**.

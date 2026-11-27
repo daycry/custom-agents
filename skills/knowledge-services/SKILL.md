@@ -20,8 +20,7 @@ staging/dead-letter; un fallo de `apply()` puede dejar una publicación parcial 
 rollback global. **El plugin no incluye ningún adaptador** (`backends/` solo trae el cargador y el
 contrato): un proyecto escribe el suyo, lo declara en `taxonomy.json` y lo carga por
 `backends/<type>.py` o por un directorio extra (`--backends-dir`). Un `type` sin adaptador sale con
-exit 2 y un mensaje claro, sin traceback; los backends que el plugin incluyó hasta 3.x
-(retirados en 4.0.0) lo dicen como «retirado». La lectura externa opcional usa
+exit 2 y el mismo aviso de adaptador ausente para cualquier `type`, sin traceback. La lectura externa opcional usa
 `knowledge-find.py --intent`, con backend habilitado, `read` e intent autorizados.
 
 `docs/knowledge/approved/` es el origen Markdown canónico, curado por `knowledge-curator`.

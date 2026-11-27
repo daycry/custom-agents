@@ -47,7 +47,7 @@ def project(path, prefix):
     tax = {"version": 1, "id_prefix": prefix, "categories": [
         {"key": "GOTCHA", "folder": "gotchas", "min_evidence": "validated_case",
          "routing": {"remote": False}}],
-        "backends": {"remote": {"type": "markdown-export", "enabled": False}},
+        "backends": {"remote": {"type": "mi-backend", "enabled": False}},
         "denylist": ["chain-of-thought"]}
     (config / "taxonomy.json").write_bytes(canonical(tax))
     (path / "docs/knowledge/journal").mkdir(parents=True)

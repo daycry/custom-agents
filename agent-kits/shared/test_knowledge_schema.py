@@ -615,7 +615,7 @@ def test_default_template_no_declara_backends_ni_routing():
     assert ks.validar(tpl, "template") == []
 
 
-def test_taxonomia_heredada_con_backends_retirados_valida_con_reglas_genericas():
-    cfg = _valida(backends={"kwipu": {"type": "markdown-export", "enabled": True, "config": {}},
-                            "graphiti": {"type": "graphiti", "enabled": True, "config": {}}})
+def test_taxonomia_heredada_con_backends_sin_adaptador_valida_con_reglas_genericas():
+    cfg = _valida(backends={"antiguo-a": {"type": "antiguo", "enabled": True, "config": {}},
+                            "antiguo-b": {"type": "otro-antiguo", "enabled": True, "config": {}}})
     assert ks.validar(cfg, "heredada") == []

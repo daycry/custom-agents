@@ -84,8 +84,8 @@ entradas la respeta; si no la usa, la ignora.
 - **`backends/<type>.py` del plugin**: solo si trabajas en un clon o un fork del plugin; en una instalación normal
   esa carpeta es la caché y se sobrescribe al actualizar.
 
-Un `type` sin adaptador sale con exit 2 y «adaptador no disponible … ver add-backend.md», sin traceback.
-Los `type` que el plugin incluyó hasta 3.x (retirados en 4.0.0) dicen además «retirado».
+Un `type` sin adaptador sale con exit 2 y «adaptador no disponible … ver add-backend.md», sin traceback;
+el aviso es el mismo para cualquier `type`.
 
 ## 3. Declararlo en `taxonomy.json`
 

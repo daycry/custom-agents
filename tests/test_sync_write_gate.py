@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Puerta CA-05 del marco `knowledge-services` (restaurada en plugin-audit-2 T-08 fix1, gap 1).
 
-La puerta NO dependia de Graphiti: protege CONSTITUTION.md (la publicacion a un backend externo es
+La puerta NO dependia de ningun backend concreto: protege CONSTITUTION.md (la publicacion a un backend externo es
 posterior a la curacion). Ninguna pieza que se inyecta en el contexto de un agente (`agents/`,
 `commands/`, y todo `.md` de `skills/` y `agent-kits/`) puede invocar `knowledge-sync.py` en modo
 ESCRITURA (publicacion por defecto, `apply`, `revoke`, `--rebuild`) fuera de la propia skill
 `knowledge-services`; solo lectura (`--check`, `--dry-run`, ...) si. Texto original:
-`git show 21ad63f:tests/test_miservicio_security.py`; aqui sin nada de Graphiti ni de primitivas.
+`git show 21ad63f:tests/test_miservicio_security.py`; aqui sin nada de un backend concreto ni de primitivas.
 
 Ejecutar: python -m pytest -q tests/test_sync_write_gate.py
 """

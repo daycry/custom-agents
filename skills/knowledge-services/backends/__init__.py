@@ -31,11 +31,6 @@ _TIPO_VALIDO_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-# Tipos de backend que el plugin incluyó y retiró (plugin-audit-2 T-08, versión mayor 4.0.0). Solo
-# afina el mensaje de «no encontrado» para una taxonomía heredada: si el proyecto aporta su propio
-# adaptador con ese `type` en un directorio extra, se carga como cualquier otro.
-RETIRADOS = ("kwipu", "graphiti", "markdown-export")
-VERSION_RETIRADA = "4.0.0"
 GUIA = "skills/knowledge-services/references/add-backend.md"
 
 # Las 6 funciones del contrato de adaptador (design.md, "Contrato de adaptador"). Todas
@@ -82,11 +77,6 @@ def cargar_adaptador(tipo, directorios=None):
             "espacios) — se rechaza antes de componer una ruta de fichero con él")
     dirs = list(directorios) if directorios else [HERE]
     ruta = _localizar(tipo, dirs)
-    if ruta is None and tipo in RETIRADOS:
-        raise AdaptadorNoDisponible(
-            f"el backend `{tipo}` está retirado desde la versión {VERSION_RETIRADA} del plugin "
-            f"(ver CHANGELOG) y su adaptador no disponible; para enchufar un backend propio "
-            f"consulta `{GUIA}`")
     if ruta is None:
         raise AdaptadorNoDisponible(
             f"no se encontró un adaptador para type=`{tipo}` (buscado como "

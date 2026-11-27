@@ -43,12 +43,10 @@ def _taxonomy(root, backends=None):
 
 # ------------------------------------------------------------------ contrato basico
 
-def test_registro_base_declara_knowledge_gate_y_training_sin_backends_retirados():
-    """plugin-audit-2 T-08: el registro conserva `REGISTRO`/`registrar()` pero ya no declara las
-    capacidades de los backends retirados."""
+def test_registro_base_declara_knowledge_gate_y_training():
+    """plugin-audit-2 T-08: el registro conserva `REGISTRO`/`registrar()` con las capacidades del marco."""
     ids = {c["id"] for c in cap_mod.REGISTRO}
     assert {"knowledge-gate", "training"} <= ids
-    assert not ({"kwipu", "graphiti"} & ids)
     assert callable(cap_mod.registrar)
 
 
@@ -74,19 +72,19 @@ def test_knowledge_gate_habilitado_sin_taxonomy_de_proyecto(tmp_path):
     assert kg["health"]["estado"] == "ok"
 
 
-def test_taxonomia_heredada_con_backends_retirados_no_rompe_el_registro(tmp_path):
-    """plugin-audit-2 T-08: una taxonomia que aun declara los backends retirados se valida con las
+def test_taxonomia_heredada_con_backends_sin_adaptador_no_rompe_el_registro(tmp_path):
+    """plugin-audit-2 T-08: una taxonomia que aun declara backends sin adaptador se valida con las
     reglas genericas; el registro no inventa capacidades para ellos y `/doctor` sigue limpio."""
     root = str(tmp_path)
-    _taxonomy(root, backends={"kwipu": {"type": "markdown-export", "enabled": True, "config": {}},
-                              "graphiti": {"type": "graphiti", "enabled": True, "config": {}}})
+    _taxonomy(root, backends={"antiguo-a": {"type": "antiguo", "enabled": True, "config": {}},
+                              "antiguo-b": {"type": "otro-antiguo", "enabled": True, "config": {}}})
     resultado = cap_mod.enumerar(root)
     assert {c["id"] for c in resultado} == {"knowledge-gate", "training"}
     kg = next(c for c in resultado if c["id"] == "knowledge-gate")
     assert kg["health"]["estado"] == "ok"
     # gap 3 (fix1 Fase 2): los backends declarados y activos llegan a `/doctor` por el contrato
     # generico `health.backends` (sin codigo por backend); los desactivados no.
-    assert kg["health"]["backends"] == ["kwipu", "graphiti"]
+    assert kg["health"]["backends"] == ["antiguo-a", "antiguo-b"]
 
 
 def test_knowledge_gate_solo_lista_los_backends_activos(tmp_path):
@@ -174,7 +172,6 @@ def test_cli_lista_capacidades(capsys, tmp_path):
     assert cap_mod.main(["--root", str(tmp_path)]) == 0
     salida = capsys.readouterr().out
     assert "knowledge-gate" in salida
-    assert "kwipu" not in salida and "graphiti" not in salida
 
 
 # ------------------------------------------------------------------ revisión intento 1 (fix2)

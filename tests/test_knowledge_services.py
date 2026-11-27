@@ -336,12 +336,12 @@ def test_type_con_escape_se_rechaza_antes_de_tocar_disco():
 # `agents/*.md` (un agente puede declarar un hook `command` inline con la misma red prohibida sin
 # que exista ningún fichero bajo `hooks/`). Se amplía a los términos de red/publicación que la
 # revisión señaló (`urllib`, `urlopen`, `socket`, `http.client`, `requests`, `curl`, `wget`,
-# `Invoke-WebRequest`, `markdown_export`) y a `knowledge-sync`/`curator-gate` SIN extensión (un
+# `Invoke-WebRequest`) y a `knowledge-sync`/`curator-gate` SIN extensión (un
 # `command` puede invocar el script por su nombre de módulo, sin `.py`, según el shell — gap 171,
 # revisión Fase 4 intento 2: la lista anterior tenía `knowledge-sync` sin extensión pero no su
 # gemelo `curator-gate`, asimetría sin motivo).
 _TERMINOS_RED_PROHIBIDOS = (
-    "knowledge-sync.py", "knowledge-sync", "curator-gate.py", "curator-gate", "markdown_export",
+    "knowledge-sync.py", "knowledge-sync", "curator-gate.py", "curator-gate",
     "urllib", "urlopen", "socket", "http.client", "requests", "curl", "wget",
     "invoke-webrequest",
 )

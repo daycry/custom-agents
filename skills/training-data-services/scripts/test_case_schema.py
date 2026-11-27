@@ -81,8 +81,8 @@ def test_config_patron_de_ids_invalido():
 
 
 def test_config_clave_desconocida_se_rechaza():
-    cfg = dict(CONFIG_OK, bridge_to_kwipu=True)
-    assert "bridge_to_kwipu" in _campos(cs.validar_config(cfg))
+    cfg = dict(CONFIG_OK, bridge_to_backend=True)
+    assert "bridge_to_backend" in _campos(cs.validar_config(cfg))
 
 
 def test_config_root_nunca_dentro_de_docs_knowledge():

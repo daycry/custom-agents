@@ -373,12 +373,6 @@ def test_cli_intent_degradado_avisa_por_stderr_y_sale_0(tmp_path):
     assert json.loads(out)["router"]["origen"] == "local"
 
 
-def test_el_nucleo_no_nombra_ningun_backend_concreto():
-    """Invariante del plan (`improvement-plan.md`): el nucleo no menciona el backend de grafo."""
-    with open(SCRIPT, encoding="utf-8") as f:
-        assert "graphiti" not in f.read().lower()
-
-
 # =============================================== Fase 3 - fix1 (revision de dos lentes, intento 1)
 # Gaps #97 (config efectiva), #98 (saneado en el nucleo), #101 (el argv del hook no carga
 # adaptadores), #102 (motivo => degradacion a local), #103 (texto derivado + claves), #104

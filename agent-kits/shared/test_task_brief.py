@@ -6,6 +6,7 @@ Ejecutar:  python3 -m pytest agent-kits/shared/test_task_brief.py -q
 import importlib.util
 import io
 import contextlib
+import hashlib
 import os
 import shutil
 import subprocess
@@ -2173,10 +2174,16 @@ def test_fix3_gap4_verificacion_con_blanco_cercado_conserva_dos_items(tmp_path):
     ]
 
 
-def test_fix3_gap4_verificacion_real_graphiti_t08_conserva_cuatro_items():
-    raiz = Path(__file__).resolve().parents[2]
-    ledger = raiz / "docs/roadmap/2026-09-15-graphiti-memory/tasks.md"
-    chunk, _ = tb._seccion_tarea(ledger.read_text(encoding="utf-8"), "T-08")
+# Copia literal (bytes del bloque T-08 de un ledger historico de 2026-09; plugin-audit-2 T-41): el test
+# ya no lee el roadmap fechado. SHA-256 de esos bytes con fin de linea LF.
+SHA_T08_HISTORICA = "1cafcb319cf77bfd560345ece3472052c099e26666248dd0d41395f9d914a5d9"
+
+
+def test_fix3_gap4_verificacion_real_t08_historica_conserva_cuatro_items():
+    fixture = Path(__file__).resolve().parent / "fixtures" / "task-brief-historical-t08.md"
+    datos = fixture.read_bytes().replace(b"\r\n", b"\n")
+    assert hashlib.sha256(datos).hexdigest() == SHA_T08_HISTORICA
+    chunk, _ = tb._seccion_tarea(datos.decode("utf-8"), "T-08")
     items = tb._verificacion_de_tarea(chunk)["items"]
     # Medido en d3720a9 con este mismo bloque de tarea.
     assert len(items) == 4

@@ -1899,7 +1899,7 @@ def test_capacidad_backend_respeta_timeout_por_debajo_del_tope():
 def test_capacidad_backend_inyecta_root_del_proyecto_antes_de_health(tmp_path):
     """gap 111: `doctor.py` conoce `project` (la raiz real donde vive `taxonomy.json`) pero no lo
     pasaba al adaptador -- un backend cuya `health()`/`verify()` necesite resolver rutas relativas
-    (p. ej. `export_dir` de markdown_export.py, gap 88) recibia un `cfg` sin `_root` y resolvia
+    (p. ej. el `export_dir` relativo de un adaptador que escribe en disco, gap 88) recibia un `cfg` sin `_root` y resolvia
     contra el CWD del proceso, no la raiz del proyecto diagnosticado."""
     fake = _BackendsModFake(salud={"estado": "sano"})
     doctor._linea_capacidad_backend("x", "t", {"health": {"url": "http://x"}}, fake, "d",
@@ -2043,7 +2043,7 @@ def test_bloque_capacidades_no_comprueba_con_tope_ms_por_debajo_del_suelo(monkey
 
 def test_cfg_con_timeout_topado_nunca_produce_timeout_ms_cero():
     """gap 133: `tope_ms=0` (o negativo) escrito tal cual en `health.timeout_ms` es indistinguible
-    de "no configurado" para `markdown_export._timeout_s()` (que trata `valor <= 0` como
+    de "no configurado" para el `_timeout_s()` de un adaptador (que trata `valor <= 0` como
     "usa el default de 800 ms") -- el recorte de `/doctor` desaparecia SILENCIOSAMENTE justo en el
     caso limite en el que mas hace falta (presupuesto ya agotado)."""
     cfg = doctor._cfg_con_timeout_topado({}, tope_ms=0)
@@ -2245,19 +2245,19 @@ def _plugin_con_adaptador_de_prueba(tmp_path):
     return raiz
 
 
-def test_gap3_un_backend_retirado_y_activo_sale_en_doctor_con_la_guia(tmp_path):
-    """fix1 Fase 2 (gap 3): plantilla 3.x con kwipu/graphiti `enabled: true` -> una fila por backend
-    con el motivo de la retirada y la guia; sin ningun nombre de backend en `doctor.py` (CA-14)."""
+def test_gap3_backends_heredados_sin_adaptador_salen_en_doctor_con_el_aviso_generico(tmp_path):
+    """fix1 Fase 2 (gap 3) + T-41: plantilla heredada con backends `enabled: true` sin adaptador -> una
+    fila por backend con el aviso generico de adaptador ausente y la guia; sin lista de retirados."""
     proj = proyecto(tmp_path)
-    _taxonomia_3x(proj, {"kwipu": {"type": "markdown-export", "enabled": True, "config": {}},
-                         "graphiti": {"type": "graphiti", "enabled": True, "config": {}},
+    _taxonomia_3x(proj, {"antiguo-a": {"type": "antiguo", "enabled": True, "config": {}},
+                         "antiguo-b": {"type": "otro-antiguo", "enabled": True, "config": {}},
                          "apagado": {"type": "otro", "enabled": False, "config": {}}})
     b = doctor.bloque_capacidades(None, str(proj))
     filas = [l for l in b["lineas"] if "(backend)" in l["que"]]
     assert len(filas) == 2, b["lineas"]
     for fila in filas:
         assert fila["estado"] in (doctor.AVISO, doctor.ERROR), fila
-        assert "retirado" in fila["detalle"] and "4.0.0" in fila["detalle"], fila
+        assert "antiguo" in fila["detalle"] and "retirado" not in fila["detalle"], fila
         assert "add-backend.md" in (fila["detalle"] + fila["arreglo"]), fila
     assert not any("apagado" in l["que"] for l in b["lineas"])
 
@@ -2281,14 +2281,6 @@ def test_gap3_un_adaptador_propio_en_backends_se_comprueba_en_vivo(tmp_path):
     assert fila["estado"] in (doctor.OK, doctor.AVISO, doctor.INFO), fila
     assert "no disponible" not in fila["detalle"] and "retirado" not in fila["detalle"], fila
     assert not (proj / "salida").exists()                       # el diagnostico no escribe
-
-
-def test_doctor_py_no_menciona_ningun_backend_literalmente():
-    """T-09: todo lo que sabe este fichero sobre una capacidad concreta llega por el contrato
-    `{id, config_path, enabled, health, doctor, setup_step}` de `capabilities.py` -- nunca un
-    literal de backend en el propio codigo de /doctor."""
-    texto = open(SCRIPT, encoding="utf-8").read()
-    assert "kwipu" not in texto.lower() and "graphiti" not in texto.lower()
 
 
 def test_bloque_capacidades_via_capabilities_real_proyecto_sin_config(tmp_path):

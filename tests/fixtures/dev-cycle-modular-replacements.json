@@ -133,7 +133,7 @@
       "before_file": "agent-kits/dev-cycle/references/phase4-knowledge-gate.md",
       "after_sha256": "e970642498b0e88061fb68b5b44dd2eac716867378ef9dc27471b9c3648252be",
       "after_file": "agent-kits/dev-cycle/references/phase4-knowledge-gate.md",
-      "reason": "plugin-audit-2 T-09: Kwipu and Graphiti are retired (4.0.0); the bullet now says that no external backend conditions the close. Same rule kept: approved stays correct, the export via knowledge-sync.py is asynchronous and rebuildable, and its failure is noted without stopping the cycle."
+      "reason": "plugin-audit-2 T-09: the bundled memory backends are retired (4.0.0); the bullet now says that no external backend conditions the close. Same rule kept: approved stays correct, the export via knowledge-sync.py is asynchronous and rebuildable, and its failure is noted without stopping the cycle."
     },
     {
       "before_sha256": "eb241e01a5e64e2f3962054ce4a35b3d0223ea98adcede04de409ed11a4f1d09",

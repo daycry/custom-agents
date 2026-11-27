@@ -96,8 +96,8 @@ Los adaptadores que implementan solo las seis funciones siguen siendo compatible
 `importlib.util` y comprueba que las 6 funciones existen y son invocables. Un adaptador que no
 cumple el contrato completo (fichero ausente, no carga, o falta una función) levanta
 `AdaptadorNoDisponible` con un mensaje que nombra exactamente qué falta — `knowledge-sync.py` lo
-convierte en `exit 2`, nunca en un traceback. Una taxonomía heredada que aún declara un backend
-retirado en 4.0.0 recibe un mensaje «retirado» (ver `CHANGELOG`) en vez de «no encontrado».
+convierte en `exit 2`, nunca en un traceback. Un `type` sin adaptador recibe siempre el mismo aviso
+de adaptador ausente, con la guía para añadir uno; el cargador no guarda ninguna lista de tipos aparte.
 
 ## Modo `resumen` (gap 83, fix1 2026-09-18)
 

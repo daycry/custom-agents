@@ -1,5 +1,5 @@
-"""Router de lectura: salida generada GENERICA de un adaptador propio (fixtures locales) y retirada
-de la rama documental de `markdown-export` (plugin-audit-2 T-08 fix1, gap 2)."""
+"""Router de lectura: salida generada GENERICA de un adaptador propio (fixtures locales) y un `type`
+sin adaptador sin rama documental propia (plugin-audit-2 T-08 fix1, gap 2; T-41)."""
 import copy
 import hashlib
 import importlib.util
@@ -201,16 +201,17 @@ def test_taxonomy_symlink_is_not_read(router, project):
 
 
 
-@pytest.mark.parametrize("tipo", ["markdown-export", "graphiti"])
-def test_un_type_retirado_da_el_mismo_motivo_retirado_en_el_router(router, project, tipo):
-    """Gap 2: la rama documental de `markdown-export` ya no existe; el router no la evalua antes de
-    cargar el adaptador y el motivo es el de la retirada (igual que `graphiti`), nunca
-    `autorizacion_documental_no_disponible` ni `read_disabled`."""
+@pytest.mark.parametrize("tipo", ["antiguo", "otro-antiguo"])
+def test_un_type_sin_adaptador_da_el_motivo_generico_en_el_router(router, project, tipo):
+    """Gap 2 + T-41: el router no evalua ninguna rama documental propia de un `type` antes de cargar
+    el adaptador; un `type` sin adaptador da el motivo generico de adaptador ausente, nunca
+    `autorizacion_documental_no_disponible`, `read_disabled` ni un motivo de retirada."""
     root, config, policy, entries = project
     config["backends"]["docs"]["type"] = tipo
     hits, info = router.consultar_intent(root, "documental", texto="owned", config=config)
     assert hits is None and info["origen"] == "local", info
-    assert "retirado" in info["motivo"] and "4.0.0" in info["motivo"], info["motivo"]
+    assert "no se encontró un adaptador" in info["motivo"] and tipo in info["motivo"], info["motivo"]
+    assert "retirado" not in info["motivo"], info["motivo"]
     assert "autorizacion_documental" not in info["motivo"] and "read_disabled" not in info["motivo"]
 
 
