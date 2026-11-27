@@ -1,0 +1,8 @@
+{
+  "source": "fda525e (antes de T-22)",
+  "bytes_lf": {
+    "agents/planner.md": 21883,
+    "agents/implementer.md": 16478,
+    "agents/qa.md": 19451
+  }
+}
