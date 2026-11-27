@@ -906,7 +906,8 @@ def test_t42_fix3_gap4_cache_no_confiable_se_ignora(tmp_path, monkeypatch, caso)
         if caso == "permisos-abiertos":
             os.chmod(ruta.parent, 0o777)
         else:
-            monkeypatch.setattr(mod.os, "getuid", lambda: os.getuid() + 1)
+            ajeno = os.getuid() + 1
+            monkeypatch.setattr(mod, "_uid_actual", lambda: ajeno)   # solo la caché: el proyecto sigue siendo propio
     informe = mod.comprobar(proj, deadline=math.inf)
     assert _del_ledger(informe), (caso, informe)
 

@@ -838,6 +838,11 @@ def cache_path(root):
     return _ubicacion_cache(root)[0]
 
 
+def _uid_actual():
+    """El usuario dueño de la caché (POSIX); función propia para poder simular un directorio ajeno en los tests."""
+    return os.getuid()
+
+
 def _dir_seguro(path, estricto):
     """¿`path` es un directorio propio de verdad? Directorio real (ni enlace ni junction) y, en POSIX, del usuario
     actual y sin escritura de grupo/otros; `estricto` (el directorio de la caché): sin NINGÚN permiso de grupo/otros.
@@ -846,7 +851,7 @@ def _dir_seguro(path, estricto):
     if not stat.S_ISDIR(info.st_mode) or LW.READER._redirected(info):
         return False
     if hasattr(os, "getuid"):
-        return info.st_uid == os.getuid() and not info.st_mode & (0o077 if estricto else 0o022)
+        return info.st_uid == _uid_actual() and not info.st_mode & (0o077 if estricto else 0o022)
     return True
 
 
@@ -895,7 +900,7 @@ def _leer_cache(path, clave):
             info = os.fstat(handle.fileno())
             if not stat.S_ISREG(info.st_mode) or info.st_size > CACHE_MAX:
                 return {}
-            if hasattr(os, "getuid") and (info.st_uid != os.getuid() or info.st_mode & 0o022):
+            if hasattr(os, "getuid") and (info.st_uid != _uid_actual() or info.st_mode & 0o022):
                 return {}
             raw = handle.read(CACHE_MAX + 1)
         if len(raw) > CACHE_MAX:
