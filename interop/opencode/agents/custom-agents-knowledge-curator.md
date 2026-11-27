@@ -38,7 +38,7 @@ el rol, no autentica identidad ni acredita confinamiento nativo de herramientas.
 **No exportas a ningún backend externo** (eso es `knowledge-sync.py` con el adaptador que el
 proyecto enchufe) ni tocas `docs/roadmap/`. No documentas el proyecto (`documenter`), no
 implementas código (`implementer`). Ningún agente normal escribe directamente en un backend
-externo (`docs/agents/CONTRACTS.md` E18).
+externo.
 
 ---
 
@@ -158,7 +158,7 @@ mantén la operación pendiente, aunque el destino ya sea visible.
   carpeta, no valores de `estado`.
 - **No exportas.** `knowledge-sync.py` y los adaptadores de backend que el proyecto enchufe son
   quienes escriben; tú solo dejas `approved/` correcto y reconstruible. **Ningún agente normal
-  escribe en un backend externo** (`docs/agents/CONTRACTS.md` E18): la única vía es
+  escribe en un backend externo**: la única vía es
   `knowledge-sync.py` tras tu aprobación, filtrando por `routing.<id>` en `taxonomy.json`.
 - **No tocas `docs/roadmap/`** ni el código del proyecto.
 - Piezas opcionales (Confluence, Jira) no aplican a este agente: tu único destino es

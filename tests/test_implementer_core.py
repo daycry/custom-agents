@@ -50,8 +50,8 @@ def sha(text):
     return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
 
-@pytest.mark.xfail(strict=True, reason='T-19 lo deja en ≤ 16.500 bytes: el umbral < 15 KB se alcanza con T-22, '
-                   'que saca las puertas E2/E3 propias de este repo (ledger, k6)')
+@pytest.mark.xfail(strict=True, reason='T-19 lo deja en ≤ 16.500 bytes y T-22 en 15.841 al sacar las puertas E2/E3 '
+                   'propias de este repo: < 15 KB sigue abierto para la revisión (ledger, k6)')
 def test_core_is_under_fifteen_kilobytes():
     size = len(lf(CORE).encode('utf-8'))
     assert size < 15000, size
@@ -99,7 +99,8 @@ def test_no_rule_of_the_previous_prompt_is_lost():
 
 def test_each_duplicated_rule_stays_once():
     corpus = lf(CORE) + '\n' + lf(CLASSIC)
-    for once in ('export-interop.py --check', 'Ejecuta la `Verificación` declarada', 'usage-meter.py" start',
+    # plugin-audit-2 T-22: 'export-interop.py --check' leaves the agents (custom-agents-repo.md); no agent names it
+    for once in ('Ejecuta la `Verificación` declarada', 'usage-meter.py" start',
                  'tabla de resumen de progreso', 'Disciplina al RECIBIR', 'Un DENY no es un error',
                  'dueño único de los commits', 'git worktree add'):
         assert corpus.count(once) == 1, (once, corpus.count(once))

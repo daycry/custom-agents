@@ -63,7 +63,7 @@ def test_qa_reads_the_sin_ui_reference_only_when_the_marker_is_declared():
     assert 'ADR-017' in line and 'una sola vez' in line
     ref = flat(lf(SIN_UI))
     for needed in ('ℹ️, no ✅', 'eximidos', 'eximidos_exigidos', 'rutas_ui', 'rutas_ui_origen', 'rutas_ui_degradado',
-                   'marcador_no_canonico', 'coverage-check', 'ledger-lint', 'no instales Playwright'):
+                   'marcador_no_canonico', 'coverage-check', 'ledger-lint', 'ni instales Playwright'):
         assert needed in ref, needed
 
 

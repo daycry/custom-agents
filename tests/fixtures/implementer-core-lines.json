@@ -290,9 +290,9 @@
     {
       "before_sha256": "333f02d2a3d4b9ad1bde680efa65682495982a6cdb238355931f7efb92b423e1",
       "before_line": 43,
-      "after_file": "agents/implementer.md",
-      "after_sha256": "8beb8602b81785fffb4fb32063977bc70e12b1be4b258dbccf4ad1838fcabe68",
-      "reason": "Duplicada con el ítem E2 del DoD: la regla queda una sola vez, en el DoD (T-19, deduplicación)."
+      "after_file": "skills/project-extensions/references/custom-agents-repo.md",
+      "after_sha256": "07160e15179960b720295e7027523e93893040198e8902b39a47444638674cd3",
+      "reason": "Duplicada con el ítem E2 del DoD: la regla queda una sola vez, en el DoD (T-19, deduplicación). Desde T-22, la línea de destino vive en custom-agents-repo.md."
     },
     {
       "before_sha256": "25dd2d62593f07334ae397734a7e36e5ed5134cd2ef261c4f3ffd8c9a0d8eea1",
@@ -426,6 +426,18 @@
       "after_file": "agent-kits/implementer/references/classic-flow.md",
       "after_sha256": "9979d58764509e5776d6b1a2739fc53ef6360e40ea5ca6b3ad508842a1f6cabb",
       "reason": "La disciplina de salida del flujo clásico pasa a la referencia; con brief, la salida es el estado del contrato (T-19)."
+    },
+    {
+      "before_sha256": "8beb8602b81785fffb4fb32063977bc70e12b1be4b258dbccf4ad1838fcabe68",
+      "after_file": "skills/project-extensions/references/custom-agents-repo.md",
+      "after_sha256": "07160e15179960b720295e7027523e93893040198e8902b39a47444638674cd3",
+      "reason": "plugin-audit-2 T-22: puerta E2/E3 propia de este repo, en custom-agents-repo.md, con `release.py` citado por carpeta para el paquete portable (export-skills); el núcleo lleva la regla genérica de proyecto."
+    },
+    {
+      "before_sha256": "ced3fd8391d24558efadcc08bcf984d6f8cd9699e95a2fa6477756f9fe389447",
+      "after_file": "skills/project-extensions/references/custom-agents-repo.md",
+      "after_sha256": "ced3fd8391d24558efadcc08bcf984d6f8cd9699e95a2fa6477756f9fe389447",
+      "reason": "plugin-audit-2 T-22: puerta E2/E3 propia de este repo, literal en custom-agents-repo.md; el núcleo lleva la regla genérica de proyecto."
     }
   ]
 }

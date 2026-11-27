@@ -73,6 +73,28 @@ viene de una skill o plugin externo, compárala antes con `research-first`.
 7. **Auto-revisión adversarial** (piezas no triviales): conformidad con CONVENTIONS y defectos. Para iniciativas la
    hace `/dev-cycle`.
 
+## Puertas E2 y E3 del ciclo (planner e implementer)
+
+Los agentes genéricos solo llevan la regla de proyecto «lo generado y lo que lo describe cambian en la misma tarea». En este repositorio esa regla son las aristas E2 y E3 de `docs/agents/CONTRACTS.md`, movidas aquí desde `agents/planner.md` y `agents/implementer.md` (plugin-audit-2 T-22).
+
+**Al planificar** (`planner`, P3-bis):
+
+**P3-bis. El campo `Archivos` incluye lo GENERADO y lo que DESCRIBE (huecos E2 y E3).** Un `Archivos` que solo lista los ficheros que se editan a mano deja fuera dos cosas que la tarea rompe igual, y que `scope-check.py` devolverá como fuera de alcance. Por cada tarea, antes de escribirla:
+
+- **Lo generado (E2):** si la tarea toca `commands/`, `agents/` o `hooks/`, añade **`interop/**`** al campo `Archivos` — con el patrón, no fichero a fichero (así el brief de `task-brief.py` no engorda, `GOT-009`). Son los ficheros que produce `python3 scripts/export-interop.py`, que `implementer` regenera antes de cerrar la tarea y que la Lente A comprueba con `--check`. La subtarea de la tarea lo dice explícitamente: «regenerar `interop/`».
+- **Lo que describe (E3):** añade las **piezas que documentan a la pieza tocada**. Esa lista **no se improvisa por tarea**: se copia de la columna **«Piezas que describen»** de la matriz `docs/agents/CONTRACTS.md`, buscando la arista por su pieza en «Invocador»/«Invocado». Si la pieza tocada no está en ninguna arista, aplica la regla base: `docs/agents/<x>.md` + la fila de `docs/README.md` + `docs/FLOWS.md` (+ `docs/en/FLOWS.md`) si cambia un flujo + `evals/cases/<kind>-<nombre>.json` si cambia la `description`.
+
+Ambas listas son **alcance declarado**, no adorno: lo que no esté en `Archivos` sale como gap Important en la revisión (`python3 "$SHAREDKIT/scope-check.py" <iniciativa>` exit 0).
+
+Comprobación del plan:
+
+- [ ] Toda tarea que toque `commands/`, `agents/` o `hooks/` lleva **`interop/**`** en su campo `Archivos` (E2) y las **piezas que describen** tomadas de la columna homónima de `docs/agents/CONTRACTS.md` (E3), no improvisadas: `grep -n "interop/\*\*" docs/roadmap/<fecha>-<slug>/tasks.md`.
+
+**Al cerrar cada tarea** (`implementer`, DoD):
+
+- [ ] **Lo generado está regenerado (E2):** si la tarea tocó `commands/`, `agents/` o `hooks/`, `interop/**` está en su campo `Archivos` y lo has regenerado y comprobado ANTES de cerrarla: `python3 scripts/export-interop.py && python3 scripts/export-interop.py --check` → `--check` exit 0 (`N ficheros al día`), salida pegada. Sin esto, Codex y OpenCode cargan la versión vieja de la pieza y `release.py` (carpeta `scripts/`) se cae en la puerta de interop. La Lente A ejecuta el mismo `--check` por su cuenta: llegar con él en rojo es un gap Important seguro.
+- [ ] **Lo que describe está actualizado (E3):** las piezas que documentan lo que tocaste —las de la columna «Piezas que describen» de `docs/agents/CONTRACTS.md`, que el `planner` ya puso en `Archivos`— cambian **en la misma tarea**, no «luego». Si `Archivos` no las trae y hacían falta, añádelas con nota (es un fallo de plan, no excusa para dejarlas sin tocar).
+
 ## Documentación (la pieza no está terminada sin esto)
 
 | Pieza | Obligatorio |
