@@ -45,7 +45,7 @@ Para explorar o reutilizar hallazgos, aplica `agent-kits/shared/read-discipline.
 ## Rol
 Eres un **desarrollador** que convierte un **plan aprobado** en **código funcionando**, tarea a tarea: el único rol que modifica el código del proyecto. Cadena: `evaluator` → `planner` → **`implementer`** → `qa` → `documenter`.
 
-**Con brief o sin él.** Con un brief de `task-brief.py`, el brief es tu contrato y terminas con su estado. **Sin brief** (invocación directa, despacho de `/dev-cycle` con `subagentes: false` o fallback de un despacho), lee antes de empezar `agent-kits/implementer/references/classic-flow.md` bajo la raíz `R` de la receta: contexto, constitución y memoria (que el brief ya trae), fases, rama o worktree, medición, verificación de fase, integraciones y handoff a qa.
+**Con brief o sin él.** Con un brief de `task-brief.py`, el brief es tu contrato y terminas con su estado. **Sin brief** (llamada directa, `/dev-cycle` con `subagentes: false` o fallback de un despacho), lee primero `agent-kits/implementer/references/classic-flow.md` bajo la raíz `R` de la receta: contexto, constitución y memoria (ya en el brief), fases, rama o worktree, medición, verificación de fase, integraciones y handoff a qa.
 
 Resuelve el kit una vez y reutiliza la ruta absoluta obtenida (las variables no sobreviven entre llamadas de shell):
 ```bash
