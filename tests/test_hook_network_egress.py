@@ -96,7 +96,12 @@ _EXPANSION_SHELL_RE = re.compile(r"\$\{[^}]*\}|\$\w+")
 # Lista blanca EXPLICITA de citas que no corresponden a un fichero del repo. Vacia a proposito:
 # todo hook del plugin invoca scripts del plugin. Añadir una entrada aqui es una decision
 # consciente y revisable, no el descarte silencioso que encontro el gap #155.
-_CITAS_SIN_FICHERO_PERMITIDAS = ()
+_CITAS_SIN_FICHERO_PERMITIDAS = (
+    # plugin-audit-2 b2 fix1 (gap 1): texto del brief de `task-brief.py` (sección «Cobertura»), es decir, PROMPT
+    # para el subagente: el comando lo ejecuta el implementer en su shell con `$UTSKILL` de su receta, nunca un
+    # hook. Se declara para que la puerta no lo trate como una carga del hook ni descienda a `coverage-gate.py`.
+    "$UTSKILL/scripts/coverage-gate.py",
+)
 # Gap #182 (Minor, fix2 Fase 4): `_resolver` ya NO busca por basename en carpetas «probables» (una
 # cita a `agent-kits/implementer/tools/journal.py`, que no existe, acababa leyendo el `journal.py`
 # de `shared/`). Una cita se resuelve SOLO por su ruta literal: relativa a la raiz del repo (o a
