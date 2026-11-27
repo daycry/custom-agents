@@ -43,8 +43,8 @@ changelog: Changed
 | Fase 3 — Tokens | 12 | 12 | 100.0% | 0 / 36h | 1.1 / 9.7h | 0 / 2.42h | 0 / 2260k |
 | Fase 4 — Simplificación del código | 0 | 8 | 0.0% | 0 / 34.5h | 0 / 8.5h | 0 / 2.12h | 0 / 2470k |
 | Fase 5 — Alcance y entrenamiento | 0 | 5 | 0% | 0 / 26h | 0 / 6.5h | 0 / 1.62h | 0 / 1800k |
-| Fase 6 — Higiene del roadmap | 1 | 4 | 25.0% | 0 / 10h | 0 / 2.5h | 0 / 0.62h | 0 / 750k |
-| **TOTAL** | **24** | **42** | **57.1%** | **0 / 154.5h** | **0 / 40.1h** | **0 / 10.02h** | **0 / 10470k** |
+| Fase 6 — Higiene del roadmap | 1 | 5 | 20.0% | 0 / 10h | 0 / 2.5h | 0 / 0.62h | 0 / 750k |
+| **TOTAL** | **24** | **43** | **55.8%** | **0 / 154.5h** | **0 / 40.1h** | **0 / 10.02h** | **0 / 10470k** |
 
 Supervisión = 25 % de las horas IA (se suma por fase). Estimaciones BASE (el +20 % está en el plan); tokens al precio de `.claude/rates.json`.
 
@@ -1204,6 +1204,25 @@ RED: `agent-kits/shared/test_roadmap_sync.py::test_t42_fix1_gap1_sync_no_cierra_
 - **Bloque archivado** «T-42 — Evidencia fix1 (2026-11-» — LITERAL (bytes sin cambios) en [execution-history.md](execution-history.md) · SHA-256 `7b65bbc7fd00d68050b594fd384e22242f536501a2265ec59708cf9392a274d4`. Tarea cerrada.
 - **Bloque archivado** «T-42 — Evidencia fix2 (2026-11-» — LITERAL (bytes sin cambios) en [execution-history.md](execution-history.md) · SHA-256 `da5690a449deeb51be8eba6cc58f08c7d76aff91b8275cb243ac937102e510fb`. Tarea cerrada.
 - **Bloque archivado** «T-42 — Evidencia fix3 (2026-11-» — LITERAL (bytes sin cambios) en [execution-history.md](execution-history.md) · SHA-256 `33e61cd1f8bfad7f585cb2c65d05d051a7f0223c447025b24649f533dca1a14d`. Tarea cerrada.
+### T-43 — roadmap-sync respeta los roadmaps de otros proyectos: Estado descriptivo, ledgers heredados y ledgers no verificables (hallado por la sesión kairos, 2026-11-27)
+
+- **Descripción**: Validando `roadmap-sync.py` (T-42, `ebf2ac2`) con `--check` sobre el `docs/roadmap` de otro proyecto consumidor (knowledge-graphs), la sesión kairos encontró tres fallos que en modo escritura destruirían información o harían retroceder estados. (1) Su índice tiene la columna `Estado` con texto descriptivo («spec `implementada` · evaluación `completado` · plan `completado` (38/38 tareas…; retro hecha)»); el script la compara con una palabra canónica (cerrada · en curso · planificada) y lo cuenta como desfase (5 de 6); sin `--check` sustituiría la celda por la palabra. (2) Ledgers anteriores al formato `T-XX` (checkboxes `- [x] C-01 …`) se derivan como «vía rápida» con 0/0 tareas y de ahí «planificada»; deben ser «no derivable» y no tocar el índice. (3) Con un ledger no verificable (> 256 KiB) el script propone escribir la fila del índice («en curso») aunque la iniciativa esté completada (74/74, PR fusionado): retroceso; con un ledger no verificable no se escribe nada de esa iniciativa. Corrección: una celda Estado que contiene estados de los artefactos (spec/plan/ledger) concordantes con lo derivado NO es desfase y no se reescribe; si discrepa, el modo escritura solo actualiza los tokens de estado dentro de la celda (como `con_estado` en T-42 gap 3) o antepone la palabra, nunca borra el texto; ledgers sin tareas `T-XX` → `no-derivable` (aviso, sin escritura, sin «vía rápida»), también en `build_dashboard.py`; ledger no verificable → ni escritura ni propuesta para esa iniciativa (solo el aviso `no-verificable`).
+- **Changelog**: roadmap-sync ya no reescribe la columna Estado descriptiva de un índice ni deriva estados de ledgers antiguos o demasiado grandes para verificarlos.
+- **Estado**: borrador
+- **Tiempo humano**: est. 3h · real —
+- **Tiempo IA (ejec.)**: est. 0.8h · real —
+- **Archivos**: `agent-kits/shared/roadmap-sync.py`, `agent-kits/shared/test_roadmap_sync.py`, `skills/roadmap-dashboard/scripts/build_dashboard.py`, `tests/test_dashboard_estado.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/observability.md`, `docs/en/observability.md`
+- **Verificación**:
+  - `pytest -q -p no:xdist agent-kits/shared/test_roadmap_sync.py -k t43` → `passed` (rojo antes: celda Estado descriptiva marcada como desfase y reescrita; ledger `C-01` derivado como planificada; ledger > 256 KiB con propuesta de fila)
+  - `python agent-kits/shared/roadmap-sync.py docs/roadmap --check` → exit 0
+  - `python agent-kits/shared/ledger-lint.py docs/roadmap/2026-11-10-plugin-audit-2/tasks.md` → `0 incoherencias`
+
+**Criterios de aceptación**
+- [ ] Una celda `Estado` descriptiva que concuerda con lo derivado no es desfase; si discrepa, la escritura conserva el texto (solo cambia tokens de estado o antepone la palabra). Test con el formato literal del índice de knowledge-graphs.
+- [ ] Un ledger sin tareas `T-XX` sale `no-derivable` (aviso) en `roadmap-sync` y en el panel; nunca «vía rápida» ni «planificada» por 0/0.
+- [ ] Con un ledger no verificable no se escribe ni se propone nada de esa iniciativa (fila del índice incluida).
+- [ ] La sesión kairos repite `--check` sobre su roadmap y solo quedan desfases reales.
+
 ## Historial archivado
 
 - 2026-11-17 · «Revisión de dos lentes — intento 1: Fase 1 (T-23, T-02..T-07) — 1 Critical, 6 Important, 11 Minor» → [execution-history.md](execution-history.md) · SHA-256 `96dd10df525bcf05591f40a2f518295f00dbb8645e91754ea554b1d6f810fd06`
