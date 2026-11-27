@@ -41,6 +41,7 @@ PIEZAS = {
     "tdd": ("skills/tdd/SKILL.md", "## Salida y traza"),
 }
 FRAGMENTO = "agent-kits/shared/rationalization-table.md"
+SIN_PUNTERO = {"implementer", "qa"}  # plugin-audit-2 T-18
 
 
 def leer(rel):
@@ -85,8 +86,12 @@ def _check_pieza(nombre):
     # token-diet: título → última fila ≤ 25 líneas
     ultima = h + 2 + len(filas)
     assert ultima - t <= MAX_LINEAS, f"{rel}: la tabla ocupa {ultima - t} líneas (> {MAX_LINEAS})"
-    # referencia al fragmento compartido
-    assert "rationalization-table.md" in texto, f"{rel}: debe remitir al fragmento compartido"
+    # referencia al fragmento compartido; plugin-audit-2 T-18: en los agentes que la cargan en cada
+    # ejecución es guía de autoría, no lectura de runtime, y el puntero se quita
+    if nombre in SIN_PUNTERO:
+        assert "rationalization-table.md" not in texto, f"{rel}: el fragmento es guía de autoría, sin puntero"
+    else:
+        assert "rationalization-table.md" in texto, f"{rel}: debe remitir al fragmento compartido"
     return filas
 
 
