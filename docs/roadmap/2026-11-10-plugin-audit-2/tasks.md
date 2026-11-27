@@ -424,7 +424,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 ## Fase 3 — Tokens
 
-**Estado**: en-progreso · **Est.**: 30h humanas · **Real**: — · 1500 € · 2260k tokens
+**Estado**: en-revision · **Est.**: 30h humanas · **Real**: — · 1500 € · 2260k tokens
 
 ### T-12 — TDD en el brief, skill bajo demanda (2.4)
 
@@ -754,21 +754,29 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: Reglas propias de este repositorio (`export-interop`, `CONTRACTS.md`) viven dentro de agentes genéricos (≈4,2 KB) y `qa.md:114` (2 KB) solo aplica al QA sin UI. Las primeras pasan a `skills/project-extensions/references/custom-agents-repo.md` (solo se lee dentro de custom-agents; replanificado por el orquestador el 2026-11-23: `plugin-dev` ya no existe tras T-11 y `docs/CONSTITUTION.md` no se toca); lo segundo, a una referencia condicional.
 - **Changelog**: Los agentes genéricos dejan de cargar reglas que solo valen para el repositorio del plugin.
-- **Estado**: en-progreso
+- **Estado**: en-revision
 - **Tiempo humano**: est. 3h · real —
-- **Tiempo IA (ejec.)**: est. 0.8h · real 0.73h (medido, `plugin-audit-2/T-18`; incluye 46 min de la suite de 94 ficheros)
+- **Tiempo IA (ejec.)**: est. 0.8h · real 0.13h (medido, `plugin-audit-2/T-22`; reloj 1h 11m, casi todo espera de la suite de 112 ficheros)
 - **Dependencias**: T-18, T-19, T-11
-- **Archivos**: `agents/planner.md`, `agents/implementer.md`, `agents/qa.md`, `agent-kits/qa/references/sin-ui.md` (nuevo), `skills/project-extensions/references/custom-agents-repo.md` (sustituye a `.claude/skills/plugin-dev/SKILL.md` y `docs/CONSTITUTION.md`, replanificado 2026-11-23), `docs/agents/CONTRACTS.md`, `docs/agents/planner.md`, `docs/agents/qa.md`, `interop/**` (regenerado)
+- **Archivos**: `agents/planner.md`, `agents/implementer.md`, `agents/qa.md`, `agent-kits/qa/references/sin-ui.md` (nuevo), `skills/project-extensions/references/custom-agents-repo.md` (sustituye a `.claude/skills/plugin-dev/SKILL.md` y `docs/CONSTITUTION.md`, replanificado 2026-11-23), `docs/agents/CONTRACTS.md`, `docs/agents/planner.md`, `docs/agents/qa.md`, `interop/**` (regenerado), `agents/knowledge-curator.md` (nota: la Verificación pide `grep` sin coincidencias en `agents/*.md`; pierde la cita a `CONTRACTS.md` E18, la regla queda), `tests/test_repo_rules_out_of_agents.py` y `tests/fixtures/repo-rules-baseline.json` (nuevos), `tests/test_implementer_core.py` y `tests/fixtures/implementer-core-lines.json` (nota: las líneas E2/E3 del núcleo de T-19 viven ahora en `custom-agents-repo.md`), `docs/{,en/}TOKEN-EFFICIENCY.md` (nota: `test_f4fix2_misc` fija la cifra del implementer)
 - **Runtimes**: Constitución y referencias se leen igual en los tres; el consumidor no recibe reglas de este repo.
 - **Verificación**:
   - `grep -n "export-interop\|CONTRACTS.md" agents/*.md` → sin coincidencias salvo un puntero a `custom-agents-repo.md`
   - `context-footprint.py --project . --file agents/qa.md` antes/después → menos bytes (`testing/tokens.md`) → ≈2 KB menos
   - puertas de runtimes (cabecera) → verde
 
+- RED: tests/test_repo_rules_out_of_agents.py (8 de 15: agentes que nombran `export-interop`/`CONTRACTS.md`, E2/E3 sin regla de proyecto ni puerta genérica, qa sin referencia y pérdida medida) falló con AssertionError (commit `2990586`) · 2026-11-27
+- **Evidencia** (GREEN `23a8c32`; caracteres LF, estimación caracteres/4, no consumo facturado):
+  - `grep -n "export-interop\|CONTRACTS.md" agents/*.md` → sin coincidencias (exit 1); el puntero a `custom-agents-repo.md` no las repite. E2/E3 (P3-bis y comprobación del planner, ítems del DoD del implementer) pasan literales a `custom-agents-repo.md`, sección «Puertas E2 y E3»; planner e implementer conservan la regla genérica «lo generado y lo que lo describe, en la misma tarea», así un consumidor no pierde la puerta.
+  - qa: el párrafo sin UI (2.068 bytes) pasa a `agent-kits/qa/references/sin-ui.md` (2.247 caracteres), que se lee solo con el marcador; el núcleo lo nombra con su condición, `ADR-017` y el aviso único.
+  - `agents/qa.md` 19.211 → **17.620**; planner 21.522 → 20.212; implementer 16.263 → 15.642. Entre los tres −3.522 caracteres (−3.604 bytes).
+  - **k7**: «≥ 6 KB entre los tres» no se alcanza: se movieron ≈5,6 KB y las puertas genéricas cuestan ≈1,4 KB; el test de 6 KB queda `xfail(strict)`. **k6** sigue: el implementer queda en 15.841 bytes (> 15 KB).
+- **Verificación ejecutada** (2026-11-27): grep y footprint arriba; `export-interop.py --check` → `88 ficheros al día`; `lint_plugin.py` → `0 errores · 16 avisos`; `evals/check.py` → `0 errores`; `--diet-check project-extensions` → 0 párrafos perdidos; `agents/evaluator.md` 15.313 bytes LF; 112 ficheros que leen lo tocado (con runtimes y tokens) → `7192 passed, 5 failed, 13 skipped, 2 xfailed`: 2 por la cita de `scripts/release.py` en el paquete portable (corregidos, `passed`) y 3 por carga (`passed` aislados).
+
 **Criterios de aceptación**
-- [ ] `planner` conserva el mecanismo E2/E3 como regla de PROYECTO (`skills/project-extensions/references/custom-agents-repo.md`), no como texto del agente genérico.
-- [ ] El QA sin UI carga la referencia solo cuando aplica.
-- [ ] Un proyecto consumidor no pierde ninguna puerta.
+- [x] `planner` conserva el mecanismo E2/E3 como regla de PROYECTO (`skills/project-extensions/references/custom-agents-repo.md`), no como texto del agente genérico.
+- [x] El QA sin UI carga la referencia solo cuando aplica.
+- [x] Un proyecto consumidor no pierde ninguna puerta.
 - [ ] Medido: `planner`, `implementer` y `qa` pierden ≥ 6 KB entre los tres.
 
 ### T-40 — El plugin mueve el estado de cada tarea en todo el ciclo y el dashboard lo muestra en vivo (decidido por el usuario el 2026-11-23)
@@ -1029,7 +1037,7 @@ RED: `tests/test_suites_no_pytest.py::test_el_bucle_de_ci_solo_ejecuta_lo_que_py
 - **Changelog**: Se documenta qué hace falta de training-data-services.
 - **Estado**: borrador
 - **Tiempo humano**: est. 3h · real —
-- **Tiempo IA (ejec.)**: est. 0.8h · real 0.73h (medido, `plugin-audit-2/T-18`; incluye 46 min de la suite de 94 ficheros)
+- **Tiempo IA (ejec.)**: est. 0.8h · real —
 - **Archivos**: `docs/roadmap/2026-11-10-plugin-audit-2/testing/evaluacion-training.md` (nuevo; solo lectura del resto)
 - **Runtimes**: Pregunta 5: de dónde sale la trayectoria en Codex y OpenCode (o si el caso queda sin ella).
 - **Verificación**:
@@ -1166,7 +1174,7 @@ RED: `tests/test_suites_no_pytest.py::test_el_bucle_de_ci_solo_ejecuta_lo_que_py
 - **Changelog**: Una sesión cuyo cierre coincide con un disco atascado ya no pierde su entrada del journal sin avisar.
 - **Estado**: borrador
 - **Tiempo humano**: est. 3h · real —
-- **Tiempo IA (ejec.)**: est. 0.8h · real 0.73h (medido, `plugin-audit-2/T-18`; incluye 46 min de la suite de 94 ficheros)
+- **Tiempo IA (ejec.)**: est. 0.8h · real —
 - **Archivos**: `agent-kits/shared/journal-capture.py`, `agent-kits/shared/journal-io.py`, `agent-kits/shared/test_journal.py`, `docs/FLOWS.md`, `docs/en/FLOWS.md`
 - **Verificación**:
   - `pytest -q agent-kits/shared/test_journal.py -k atasco` → `passed` (rojo antes: un fsync que pasa de 5 s pierde la captura sin que `SessionStart` lo diga)
