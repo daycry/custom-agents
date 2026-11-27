@@ -644,7 +644,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 - **Archivos**: `agents/implementer.md`, `agent-kits/implementer/references/classic-flow.md` (nuevo), `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/agents/implementer.md`, `evals/cases/agent-implementer.json`, `install/providers.mjs` (solo si no copia `agent-kits/` entero), `interop/**` (regenerado), `tests/test_implementer_core.py` y `tests/fixtures/implementer-core-lines.json` (nuevos), `tests/test_fragments_on_demand.py` y `tests/test_quick_path_gates.py` (nota: la constitución, la memoria y P1 se leen ahora en `classic-flow.md`), `docs/{,en/}TOKEN-EFFICIENCY.md` (nota: `test_f4fix2_misc` fija la cifra publicada del implementer)
 - **Runtimes**: `agent-kits/implementer/references/` viaja en el payload común (`install/providers.mjs:34`); sin brief.
 - **Verificación**:
-  - `context-footprint.py --project . --file agents/implementer.md` antes/después → menos bytes (`testing/tokens.md`) → < 15 KB
+  - `context-footprint.py --project . --file agents/implementer.md` antes/después → menos bytes (`testing/tokens.md`) → ≤ 16 KB (16.384 bytes LF; cifra ajustada por el usuario el 2026-11-27)
   - puertas de tokens (cabecera) → verde · `pytest -q agent-kits/shared/test_task_brief.py agent-kits/shared/test_guardrail_check.py` → verde
   - puertas de runtimes (cabecera) → verde
 
@@ -653,12 +653,12 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
   - `agents/implementer.md` 28.208 → **16.263** caracteres (28.785 → 16.478 bytes; −11.945 por subagente). `classic-flow.md` 7.330, solo sin brief: contexto, constitución y memoria (el brief ya los trae), P1-bis, rama/worktree, medición, integraciones, rama compartida, P5/P5-bis y handoff.
   - Línea a línea: 93 unidades del prompt anterior, 46 sin cambios y 47 reemplazos con motivo en el fixture (reescritas o deduplicadas). Una vez: E2, Verificación, start, resumen de progreso, «Disciplina al RECIBIR», DENY, dueño de commits y worktree; la prosa que repetía una fila de la tabla sale.
   - El brief dice «no leas `classic-flow.md`»; Codex y OpenCode exportan el puntero y `agent-kits/` viaja en `PAYLOAD_COMUN`. La guarda nombra todas las familias denegadas (`test_fix2_gap6`).
-  - **k6**: «< 15 KB» no se alcanza en T-19 (16.478 bytes): `test_core_is_under_fifteen_kilobytes` queda `xfail(strict)` y se cierra en T-22, que saca las puertas E2/E3 del repo.
+  - **k6**: «< 15 KB» no se alcanza en T-19 (16.478 bytes): el usuario ajustó la cifra a ≤ 16 KB el 2026-11-27 (`0d00e2e`); `test_core_is_at_most_sixteen_kibibytes` la exige sin xfail. Medido 15.841 bytes.
 - **Verificación ejecutada** (2026-11-27): footprint arriba; `export-interop.py --check` → `88 ficheros al día`; `lint_plugin.py` → `0 errores · 16 avisos`; `evals/check.py` → `0 errores`; `test_task_brief.py` y `test_guardrail_check.py` en la suite; 103 ficheros que leen lo tocado (con los de runtimes) → `6368 passed, 29 failed, 12 skipped, 1 xfailed`: 22 de `test_git_verification` ya rojos en `ebf2ac2`, 2 de `test_native_guardrail_dispatch` corregidos (`passed`), 5 por carga (`test_lite_profile` ×3, `test_hook_processes`, `test_project_pieces`: `passed` aislados).
 - TDD n/a: cifra decidida por el usuario (2026-11-27); los tests de tamaño exigen la cifra nueva sin xfail.
 
 **Criterios de aceptación**
-- [ ] El cuerpo de `implementer.md` baja a un núcleo (objetivo < 15 KB) que conserva DoD, Verificación, RED/GREEN y guardrails.
+- [x] El cuerpo de `implementer.md` baja a un núcleo (objetivo ≤ 16 KB por decisión del usuario del 2026-11-27; antes < 15 KB) que conserva DoD, Verificación, RED/GREEN y guardrails. Medido 15.841 bytes; DoD, Verificación, TDD y guardarraíles en `agents/implementer.md:59-125` (revisión intento 1, Lente A).
 - [x] Sin brief (flujo clásico) el agente sabe leer la referencia y funciona igual.
 - [x] Cada regla duplicada queda una sola vez.
 - [x] Medido: `implementer.md` ≤ 16 KB (16.384 bytes LF; hoy 29,5 KB) (cifra ajustada por decisión del usuario el 2026-11-27: el núcleo conserva DoD, guardarraíles y commits; < 15 KB sacaría reglas que usa el subagente, k6). Medido 15.841 bytes ✓
@@ -758,7 +758,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
   - `grep -n "export-interop\|CONTRACTS.md" agents/*.md` → sin coincidencias (exit 1); el puntero a `custom-agents-repo.md` no las repite. E2/E3 (P3-bis y comprobación del planner, ítems del DoD del implementer) pasan literales a `custom-agents-repo.md`, sección «Puertas E2 y E3»; planner e implementer conservan la regla genérica «lo generado y lo que lo describe, en la misma tarea», así un consumidor no pierde la puerta.
   - qa: el párrafo sin UI (2.068 bytes) pasa a `agent-kits/qa/references/sin-ui.md` (2.247 caracteres), que se lee solo con el marcador; el núcleo lo nombra con su condición, `ADR-017` y el aviso único.
   - `agents/qa.md` 19.211 → **17.620**; planner 21.522 → 20.212; implementer 16.263 → 15.642. Entre los tres −3.522 caracteres (−3.604 bytes).
-  - **k7**: «≥ 6 KB entre los tres» no se alcanza: se movieron ≈5,6 KB y las puertas genéricas cuestan ≈1,4 KB; el test de 6 KB queda `xfail(strict)`. **k6** sigue: el implementer queda en 15.841 bytes (> 15 KB).
+  - **k7**: «≥ 6 KB entre los tres» no se alcanza: se movieron ≈5,6 KB y las puertas genéricas cuestan ≈1,4 KB; el usuario ajustó la cifra a ≥ 3,5 KB el 2026-11-27 (`0d00e2e`, sin xfail; medido −3.522). **k6**: cerrado con el ajuste a ≤ 16 KB (15.841 bytes).
 - **Verificación ejecutada** (2026-11-27): grep y footprint arriba; `export-interop.py --check` → `88 ficheros al día`; `lint_plugin.py` → `0 errores · 16 avisos`; `evals/check.py` → `0 errores`; `--diet-check project-extensions` → 0 párrafos perdidos; `agents/evaluator.md` 15.313 bytes LF; 112 ficheros que leen lo tocado (con runtimes y tokens) → `7192 passed, 5 failed, 13 skipped, 2 xfailed`: 2 por la cita de `scripts/release.py` en el paquete portable (corregidos, `passed`) y 3 por carga (`passed` aislados).
 - TDD n/a: cifra decidida por el usuario (2026-11-27); los tests de tamaño exigen la cifra nueva sin xfail.
 
@@ -1440,3 +1440,20 @@ Lentes: A+B+C (Opus, con traspaso del intento 3). C añadida por el orquestador 
 | 5 | Minor | El docstring de `_base_cache` dice «como el índice de Codex», pero `usage-meter.py:770` usa siempre `~/.cache` (en Windows son raíces distintas) | T-42 | deuda aceptada | `roadmap-sync.py:302-306` |
 
 **T-42 cerrada (2026-11-27)** según el criterio del usuario: 0 Critical y 0 Important tras 4 intentos en dos ciclos (el 2.º abierto con «Ciclo nuevo con fix3 acotado»). Deuda aceptada: los 5 Minor de este intento.
+
+## Revisión de dos lentes — intento 1: Fase 3 (T-18, T-19, T-22) — tanda B2 (T-18, T-19, T-22)
+
+Pendiente de revisión; sin veredicto.
+
+Lentes: A+B (Opus, contexto fresco). D por `review-lens-select.py --base ebf2ac2` solo por la ruta de un fixture JSON (`tests/fixtures/repo-rules-baseline.json`, stem «repo»), sin código de ejecución en el diff: no se lanza (decisión del orquestador); C no aplica. `scope-check --base ebf2ac2`: 0 fuera de alcance; `criterios_alterados` en T-19 y T-22 = ajustes de cifra decididos por el usuario el 2026-11-27 (`0d00e2e`): descartado (rebatido con esa decisión). Diff `ebf2ac2..0d00e2e`. Puerta Node en Linux: `604 · 571 · 0 fail · 33 skipped`. RED de las tres tareas verificados en `git archive` (`3bc4710` 17 failed, `5db8b99` 7, `2990586` 8). La Lente B revisó los 49 reemplazos del fixture del implementer. Resultado: 4 Important, 4 Minor.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | El gate de cobertura `tests.coberturaMinima` (P5) solo vive en `classic-flow.md`, que el brief prohíbe leer; ni `task-brief.py`, ni `dev-cycle.md`, ni `phase3-subagents.md` ejecutan `coverage-gate.py`; `phase6-close.md:9` remite a «P5 del implementer», que ya no está en el núcleo; `dev-cycle.md:88` dice que la cobertura conserva sus puertas | T-19 | pendiente (fix1) | `agent-kits/implementer/references/classic-flow.md:31`; `agent-kits/shared/task-brief.py:92`; `agent-kits/dev-cycle/references/phase6-close.md:9`; `commands/dev-cycle.md:88` |
+| 2 | Important | La condición «solo si el proyecto o el usuario tienen piezas propias» no se puede evaluar con el núcleo de `capability-check` (`capability-route.py` no informa de extensiones y el núcleo ya no nombra `project-pieces.py`): el planner no abre el detalle, la tarea queda sin `- **Extensiones**:` y el brief sin la extensión | T-18 | pendiente (fix1) | `agent-kits/shared/capability-check.md:26`; `task-brief.py:1463` |
+| 3 | Important | El ajuste del usuario solo reescribió un criterio de T-19: «objetivo < 15 KB» seguía sin marcar, la Verificación pedía «< 15 KB» y las notas k6/k7 citaban un `xfail` ya quitado | T-19, T-22 | corregido por el orquestador (texto del ledger alineado con la decisión del usuario del 2026-11-27; medida 15.841 bytes) | `tasks.md` (T-19 Verificación, k6 y criterio 1; T-22 k7) |
+| 4 | Important | Rojo previo a la tanda que deja la CI en rojo: `agent-kits/shared/test_git_verification.py` 22 failed en Windows y en Linux (`python:3.11-slim` y `node:22-bookworm-slim`), ya en `ebf2ac2` (p. ej. `git commit -n \ --verify`, `--no-no-verify`, opciones git abreviadas) | T-19 (guardia del implementer) | pendiente (fix1): investigar desde qué commit y arreglar sin debilitar | `agent-kits/shared/test_git_verification.py` |
+| 5 | Minor | `/work-context` manda aplicar «su sección de extensiones» de `capability-check.md`, que se movió al detalle | T-18 | pendiente (fix1) | `commands/work-context.md:11` |
+| 6 | Minor | La fila de racionalización remite a «(P3)», que ya no está en el núcleo | T-19 | pendiente (fix1) | `agents/implementer.md:101` |
+| 7 | Minor | El doc del implementer sigue citando `constitution-check.md` como dependencia | T-18 | pendiente (fix1) | `docs/agents/implementer.md:258` |
+| 8 | Minor | La lista de casos «sin brief» omite el despacho de `/dev-cycle` con `subagentes: false` (flujo clásico sin brief); sin test | T-19 | pendiente (fix1) | `agent-kits/implementer/references/classic-flow.md:3-4`; `agents/implementer.md:48`; `commands/dev-cycle.md:153-155` |
