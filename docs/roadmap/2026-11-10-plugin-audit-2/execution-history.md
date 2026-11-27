@@ -2297,3 +2297,78 @@ Lentes: A+B+D (Opus, con traspaso del intento 1). `scope-check --base 760f8b9` �
 | 10 | Minor | `analizar` reabre un ledger `completado` con una tarea `borrador` nueva (no solo las reabiertas por qa); la doc solo habla de reapertura por qa | T-42 | corregido (fix2, 2bdbc57 + f9f2ca6: documentado, es correcto; test test_t42_fix2_gap10_*) | `roadmap-sync.py:232-238` |
 | 11 | Minor | Encontrado por la sesión kairos sobre un índice de otro proyecto: `--check` avisa «README.md sin tabla» con la cabecera `\| Fecha \| Slug \| Estado \| Coste estimado \| Spec \| Evaluación \| Plan \|` (generada por versiones anteriores del plugin) | T-42 | corregido (fix2, 2bdbc57; test test_t42_fix2_gap11_indice_con_columna_slug) | `roadmap-sync.py` `editar_indice` |
 
+
+## Archivado 2026-11-26 — Evidencia de T-04 (movido literal desde tasks.md por el tope de lectura del ledger, antes de la revisión de la tanda B2; bytes sin cambios)
+
+SHA-256 del bloque: `0624771500596f4cc251a7be30cecadcd22d58f433c09ade42cf51e2dc2a2c0d`.
+
+- **Evidencia**: Prosa, con puertas deterministas: `pytest -q agent-kits/shared/test_source_snapshot.py tests/test_dev_cycle_split.py tests/test_skill_size.py agent-kits/shared/test_context_footprint.py` → `96 passed, 1 skipped`. Ahorro de la vía rápida medido con la fórmula del test (LF): 15.066 − 9.054 = **6.012** tokens (≥ 6.000; margen estrecho, lo ensancha T-16); `agents/evaluator.md` = 15.465 bytes en LF (≤ 15.513). `--diet-check` es de `tests/test_skill_size.py` y solo recorre skills (esta tarea no toca ninguna); las comprobaciones por párrafo de `dev-cycle` son las de `test_dev_cycle_split.py::test_no_original_paragraph_is_lost` (en el `96 passed`). `export-interop.py --check` → `88 ficheros al día`. Cambios: `pm-cycle` (pasada 2 de architect) ahora dice que el ADR se PROPONE con `knowledge-curation.py propose` y lo aprueba el curator (misma redacción que `phase2-planning.md`); `dev-cycle` nombra un solo implementador (el `implementer` nativo; con el bundle copiado el agente homónimo; nunca el hilo principal) y el perfil normal implementa con el mismo `implementer`; `nemesis` gana el modo en serie (8 especialistas uno a uno, «Modo en serie» en el informe) cuando no puede despachar subagentes.
+
+## Archivado 2026-11-26 — Evidencia de T-05 (movido literal desde tasks.md por el tope de lectura del ledger, antes de la revisión de la tanda B2; bytes sin cambios)
+
+SHA-256 del bloque: `d90963359ee7adbd5d2c67476dacf076eeaabb53c1c01e4fc14e3440f5ba5862`.
+
+- **Evidencia**: Prosa de descriptions, con puertas deterministas: `python evals/check.py` â†’ `59 ficheros Â· 227 casos (145 positivos, 82 negativos, 1 en contra) â€¦ 0 errores` (caso nuevo literal `plugin-panel-dashboard-proyecto-literal`: Â«dashboard del proyectoÂ»); `python scripts/lint_plugin.py` â†’ `10 agentes Â· 0 errores Â· 16 avisos` (los mismos de antes; sin aviso de disparador literal duplicado ni de ruta `/tmp`). `git grep "/tmp" -- commands` â†’ vacÃ­o; el brief usa `tempfile.mkdtemp(prefix="roadmap-brief-")` (portable, Windows incluido). Descriptions: `roadmap-metrics` Â«escribe un solo informe, docs/roadmap/metrics.mdÂ»; `roadmap-brief` Â«escribe docs/roadmap/brief.md (y brief.pdf si se pide)Â»; `plugin-panel` dispara con Â«dashboard del proyectoÂ», no Â«dashboardÂ» a secas (â‰¤ 1.024 caracteres). Puertas de runtimes: `export-interop.py --check` â†’ `88 ficheros al dÃ­a`; las 5 suites pytest de la cabecera + `test_agent_tools_skill.py` â†’ `112 passed`.
+
+## Archivado 2026-11-26 — Evidencia de T-07 (movido literal desde tasks.md por el tope de lectura del ledger, antes de la revisión de la tanda B2; bytes sin cambios)
+
+SHA-256 del bloque: `7d165d747a31b284cf31842c229bf0254816e4cc8b740b7a9f9ec00b6c38cefd`.
+
+- **Evidencia**: MEDIDA ANTES (perfil por fase sobre este repo, Windows/OneDrive; `testing/` es de qa y el guardarraíl lo veta, por eso consta aquí): `ficheros()` 3,5 s → **7.644 ficheros, 7.204 de ellos bajo `.pytest_cache`** (carpeta oculta con salida de herramientas, 3,46 M de líneas); `leer()` **446,6 s**; `lineas_codigo()` 64,3 s; `duplicados()` > 89 s y sin terminar (el perfil se cortó a los 600 s). La causa es la entrada, no un algoritmo cuadrático: `ficheros()` solo excluía `.git*` y un conjunto fijo, así que cualquier carpeta oculta de herramientas (o `worktrees/`) entraba. DESPUÉS: carpetas ocultas (`.*`), `worktrees/` y `site-packages/` fuera por defecto; topes `--max-files` (3000) y `--max-seconds` (100) con informe PARCIAL declarado (`parcial: true` + aviso con lo analizado, nunca datos inventados; `0` = sin tope). `python skills/code-health/scripts/code-health.py . --json` → exit 0 en **37 s**, 439 ficheros, 149.509 líneas, `parcial: false`. GREEN: `pytest -q skills/code-health/scripts/test_code_health.py` → `37 passed` (los 33 anteriores intactos + 4 de `-k rendimiento`; mismos resultados sobre el corpus existente). Puertas: `lint_plugin.py` 0 errores, `evals/check.py` 0 errores, `export-interop.py --check` → `88 ficheros al día`, `test_copias_declaradas` + `test_skill_size` → `68 passed`. La causa no se reprodujo como timeout de 300 s porque aquí el perfil se cortó antes; la medida demuestra que sin la exclusión el informe no cabe en el tope.
+
+## Archivado 2026-11-26 — Evidencia de T-15 (movido literal desde tasks.md por el tope de lectura del ledger, antes de la revisión de la tanda B2; bytes sin cambios)
+
+SHA-256 del bloque: `e325c246d242bdf3e97ea202537f5a1dad2a3ee3fefb1c6848132bafa7fa6342`.
+
+- **Evidencia** (estimación caracteres/4, no consumo facturado):
+  - Clasificación: 19 borrados (analyst, architect, documenter, knowledge-curator, setup y 14 skills): cada regla está en la description o en el cuerpo (p. ej. curator `:45,:167,:171`, tdd `:117-118`, quick-implement tabla de idoneidad). Reducidos a su guardarraíl: `doctor` (sin red salvo capacidades opt-in, locales, tope total) y `reviewer` (la petición directa va a la skill). Intactos: `evaluator` (único puntero a `scope.md`), `knowledge-services` y `project-extensions` (cuerpo real), `plugin-panel/references/static-panel.md` (referencia, fuera de `Archivos`).
+  - `context-footprint.py --project .`: 509.586 → 495.189 caracteres (−14.397; −14.753 bytes). Vía rápida 6.157 → 6.385; `agents/evaluator.md` 15.465 bytes LF.
+  - Líneas base con motivo: `opencode-v2-agent-contract.json` sin `description_body` en 4 agentes y la del reviewer = su guardarraíl; `dev-cycle-modular-replacements.json` +2 filas de quick-implement con `reason`.
+  - Fix tras GREEN (`61453ef`, en la ventana de T-17): `tests/test_agent_tools_skill.py::test_toda_skill_que_el_agente_ordena_invocar_lleva_su_ruta[reviewer.md]` cayó en rojo porque la frase conservada del reviewer manda a la skill sin su ruta; ahora cita `skills/adversarial-review/SKILL.md` (+37 caracteres; fixture de OpenCode al día).
+  - **k1**: `--diet-check` de las 14 skills da exactamente 1 párrafo perdido cada una, el borrado a propósito; ninguno más. **k2**: «criterio ausente de la description» se lee como ausente de la description Y del cuerpo; lo que solo estaba en el párrafo se conserva (doctor, reviewer).
+
+## Archivado 2026-11-26 — Evidencia de T-16 (movido literal desde tasks.md por el tope de lectura del ledger, antes de la revisión de la tanda B2; bytes sin cambios)
+
+SHA-256 del bloque: `589df11a244975e625163162a7767297cfdbb2fda9843066fce1ac1b16fe8d79`.
+
+- **Evidencia** (GREEN `e70dc52`; caracteres LF, estimación caracteres/4, no consumo facturado):
+  - `context-footprint.py --file commands/dev-cycle.md`: 28.499 → **22.662** caracteres (−5.837; LF bytes 28.987 → 23.024); `phase6-close.md` 7.088, solo en la Fase 6 o en la primera puerta de estado de un artefacto. Vía rápida 6.385 → **7.844** (≥ 6.000).
+  - El núcleo conserva un resumen de transiciones fiel a T-40 (`usage-meter.py start/close`, `ledger-write.py review/verdict/state`); la tabla completa, el ritual y `retro-gate.py` van literales a la referencia. Paridad de párrafos: `test_no_original_paragraph_is_lost` y `test_common_review_qa_and_commit_gates_stay_in_the_core` (el ritual de cierre debe estar en `phase6-close.md`) en verde.
+  - Codex/OpenCode: `test_native_adapters_keep_core_and_references_deferred` exige `phase6-close.md` en ambos comandos exportados; `installer.test.mjs` exige que el bundle instalado la traiga.
+  - **k3**: el criterio «≤ 20 KB» no se alcanza: la Fase 6 y la tabla medían 6.894 caracteres, no ≈10 KB como estimaba el plan; mover más (Ledger grande, tiering) sacaría reglas que se usan antes del cierre. Queda abierto para la revisión; T-17 quitará la receta duplicada del núcleo.
+
+## Archivado 2026-11-26 — Evidencia de T-17 (movido literal desde tasks.md por el tope de lectura del ledger, antes de la revisión de la tanda B2; bytes sin cambios)
+
+SHA-256 del bloque: `be06c31689653b204b61b366b5ecfed1ba044db09653e82c53532b4a9fc7c007`.
+
+- **Evidencia** (GREEN `50824a1`; caracteres LF, estimación caracteres/4, no consumo facturado):
+  - `grep -c "M=agent-kits/shared/ledger-lint.py"`: 33 recetas en 18 piezas → **20, una por pieza**. Cada receta define todas las variables que la pieza usa (`SHAREDKIT` incluido); las de agente conservan `case "$SHAREDKIT" in /*|?:*)`. `reviewer` y `/retro` reciben la suya (`/retro` citaba un «paso 7» sin receta).
+  - `context-footprint.py --project .`: agentes + comandos 489.352 → 483.869 (**−5.483**: −6.390 de recetas repetidas, +907 de las dos nuevas). Vía rápida 7.844 → 7.860; `agents/evaluator.md` 15.434 bytes LF.
+  - `test_receta_unica_de_cada_pieza_resuelve_sin_claude_plugin_root[codex|opencode]`: las 20 recetas, sin `CLAUDE_PLUGIN_ROOT` ni `SHAREDKIT` y con `.codex`/`.config/opencode` falsas, resuelven todas sus variables al bundle esperado (caracteriza; el rojo es de `test_recipe_once.py`).
+  - **k4**: «Medido ≥ 7 KB» no se alcanza (−5,5 KB): el plan contó las recetas repetidas sin las dos que faltaban; sin ellas serían −6,4 KB. Queda abierto para la revisión.
+
+## Archivado 2026-11-27 — Revisión de dos lentes — intento 3: Fase 6 (T-42) — verificación del fix2 (T-42) (bytes sin cambios)
+
+SHA-256 del bloque: `084a20e234827cdc2ba8bc67377e36e1117fcc5dc40f0b5c35ef55075d2ccdb2`.
+
+## Revisión de dos lentes — intento 3: Fase 6 (T-42) — verificación del fix2 (T-42)
+
+**Veredicto del plugin**: gaps (T-42)
+
+Lentes: A+B+D (Opus, con traspaso del intento 2). Diff `9fc1a8b..a8c1275`. Los 11 gaps del intento 2 tienen corrección (20 de 25 tests del fix2 rojos en `c8a82f6`, verdes en HEAD; `test_dev_cycle_split` 17 passed). Puerta Node en Linux: `604 · 571 · 0 fail · 33 skipped`. Sin regresión de rendimiento (Lente D). Resultado: 4 Important, 6 Minor — 3.er intento con gaps: decide el usuario.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | `test_t42_fix1_gap6_tope_de_carpetas_y_plazo` rojo DETERMINISTA en Linux (CI roja; 3 de 3 en `node:22`+python, también `python:3.11-slim`): la 1.ª llamada llena la caché y `deadline=0` lo sirve todo desde ella (`omitida` False). El contrato correcto es «con caché completa no se consulta el plazo»: el test depende del reloj y debe usar plazos absolutos (`±inf`) y caché aislada | T-42 | corregido (fix3, 53bc73e; test `test_t42_fix3_gap1_plazo_sin_reloj`) | `agent-kits/shared/test_roadmap_sync.py:541-544`; `roadmap-sync.py:749-760,793` |
+| 2 | Important | En POSIX la caché de sesión no se escribe nunca: `mkdir(mode=0o700)` respeta el umask (0o755/0o775) y la comprobación `st_mode & 0o077` la rechaza; cada arranque analiza en frío hasta 128 carpetas (4,6 s en Docker → «omitida por plazo»), reabre el gap 6 del fix1 y contradice `docs/observability.md:320` (ES/EN) y `agent-kits/shared/README.md:37`; no usa `_mkdir_private` (`tests/test_private_state_dirs.py`) | T-42 | corregido (fix3, 32e55cc; test `test_t42_fix3_gap2_umask_022_la_cache_se_escribe_en_la_cache_de_usuario`) | `roadmap-sync.py:753,757` |
+| 3 | Important | `retro-gate --sync` abre la puerta con un ledger > 256 KiB y tareas abiertas (`too_large` → sincroniza sin cerrar → «Puerta ABIERTA», exit 0; plan y spec sin cambiar; ni aviso ni desfase en `--check`); el ledger de plugin-audit-2 ya pesa ~250 KB | T-42 | corregido (fix3, 32e55cc; test `test_t42_fix3_gap3_retro_gate_sync_no_abre_con_un_ledger_no_verificable`) | `agent-kits/shared/retro-gate.py:180-182,230` |
+| 4 | Important | Caché en el temporal COMPARTIDO sin comprobar propietario: otro usuario puede crear antes `custom-agents-<uid>/roadmap-sync/<hash>.json` con forma válida y su texto (`iniciativa`) llega a `additionalContext` del SessionStart; un FIFO en esa ruta colgaría el hook (CWE-377, CWE-59) | T-42 | corregido (fix3, 32e55cc + d4482f8; test `test_t42_fix3_gap4_cache_no_confiable_se_ignora`) | `roadmap-sync.py` `_leer_cache` |
+| 5 | Minor | El cierre de `--sync` no es todo-o-nada (no usa `_escribir_todos`): `tasks.md` no escribible → plan y spec cerrados, ledger no, exit 0 (lo atenúa el `--check` del paso 9) | T-42 | corregido (fix3, 32e55cc; test `test_t42_fix3_gap5_cerrar_es_todo_o_nada`) | `roadmap-sync.py:659-672`; `retro-gate.py:230` |
+| 6 | Minor | La caché guarda un plan calculado con bytes viejos bajo la firma nueva si el ledger cambia entre la instantánea y el `scandir` (H-28): aviso rancio hasta la siguiente edición | T-42 | corregido (fix3, 32e55cc; test `test_t42_fix3_gap6_bytes_de_la_instantanea_distintos_no_dejan_un_plan_rancio`) | `roadmap-sync.py:789` frente a `:796` |
+| 7 | Minor | Sin temporal escribible, `gettempdir()` recurre al cwd: la caché acaba dentro del proyecto | T-42 | corregido (fix3, 32e55cc; test `test_t42_fix3_gap7_sin_directorio_privado_no_hay_cache_ni_en_el_proyecto`) | `roadmap-sync.py:744` |
+| 8 | Minor | Una tabla `\| Fecha \| Slug \| … \|` anterior al índice secuestra la escritura | T-42 | corregido (fix3, 32e55cc; test `test_t42_fix3_gap8_una_tabla_fecha_slug_anterior_no_secuestra_el_indice`) | `roadmap-sync.py:384-396,433-439` |
+| 9 | Minor | El test del gap 6 (dueño único del índice) no protege `skills/dependency-upgrade/SKILL.md:70` ni `docs/agents/evaluator.md:12` | T-42 | corregido (fix3, 32e55cc; test `test_t42_fix3_gap9_el_detector_del_duenyo_unico_cubre_estas_lineas`) | `tests/test_t42_fix2_roadmap.py:61-71` |
+| 10 | Minor | FLOWS: el nodo de exit 1 de `retro-gate --sync` dice «ledger completado» y también significa tareas abiertas | T-42 | corregido (fix3, 077b02f; test `test_t42_fix3_gap10_flows_exit_1_de_retro_gate_sync`) | `docs/FLOWS.md:344`; `docs/en/FLOWS.md:343` |
+
+**Decisión del usuario (2026-11-27)** tras el 3.er intento con gaps: «Ciclo nuevo con fix3 acotado (Recomendado)». El fix3 abre el ciclo 2 (intento 4): caché en el directorio de estado privado del usuario con el helper del plugin (permisos reales 0700, sin enlaces, propietario comprobado; sin él, sin caché y nunca dentro del proyecto), test del plazo con plazos absolutos, `retro-gate --sync` se niega con un ledger que no puede verificar, y los 6 Minor.
+
