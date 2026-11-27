@@ -424,7 +424,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 ## Fase 3 — Tokens
 
-**Estado**: en-revision · **Est.**: 30h humanas · **Real**: — · 1500 € · 2260k tokens
+**Estado**: en-progreso · **Est.**: 30h humanas · **Real**: — · 1500 € · 2260k tokens
 
 ### T-12 — TDD en el brief, skill bajo demanda (2.4)
 
@@ -609,7 +609,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: El agente resume la regla y además manda leer el fragmento (`knowledge-check*`, `constitution-check`): doble pago de hasta ≈28 K tokens por ciclo [E]. Se lee el fragmento solo con aciertos y se quita el puntero a `rationalization-table`. `capability-check.md` (5,7 KB) pasa a un núcleo de ≈1,8 KB.
 - **Changelog**: Los agentes leen los fragmentos de conocimiento y capacidades solo cuando aplican.
-- **Estado**: en-revision
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 3h · real —
 - **Tiempo IA (ejec.)**: est. 0.8h · real 0.73h (medido, `plugin-audit-2/T-18`; incluye 46 min de la suite de 94 ficheros)
 - **Dependencias**: T-17
@@ -637,7 +637,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: El subagente con brief carga el cuerpo entero de `implementer` (29,5 KB) con secciones que no puede usar. Núcleo corto, flujo clásico a `agent-kits/implementer/references/` (directorio nuevo) y reglas repetidas 2-5 veces, una sola vez. Ahorro [E] 24-30 K tokens por ciclo.
 - **Changelog**: El implementer carga un núcleo corto y lee el flujo clásico solo cuando no hay brief.
-- **Estado**: en-revision
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 5h · real —
 - **Tiempo IA (ejec.)**: est. 1.5h · real 1.4h (medido, `plugin-audit-2/T-19`; incluye 54 min de la suite de 103 ficheros)
 - **Dependencias**: T-12, T-18
@@ -742,7 +742,7 @@ TDD n/a: documentación, ejemplos y evals sin código testeable; el rojo medible
 
 - **Descripción**: Reglas propias de este repositorio (`export-interop`, `CONTRACTS.md`) viven dentro de agentes genéricos (≈4,2 KB) y `qa.md:114` (2 KB) solo aplica al QA sin UI. Las primeras pasan a `skills/project-extensions/references/custom-agents-repo.md` (solo se lee dentro de custom-agents; replanificado por el orquestador el 2026-11-23: `plugin-dev` ya no existe tras T-11 y `docs/CONSTITUTION.md` no se toca); lo segundo, a una referencia condicional.
 - **Changelog**: Los agentes genéricos dejan de cargar reglas que solo valen para el repositorio del plugin.
-- **Estado**: en-revision
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 3h · real —
 - **Tiempo IA (ejec.)**: est. 0.8h · real 0.13h (medido, `plugin-audit-2/T-22`; reloj 1h 11m, casi todo espera de la suite de 112 ficheros)
 - **Dependencias**: T-18, T-19, T-11
@@ -1443,7 +1443,7 @@ Lentes: A+B+C (Opus, con traspaso del intento 3). C añadida por el orquestador 
 
 ## Revisión de dos lentes — intento 1: Fase 3 (T-18, T-19, T-22) — tanda B2 (T-18, T-19, T-22)
 
-Pendiente de revisión; sin veredicto.
+**Veredicto del plugin**: gaps (T-18, T-19, T-22)
 
 Lentes: A+B (Opus, contexto fresco). D por `review-lens-select.py --base ebf2ac2` solo por la ruta de un fixture JSON (`tests/fixtures/repo-rules-baseline.json`, stem «repo»), sin código de ejecución en el diff: no se lanza (decisión del orquestador); C no aplica. `scope-check --base ebf2ac2`: 0 fuera de alcance; `criterios_alterados` en T-19 y T-22 = ajustes de cifra decididos por el usuario el 2026-11-27 (`0d00e2e`): descartado (rebatido con esa decisión). Diff `ebf2ac2..0d00e2e`. Puerta Node en Linux: `604 · 571 · 0 fail · 33 skipped`. RED de las tres tareas verificados en `git archive` (`3bc4710` 17 failed, `5db8b99` 7, `2990586` 8). La Lente B revisó los 49 reemplazos del fixture del implementer. Resultado: 4 Important, 4 Minor.
 
