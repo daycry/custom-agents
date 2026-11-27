@@ -19,9 +19,10 @@ Uso:
 `--sync` (plugin-audit-2 T-42; fix2, gap 2): con retro y fila, aplica el cierre COMPLETO con `roadmap-sync.py
 --cerrar` (ledger `completado` aunque se olvidara el paso de la Fase 6, plan `completado`, spec `implementada` y
 fila del índice): la retro solo existe tras qa verde, así que es evidencia suficiente. Si queda alguna tarea
-abierta (o el ledger no tiene campo `estado`), la puerta NO se abre, lo dice y no escribe nada. Con la puerta
-cerrada no escribe nada. Sin `--sync`, solo lee.
-Exit: 0 puerta abierta · 1 cerrada (imprime qué falta y el comando exacto `/retro docs/roadmap/<carpeta>`; con `--sync`, también tareas abiertas o ledger sin `estado`) ·
+abierta, el ledger no tiene campo `estado` o no se puede verificar (> 256 KiB o ilegible; fix3), la puerta NO se
+abre, lo dice y no escribe nada; el cierre es todo o nada (si una escritura falla, restaura). Con la puerta cerrada
+no escribe nada. Sin `--sync`, solo lee.
+Exit: 0 puerta abierta · 1 cerrada (imprime qué falta y el comando exacto `/retro docs/roadmap/<carpeta>`; con `--sync`, también tareas abiertas, ledger sin `estado` o no verificable, o cierre no escrito) ·
 2 error de uso (carpeta no encontrada o ambigua).
 """
 import argparse
@@ -160,13 +161,28 @@ def veredicto(root, carpeta):
 
 
 _BLOQUEAN = {"open_tasks": "tareas abiertas en el ledger (ciérralas o cancélalas; el cierre exige todas cerradas)",
-             "sin_estado": "tasks.md sin campo `estado` (añádelo: el cierre no tiene dónde escribirse)"}
+             "sin_estado": "tasks.md sin campo `estado` (añádelo: el cierre no tiene dónde escribirse)",
+             "too_large": "ledger > 256 KiB: archívalo con ledger-archive.py antes de cerrar (no se puede verificar "
+                          "que todas las tareas estén cerradas)",
+             "unreadable_ledger": "tasks.md ilegible (enlace, no regular o E/S): no se puede verificar que todas las "
+                                  "tareas estén cerradas"}
+
+
+def _motivo_sync(e):
+    """fix3 (gaps 3 y 5): por qué el cierre no se aplicó; la puerta no se abre."""
+    if e.status in _BLOQUEAN:
+        return _BLOQUEAN[e.status]
+    if e.status == "partial":
+        return (f"cierre a medias: escritos {', '.join(e.extra.get('escritos', []))}; no escritos "
+                f"{', '.join(e.extra.get('no_escritos', []))} — revísalos y repite --sync")
+    return f"el cierre no se pudo escribir ({e.status}); nada queda a medias: repite --sync"
 
 
 def sincronizar(carpeta):
     """T-42: el cierre (ledger, plan, spec, índice) lo aplica roadmap-sync.py `--cerrar`, no el orquestador. fix2
-    (gap 2): tareas abiertas o ledger sin `estado` → `{"bloquea": motivo}` y nada escrito; sin ledger (o > 256 KiB,
-    ya cerrado y archivable) sincroniza sin cerrar. Cualquier otro fallo degrada con aviso."""
+    (gap 2): tareas abiertas o ledger sin `estado` → `{"bloquea": motivo}` y nada escrito. fix3: también un ledger
+    que no se puede verificar (> 256 KiB o ilegible) y un cierre que no se pudo escribir entero (todo o nada; exit 3
+    `partial` con la lista). Sin ledger sincroniza sin cerrar. Si roadmap-sync no carga, degrada con aviso."""
     try:
         here = os.path.dirname(os.path.abspath(__file__))
         spec = importlib.util.spec_from_file_location("retro_gate_roadmap_sync", os.path.join(here, "roadmap-sync.py"))
@@ -175,10 +191,8 @@ def sincronizar(carpeta):
         try:
             informe = mod.sincronizar(carpeta, cerrar=True)
         except mod.SyncError as e:
-            if e.status in _BLOQUEAN:
-                return {"cambios": [], "bloquea": _BLOQUEAN[e.status], "lineas": []}
-            if e.status not in ("not_found", "too_large"):
-                raise
+            if e.status != "not_found":
+                return {"cambios": [], "bloquea": _motivo_sync(e), "lineas": []}
             informe = mod.sincronizar(carpeta)
     except Exception as e:  # noqa: BLE001 — la puerta ya está decidida; la sincronización solo degrada
         return {"cambios": [], "lineas": [f"roadmap-sync no disponible ({getattr(e, 'status', e.__class__.__name__)}): "

@@ -18,6 +18,7 @@ MODULOS = {
     "plan-review": ROOT / "agent-kits/shared/plan-review.py",
     "agent-activity-store": ROOT / "agent-kits/shared/agent-activity-store.py",
     "knowledge-curation": ROOT / "agent-kits/shared/knowledge-curation.py",
+    "roadmap-sync": ROOT / "agent-kits/shared/roadmap-sync.py",   # plugin-audit-2 T-42 fix3: caché de sesión
 }
 
 

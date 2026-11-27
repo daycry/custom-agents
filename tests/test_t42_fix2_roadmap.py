@@ -51,8 +51,8 @@ def test_t42_fix2_gap2_criterio_2_cita_los_tipos_que_cubre_el_test():
     assert "def test_t42_fix2_gap2_check_cubre_los_tipos_del_criterio_2" in test
 
 
-ESCRIBE_INDICE = re.compile(r"(?i)\b(registr\w*|actualiz\w*|añad\w*|escrib\w*|mant[eé]n\w*|edit\w*|crea\w*|"
-                            r"rellen\w*)\b")
+ESCRIBE_INDICE = re.compile(r"(?i)\b(reg[ií]str\w*|actualiz\w*|añad\w*|escrib\w*|mant[eé]n\w*|mantien\w*|"
+                            r"mantener\w*|edit\w*|crea\w*|rellen\w*)\b")   # fix3 (gap 9): «mantiene», «mantener», «regístrala»
 PIEZAS = ("agents/evaluator.md", "agents/planner.md", "agents/analyst.md", "skills/dependency-upgrade/SKILL.md",
           "docs/agents/evaluator.md", "docs/agents/planner.md", "docs/agents/analyst.md")
 
@@ -112,8 +112,9 @@ def _frases_que_escriben_el_indice(texto):
     malas = []
     for linea in texto.splitlines():
         for frase in re.split(r"(?<=[.;])\s+", linea):
-            indice = "docs/roadmap/README.md" in frase or re.search(r"(?i)índice|README\.md", frase)
-            if indice and "roadmap/" in linea + frase and ESCRIBE_INDICE.search(frase) \
+            # fix3 (gap 9): también «índice del roadmap» sin ruta (antes exigía `roadmap/` en la línea).
+            indice = "docs/roadmap/README.md" in frase or re.search(r"(?i)índice|indice|README\.md", frase)
+            if indice and "roadmap" in (linea + frase).lower() and ESCRIBE_INDICE.search(frase) \
                     and "roadmap-sync" not in frase:
                 malas.append(frase.strip())
     return malas

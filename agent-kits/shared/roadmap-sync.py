@@ -39,7 +39,9 @@ Uso:
   roadmap-sync.py docs/roadmap/<fecha>-<slug> --cerrar [--dry-run] [--json]
   roadmap-sync.py gate <docs/roadmap/<fecha>-<slug>> --decision go|no-go [--descartar] [--dry-run] [--json]
 Exit: 0 ok · 1 `--check` con desfases, cambio no aplicado, puerta ya decidida o `--cerrar` con tareas
-abiertas o sin campo `estado` · 2 uso/E-S · 3 `gate` a medias (escrito un artefacto y no el otro: `escritos`/`no_escritos`).
+abiertas, sin campo `estado`, con un ledger no verificable (> 256 KiB o ilegible: `too_large`/`unreadable_ledger`)
+o con una escritura fallida (restaurada) · 2 uso/E-S · 3 `gate` o `--cerrar` a medias (no se pudo restaurar:
+`escritos`/`no_escritos`). `--cerrar` escribe todo o nada (fix3).
 """
 import argparse
 import hashlib
@@ -48,9 +50,9 @@ import json
 import os
 from pathlib import Path
 import re
+import secrets
 import stat
 import sys
-import tempfile
 import time
 
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -91,12 +93,14 @@ _ENLACE_CARPETA = re.compile(r"\((\d{4}-\d{2}-\d{2}-[^/)\s]+)/")
 _ESCAPADO = "\x00"
 
 # Comprobación de sesión (gap 6 del fix1): mismo tope que la instantánea de progress-report, caché por firma
-# en la caché de usuario, fuera del proyecto (fix2: el bloque de sesión no cambia ningún fichero del proyecto).
+# en la caché privada del usuario, fuera del proyecto (fix2: el bloque de sesión no cambia ningún fichero del
+# proyecto; fix3: `~/.cache/custom-agents/roadmap-sync/`, propia, real y 0o700).
 TOPE_SESION = 128
 PLAZO_SESION = 2.0
 CACHE_NOMBRE = ".roadmap-sync.cache"   # nombre histórico (fix1); la caché vive fuera del proyecto (fix2)
 CACHE_ENV = "CUSTOM_AGENTS_CACHE_DIR"
-CACHE_VERSION = 3   # fix2: motivos `cierre-olvidado`/`sin-estado` y validación de la entrada
+CACHE_VERSION = 4   # fix3: caché de usuario, sha de los bytes de la instantánea y vocabulario cerrado
+CACHE_MAX = 4 * 1024 * 1024   # tope del fichero de caché (128 iniciativas ocupan decenas de KB)
 
 
 class SyncError(Exception):
@@ -271,6 +275,12 @@ def analizar(carpeta, root, cerrar=False, presentes=None, previos=None):
             avisos.append({"iniciativa": nombre, "tipo": "no-escrito",
                            "detalle": "tasks.md > 256 KiB: estado de la iniciativa no derivado "
                                       "(archívalo con ledger-archive.py)"})
+            retro = _retro_abierta(root, carpeta)
+            if retro:
+                # fix3 (gap 3): retro hecha y un ledger que no se puede verificar (no se sabe si quedan tareas
+                # abiertas): el cierre está bloqueado; es un desfase, no un aviso. No se escribe nada.
+                cambios.append({"iniciativa": nombre, "tipo": "ledger", "artefacto": "tasks.md",
+                                "de": estados["ledger"], "a": "completado", "motivo": "no-verificable"})
     elif ledger:
         objetivo, abiertas = objetivo_ledger(ledger["text"])
         cerrable = objetivo == "completado"
@@ -396,6 +406,24 @@ def _disposicion(cabecera):
             "n": len(nombres), "nombres": nombres}
 
 
+def _es_el_indice(lineas, cabecera, disp):
+    """fix3 (gap 8): una tabla `| Fecha | Iniciativa/Slug | … |` es el índice solo si alguna fila enlaza a una carpeta
+    de iniciativa, o si su cabecera es la completa conocida (vigente: … | Artefactos; anterior: Slug + Estado + Spec +
+    Evaluación + Plan). Una leyenda o una tabla de otra cosa antes del índice no lo secuestra."""
+    nombres = disp["nombres"]
+    if nombres[-1] in ("artefactos", "artifacts") and nombres[disp["ident"]] in ("iniciativa", "initiative"):
+        return True
+    if disp["estado"] is not None and {"spec", "plan"} <= set(nombres) and \
+            {"evaluación", "evaluacion", "evaluation", "eval"} & set(nombres):
+        return True
+    i = cabecera + 2
+    while i < len(lineas) and lineas[i].startswith("|"):
+        if _ENLACE_CARPETA.search(lineas[i]):
+            return True
+        i += 1
+    return False
+
+
 def _texto_plano(celda):
     return re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", celda).replace("`", "").replace("*", "").strip()
 
@@ -430,9 +458,9 @@ def editar_indice(text, planes):
     cabecera, disp = None, None
     for i, linea in enumerate(lineas[:-1]):
         if linea.startswith("|") and _SEPARADOR_TABLA.match(lineas[i + 1].strip()) and "-" in lineas[i + 1]:
-            disp = _disposicion(linea)
-            if disp:
-                cabecera = i
+            candidata = _disposicion(linea)
+            if candidata and _es_el_indice(lineas, i, candidata):
+                cabecera, disp = i, candidata
                 break
     if cabecera is None:
         return text, [], ["README.md sin tabla `| Fecha | Iniciativa |` ni `| Fecha | Slug |`"]
@@ -561,9 +589,9 @@ def _restaurar(doc, escrito, deadline):
 def _escribir_todos(salidas, deadline):
     """Todo o nada: si falla uno, restaura los ya escritos; si no puede, `partial` (exit 3) con el detalle."""
     escritos = []
-    for n, (doc, texto) in enumerate(salidas):
+    for n, (doc, texto, *ledger) in enumerate(salidas):
         try:
-            output = _escribir(doc, texto, deadline)
+            output = _escribir(doc, texto, deadline, ledger=bool(ledger and ledger[0]))
         except (SyncError, LW.WriteError, OSError) as error:
             sin_restaurar = []
             for previo, bytes_escritos in reversed(escritos):
@@ -573,7 +601,7 @@ def _escribir_todos(salidas, deadline):
                     sin_restaurar.append(previo["path"].name)
             if sin_restaurar:
                 raise SyncError("partial", 3, escritos=sorted(sin_restaurar),
-                                no_escritos=[d["path"].name for d, _ in salidas[n:]]) from error
+                                no_escritos=[d["path"].name for d, *_ in salidas[n:]]) from error
             raise SyncError(getattr(error, "status", "unavailable"), 1) from error
         if output is not None:
             escritos.append((doc, output))
@@ -641,9 +669,14 @@ def sincronizar(objetivo, *, escribir=True, deadline=None, cerrar=False):
     if cerrar:
         plan = planes[0] if planes else None
         if plan is None or not plan["docs"].get("ledger"):
+            if os.path.lexists(carpetas[0] / "tasks.md"):
+                # fix3 (gap 3): un ledger que existe pero no se puede leer no se da por cerrado.
+                raise SyncError("unreadable_ledger", 1, detalle="tasks.md ilegible (enlace, no regular o E/S): no "
+                                                                "se puede verificar que todas las tareas estén cerradas")
             raise SyncError("not_found", 2)
         if plan["docs"]["ledger"].get("grande"):
-            raise SyncError("too_large", 1)
+            raise SyncError("too_large", 1, detalle="ledger > 256 KiB: archívalo con ledger-archive.py antes de "
+                                                    "cerrar (no se puede verificar que todas las tareas estén cerradas)")
         if not plan["cerrable"]:
             raise SyncError("open_tasks", 1)
         if any(c.get("motivo") == "sin-estado" for c in plan["cambios"]):
@@ -657,19 +690,27 @@ def sincronizar(objetivo, *, escribir=True, deadline=None, cerrar=False):
     if escribir:
         pendientes += [f"{c['iniciativa']}/tasks.md: sin campo `estado` (añádelo a mano)"
                        for c in desfases if c.get("motivo") == "sin-estado"]
+        pendientes += [f"{c['iniciativa']}/tasks.md > 256 KiB con la retro hecha: archívalo con ledger-archive.py "
+                       f"y repite" for c in desfases if c.get("motivo") == "no-verificable"]
+        salidas = []      # (doc, texto nuevo, ¿ledger?, etiqueta para pendientes)
         for p in planes:
             for clave, fichero, _ in ARTEFACTOS:
-                if p["docs"].get(clave) and any(c["artefacto"] == fichero for c in p["cambios"]):
-                    try:
-                        _escribir(p["docs"][clave], con_estado(p["docs"][clave]["text"], p["nuevos"][clave]),
-                                  deadline, ledger=clave == "ledger")
-                    except (SyncError, LW.WriteError, OSError) as error:
-                        pendientes.append(f"{p['nombre']}/{fichero}: {getattr(error, 'status', 'unavailable')}")
+                doc = p["docs"].get(clave)
+                if doc and not doc.get("grande") and any(c["artefacto"] == fichero and c.get("motivo") not in
+                                                         ("sin-estado", "no-verificable") for c in p["cambios"]):
+                    salidas.append((doc, con_estado(doc["text"], p["nuevos"][clave]), clave == "ledger",
+                                    f"{p['nombre']}/{fichero}"))
         if indice is not None and indice_nuevo != indice["text"]:
-            try:
-                _escribir(indice, indice_nuevo, deadline)
-            except (SyncError, LW.WriteError, OSError) as error:
-                pendientes.append(f"README.md: {getattr(error, 'status', 'unavailable')}")
+            salidas.append((indice, indice_nuevo, False, "README.md"))
+        if cerrar:
+            # fix3 (gap 5): el cierre de una iniciativa es todo o nada (restaura lo escrito; si no puede, exit 3).
+            _escribir_todos([(doc, texto, es_ledger) for doc, texto, es_ledger, _ in salidas], deadline)
+        else:
+            for doc, texto, es_ledger, nombre in salidas:
+                try:
+                    _escribir(doc, texto, deadline, ledger=es_ledger)
+                except (SyncError, LW.WriteError, OSError) as error:
+                    pendientes.append(f"{nombre}: {getattr(error, 'status', 'unavailable')}")
     avisos += [{"iniciativa": "-", "tipo": "no-escrito", "detalle": p} for p in pendientes]
     return _informe(planes, desfases, avisos, pendientes, escribir)
 
@@ -701,29 +742,165 @@ def _firma_carpeta(carpeta):
 
 _CLAVES_CAMBIO = ("iniciativa", "tipo", "artefacto", "de", "a")
 _CLAVES_AVISO = ("iniciativa", "tipo", "detalle")
+# fix3 (gap 4): vocabulario cerrado de lo que una entrada de caché puede traer; lo que llega al aviso de sesión sale
+# de las carpetas reales (la entrada debe ser de SU carpeta), nunca de un texto libre de la caché.
+_ESTADOS = frozenset(RANGO) | frozenset(RANGO_SPEC) | TERMINALES
+_MOTIVOS = frozenset({"reabierta", "cierre-olvidado", "sin-estado", "no-verificable"})
+_TIPOS_AVISO = frozenset({"ilegible", "no-escrito", "sin-estado", "cierre-pendiente", "retro-pendiente", "adelantado"})
+_ETIQUETAS = frozenset({None, "cancelada", "cerrada", "completada, retro pendiente", "en curso", "planificada",
+                        "evaluada", "solo spec"})
+_ENLACES = frozenset((fichero, label) for _, fichero, label in ARTEFACTOS)
+_DE = re.compile(r"[\w-]{1,40}")
 
 
-def _plan_valido(plan):
-    """¿Una entrada de la caché tiene la forma de `_resumen`? (fix2, gap 4: una entrada incompleta, de otra versión
-    o manipulada se descarta y se recalcula; nunca rompe ni silencia el aviso de la sesión)."""
+def _texto_corto(valor, tope=400):
+    return isinstance(valor, str) and len(valor) <= tope and "\n" not in valor and "\r" not in valor
+
+
+def _cambio_valido(c, nombre):
+    return (isinstance(c, dict) and all(k in c for k in _CLAVES_CAMBIO) and set(c) <= {*_CLAVES_CAMBIO, "motivo"}
+            and c["iniciativa"] == nombre and c["tipo"] in FICHERO and c["artefacto"] == FICHERO[c["tipo"]]
+            and c["a"] in _ESTADOS and (c["de"] is None or (isinstance(c["de"], str) and bool(_DE.fullmatch(c["de"]))))
+            and c.get("motivo", "reabierta") in _MOTIVOS)
+
+
+def _aviso_valido(a, nombre):
+    return (isinstance(a, dict) and set(a) == set(_CLAVES_AVISO) and a["iniciativa"] == nombre
+            and a["tipo"] in _TIPOS_AVISO and _texto_corto(a["detalle"]))
+
+
+def _plan_valido(plan, nombre=None):
+    """¿Una entrada de la caché tiene la forma de `_resumen` y es de la carpeta `nombre`? (fix2, gap 4; fix3, gap 4:
+    tipos y vocabulario cerrados). Una entrada incompleta, de otra versión, de otra carpeta o manipulada se descarta
+    y se recalcula: nunca rompe ni silencia el aviso de la sesión, ni pone su texto en él."""
     if not isinstance(plan, dict) or not isinstance(plan.get("nombre"), str):
         return False
-    listas = {"cambios": _CLAVES_CAMBIO, "avisos": _CLAVES_AVISO}
-    for clave, requeridas in listas.items():
-        valor = plan.get(clave)
-        if not isinstance(valor, list) or not all(isinstance(x, dict) and all(k in x for k in requeridas)
-                                                  for x in valor):
-            return False
-    enlaces = plan.get("enlaces")
-    if not isinstance(enlaces, list) or not all(isinstance(e, list) and len(e) == 2 for e in enlaces):
+    nombre = plan["nombre"] if nombre is None else nombre
+    cambios, avisos, enlaces = plan.get("cambios"), plan.get("avisos"), plan.get("enlaces")
+    if plan["nombre"] != nombre or not all(isinstance(x, list) for x in (cambios, avisos, enlaces)):
         return False
-    return all(k in plan for k in ("etiqueta", "titulo", "retro", "cerrable", "vigente"))
+    if not (all(_cambio_valido(c, nombre) for c in cambios) and all(_aviso_valido(a, nombre) for a in avisos)):
+        return False
+    if not all(isinstance(e, list) and len(e) == 2 and tuple(e) in _ENLACES for e in enlaces):
+        return False
+    return (plan.get("etiqueta") in _ETIQUETAS and (plan.get("titulo") is None or _texto_corto(plan.get("titulo")))
+            and all(isinstance(plan.get(k), bool) for k in ("retro", "cerrable", "vigente")))
+
+
+def _mkdir_private(path, **kwargs):
+    """0o700 en POSIX. En Windows se heredan los permisos del padre: Python 3.13 convierte
+    0o700 en una ACL explícita que deja fuera al usuario restringido del sandbox de Codex."""
+    if os.name == 'nt':
+        path.mkdir(**kwargs)
+    else:
+        path.mkdir(mode=0o700, **kwargs)
+
+
+def _base_cache():
+    """(directorio base de la caché, None) o (None, motivo). fix3 (gaps 2 y 7): la convención de estado privado del
+    plugin para cachés por usuario (`~/.cache/custom-agents/`, como el índice de Codex de `usage-meter.py`):
+    `$XDG_CACHE_HOME` en POSIX, `%LOCALAPPDATA%` en Windows; `$CUSTOM_AGENTS_CACHE_DIR` la sustituye (tests).
+    Siempre una ruta ABSOLUTA: sin ella no hay caché (nunca el cwd)."""
+    override = os.environ.get(CACHE_ENV)
+    if override:
+        return (Path(override), None) if os.path.isabs(override) else (None, f"${CACHE_ENV} no es una ruta absoluta")
+    if os.name == "nt" and os.path.isabs(os.environ.get("LOCALAPPDATA") or ""):
+        raiz = Path(os.environ["LOCALAPPDATA"])
+    elif os.name != "nt" and os.path.isabs(os.environ.get("XDG_CACHE_HOME") or ""):
+        raiz = Path(os.environ["XDG_CACHE_HOME"])
+    else:
+        home = os.path.expanduser("~")
+        if not os.path.isabs(home):
+            return None, "sin directorio de usuario absoluto (HOME / LOCALAPPDATA)"
+        raiz = Path(home) / ".cache"
+    return raiz / "custom-agents", None
+
+
+def _ubicacion_cache(root):
+    """(ruta del fichero de caché o None, motivo)."""
+    base, motivo = _base_cache()
+    if base is None:
+        return None, motivo
+    try:
+        real_base, real_root = os.path.realpath(base), os.path.realpath(str(root))
+        if os.path.commonpath([real_base, real_root]) == real_root:
+            return None, "el directorio de caché está dentro del proyecto"
+    except ValueError:
+        pass   # unidades distintas en Windows: fuera del proyecto
+    clave = hashlib.sha256(os.path.abspath(str(root)).encode("utf-8")).hexdigest()[:24]
+    return base / "roadmap-sync" / f"{clave}.json", None
+
+
+def cache_path(root):
+    """Caché de la comprobación de sesión FUERA del proyecto, en la caché privada del usuario (fix3):
+    `<caché de usuario>/custom-agents/roadmap-sync/<sha256 de la raíz>.json` (es una caché: si se borra, se recalcula).
+    None si no hay un directorio absoluto fuera del proyecto."""
+    return _ubicacion_cache(root)[0]
+
+
+def _dir_seguro(path, estricto):
+    """¿`path` es un directorio propio de verdad? Directorio real (ni enlace ni junction) y, en POSIX, del usuario
+    actual y sin escritura de grupo/otros; `estricto` (el directorio de la caché): sin NINGÚN permiso de grupo/otros.
+    En Windows la propiedad se hereda del perfil (`_mkdir_private`) y se exige que no sea un punto de reanálisis."""
+    info = os.lstat(path)
+    if not stat.S_ISDIR(info.st_mode) or LW.READER._redirected(info):
+        return False
+    if hasattr(os, "getuid"):
+        return info.st_uid == os.getuid() and not info.st_mode & (0o077 if estricto else 0o022)
+    return True
+
+
+def _crear_privado(d):
+    _mkdir_private(d)
+    if os.name != "nt":
+        os.chmod(d, 0o700)        # el umask recorta el modo de mkdir; el chmod no (fix3, gap 2)
+
+
+def _preparar_dir(ruta, crear):
+    """Verifica (y con `crear`, crea con `_mkdir_private` + `chmod 0o700`) los componentes propios del directorio de la
+    caché antes de leer o escribir: `roadmap-sync/` (estricto) y, sin override, `custom-agents/` (lo comparte el
+    índice de Codex de usage-meter: sin escritura ajena). True si es utilizable."""
+    directorio = ruta.parent
+    propios = [directorio] if os.environ.get(CACHE_ENV) else [directorio.parent, directorio]
+    try:
+        for d in propios:
+            if os.path.lexists(d):
+                continue
+            if not crear:
+                return False
+            if not os.path.isdir(d.parent):
+                # Solo se crea la raíz estándar que falte (`~/.cache` en un perfil nuevo), nunca una cadena arbitraria.
+                if d.parent.name != ".cache" or not os.path.isdir(d.parent.parent):
+                    return False
+                _crear_privado(d.parent)
+            _crear_privado(d)
+        return all(_dir_seguro(d, estricto=d == directorio) for d in propios)
+    except OSError:
+        return False
 
 
 def _leer_cache(path, clave):
+    """La caché, solo si es un fichero regular propio y acotado: `O_NOFOLLOW` (donde existe), `O_NONBLOCK` (un FIFO no
+    cuelga), `fstat` del descriptor abierto y tope de tamaño. Cualquier duda → {} (se recalcula)."""
+    if path is None or not _preparar_dir(path, crear=False):
+        return {}
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
     try:
-        with open(path, encoding="utf-8") as handle:
-            datos = json.load(handle)
+        if os.name == "nt":
+            info = os.lstat(path)
+            if not stat.S_ISREG(info.st_mode) or LW.READER._redirected(info):
+                return {}
+        fd = os.open(path, flags)
+        with os.fdopen(fd, "rb") as handle:
+            info = os.fstat(handle.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_size > CACHE_MAX:
+                return {}
+            if hasattr(os, "getuid") and (info.st_uid != os.getuid() or info.st_mode & 0o022):
+                return {}
+            raw = handle.read(CACHE_MAX + 1)
+        if len(raw) > CACHE_MAX:
+            return {}
+        datos = json.loads(raw.decode("utf-8"))
     except (OSError, ValueError):
         return {}
     if not isinstance(datos, dict) or datos.get("version") != CACHE_VERSION or datos.get("clave") != clave:
@@ -732,48 +909,34 @@ def _leer_cache(path, clave):
     return inic if isinstance(inic, dict) else {}
 
 
-def cache_path(root):
-    """Caché de la comprobación de sesión FUERA del proyecto y del perfil del usuario (fix2): el bloque de sesión solo
-    avisa y no cambia ningún fichero del proyecto ni de `~`. `$CUSTOM_AGENTS_CACHE_DIR`, o el directorio temporal
-    del sistema + `custom-agents-<usuario>/roadmap-sync/<sha256 de la raíz>.json` (es una caché: si se borra, se
-    recalcula)."""
-    base = os.environ.get(CACHE_ENV)
-    if not base:
-        usuario = (str(os.getuid()) if hasattr(os, "getuid")
-                   else re.sub(r"[^\w.-]", "_", os.environ.get("USERNAME") or "usuario"))
-        base = os.path.join(tempfile.gettempdir(), f"custom-agents-{usuario}")
-    clave = hashlib.sha256(os.path.abspath(str(root)).encode("utf-8")).hexdigest()[:24]
-    return Path(base) / "roadmap-sync" / f"{clave}.json"
-
-
 def _escribir_cache(path, clave, inic):
-    """Escritura atómica en la caché; nunca dentro del proyecto. En POSIX, solo en un directorio propio y privado
-    (en un `/tmp` compartido, otro usuario no puede plantarlo). Degrada callado."""
+    """Escritura atómica en la caché privada (fichero 0o600 creado en exclusiva, sin seguir enlaces). Nunca dentro del
+    proyecto. False si no hay directorio privado utilizable (el informe lo avisa)."""
+    if path is None or not _preparar_dir(path, crear=True):
+        return False
+    datos = json.dumps({"version": CACHE_VERSION, "clave": clave, "inic": inic}, ensure_ascii=False).encode("utf-8")
+    if len(datos) > CACHE_MAX:
+        return False
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.{secrets.token_hex(4)}.tmp")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
     try:
-        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        if hasattr(os, "getuid"):
-            for d in (path.parent, path.parent.parent):
-                info = os.lstat(d)
-                if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
-                    return
-    except OSError:
-        return
-    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
-    try:
-        with open(tmp, "w", encoding="utf-8") as handle:
-            json.dump({"version": CACHE_VERSION, "clave": clave, "inic": inic}, handle, ensure_ascii=False)
+        fd = os.open(tmp, flags, 0o600)
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(datos)
         os.replace(tmp, path)
     except OSError:
         try:
             os.unlink(tmp)
         except OSError:
             pass
+    return True
 
 
 def comprobar(root_proyecto, deadline=None, tope=TOPE_SESION, previos=None):
     """Solo lectura (bloque de sesión): el mismo análisis, acotado. Las `tope` carpetas más recientes; caché
-    por firma (ruta + `mtime_ns` + tamaño de cada artefacto, y la de `CALIBRATION.md`): solo se reanaliza la
-    iniciativa cuya firma cambió; con el plazo vencido lo pendiente se omite (`omitida`) sin romper nada."""
+    por firma (ruta + `mtime_ns` + tamaño de cada artefacto, y la de `CALIBRATION.md`; con los bytes de la
+    instantánea, también su sha256, H-28): solo se reanaliza la iniciativa cuya firma cambió. Con la caché completa no
+    se consulta el plazo: el plazo acota solo `analizar`, y lo pendiente se omite (`omitida`) sin romper nada."""
     root = Path(os.path.abspath(str(root_proyecto)))
     roadmap = root / "docs" / "roadmap"
     limite = time.monotonic() + PLAZO_SESION if deadline is None else deadline
@@ -781,27 +944,34 @@ def comprobar(root_proyecto, deadline=None, tope=TOPE_SESION, previos=None):
     recortadas = max(len(nombres) - tope, 0)
     nombres = nombres[recortadas:]
     clave = [str(root), _firma(roadmap / "CALIBRATION.md")]
-    ruta_cache = cache_path(root)
+    ruta_cache, sin_cache = _ubicacion_cache(root)
     memo = _leer_cache(ruta_cache, clave)
     planes, inic, omitida = [], {}, False
     for nombre in nombres:
         carpeta = roadmap / nombre
         firma, presentes = _firma_carpeta(carpeta)
+        bytes_previos = previos.get(nombre) if previos else None
+        # fix3 (gap 6): con los bytes de la instantánea, la entrada vale solo para ESOS bytes (si el ledger cambió
+        # entre la instantánea y la firma, la siguiente comprobación no hereda un plan de otros bytes).
+        sha = hashlib.sha256(bytes_previos).hexdigest() if isinstance(bytes_previos, bytes) else None
         previo = memo.get(nombre)
-        if isinstance(previo, dict) and previo.get("firma") == firma and _plan_valido(previo.get("plan")):
+        if (isinstance(previo, dict) and previo.get("firma") == firma and previo.get("sha") == sha
+                and _plan_valido(previo.get("plan"), nombre)):
             plan = previo["plan"]
         elif time.monotonic() > limite:
             omitida = True
             continue
         else:
             plan = _resumen(analizar(carpeta, root, presentes=presentes, previos=previos))
-        inic[nombre] = {"firma": firma, "plan": plan}
+        inic[nombre] = {"firma": firma, "sha": sha, "plan": plan}
         if plan["vigente"]:
             planes.append(plan)
-    if inic != memo:
-        _escribir_cache(ruta_cache, clave, inic)
+    if inic != memo and not _escribir_cache(ruta_cache, clave, inic):
+        sin_cache = sin_cache or "sin directorio privado utilizable (propio, real y sin permisos de grupo/otros)"
     desfases = [c for p in planes for c in p["cambios"]]
     avisos = [a for p in planes for a in p["avisos"]]
+    if sin_cache:
+        avisos.append({"iniciativa": "-", "tipo": "sin-cache", "detalle": f"comprobación sin caché: {sin_cache}"})
     if not omitida:
         _, _, cambios_indice = _indice(root, planes, avisos)
         desfases += cambios_indice
