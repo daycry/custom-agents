@@ -2372,3 +2372,108 @@ Lentes: A+B+D (Opus, con traspaso del intento 2). Diff `9fc1a8b..a8c1275`. Los 1
 
 **Decisión del usuario (2026-11-27)** tras el 3.er intento con gaps: «Ciclo nuevo con fix3 acotado (Recomendado)». El fix3 abre el ciclo 2 (intento 4): caché en el directorio de estado privado del usuario con el helper del plugin (permisos reales 0700, sin enlaces, propietario comprobado; sin él, sin caché y nunca dentro del proyecto), test del plazo con plazos absolutos, `retro-gate --sync` se niega con un ledger que no puede verificar, y los 6 Minor.
 
+
+## Archivado 2026-11-26 — Evidencia de T-18 (movido literal desde tasks.md por el tope de lectura del ledger, tras cerrar la tanda B2 y T-42; bytes sin cambios)
+
+SHA-256 del bloque: `559ade3c10d4a6a229851f68e5ea881aa6c1a72812f4ecf2d590ff47ca22c5f2`.
+
+- **Evidencia** (GREEN `8db4080`; caracteres LF, estimación caracteres/4, no consumo facturado):
+  - `capability-check.md` 5.597 → **1.975** caracteres (5.743 → 1.993 bytes); el comando de `capability-route.py` es el mismo, así que la salida de capacidades no cambia. Extensiones y stacks, literales en `capability-check-detail.md` (3.417), solo con piezas propias o `--stack`; paridad de párrafos con 3 reemplazos con motivo.
+  - implementer, qa, planner y evaluator: constitución en una línea sin abrir `constitution-check.md` (1.462, es de la Lente A); `knowledge-check.md` (4.000) solo con aciertos, con «respeta los ADR y lecciones aplicables». Sin puntero a `rationalization-table.md` en implementer y qa (guía de autoría). Agentes: 28.268 → 28.208, 19.284 → 19.211, 21.533 → 21.522, 15.106 → 15.031.
+  - k1: `docs/agents/ROLES.md` no cambia (no cita estos fragmentos); analyst, architect, documenter y reviewer siguen mandando abrir los fragmentos: fuera de `Archivos`.
+
+## Archivado 2026-11-26 — Evidencia de T-19 (movido literal desde tasks.md por el tope de lectura del ledger, tras cerrar la tanda B2 y T-42; bytes sin cambios)
+
+SHA-256 del bloque: `bd6e01159d9cd6f9b38a7ab220c21af3a9f7611dfb18aae39667c8dc77115ae5`.
+
+- **Evidencia** (GREEN `c7be8eb`; caracteres LF, estimación caracteres/4, no consumo facturado):
+  - `agents/implementer.md` 28.208 → **16.263** caracteres (28.785 → 16.478 bytes; −11.945 por subagente). `classic-flow.md` 7.330, solo sin brief: contexto, constitución y memoria (el brief ya los trae), P1-bis, rama/worktree, medición, integraciones, rama compartida, P5/P5-bis y handoff.
+  - Línea a línea: 93 unidades del prompt anterior, 46 sin cambios y 47 reemplazos con motivo en el fixture (reescritas o deduplicadas). Una vez: E2, Verificación, start, resumen de progreso, «Disciplina al RECIBIR», DENY, dueño de commits y worktree; la prosa que repetía una fila de la tabla sale.
+  - El brief dice «no leas `classic-flow.md`»; Codex y OpenCode exportan el puntero y `agent-kits/` viaja en `PAYLOAD_COMUN`. La guarda nombra todas las familias denegadas (`test_fix2_gap6`).
+  - **k6**: «< 15 KB» no se alcanza en T-19 (16.478 bytes): el usuario ajustó la cifra a ≤ 16 KB el 2026-11-27 (`0d00e2e`); `test_core_is_at_most_sixteen_kibibytes` la exige sin xfail. Medido 15.841 bytes.
+
+## Archivado 2026-11-26 — Evidencia de T-22 (movido literal desde tasks.md por el tope de lectura del ledger, tras cerrar la tanda B2 y T-42; bytes sin cambios)
+
+SHA-256 del bloque: `4d42be18d31949f1a6692aa1d9cd386e97359bf2e04ebeedb57d29ba3e67c5cd`.
+
+- **Evidencia** (GREEN `23a8c32`; caracteres LF, estimación caracteres/4, no consumo facturado):
+  - `grep -n "export-interop\|CONTRACTS.md" agents/*.md` → sin coincidencias (exit 1); el puntero a `custom-agents-repo.md` no las repite. E2/E3 (P3-bis y comprobación del planner, ítems del DoD del implementer) pasan literales a `custom-agents-repo.md`, sección «Puertas E2 y E3»; planner e implementer conservan la regla genérica «lo generado y lo que lo describe, en la misma tarea», así un consumidor no pierde la puerta.
+  - qa: el párrafo sin UI (2.068 bytes) pasa a `agent-kits/qa/references/sin-ui.md` (2.247 caracteres), que se lee solo con el marcador; el núcleo lo nombra con su condición, `ADR-017` y el aviso único.
+  - `agents/qa.md` 19.211 → **17.620**; planner 21.522 → 20.212; implementer 16.263 → 15.642. Entre los tres −3.522 caracteres (−3.604 bytes).
+  - **k7**: «≥ 6 KB entre los tres» no se alcanza: se movieron ≈5,6 KB y las puertas genéricas cuestan ≈1,4 KB; el usuario ajustó la cifra a ≥ 3,5 KB el 2026-11-27 (`0d00e2e`, sin xfail; medido −3.522). **k6**: cerrado con el ajuste a ≤ 16 KB (15.841 bytes).
+
+## Archivado 2026-11-26 — Evidencia de T-42 (movido literal desde tasks.md por el tope de lectura del ledger, tras cerrar la tanda B2 y T-42; bytes sin cambios)
+
+SHA-256 del bloque: `64fb368e6ba248713fdd1d08d20e784cfb5b61dde5a6e1937dbb26a8891d7227`.
+
+- **Evidencia** (2026-11-26): diseño = script `roadmap-sync.py` (la Verificación lo nombra) que importa `ledger-write.py` (lectura acotada, `decode`, escritura atómica, cerrojo `.ledger-write`, parser) y `retro-gate.py`; sin lógica duplicada. Antes: `--check` exit 1 con 82 desfases (11 de estado: 3 ledgers al 100 %, `opencode-reader-fixes` en-revision, planes de `project-specialization`/`catalog-capabilities`/`panel-redesign`/`control-center`, spec de `brief-budget`, evaluaciones de `sdd-hardening`/`panel-redesign`; 71 filas del índice). `python agent-kits/shared/roadmap-sync.py docs/roadmap` los aplicó (`ac32b0e`); después `--check` → «0 desfase(s) · 36 retro(s) pendiente(s) · 0 aviso(s) más · 71 iniciativa(s)», exit 0. `audit-remediation` y las demás sin retro quedan con ledger `completado` y aviso `retro-pendiente` (T-36). `build_dashboard --strict`: 0 avisos «no se leyeron» (antes 7; quedan 4 ajenos a T-42). pytest de los 7 ficheros tocados: 266 passed; `test_source_snapshot`, `test_context_footprint`, `test_f4fix2_misc`, `test_phase3_review_contract`, `test_export_interop`, `test_plugin_root_resolution`: 187 passed, 1 skipped. `export-interop --check`: 88 al día. `lint_plugin`: 0 errores; `evals/check`: 0 errores. Tokens (bytes de fuente): `commands/pm-cycle.md` 10.809→11.118, `commands/retro.md` 8.847→9.337, `phase6-close.md` 7.277→8.235. `progress-report session` sobre el repo: 1,8 s (la comprobación añade ~1 s). Commits: RED `cab640a`, GREEN `83a0357`, puesta al día `ac32b0e`, docs `56a7bd0`.
+
+## Archivado 2026-11-27 — Revisión de dos lentes — intento 1: Fase 3 (T-18, T-19, T-22) — tanda B2 (T-18, T-19, T-22) (bytes sin cambios)
+
+SHA-256 del bloque: `4cdd7e2d24f95f929c0b440a8ee8a2d61724d1277b453e7d422087a4e91f88a6`.
+
+## Revisión de dos lentes — intento 1: Fase 3 (T-18, T-19, T-22) — tanda B2 (T-18, T-19, T-22)
+
+**Veredicto del plugin**: gaps (T-18, T-19, T-22)
+
+Lentes: A+B (Opus, contexto fresco). D por `review-lens-select.py --base ebf2ac2` solo por la ruta de un fixture JSON (`tests/fixtures/repo-rules-baseline.json`, stem «repo»), sin código de ejecución en el diff: no se lanza (decisión del orquestador); C no aplica. `scope-check --base ebf2ac2`: 0 fuera de alcance; `criterios_alterados` en T-19 y T-22 = ajustes de cifra decididos por el usuario el 2026-11-27 (`0d00e2e`): descartado (rebatido con esa decisión). Diff `ebf2ac2..0d00e2e`. Puerta Node en Linux: `604 · 571 · 0 fail · 33 skipped`. RED de las tres tareas verificados en `git archive` (`3bc4710` 17 failed, `5db8b99` 7, `2990586` 8). La Lente B revisó los 49 reemplazos del fixture del implementer. Resultado: 4 Important, 4 Minor.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | El gate de cobertura `tests.coberturaMinima` (P5) solo vive en `classic-flow.md`, que el brief prohíbe leer; ni `task-brief.py`, ni `dev-cycle.md`, ni `phase3-subagents.md` ejecutan `coverage-gate.py`; `phase6-close.md:9` remite a «P5 del implementer», que ya no está en el núcleo; `dev-cycle.md:88` dice que la cobertura conserva sus puertas | T-19 | corregido (fix1, `6f0ef68`; test `test_b2_fix1_gap1_el_brief_lleva_el_gate_de_cobertura`) | `agent-kits/implementer/references/classic-flow.md:31`; `agent-kits/shared/task-brief.py:92`; `agent-kits/dev-cycle/references/phase6-close.md:9`; `commands/dev-cycle.md:88` |
+| 2 | Important | La condición «solo si el proyecto o el usuario tienen piezas propias» no se puede evaluar con el núcleo de `capability-check` (`capability-route.py` no informa de extensiones y el núcleo ya no nombra `project-pieces.py`): el planner no abre el detalle, la tarea queda sin `- **Extensiones**:` y el brief sin la extensión | T-18 | corregido (fix1, `6f0ef68`; test `test_b2_fix1_gap2_el_nucleo_nombra_la_comprobacion_de_piezas_propias`) | `agent-kits/shared/capability-check.md:26`; `task-brief.py:1463` |
+| 3 | Important | El ajuste del usuario solo reescribió un criterio de T-19: «objetivo < 15 KB» seguía sin marcar, la Verificación pedía «< 15 KB» y las notas k6/k7 citaban un `xfail` ya quitado | T-19, T-22 | corregido por el orquestador (texto del ledger alineado con la decisión del usuario del 2026-11-27; medida 15.841 bytes) | `tasks.md` (T-19 Verificación, k6 y criterio 1; T-22 k7) |
+| 4 | Important | Rojo previo a la tanda que deja la CI en rojo: `agent-kits/shared/test_git_verification.py` 22 failed en Windows y en Linux (`python:3.11-slim` y `node:22-bookworm-slim`), ya en `ebf2ac2` (p. ej. `git commit -n \ --verify`, `--no-no-verify`, opciones git abreviadas) | T-19 (guardia del implementer) | corregido (fix1, `6f0ef68`; test `test_b2_fix1_gap4_commit_restaura_hooks_y_abrevia_solo_en_la_lista_blanca`): rojo desde `3804a2a` (T-06 fix25, lista blanca de opciones; `93cb964` 357 passed), causa en `guardrail-check.py`, ningún caso del test rebajado | `agent-kits/shared/test_git_verification.py` |
+| 5 | Minor | `/work-context` manda aplicar «su sección de extensiones» de `capability-check.md`, que se movió al detalle | T-18 | corregido (fix1, `6f0ef68`; test `test_b2_fix1_gap5_work_context_apunta_al_detalle`) | `commands/work-context.md:11` |
+| 6 | Minor | La fila de racionalización remite a «(P3)», que ya no está en el núcleo | T-19 | corregido (fix1, `6f0ef68`; test `test_b2_fix1_gap6_la_racionalizacion_no_remite_a_p3`) | `agents/implementer.md:101` |
+| 7 | Minor | El doc del implementer sigue citando `constitution-check.md` como dependencia | T-18 | corregido (fix1, `6f0ef68`; test `test_b2_fix1_gap7_el_doc_no_cita_constitution_check_como_dependencia`) | `docs/agents/implementer.md:258` |
+| 8 | Minor | La lista de casos «sin brief» omite el despacho de `/dev-cycle` con `subagentes: false` (flujo clásico sin brief); sin test | T-19 | corregido (fix1, `6f0ef68`; test `test_b2_fix1_gap8_sin_brief_incluye_dev_cycle_con_subagentes_false`) | `agent-kits/implementer/references/classic-flow.md:3-4`; `agents/implementer.md:48`; `commands/dev-cycle.md:153-155` |
+
+
+## Archivado 2026-11-27 — T-16 — Fix1 (GREEN a77c2f5): (movido literal desde tasks.md por el tope de lectura del ledger; bytes sin cambios)
+
+SHA-256 del bloque: `e42025200f7222565c89b94c08149a34a704b04174d3f67359aacd2b1605c7f6`.
+
+- **Fix1** (GREEN `a77c2f5`): `dev-cycle.md` 22.599 → **22.639** caracteres (22.999 bytes LF ≤ 23 KB); vía rápida 7.860 → **7.850**; `phase6-close.md` 7.139. El núcleo da una sola condición: ritual solo en la Fase 6, tabla de transiciones en cada puerta de artefacto. El plan no fija la cifra (`improvement-plan.md:49,209` son genéricas): sin nota allí. Medición del fix1 de T-16 y T-17 (`plugin-audit-2/T-16-fix1`): 2.62h IA (medido; reloj 1h49m, con las suites y el corte por límite de uso). Suites: 63 ficheros que leen `agents/`/`commands/` → `3163 passed, 5 failed` por carga (`test_lite_profile` ×4, `test_project_pieces` ×1: `8 passed` aislados).
+
+## Archivado 2026-11-27 — T-17 — Fix1 (GREEN a77c2f5): (movido literal desde tasks.md por el tope de lectura del ledger; bytes sin cambios)
+
+SHA-256 del bloque: `24b307c1651936625ec9bb9962dab62189b5ac72fc19cb2b6ce85f566f4547e3`.
+
+- **Fix1** (GREEN `a77c2f5`): las 11 piezas dicen junto a su receta que las variables no sobreviven entre llamadas de Bash. Coste +666: el ahorro neto de T-17 baja de −5.483 a **−4.817** (informe de entrada 489.352 → 484.575, sin los +40 de T-16 en `dev-cycle`). `agents/evaluator.md` 15.461 bytes LF. **k5**: el criterio «≥ 5 KB» no se alcanzaba por 183 caracteres; el usuario lo ajustó a «≥ 4,5 KB» el 2026-11-26 (`9f8af4a`) y se cumple. La revisión intento 2 midió +628 por el aviso (no +666): los 38 restantes no son del aviso; el neto −4.817 cuadra con `context-footprint.py`.
+
+## Archivado 2026-11-27 — T-18 — Fix1 (revisión intento 1 (movido literal desde tasks.md por el tope de lectura del ledger; bytes sin cambios)
+
+SHA-256 del bloque: `d22ffc4639f2698559fdd8d5490fdc54e6e8afa3ab77db75a9909e1e667fd20c`.
+
+- **Fix1** (revisión intento 1, gaps 2, 5 y 7; RED `a0e8484`, GREEN `6f0ef68`): el núcleo de `capability-check.md` nombra `project-pieces.py`; con piezas pertinentes o `--stack` abre el detalle y anota `- **Extensiones**:` (1.997 bytes LF ≤ 2 KB; el test de T-18 que prohibía nombrarlo fijaba el defecto y se reescribe). `/work-context` apunta al detalle; el doc del implementer sin `constitution-check.md`. Tests `test_b2_fix1_gap2/5/7_…` (consumidor con `.claude/skills/foo/`).
+
+## Archivado 2026-11-27 — T-19 — Fix1 (gaps 1, 4, 6 y 8; (movido literal desde tasks.md por el tope de lectura del ledger; bytes sin cambios)
+
+SHA-256 del bloque: `8b91d5ec65d588a003ef0303b2d9b18cc53a9c1a5b5c31f833b57c047c3fc20a`.
+
+- **Fix1** (gaps 1, 4, 6 y 8; GREEN `6f0ef68`, `2634a74`, `fe9bd6a`): el brief inyecta «Cobertura» (`coverage-gate.py --changed-only --min N`) con `tests.coberturaMinima` 0-100, también en lite; `phase6-close.md` y `dev-cycle.md` sin «P5 del implementer». Gap 4: rojo desde `3804a2a` (T-06 fix25; `93cb964` 357 passed): commit acepta prefijos únicos de su lista y `-n`/`--verify`/`--no-no-verify`, que decide `_commit_skips_verification`; ningún caso rebajado. Implementer 15.656 (T-22 −3.508).
+
+## Archivado 2026-11-27 — T-42 — Evidencia fix1 (2026-11- (movido literal desde tasks.md por el tope de lectura del ledger; bytes sin cambios)
+
+SHA-256 del bloque: `7b65bbc7fd00d68050b594fd384e22242f536501a2265ec59708cf9392a274d4`.
+
+- **Evidencia fix1** (2026-11-26; RED 8443cf8, GREEN 0e115d2, docs 1eaa9df): señal única de cierre del ledger = `roadmap-sync.py <carpeta> --cerrar` en el paso 6 de la Fase 6 (qa-gate no existe sin UI y la retro y changelog-sync ya exigen el ledger cerrado); `verdict` solo refresca el índice; tarea reabierta → `en-progreso` (`motivo: reabierta`). Evaluación solo por `gate` (todo o nada, exit 3 `partial`). Token de estado, fila por enlace en Artefactos, `\|`, marca con cola, índice/ledger > 256 KiB con aviso. Sesión: caché `.claude/.roadmap-sync.cache` por firma, 128 carpetas, plazo 2 s. `session` real: antes base 0,82/con 1,49 s (+0,67); después la comprobación cuesta 0,10 s en caliente medida en proceso (bloque completo +0,23-0,37 s, ruido de disco); synth 300: 16,99→1,78 s (base 1,26). Pytest 460 passed; `--check` exit 0 ×2; lint 0 errores; evals 0; interop 88 al día; dashboard `--strict` exit 1 por 4 avisos previos (iguales antes/después, 0 «no se leyeron»).
+
+
+RED: `agent-kits/shared/test_roadmap_sync.py::test_t42_fix2_gap2_retro_gate_sync_cierra_ledger_plan_y_spec` (y 19 más del fix2, con gap 11) falló con AssertionError: 'estado: en-progreso' == 'estado: completado' · 2026-11-26.
+
+## Archivado 2026-11-27 — T-42 — Evidencia fix2 (2026-11- (movido literal desde tasks.md por el tope de lectura del ledger; bytes sin cambios)
+
+SHA-256 del bloque: `da5690a449deeb51be8eba6cc58f08c7d76aff91b8275cb243ac937102e510fb`.
+
+- **Evidencia fix2** (2026-11-26; RED 678f1d9 + c8a82f6, GREEN 2bdbc57 + 224ebf3 + a8c90da, docs f9f2ca6 + 916b0f9): `retro-gate --sync` cierra todo con `--cerrar`; con tareas abiertas o sin `estado` no abre. `cierre-olvidado` y `sin-estado` son desfases; la sesión da el comando exacto. Fase 6: ledger en el paso 3, antes del PR. Índice: fila por enlace o identidad; tabla `Slug` → su columna `Estado` (una marca aparte la contradiría). Caché validada fuera del proyecto y de `~`; una apertura por ledger. Panel: `estados_tareas` (= `parse_ledger`) 6,8× más rápido que `parse_ledger` (0,09 vs 0,62 s) y a 0,02 s del recuento local; el resto del panel sobre la base no es esta cuenta. Suites: ~6.800 tests en 3 tandas (lección del intento 2 + grep de la prosa + hooks_shell): rojos = regresiones de T-42 (consola, H-28, sesión que escribía, receta de /pm-cycle, cifras), corregidas; solo `gap6_tope` es intermitente con -n 3 (plazo de 2 s, pasa suelto). `--check` exit 0 ×2; interop, lint y evals ok; dashboard: 4 avisos previos.
+
+
+RED: `agent-kits/shared/test_roadmap_sync.py::test_t42_fix3_gap2_umask_022_la_cache_se_escribe_en_la_cache_de_usuario` (y 16 más del fix3 en Linux; gap 1: el test viejo, rojo determinista en Linux) falló con AssertionError: la caché no estaba en ~/.cache/custom-agents/roadmap-sync · 2026-11-27.
+
+## Archivado 2026-11-27 — T-42 — Evidencia fix3 (2026-11- (movido literal desde tasks.md por el tope de lectura del ledger; bytes sin cambios)
+
+SHA-256 del bloque: `33e61cd1f8bfad7f585cb2c65d05d051a7f0223c447025b24649f533dca1a14d`.
+
+- **Evidencia fix3** (2026-11-27; RED 53bc73e, GREEN 32e55cc + d4482f8, docs 077b02f): caché en `~/.cache/custom-agents/roadmap-sync/` (XDG; LOCALAPPDATA en Windows): el «no escribir en `~`» del fix2 no era invariante, `~` sin USERPROFILE caía en el cwd. Dirs `_mkdir_private` + `chmod 0700`, propios y sin enlaces; fichero regular acotado (`O_NOFOLLOW`/`O_NONBLOCK`), vocabulario cerrado; sin dir absoluto fuera del proyecto, aviso `sin-cache`. sha de los bytes de la instantánea. Ledger no verificable: `--cerrar` y `retro-gate --sync` exit 1, `--check` desfase. Cierre todo o nada; tabla del índice por enlaces o cabecera. Suites (61 ficheros + hooks_shell): Windows 3864 passed, 4 rojos por carga (verdes aislados); Linux no root 3876 passed + `ajeno` verde tras d4482f8; 4 errores de `test_npm_payload` también en la base (Python 3.11.2 de bookworm sin `filter=`). `--check` exit 0 ×2; interop 88, lint 0 errores, evals 0, dashboard 4 avisos previos.
