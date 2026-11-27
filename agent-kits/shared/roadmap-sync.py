@@ -23,6 +23,12 @@ artefactos, con la tabla de transiciones de `agent-kits/dev-cycle/references/pha
   enlaces a los artefactos que existen. Si falta, la añade; con dos filas candidatas avisa y no escribe;
   el índice no se crea.
 
+Proyectos con otros formatos (T-43): una celda `Estado` descriptiva del índice («spec `implementada` · plan
+`completado` (38/38 tareas…)») que concuerda con lo derivado no es desfase; si discrepa, solo cambian sus tokens de
+estado (o, sin tokens, se antepone la palabra): nunca se borra texto. Un ledger sin tareas `### T-XX` (checklist
+heredada) es el aviso `no-derivable` y uno > 256 KiB sin cerrar (o ilegible), `no-verificable`: de esa iniciativa
+no se escribe ni se propone nada, fila del índice incluida.
+
 Solo se sustituye el TOKEN de estado (frontmatter `estado:` y celda `| Estado |` de la cabecera): el resto
 de la celda, las comillas y los comentarios se conservan; una fila cabecera `| Estado | Significado |` no
 se toca y una celda sin estado reconocible es un aviso. Nunca rebaja un estado (salvo la tarea reabierta):
@@ -84,8 +90,8 @@ TERMINALES = {"cancelado", "obsoleta", "obsoleto"}
 PREFIJO = 64 * 1024
 MARCA = " · estado: "
 SEPARADORES = (" · ", " / ", " ? ")
-_TOKEN = re.compile(r"(?<![\w-])(en-progreso|en-revision|completado|cancelado|borrador|aprobada|aprobado|"
-                    r"implementada|obsoleta|obsoleto)(?![\w-])")
+_ESTADOS_ALT = r"en-progreso|en-revision|completado|cancelado|borrador|aprobada|aprobado|implementada|obsoleta|obsoleto"
+_TOKEN = re.compile(r"(?<![\w-])(" + _ESTADOS_ALT + r")(?![\w-])")
 _TABLA_ESTADO = re.compile(r"^\|[ \t]*(?:\*\*)?Estado(?:\*\*)?[ \t]*\|([^|\n]*)\|", re.M)
 _SEPARADOR_TABLA = re.compile(r"^\|?[ \t]*:?-{3,}:?[ \t]*(?:\|[ \t]*:?-{3,}:?[ \t]*)*\|?[ \t]*$")
 _FM_ESTADO = re.compile(r"^estado:[ \t]*([^\s#]+)", re.M)
@@ -99,7 +105,7 @@ TOPE_SESION = 128
 PLAZO_SESION = 2.0
 CACHE_NOMBRE = ".roadmap-sync.cache"   # nombre histórico (fix1); la caché vive fuera del proyecto (fix2)
 CACHE_ENV = "CUSTOM_AGENTS_CACHE_DIR"
-CACHE_VERSION = 4   # fix3: caché de usuario, sha de los bytes de la instantánea y vocabulario cerrado
+CACHE_VERSION = 5   # fix3: caché de usuario, sha y vocabulario cerrado · T-43: `estados` y avisos no-derivable/no-verificable
 CACHE_MAX = 4 * 1024 * 1024   # tope del fichero de caché (128 iniciativas ocupan decenas de KB)
 
 
@@ -230,7 +236,7 @@ def analizar(carpeta, root, cerrar=False, presentes=None, previos=None):
     """Plan de cambios de UNA iniciativa (ver `_resumen` para la parte serializable). `presentes`: los ficheros que
     ya se sabe que existen (la comprobación de sesión los lista con un `scandir`); los demás no se leen."""
     nombre = carpeta.name
-    docs, avisos, cambios = {}, [], []
+    docs, avisos, cambios, ledger_ilegible = {}, [], [], False
     for clave, fichero, _ in ARTEFACTOS:
         if presentes is not None and fichero not in presentes:
             docs[clave] = None
@@ -242,6 +248,7 @@ def analizar(carpeta, root, cerrar=False, presentes=None, previos=None):
             docs[clave] = _leer(carpeta / fichero)
         except (SyncError, LW.WriteError, OSError, UnicodeError, ValueError) as error:
             docs[clave] = None
+            ledger_ilegible = ledger_ilegible or fichero == "tasks.md"
             avisos.append({"iniciativa": nombre, "tipo": "ilegible",
                            "detalle": f"{fichero}: {getattr(error, 'status', error.__class__.__name__)}"})
     info = {clave: (campos(d["text"]) if d else None) for clave, d in docs.items()}
@@ -268,20 +275,24 @@ def analizar(carpeta, root, cerrar=False, presentes=None, previos=None):
                                       f"(debería ser `{objetivo}`)"})
 
     ledger, cerrable, retro = docs["ledger"], False, None
+    # T-43: de una iniciativa cuyo ledger no se puede verificar (> 256 KiB sin cerrar, o ilegible) o que no tiene
+    # tareas `### T-XX` (checklist heredada) no se escribe ni se propone NADA, fila del índice incluida: lo derivado
+    # sería falso (p. ej. «en curso» para una iniciativa cerrada). Solo el aviso.
+    sin_derivar = None
+    if ledger and ledger.get("grande") and estados["ledger"] not in ("completado", "cancelado"):
+        sin_derivar = ("no-verificable", "tasks.md > 256 KiB sin cerrar: no se puede verificar; no se escribe ni se "
+                                         "propone nada de esta iniciativa (archívalo con ledger-archive.py)")
+    elif ledger_ilegible:
+        sin_derivar = ("no-verificable", "tasks.md ilegible: no se escribe ni se propone nada de esta iniciativa")
+    elif ledger and not ledger.get("grande") and not LINT.estados_tareas(ledger["text"]):
+        sin_derivar = ("no-derivable", "tasks.md sin tareas `### T-XX` (ledger heredado): estado no derivable; "
+                                       "no se escribe ni se propone nada de esta iniciativa")
+    if sin_derivar:
+        avisos.append({"iniciativa": nombre, "tipo": sin_derivar[0], "detalle": sin_derivar[1]})
+        return _plan(nombre, docs, [], avisos, nuevos, False, False, None)
     # Un ledger > 256 KiB no se deriva: su cabecera `completado` se acepta tal cual (ya cerrado y archivable).
     cerrado = bool(ledger and ledger.get("grande") and estados["ledger"] == "completado")
-    if ledger and ledger.get("grande"):
-        if estados["ledger"] not in ("completado", "cancelado"):
-            avisos.append({"iniciativa": nombre, "tipo": "no-escrito",
-                           "detalle": "tasks.md > 256 KiB: estado de la iniciativa no derivado "
-                                      "(archívalo con ledger-archive.py)"})
-            retro = _retro_abierta(root, carpeta)
-            if retro:
-                # fix3 (gap 3): retro hecha y un ledger que no se puede verificar (no se sabe si quedan tareas
-                # abiertas): el cierre está bloqueado; es un desfase, no un aviso. No se escribe nada.
-                cambios.append({"iniciativa": nombre, "tipo": "ledger", "artefacto": "tasks.md",
-                                "de": estados["ledger"], "a": "completado", "motivo": "no-verificable"})
-    elif ledger:
+    if ledger and not ledger.get("grande"):
         objetivo, abiertas = objetivo_ledger(ledger["text"])
         cerrable = objetivo == "completado"
         if cerrable:
@@ -325,9 +336,19 @@ def analizar(carpeta, root, cerrar=False, presentes=None, previos=None):
     elif ledger and estados["spec"] == "implementada" and nuevos["ledger"] != "completado":
         avisos.append({"iniciativa": nombre, "tipo": "adelantado",
                        "detalle": "spec `implementada` con el ledger sin cerrar: no se rebaja"})
+    return _plan(nombre, docs, cambios, avisos, nuevos, cerrable, retro, etiqueta(nuevos, docs, retro))
+
+
+# Artefactos cuyo estado puede citar la celda `Estado` descriptiva de un índice (T-43).
+_DERIVADOS = ("spec", "evaluacion", "design", "plan", "ledger")
+
+
+def _plan(nombre, docs, cambios, avisos, nuevos, cerrable, retro, etiqueta_):
+    """El plan de una iniciativa. `etiqueta` None = sin fila del índice (no derivable o no verificable, T-43);
+    `estados` = lo derivado por artefacto, con el que se compara una celda `Estado` descriptiva."""
     return {"nombre": nombre, "docs": docs, "cambios": cambios, "avisos": avisos, "nuevos": nuevos,
-            "cerrable": cerrable, "retro": retro,
-            "etiqueta": etiqueta(nuevos, docs, retro),
+            "cerrable": cerrable, "retro": retro, "etiqueta": etiqueta_,
+            "estados": {c: (nuevos.get(c) if nuevos.get(c) in _ESTADOS else None) for c in _DERIVADOS},
             "enlaces": [[fichero, label] for clave, fichero, label in ARTEFACTOS if docs.get(clave)],
             "titulo": next((titulo_de(docs[c]["text"]) for c in ("spec", "ledger", "plan", "evaluacion")
                             if docs.get(c) and titulo_de(docs[c]["text"])), None),
@@ -337,7 +358,7 @@ def analizar(carpeta, root, cerrar=False, presentes=None, previos=None):
 def _resumen(plan):
     """La parte serializable de un plan (la que guarda la caché de la comprobación de sesión)."""
     return {k: plan[k] for k in ("nombre", "cambios", "avisos", "etiqueta", "enlaces", "titulo", "retro",
-                                 "cerrable", "vigente")}
+                                 "cerrable", "vigente", "estados")}
 
 
 def etiqueta(estados, docs, retro):
@@ -428,6 +449,41 @@ def _texto_plano(celda):
     return re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", celda).replace("`", "").replace("*", "").strip()
 
 
+# T-43: `<artefacto> <token>` dentro de una celda `Estado` descriptiva («spec `implementada` · plan `completado` …»).
+_PAR_ESTADO = re.compile(r"(?<![\w-])(spec|especificación|evaluación|evaluacion|evaluation|eval|diseño|design|plan|"
+                         r"ledger|tasks)[ \t]*:?[ \t]*`?(" + _ESTADOS_ALT + r")(?![\w-])", re.I)
+_CLAVE_PAR = {"spec": "spec", "especificación": "spec", "evaluación": "evaluacion", "evaluacion": "evaluacion",
+              "evaluation": "evaluacion", "eval": "evaluacion", "diseño": "design", "design": "design",
+              "plan": "plan", "ledger": "ledger", "tasks": "ledger"}
+
+
+def _celda_estado(previa, plan):
+    """La celda `Estado` de una fila existente con lo derivado, sin borrar texto (T-43). Vacía → la etiqueta. Una
+    sola palabra de estado (formato del plugin) → la etiqueta. Con pares `<artefacto> <estado>` → solo cambian los
+    tokens que discrepan de lo derivado (si concuerdan, la celda queda igual: no es desfase). Si empieza por una
+    etiqueta (`<etiqueta> · texto`) → solo esa palabra. Cualquier otro texto → se antepone `<etiqueta> · `."""
+    valor, plano = plan["etiqueta"], _texto_plano(previa)
+    if plano in _VACIA:
+        return valor
+    if plano == valor:
+        return previa
+    pares = list(_PAR_ESTADO.finditer(previa))
+    if pares:
+        estados, nueva = plan.get("estados") or {}, previa
+        for m in reversed(pares):
+            derivado = estados.get(_CLAVE_PAR[m.group(1).lower()])
+            if derivado and derivado != m.group(2):
+                nueva = nueva[:m.start(2)] + derivado + nueva[m.end(2):]
+        return nueva
+    etiquetas = sorted((e for e in _ETIQUETAS if e), key=len, reverse=True)
+    if plano.lower() in etiquetas or _TOKEN.fullmatch(plano):
+        return valor
+    for e in etiquetas:
+        if previa.strip().startswith(e + " · "):
+            return valor + previa.strip()[len(e):]
+    return f"{valor} · {previa.strip()}"
+
+
 def _celda_nueva(nombre, plan, columna, disp, i):
     """Celda `i` de una fila nueva en un índice con columnas propias (formato con Slug/Estado)."""
     if i == 0:
@@ -510,7 +566,7 @@ def editar_indice(text, planes):
             continue
         if disp["estado"] is not None:
             previa = celdas[disp["estado"]].strip()
-            celdas[disp["estado"]] = plan["etiqueta"]
+            celdas[disp["estado"]] = _celda_estado(previa, plan)
         else:
             celdas[ident], previa = _con_marca(celdas[ident], plan["etiqueta"])
         puestos = []
@@ -690,14 +746,12 @@ def sincronizar(objetivo, *, escribir=True, deadline=None, cerrar=False):
     if escribir:
         pendientes += [f"{c['iniciativa']}/tasks.md: sin campo `estado` (añádelo a mano)"
                        for c in desfases if c.get("motivo") == "sin-estado"]
-        pendientes += [f"{c['iniciativa']}/tasks.md > 256 KiB con la retro hecha: archívalo con ledger-archive.py "
-                       f"y repite" for c in desfases if c.get("motivo") == "no-verificable"]
         salidas = []      # (doc, texto nuevo, ¿ledger?, etiqueta para pendientes)
         for p in planes:
             for clave, fichero, _ in ARTEFACTOS:
                 doc = p["docs"].get(clave)
-                if doc and not doc.get("grande") and any(c["artefacto"] == fichero and c.get("motivo") not in
-                                                         ("sin-estado", "no-verificable") for c in p["cambios"]):
+                if doc and not doc.get("grande") and any(c["artefacto"] == fichero and c.get("motivo") != "sin-estado"
+                                                         for c in p["cambios"]):
                     salidas.append((doc, con_estado(doc["text"], p["nuevos"][clave]), clave == "ledger",
                                     f"{p['nombre']}/{fichero}"))
         if indice is not None and indice_nuevo != indice["text"]:
@@ -745,8 +799,9 @@ _CLAVES_AVISO = ("iniciativa", "tipo", "detalle")
 # fix3 (gap 4): vocabulario cerrado de lo que una entrada de caché puede traer; lo que llega al aviso de sesión sale
 # de las carpetas reales (la entrada debe ser de SU carpeta), nunca de un texto libre de la caché.
 _ESTADOS = frozenset(RANGO) | frozenset(RANGO_SPEC) | TERMINALES
-_MOTIVOS = frozenset({"reabierta", "cierre-olvidado", "sin-estado", "no-verificable"})
-_TIPOS_AVISO = frozenset({"ilegible", "no-escrito", "sin-estado", "cierre-pendiente", "retro-pendiente", "adelantado"})
+_MOTIVOS = frozenset({"reabierta", "cierre-olvidado", "sin-estado"})
+_TIPOS_AVISO = frozenset({"ilegible", "no-escrito", "sin-estado", "cierre-pendiente", "retro-pendiente", "adelantado",
+                          "no-derivable", "no-verificable"})
 _ETIQUETAS = frozenset({None, "cancelada", "cerrada", "completada, retro pendiente", "en curso", "planificada",
                         "evaluada", "solo spec"})
 _ENLACES = frozenset((fichero, label) for _, fichero, label in ARTEFACTOS)
@@ -782,6 +837,10 @@ def _plan_valido(plan, nombre=None):
     if not (all(_cambio_valido(c, nombre) for c in cambios) and all(_aviso_valido(a, nombre) for a in avisos)):
         return False
     if not all(isinstance(e, list) and len(e) == 2 and tuple(e) in _ENLACES for e in enlaces):
+        return False
+    estados = plan.get("estados")
+    if not (isinstance(estados, dict) and set(estados) <= set(_DERIVADOS)
+            and all(v is None or v in _ESTADOS for v in estados.values())):
         return False
     return (plan.get("etiqueta") in _ETIQUETAS and (plan.get("titulo") is None or _texto_corto(plan.get("titulo")))
             and all(isinstance(plan.get(k), bool) for k in ("retro", "cerrable", "vigente")))

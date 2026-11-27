@@ -114,10 +114,27 @@ def test_t42_fix1_gap14_contar_tareas_usa_el_parser_canonico_del_ledger():
     assert bd._ESTADOS_TAREAS.__globals__["__file__"].replace("\\", "/").endswith("agent-kits/shared/ledger-lint.py")
 
 
+def _ledger_c01(estado):
+    return f"---\nestado: {estado}\n---\n\n# Checklist — demo\n\n- [x] C-01 primera\n- [x] C-02 segunda\n"
+
+
 def test_t43_ledger_sin_tareas_txx_es_no_derivable_nunca_via_rapida_ni_planificada(tmp_path):
-    ledger_c01 = ("---\nestado: en-progreso\n---\n\n# Checklist — demo\n\n- [x] C-01 primera\n- [x] C-02 segunda\n")
-    rec = _iniciativa(tmp_path, tasks=ledger_c01)
+    rec = _iniciativa(tmp_path, tasks=_ledger_c01("borrador"))
     assert rec["fase"] == "no derivable", rec["fase"]
     assert any("no derivable" in w for w in bd.warnings_for([rec]))
-    rec = _iniciativa(tmp_path, nombre="2026-01-02-otra", spec=SPEC, evaluation=EVAL, plan=PLAN, tasks=ledger_c01)
+    (tmp_path / "b").mkdir()
+    rec = _iniciativa(tmp_path / "b", spec=SPEC, evaluation=EVAL, plan=PLAN, tasks=_ledger_c01("borrador"))
     assert rec["fase"] == "no derivable", rec["fase"]
+
+
+@pytest.mark.parametrize("estado, fase", [("completado", "completada"), ("en-progreso", "en curso")])
+def test_t43_ledger_sin_tareas_txx_conserva_el_estado_que_declara_y_avisa(tmp_path, estado, fase):
+    """T-42 (`test_dashboard`, vía rápida): la fase sale del estado DECLARADO del ledger; sin `### T-XX` no se deriva
+    nada de un 0/0, pero lo declarado se respeta, con el aviso."""
+    (tmp_path / "a").mkdir()
+    rec = _iniciativa(tmp_path / "a", spec=SPEC, plan=PLAN, tasks=_ledger_c01(estado))
+    assert rec["fase"] == fase and rec["ledger_sin_tareas"] is True, rec
+    assert any("no derivable" in w for w in bd.warnings_for([rec]))
+    (tmp_path / "b").mkdir()
+    otra = _iniciativa(tmp_path / "b", spec=SPEC, plan=PLAN, tasks=_ledger("borrador", ("borrador",)))
+    assert "ledger_sin_tareas" not in otra

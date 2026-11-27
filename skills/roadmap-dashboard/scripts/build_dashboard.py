@@ -353,6 +353,10 @@ def _scan_leer_tasks(rec, tasks_p):
     rec["progreso"] = parse_progress_totals(tasks_text)
     rec["ledger_estado"] = parse_frontmatter(tasks_text).get("estado") or table_value(tasks_text, "Estado")
     rec["tareas"] = contar_tareas(tasks_text)
+    # T-43: un ledger sin `### T-XX` (checklist heredada, `- [x] C-01 …`) no permite derivar la fase: ni «vía rápida»
+    # ni «planificada» por un 0/0. Marca interna: `_scan_una` la cambia por `ledger_sin_tareas: true` (clave aditiva,
+    # solo cuando aplica: el `--json` de los demás no cambia).
+    rec["_derivable"] = bool((_ESTADOS_TAREAS or _estados_locales)(tasks_text))
     # Vía rápida: o no hay spec, o el propio ledger la DECLARA en su fila Plan
     # («| **Plan** | n/a — **vía rápida** …»). Lo segundo cubre las vías rápidas
     # que nacen de una spec de backlog, que sí tienen spec.md.
@@ -430,7 +434,9 @@ def contar_tareas(text):
 
 def _scan_fase(rec):
     """Fase derivada de los ESTADOS y del progreso del ledger (T-42), no de los ficheros presentes:
-    cancelada · completada · en curso N/M · planificada · vía rápida · evaluada · solo spec."""
+    cancelada · completada · en curso N/M · planificada · vía rápida · evaluada · solo spec. Un ledger sin
+    `### T-XX` (T-43) conserva el estado que DECLARA (completado → completada; en-progreso → en curso) y, si no
+    declara ninguno de esos, es «no derivable»: nunca «vía rápida» ni «planificada» por un 0/0."""
     spec, ev = _norm_estado(rec.get("spec_estado")), _norm_estado(rec.get("eval_estado"))
     ledger, t = _norm_estado(rec.get("ledger_estado")), rec.get("tareas")
     if "cancelado" in (ev, ledger) or spec == "obsoleta":
@@ -444,6 +450,8 @@ def _scan_fase(rec):
         return "completada"
     if ledger in ("en-progreso", "en-revision"):
         return "en curso"
+    if rec.get("_derivable") is False:
+        return "no derivable"
     if rec["has_plan"] or (rec["has_tasks"] and not rec.get("via_rapida")):
         return "planificada"
     if rec.get("via_rapida"):
@@ -472,6 +480,8 @@ def _scan_una(path):
         _scan_leer_tasks(rec, r["tasks"])
     rec["generacion"] = _scan_generacion(r)
     rec["fase"] = _scan_fase(rec)
+    if rec.pop("_derivable", True) is False:
+        rec["ledger_sin_tareas"] = True
     return rec
 
 
@@ -509,6 +519,8 @@ def warnings_for(inits):
             if missing:
                 warns.append(f"{s}: evaluation.md presente pero no se leyeron "
                              f"{', '.join(missing)} (¿cambiaron las etiquetas de la tabla?)")
+        if r.get("ledger_sin_tareas"):
+            warns.append(f"{s}: tasks.md sin tareas `### T-XX` (ledger heredado): fase no derivable")
         if r["has_spec"] and not r["spec_estado"]:
             warns.append(f"{s}: spec.md sin 'estado' en el frontmatter")
         if _norm_estado(r["spec_estado"]) == "aprobada" and r["has_eval"] \

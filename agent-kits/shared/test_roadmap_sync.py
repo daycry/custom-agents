@@ -501,13 +501,14 @@ def test_t42_fix1_gap10_gate_escribe_ambos_o_ninguno(tmp_path, monkeypatch, caps
     assert out["escritos"] == ["spec.md"] and out["no_escritos"] == ["evaluation.md"]
 
 
-def test_t42_fix1_gap11_ledger_grande_sin_cerrar_avisa_no_escrito(tmp_path):
+def test_t42_fix1_gap11_ledger_grande_sin_cerrar_avisa_no_verificable(tmp_path):
+    """T-43: el aviso de un ledger > 256 KiB sin cerrar es `no-verificable` (antes `no-escrito`)."""
     roadmap = proyecto(tmp_path)
     grande = ledger("en-progreso") + ("relleno " * 40 + "\n") * 900
     c = iniciativa(roadmap, "2026-01-01-grande", tasks=grande)
     assert (c / "tasks.md").stat().st_size > 256 * 1024
     code, out = run_json(roadmap, "--check")
-    assert any(a["tipo"] == "no-escrito" and "tasks.md > 256 KiB" in a["detalle"] for a in out["avisos"]), out
+    assert any(a["tipo"] == "no-verificable" and "tasks.md > 256 KiB" in a["detalle"] for a in out["avisos"]), out
 
 
 # ---------------------------------------------------------------- fix1 gaps 6 y 15: comprobación de sesión acotada
@@ -981,7 +982,8 @@ def _grande_con_retro(roadmap):
 
 def test_t42_fix3_gap3_retro_gate_sync_no_abre_con_un_ledger_no_verificable(tmp_path):
     """Gap 3: ledger > 256 KiB con una tarea abierta + retro + fila → la puerta NO se abre (exit 1, motivo
-    explícito), nada escrito; y `--check` lo cuenta como desfase."""
+    explícito), nada escrito. T-43: `--check` ya no lo cuenta como desfase (de una iniciativa no verificable no se
+    propone nada): sale el aviso `no-verificable`."""
     roadmap = proyecto(tmp_path, filas_cal=CAL_DEMO)
     c = _grande_con_retro(roadmap)
     antes = snapshot(tmp_path)
@@ -993,7 +995,8 @@ def test_t42_fix3_gap3_retro_gate_sync_no_abre_con_un_ledger_no_verificable(tmp_
     code, out = run_json(c, "--cerrar")
     assert code == 1 and out["status"] == "too_large" and "ledger-archive.py" in out.get("detalle", ""), out
     code, out = run_json(roadmap, "--check")
-    assert code == 1 and any(d.get("motivo") == "no-verificable" for d in out["desfases"]), out
+    assert code == 0 and not out["desfases"], out
+    assert any(a["tipo"] == "no-verificable" for a in out["avisos"]), out
 
 
 def test_t42_fix3_gap5_cerrar_es_todo_o_nada(tmp_path, monkeypatch):
