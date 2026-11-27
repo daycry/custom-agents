@@ -8,6 +8,8 @@ Ejecutar: python -m pytest -q agent-kits/shared/test_roadmap_sync.py
 """
 import importlib.util
 import json
+import math
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -534,14 +536,35 @@ def test_t42_fix1_gap6_cache_por_firma_no_reanaliza_lo_que_no_cambia(tmp_path, m
 
 
 def test_t42_fix1_gap6_tope_de_carpetas_y_plazo(tmp_path):
+    """fix3 (gap 1): ver `test_t42_fix3_gap1_plazo_sin_reloj` (el tope de 128 carpetas sigue aquí)."""
+    roadmap = proyecto(tmp_path)
+    for n in range(130):
+        iniciativa(roadmap, f"2025-{1 + n // 28:02d}-{1 + n % 28:02d}-i{n}", spec=artefacto("spec", "borrador"))
+    informe = _mod().comprobar(tmp_path, deadline=math.inf)
+    assert informe["iniciativas"] == 128 and informe["recortadas"] == 2 and informe["omitida"] is False
+
+
+def test_t42_fix3_gap1_plazo_sin_reloj(tmp_path):
+    """fix3 (gap 1): sin reloj. El contrato: con la caché completa no se consulta el plazo; el plazo acota solo el
+    trabajo caro (`analizar`). Plazos absolutos (±inf) y caché aislada (fixture autouse), sin el valor por defecto."""
     roadmap = proyecto(tmp_path)
     for n in range(130):
         iniciativa(roadmap, f"2025-{1 + n // 28:02d}-{1 + n % 28:02d}-i{n}", spec=artefacto("spec", "borrador"))
     mod = _mod()
-    informe = mod.comprobar(tmp_path)
-    assert informe["iniciativas"] == 128 and informe["recortadas"] == 2
-    vencido = mod.comprobar(tmp_path, deadline=0)
-    assert vencido["omitida"] is True and vencido["status"] == "ok"
+    vacia = mod.comprobar(tmp_path, deadline=-math.inf)
+    assert vacia["omitida"] is True and vacia["status"] == "ok" and vacia["recortadas"] == 2
+    informe = mod.comprobar(tmp_path, deadline=math.inf)
+    assert informe["omitida"] is False and informe["iniciativas"] == 128 and informe["recortadas"] == 2
+    llamadas = []
+    real = mod.analizar
+    mod.analizar = lambda c, *a, **k: llamadas.append(c.name) or real(c, *a, **k)
+    servida = mod.comprobar(tmp_path, deadline=-math.inf)
+    assert servida["omitida"] is False and servida["iniciativas"] == 128 and llamadas == [], llamadas
+    tocada = sorted(roadmap.glob("2025-*"))[-1]
+    (tocada / "spec.md").write_text(artefacto("spec", "borrador") + "\n", encoding="utf-8")
+    una = mod.comprobar(tmp_path, deadline=-math.inf)
+    assert una["omitida"] is True and una["iniciativas"] == 127 and llamadas == []
+    assert tocada.name not in una["analizadas"]
 
 
 def test_t42_fix1_gap15_el_informe_trae_las_retros_abiertas(tmp_path):
@@ -756,3 +779,277 @@ def test_t42_fix2_gap11_indice_con_columna_slug(tmp_path):
     assert not any(" · estado: " in l for l in lineas)
     assert "Texto que no se toca." in lineas
     assert run_json(roadmap, "--check")[0] == 0
+
+
+# ---------------------------------------------------------------- fix3 de T-42 (revisión intento 3, ciclo 2)
+
+def _cache_por_defecto(monkeypatch, tmp_path):
+    """Sin `CUSTOM_AGENTS_CACHE_DIR`: la caché de usuario del plugin (XDG / ~/.cache; LOCALAPPDATA en Windows)."""
+    monkeypatch.delenv("CUSTOM_AGENTS_CACHE_DIR", raising=False)
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
+    monkeypatch.setenv("LOCALAPPDATA", str(home / "AppData" / "Local"))
+    return home
+
+
+def _del_ledger(informe):
+    """Los desfases del ledger (el del índice sale siempre: la fila falta en estos proyectos)."""
+    return [d for d in informe["desfases"] if d["tipo"] == "ledger"]
+
+
+def _proyecto_con_desfase(tmp_path):
+    proj = tmp_path / "proj"
+    roadmap = proyecto(proj)
+    iniciativa(roadmap, "2026-01-01-uno", tasks=ledger("borrador", ("en-progreso",)))
+    return proj, roadmap
+
+
+@pytest.mark.skipif(os.name == "nt", reason="umask y modos POSIX")
+def test_t42_fix3_gap2_umask_022_la_cache_se_escribe_en_la_cache_de_usuario(tmp_path, monkeypatch):
+    """Gap 2: con umask 022 la caché SÍ se escribe (antes los padres nacían 0o755 y la comprobación la rechazaba),
+    en `~/.cache/custom-agents/roadmap-sync/` (convención del índice de Codex de usage-meter), con 0o700 real."""
+    home = _cache_por_defecto(monkeypatch, tmp_path)
+    proj, _ = _proyecto_con_desfase(tmp_path)
+    mod = _mod()
+    viejo = os.umask(0o022)
+    try:
+        assert _del_ledger(mod.comprobar(proj, deadline=math.inf))
+    finally:
+        os.umask(viejo)
+    ruta = mod.cache_path(proj)
+    assert ruta is not None and ruta.parent == home / ".cache" / "custom-agents" / "roadmap-sync", ruta
+    assert ruta.is_file(), "la caché no se escribió con umask 022"
+    for d in (ruta.parent, ruta.parent.parent):
+        assert d.stat().st_mode & 0o777 == 0o700, (d, oct(d.stat().st_mode))
+    assert ruta.stat().st_mode & 0o077 == 0
+
+
+@pytest.mark.skipif(os.name == "nt", reason="XDG es POSIX")
+def test_t42_fix3_gap2_respeta_xdg_cache_home(tmp_path, monkeypatch):
+    _cache_por_defecto(monkeypatch, tmp_path)
+    xdg = tmp_path / "xdg"
+    xdg.mkdir()
+    monkeypatch.setenv("XDG_CACHE_HOME", str(xdg))
+    proj, _ = _proyecto_con_desfase(tmp_path)
+    mod = _mod()
+    mod.comprobar(proj, deadline=math.inf)
+    assert mod.cache_path(proj).parent == xdg / "custom-agents" / "roadmap-sync"
+    assert mod.cache_path(proj).is_file()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="LOCALAPPDATA es de Windows")
+def test_t42_fix3_gap2_windows_usa_localappdata(tmp_path, monkeypatch):
+    home = _cache_por_defecto(monkeypatch, tmp_path)
+    (home / "AppData" / "Local").mkdir(parents=True)
+    proj, _ = _proyecto_con_desfase(tmp_path)
+    mod = _mod()
+    mod.comprobar(proj, deadline=math.inf)
+    ruta = mod.cache_path(proj)
+    assert ruta is not None and ruta.parent == home / "AppData" / "Local" / "custom-agents" / "roadmap-sync", ruta
+    assert ruta.is_file()
+
+
+def _cache_llena(tmp_path):
+    proj, roadmap = _proyecto_con_desfase(tmp_path)
+    mod = _mod()
+    assert _del_ledger(mod.comprobar(proj, deadline=math.inf))
+    ruta = mod.cache_path(proj)
+    assert ruta.is_file()
+    return mod, proj, ruta
+
+
+def _plan_ajeno(ruta, nombre="2026-01-01-uno"):
+    """La entrada de otro usuario: forma válida, firma vigente, pero SIN desfases."""
+    datos = json.loads(ruta.read_text(encoding="utf-8"))
+    plan = datos["inic"][nombre]["plan"]
+    plan["cambios"], plan["avisos"] = [], []
+    return datos
+
+
+@pytest.mark.skipif(os.name == "nt" or not hasattr(os, "mkfifo"), reason="FIFO POSIX")
+def test_t42_fix3_gap4_fifo_en_la_ruta_de_la_cache_no_cuelga(tmp_path):
+    mod, proj, ruta = _cache_llena(tmp_path)
+    ruta.unlink()
+    os.mkfifo(ruta, 0o600)
+    codigo = ("import importlib.util,sys,math;"
+              f"s=importlib.util.spec_from_file_location('m', {str(SCRIPT)!r});m=importlib.util.module_from_spec(s);"
+              "s.loader.exec_module(m);"
+              f"print(len([d for d in m.comprobar({str(proj)!r}, deadline=math.inf)['desfases'] if d['tipo'] == 'ledger']))")
+    r = subprocess.run([sys.executable, "-c", codigo], capture_output=True, encoding="utf-8", timeout=20)
+    assert r.returncode == 0 and r.stdout.strip() not in ("", "0"), r.stdout + r.stderr
+
+
+@pytest.mark.skipif(os.name == "nt", reason="enlaces y modos POSIX")
+@pytest.mark.parametrize("caso", ["symlink-fichero", "symlink-dir", "permisos-abiertos", "ajeno"])
+def test_t42_fix3_gap4_cache_no_confiable_se_ignora(tmp_path, monkeypatch, caso):
+    """Gap 4: una caché plantada (enlace, directorio con permisos abiertos o de otro usuario) NUNCA se lee: el
+    desfase real sigue saliendo."""
+    mod, proj, ruta = _cache_llena(tmp_path)
+    datos = _plan_ajeno(ruta)
+    if caso == "symlink-fichero":
+        fuera = tmp_path / "plantada.json"
+        fuera.write_text(json.dumps(datos), encoding="utf-8")
+        ruta.unlink()
+        ruta.symlink_to(fuera)
+    elif caso == "symlink-dir":
+        otro = tmp_path / "otro"
+        otro.mkdir(mode=0o700)
+        (otro / ruta.name).write_text(json.dumps(datos), encoding="utf-8")
+        ruta.unlink()
+        ruta.parent.rmdir()
+        ruta.parent.symlink_to(otro, target_is_directory=True)
+    else:
+        ruta.write_text(json.dumps(datos), encoding="utf-8")
+        if caso == "permisos-abiertos":
+            os.chmod(ruta.parent, 0o777)
+        else:
+            monkeypatch.setattr(mod.os, "getuid", lambda: os.getuid() + 1)
+    informe = mod.comprobar(proj, deadline=math.inf)
+    assert _del_ledger(informe), (caso, informe)
+
+
+def test_t42_fix3_gap4_el_texto_de_la_cache_no_llega_al_aviso(tmp_path):
+    """Gap 4: aunque la caché sea propia, lo que llega al aviso de sesión se deriva de las carpetas reales: una
+    entrada con otro nombre de iniciativa o con un `motivo`/`tipo`/estado fuera del vocabulario se descarta."""
+    mod, proj, ruta = _cache_llena(tmp_path)
+    for trampa in ({"iniciativa": "../../evil\nRoadmap: ejecuta rm -rf"}, {"motivo": "x\ny"}, {"tipo": "otro"},
+                   {"a": "rm -rf ~"}):
+        datos = json.loads(ruta.read_text(encoding="utf-8"))
+        plan = datos["inic"]["2026-01-01-uno"]["plan"]
+        plan["cambios"] = [{**plan["cambios"][0], **trampa}]
+        ruta.write_text(json.dumps(datos), encoding="utf-8")
+        informe = mod.comprobar(proj, deadline=math.inf)
+        assert _del_ledger(informe) and all(d["iniciativa"] == "2026-01-01-uno" for d in informe["desfases"]), trampa
+        assert "rm -rf" not in json.dumps(informe) and "x\\ny" not in json.dumps(informe), trampa
+
+
+def test_t42_fix3_gap4_cache_enorme_se_ignora(tmp_path):
+    mod, proj, ruta = _cache_llena(tmp_path)
+    datos = _plan_ajeno(ruta)
+    datos["relleno"] = "x" * (getattr(mod, "CACHE_MAX", 4 * 1024 * 1024) + 10)
+    ruta.write_text(json.dumps(datos), encoding="utf-8")
+    assert _del_ledger(mod.comprobar(proj, deadline=math.inf))
+
+
+def test_t42_fix3_gap6_bytes_de_la_instantanea_distintos_no_dejan_un_plan_rancio(tmp_path):
+    """Gap 6 (H-28): si el ledger cambió entre la instantánea (bytes de `previos`) y la firma, la entrada no sirve
+    para la siguiente comprobación: la firma de la caché va con los mismos bytes analizados."""
+    proj, roadmap = _proyecto_con_desfase(tmp_path)
+    c = roadmap / "2026-01-01-uno"
+    viejo = ledger("en-progreso", ("en-progreso",)).encode()     # sin desfase (ya en-progreso)
+    mod = _mod()
+    assert not _del_ledger(mod.comprobar(proj, deadline=math.inf, previos={"2026-01-01-uno": viejo}))
+    actual = (c / "tasks.md").read_bytes()                       # en disco: borrador → desfase real
+    assert _del_ledger(mod.comprobar(proj, deadline=math.inf, previos={"2026-01-01-uno": actual}))
+    mod.comprobar(proj, deadline=math.inf, previos={"2026-01-01-uno": viejo})
+    assert _del_ledger(mod.comprobar(proj, deadline=math.inf)), "sin previos no vale una entrada de otros bytes"
+
+
+def test_t42_fix3_gap7_sin_directorio_privado_no_hay_cache_ni_en_el_proyecto(tmp_path, monkeypatch):
+    """Gap 7: sin un directorio de caché absoluto y fuera del proyecto, no hay caché (aviso en el informe), nunca en
+    el cwd ni dentro del proyecto."""
+    proj, _ = _proyecto_con_desfase(tmp_path)
+    for var in ("CUSTOM_AGENTS_CACHE_DIR", "XDG_CACHE_HOME", "LOCALAPPDATA"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("HOME", "relativo")
+    monkeypatch.setenv("USERPROFILE", "relativo")
+    for var in ("TMPDIR", "TEMP", "TMP"):
+        monkeypatch.setenv(var, str(proj))
+    monkeypatch.chdir(proj)
+    mod = _mod()
+    antes = snapshot(proj)
+    informe = mod.comprobar(proj, deadline=math.inf)
+    assert _del_ledger(informe) and snapshot(proj) == antes
+    assert any(a["tipo"] == "sin-cache" for a in informe["avisos"]), informe["avisos"]
+    monkeypatch.setenv("CUSTOM_AGENTS_CACHE_DIR", str(proj / ".claude" / "cache"))
+    informe = mod.comprobar(proj, deadline=math.inf)
+    assert snapshot(proj) == antes and any(a["tipo"] == "sin-cache" for a in informe["avisos"])
+
+
+def _grande_con_retro(roadmap):
+    relleno = "\n".join(f"<!-- relleno {n} {'x' * 200} -->" for n in range(1400))
+    c = iniciativa(roadmap, "2026-01-01-demo", retro=RETRO, spec=artefacto("spec", "aprobada"),
+                   plan=artefacto("plan", "en-progreso"),
+                   tasks=ledger("en-progreso", ("completado", "en-progreso")) + relleno + "\n")
+    assert (c / "tasks.md").stat().st_size > 256 * 1024
+    return c
+
+
+def test_t42_fix3_gap3_retro_gate_sync_no_abre_con_un_ledger_no_verificable(tmp_path):
+    """Gap 3: ledger > 256 KiB con una tarea abierta + retro + fila → la puerta NO se abre (exit 1, motivo
+    explícito), nada escrito; y `--check` lo cuenta como desfase."""
+    roadmap = proyecto(tmp_path, filas_cal=CAL_DEMO)
+    c = _grande_con_retro(roadmap)
+    antes = snapshot(tmp_path)
+    r = subprocess.run([sys.executable, str(KIT / "retro-gate.py"), str(c), "--sync"],
+                       capture_output=True, encoding="utf-8", timeout=30)
+    assert r.returncode == 1, r.stdout
+    assert "ABIERTA" not in r.stdout and "256 KiB" in r.stdout and "ledger-archive.py" in r.stdout, r.stdout
+    assert snapshot(tmp_path) == antes
+    code, out = run_json(c, "--cerrar")
+    assert code == 1 and out["status"] == "too_large" and "ledger-archive.py" in out.get("detalle", ""), out
+    code, out = run_json(roadmap, "--check")
+    assert code == 1 and any(d.get("motivo") == "no-verificable" for d in out["desfases"]), out
+
+
+def test_t42_fix3_gap5_cerrar_es_todo_o_nada(tmp_path, monkeypatch):
+    """Gap 5: si una escritura del cierre falla, se restauran las ya hechas (o exit 3 `partial` con la lista)."""
+    roadmap = proyecto(tmp_path, filas_cal=CAL_DEMO)
+    c = iniciativa(roadmap, "2026-01-01-demo", tasks=ledger("en-progreso"), retro=RETRO,
+                   spec=artefacto("spec", "aprobada"), plan=artefacto("plan", "en-progreso"))
+    antes = {f: (c / f).read_bytes() for f in ("spec.md", "improvement-plan.md", "tasks.md")}
+    mod = _mod()
+    real = mod.LW.IO.write
+
+    def write(path, *a, **k):
+        if Path(path).name == "improvement-plan.md":
+            raise OSError("no escribible")
+        return real(path, *a, **k)
+
+    monkeypatch.setattr(mod.LW.IO, "write", write)
+    with pytest.raises(mod.SyncError) as error:
+        mod.sincronizar(c, cerrar=True)
+    assert error.value.code in (1, 3)
+    if error.value.code == 1:
+        assert {f: (c / f).read_bytes() for f in antes} == antes
+    else:
+        assert error.value.extra["escritos"] and error.value.extra["no_escritos"]
+
+
+@pytest.mark.skipif(os.name == "nt" or (hasattr(os, "geteuid") and os.geteuid() == 0),
+                    reason="carpeta de solo lectura POSIX (root la escribe igual)")
+def test_t42_fix3_gap5_retro_gate_sync_no_abre_si_el_cierre_no_se_escribe(tmp_path):
+    roadmap = proyecto(tmp_path, filas_cal=CAL_DEMO)
+    c = iniciativa(roadmap, "2026-01-01-demo", tasks=ledger("en-progreso"), retro=RETRO,
+                   spec=artefacto("spec", "aprobada"), plan=artefacto("plan", "en-progreso"))
+    os.chmod(c, 0o555)
+    try:
+        r = subprocess.run([sys.executable, str(KIT / "retro-gate.py"), str(c), "--sync"],
+                           capture_output=True, encoding="utf-8", timeout=30)
+    finally:
+        os.chmod(c, 0o755)
+    assert r.returncode == 1 and "ABIERTA" not in r.stdout, r.stdout
+    assert _estado(c / "tasks.md") == "estado: en-progreso"
+
+
+def test_t42_fix3_gap8_una_tabla_fecha_slug_anterior_no_secuestra_el_indice(tmp_path):
+    """Gap 8: la tabla del índice es la que enlaza a carpetas de iniciativa (o tiene la cabecera completa conocida),
+    no la primera `| Fecha | Slug |`."""
+    mod = _mod()
+    viejo = "| Fecha | Slug | Estado | Coste estimado | Spec | Evaluación | Plan |\n|---|---|---|---|---|---|---|\n"
+    leyenda = "## Leyenda\n\n| Fecha | Slug | Nota |\n|---|---|---|\n| 2026-01-01 | a | ver |\n\n## Índice\n\n"
+    texto = leyenda + viejo + "| 2026-01-01 | a | borrador | 3h | [spec](2026-01-01-a/spec.md) | — | — |\n"
+    plan = {"nombre": "2026-01-01-a", "etiqueta": "en curso", "titulo": "T",
+            "enlaces": [["spec.md", "spec"], ["tasks.md", "tasks"]]}
+    nuevo, cambios, problemas = mod.editar_indice(texto, [plan])
+    assert nuevo.startswith(leyenda), nuevo
+    assert "| 2026-01-01 | a | en curso | 3h | [spec](2026-01-01-a/spec.md) | — | — |" in nuevo, nuevo
+    vacio = "| Fecha | Slug | Nota |\n|---|---|---|\n| 2026-01-01 | a | ver |\n"
+    nuevo, cambios, problemas = mod.editar_indice(vacio, [plan])
+    assert nuevo == vacio and problemas, (nuevo, problemas)
+    solo_cabecera = "| Fecha | Slug | Estado | Coste estimado | Spec | Evaluación | Plan |\n|---|---|---|---|---|---|---|\n"
+    nuevo, cambios, problemas = mod.editar_indice(solo_cabecera, [plan])
+    assert "2026-01-01-a/spec.md" in nuevo and not problemas, (nuevo, problemas)

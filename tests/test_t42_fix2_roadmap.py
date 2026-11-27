@@ -61,13 +61,7 @@ PIEZAS = ("agents/evaluator.md", "agents/planner.md", "agents/analyst.md", "skil
 def test_t42_fix2_gap6_ninguna_pieza_escribe_el_indice_salvo_roadmap_sync(rel):
     """Cualquier frase que hable del índice del roadmap con un verbo de escritura nombra a `roadmap-sync.py`
     como quien la escribe (no solo «Mantén»: «regístrala en», «actualiza», «escribes … su fila»)."""
-    malas = []
-    for linea in (ROOT / rel).read_text(encoding="utf-8").splitlines():
-        for frase in re.split(r"(?<=[.;])\s+", linea):
-            indice = "docs/roadmap/README.md" in frase or re.search(r"(?i)índice|README\.md", frase)
-            if indice and "roadmap/" in linea + frase and ESCRIBE_INDICE.search(frase) \
-                    and "roadmap-sync" not in frase:
-                malas.append(frase.strip())
+    malas = _frases_que_escriben_el_indice((ROOT / rel).read_text(encoding="utf-8"))
     assert not malas, malas
 
 
@@ -109,3 +103,50 @@ def test_t42_fix2_gap10_la_doc_dice_que_una_tarea_nueva_reabre_el_ledger():
     assert "tarea nueva" in plain("agent-kits/dev-cycle/references/phase6-close.md")
     assert "tarea nueva" in plain("docs/CONVENTIONS.md") and "borrador" in plain("docs/CONVENTIONS.md")
     assert "new task" in plain("docs/en/CONVENTIONS.md")
+
+
+# ---------------------------------------------------------------- fix3 (revisión intento 3, ciclo 2)
+
+def _frases_que_escriben_el_indice(texto):
+    """Frases que mandan escribir el índice del roadmap sin nombrar a `roadmap-sync.py` (detector del gap 6)."""
+    malas = []
+    for linea in texto.splitlines():
+        for frase in re.split(r"(?<=[.;])\s+", linea):
+            indice = "docs/roadmap/README.md" in frase or re.search(r"(?i)índice|README\.md", frase)
+            if indice and "roadmap/" in linea + frase and ESCRIBE_INDICE.search(frase) \
+                    and "roadmap-sync" not in frase:
+                malas.append(frase.strip())
+    return malas
+
+
+MUTANTES_GAP9 = {
+    "skills/dependency-upgrade/SKILL.md": ("su fila en el índice del roadmap la escribe `roadmap-sync.py`",
+                                           ["regístrala en el índice del roadmap", "mantén su fila en el índice del roadmap",
+                                            "edita su fila en el índice del roadmap",
+                                            "su fila en el índice del roadmap la mantiene el evaluator"]),
+    "docs/agents/evaluator.md": ("Su fila del índice `docs/roadmap/README.md` la escribe `roadmap-sync.py` (dueño único).",
+                                 ["Mantén su fila en el índice del roadmap.", "Registra la iniciativa en el índice del roadmap.",
+                                  "Edita su fila de `docs/roadmap/README.md`.",
+                                  "Su fila del índice `docs/roadmap/README.md` la mantiene el evaluator (dueño único)."]),
+}
+
+
+@pytest.mark.parametrize("rel", sorted(MUTANTES_GAP9))
+def test_t42_fix3_gap9_el_detector_del_duenyo_unico_cubre_estas_lineas(rel):
+    """Gap 9: `skills/dependency-upgrade/SKILL.md:70` y `docs/agents/evaluator.md:12` hoy pasan; cualquier frase
+    que mande mantener/editar/registrar el índice (o el «índice del roadmap») sin nombrar a `roadmap-sync.py` falla."""
+    original, mutantes = MUTANTES_GAP9[rel]
+    texto = (ROOT / rel).read_text(encoding="utf-8")
+    assert original in texto, rel
+    assert not _frases_que_escriben_el_indice(texto), rel
+    for mutante in mutantes:
+        assert _frases_que_escriben_el_indice(texto.replace(original, mutante)), (rel, mutante)
+
+
+@pytest.mark.parametrize("rel,texto", (("docs/FLOWS.md", "ledger no verificable"), ("docs/en/FLOWS.md", "unverifiable ledger")))
+def test_t42_fix3_gap10_flows_exit_1_de_retro_gate_sync(rel, texto):
+    """Gap 10: el exit 1 de `retro-gate --sync` también son tareas abiertas o un ledger no verificable: no cierra."""
+    bloque = (ROOT / rel).read_text(encoding="utf-8")
+    linea = next(l for l in bloque.splitlines() if 'RG -.->|"exit 1"|' in l)
+    assert texto in linea and ("no cierra" in linea or "no closeout" in linea), linea
+    assert "ledger completado" not in linea, linea
